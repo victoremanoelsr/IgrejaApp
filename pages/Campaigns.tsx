@@ -1,8 +1,9 @@
+
 import React, { useState } from 'react';
 import { useApp } from '../context';
 import { 
   Megaphone, Plus, Target, Calendar, DollarSign, X, TrendingUp, History, 
-  Trash2, Edit2, FileText, ArrowUpCircle, ArrowDownCircle, Save, Download, CheckCircle, Lock
+  Trash2, Edit2, FileText, ArrowUpCircle, ArrowDownCircle, Save, Download, CheckCircle, Lock, AlertTriangle, Info
 } from 'lucide-react';
 import { Campaign, Transaction } from '../types';
 import jsPDF from 'jspdf';
@@ -22,11 +23,69 @@ export const Campaigns: React.FC = () => {
   
   // Create Form State
   const [newName, setNewName] = useState('');
-  const [newGoal, setNewGoal] = useState('');
+  const [newGoal, setNewGoal] = useState(''); 
   const [newStartDate, setNewStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [newDescription, setNewDescription] = useState('');
 
+  // --- CUSTOM CONFIRM/ALERT MODAL STATE ---
+  const [modalState, setModalState] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    variant: 'danger' | 'warning' | 'success' | 'info';
+    showCancel: boolean;
+    onConfirm?: () => void;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    variant: 'info',
+    showCancel: false,
+    onConfirm: undefined
+  });
+
+  const showAlert = (title: string, message: string, variant: 'success' | 'info' | 'danger' = 'info') => {
+    setModalState({
+      isOpen: true,
+      title,
+      message,
+      variant,
+      showCancel: false,
+      onConfirm: () => setModalState(prev => ({ ...prev, isOpen: false }))
+    });
+  };
+
+  const showConfirm = (title: string, message: string, onConfirm: () => void, variant: 'warning' | 'danger' = 'warning') => {
+    setModalState({
+      isOpen: true,
+      title,
+      message,
+      variant,
+      showCancel: true,
+      onConfirm: () => {
+        onConfirm();
+        setModalState(prev => ({ ...prev, isOpen: false }));
+      }
+    });
+  };
+
   const churchCampaigns = campaigns.filter(c => c.churchId === currentChurch?.id);
+
+  // --- HELPERS PARA MÁSCARA DE MOEDA ---
+  const formatCurrencyInput = (value: string) => {
+    const onlyNums = value.replace(/\D/g, "");
+    if (!onlyNums) return "";
+    const amount = parseFloat(onlyNums) / 100;
+    return amount.toLocaleString("pt-BR", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    });
+  };
+
+  const parseCurrencyToNumber = (value: string) => {
+    if (!value) return 0;
+    return parseFloat(value.replace(/\./g, '').replace(',', '.'));
+  };
 
   // --- HANDLERS FOR MAIN LIST ---
   const handleCreateSubmit = (e: React.FormEvent) => {
@@ -37,7 +96,7 @@ export const Campaigns: React.FC = () => {
       id: '',
       churchId: currentChurch.id,
       name: newName.toUpperCase(),
-      goal: parseFloat(newGoal),
+      goal: parseCurrencyToNumber(newGoal),
       startDate: newStartDate,
       description: newDescription.toUpperCase(),
       status: 'ATIVA'
@@ -48,14 +107,17 @@ export const Campaigns: React.FC = () => {
     setNewName('');
     setNewGoal('');
     setNewDescription('');
-    alert('Campanha criada com sucesso!');
+    showAlert('Sucesso', 'Campanha criada com sucesso!', 'success');
   };
 
   const handleDeleteCampaign = (e: React.MouseEvent, id: string, name: string) => {
     e.stopPropagation();
-    if(window.confirm(`Tem certeza que deseja excluir a campanha "${name}"?\n\nTodo o histórico de lançamentos vinculados a ela será mantido apenas no financeiro geral.`)) {
-        deleteCampaign(id);
-    }
+    showConfirm(
+        'Excluir Campanha',
+        `Tem certeza que deseja excluir a campanha "${name}"?\n\nTodo o histórico de lançamentos vinculados a ela será mantido apenas no financeiro geral.`,
+        () => deleteCampaign(id),
+        'danger'
+    );
   }
 
   // ==================================================================================
@@ -72,13 +134,12 @@ export const Campaigns: React.FC = () => {
     const [transType, setTransType] = useState<'ENTRADA' | 'SAIDA'>('ENTRADA');
     const [transAmount, setTransAmount] = useState('');
     const [transDate, setTransDate] = useState(new Date().toISOString().split('T')[0]);
-    // Entrada: Doador / Saída: Destino
-    const [transPerson, setTransPerson] = useState(''); // Donor Name or "Quem retirou"
-    const [transDesc, setTransDesc] = useState(''); // Description/Destination
+    const [transPerson, setTransPerson] = useState(''); 
+    const [transDesc, setTransDesc] = useState('');
 
     // --- Edit Campaign State ---
     const [editName, setEditName] = useState(selectedCampaign.name);
-    const [editGoal, setEditGoal] = useState(selectedCampaign.goal.toString());
+    const [editGoal, setEditGoal] = useState(selectedCampaign.goal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
     const [editDate, setEditDate] = useState(selectedCampaign.startDate);
 
     // --- Derived Data ---
@@ -95,8 +156,10 @@ export const Campaigns: React.FC = () => {
     const handleTransactionSubmit = (e: React.FormEvent) => {
       e.preventDefault();
       if (!user) return;
+      
+      // BLOQUEIO LÓGICO EXTRA
       if (isFinished) {
-        alert("Esta campanha está finalizada e não aceita novos lançamentos.");
+        showAlert("Ação Bloqueada", "Esta campanha está encerrada.", 'danger');
         return;
       }
 
@@ -107,9 +170,9 @@ export const Campaigns: React.FC = () => {
       const newT: Transaction = {
         id: '',
         churchId: currentChurch.id,
-        campaignId: selectedCampaign.id, // VINCULO ESSENCIAL
+        campaignId: selectedCampaign.id,
         type: transType,
-        category: transType === 'ENTRADA' ? 'OUTROS' : 'DESPESA_VARIAVEL', // Generico
+        category: transType === 'ENTRADA' ? 'OUTROS' : 'DESPESA_VARIAVEL',
         amount: parseFloat(transAmount),
         date: transDate,
         description: descriptionFinal.toUpperCase(),
@@ -117,69 +180,97 @@ export const Campaigns: React.FC = () => {
       };
 
       addTransaction(newT);
-      alert('Lançamento realizado!');
+      showAlert('Sucesso', 'Lançamento realizado!', 'success');
       setTransAmount('');
       setTransPerson('');
       setTransDesc('');
     };
 
     const handleDeleteTransaction = (id: string) => {
-      if(window.confirm('Deseja excluir este lançamento do histórico?')) {
-        deleteTransaction(id);
+      showConfirm(
+        'Excluir Lançamento',
+        'Deseja excluir este lançamento do histórico?',
+        () => deleteTransaction(id),
+        'danger'
+      );
+    };
+
+    const handleUpdateCampaign = async (e: React.FormEvent) => {
+      e.preventDefault();
+      const res = await updateCampaign(selectedCampaign.id, {
+        ...selectedCampaign,
+        name: editName.toUpperCase(),
+        goal: parseCurrencyToNumber(editGoal),
+        startDate: editDate
+      });
+      
+      if(res.success) {
+          showAlert('Sucesso', 'Dados da campanha atualizados!', 'success');
+          setViewMode('DASHBOARD');
+      } else {
+          showAlert('Erro', `Erro ao atualizar: ${res.error}`, 'danger');
       }
     };
 
-    const handleUpdateCampaign = (e: React.FormEvent) => {
-      e.preventDefault();
-      updateCampaign(selectedCampaign.id, {
-        ...selectedCampaign,
-        name: editName.toUpperCase(),
-        goal: parseFloat(editGoal),
-        startDate: editDate
-      });
-      alert('Dados da campanha atualizados!');
-      setViewMode('DASHBOARD');
-    };
-
-    const handleFinishCampaign = () => {
+    const handleFinishCampaign = async () => {
+      // REABRIR
       if (isFinished) {
-        if(window.confirm("Esta campanha já está finalizada. Deseja REABRIR a campanha para novos lançamentos?")) {
-           const updated = { ...selectedCampaign, status: 'ATIVA' as const };
-           updateCampaign(selectedCampaign.id, updated);
-           setSelectedCampaign(updated);
-           alert('Campanha reaberta com sucesso!');
-        }
+        showConfirm(
+            'Reabrir Campanha',
+            "Esta campanha está ENCERRADA. Deseja reabri-la para novos lançamentos?",
+            async () => {
+                const updated: Campaign = { ...selectedCampaign, status: 'ATIVA' as const };
+                const res = await updateCampaign(selectedCampaign.id, updated);
+                
+                if(res.success) {
+                    setSelectedCampaign(updated);
+                    showAlert('Sucesso', 'Campanha reaberta com sucesso!', 'success');
+                } else {
+                    showAlert('Erro', `Erro ao reabrir: ${res.error}`, 'danger');
+                }
+            },
+            'warning'
+        );
         return;
       }
 
-      if(window.confirm(`Deseja FINALIZAR a campanha "${selectedCampaign.name}"?\n\nEla será encerrada. O histórico financeiro será mantido, mas não será possível adicionar novos lançamentos.`)) {
-        const updated = { ...selectedCampaign, status: 'FINALIZADA' as const };
-        updateCampaign(selectedCampaign.id, updated);
-        setSelectedCampaign(updated);
-        alert('Campanha finalizada com sucesso!');
-        setViewMode('DASHBOARD'); // Volta para o dashboard para ver o status atualizado
-      }
+      // FINALIZAR
+      showConfirm(
+          'Encerrar Campanha',
+          `ATENÇÃO: Deseja realmente ENCERRAR a campanha "${selectedCampaign.name}"?\n\nIsso bloqueará novos lançamentos.`,
+          async () => {
+            const updated: Campaign = { ...selectedCampaign, status: 'FINALIZADA' as const };
+            const res = await updateCampaign(selectedCampaign.id, updated);
+            
+            if (res.success) {
+                setSelectedCampaign(updated);
+                setViewMode('DASHBOARD'); 
+                showAlert('Concluído', 'Campanha encerrada com sucesso!', 'success');
+            } else {
+                showAlert('Erro Crítico', `ERRO AO FINALIZAR: ${res.error}\n\nVerifique se o script de atualização do banco de dados (setup.sql) foi executado corretamente.`, 'danger');
+            }
+          },
+          'warning'
+      );
     };
 
     const generateReport = () => {
       if (!currentChurch || !selectedCampaign) return;
 
       const doc = new jsPDF();
-      const orange = [249, 115, 22]; // RGB do brand-orange
+      const orange: [number, number, number] = [249, 115, 22];
       
-      // Cabeçalho
       doc.setFontSize(18);
       doc.setTextColor(orange[0], orange[1], orange[2]);
       doc.text(currentChurch.name.toUpperCase(), 14, 20);
       
       doc.setFontSize(12);
       doc.setTextColor(100);
-      doc.text(`Relatório Financeiro de Campanha ${selectedCampaign.status === 'FINALIZADA' ? '(FINALIZADA)' : ''}`, 14, 28);
+      doc.text(`Relatório Financeiro de Campanha ${isFinished ? '(ENCERRADA)' : '(ATIVA)'}`, 14, 28);
       
       doc.setDrawColor(200);
       doc.line(14, 32, 196, 32);
 
-      // Dados da Campanha
       doc.setFontSize(14);
       doc.setTextColor(0);
       doc.text(selectedCampaign.name, 14, 42);
@@ -187,11 +278,7 @@ export const Campaigns: React.FC = () => {
       doc.setFontSize(10);
       doc.setTextColor(100);
       doc.text(`Início: ${new Date(selectedCampaign.startDate).toLocaleDateString('pt-BR')}`, 14, 48);
-      if (selectedCampaign.description) {
-        doc.text(`Descrição: ${selectedCampaign.description}`, 14, 53);
-      }
 
-      // Quadro de Resumo
       const summaryY = 60;
       doc.setFillColor(250, 250, 250);
       doc.setDrawColor(220);
@@ -216,7 +303,7 @@ export const Campaigns: React.FC = () => {
       doc.text(`R$ ${totalOut.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`, 120, summaryY + 18);
       
       doc.setTextColor(0);
-      doc.text(`R$ ${balance.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`, 170, summaryY + 18, { align: 'right' });
+      doc.text(`R$ ${balance.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`, 170, summaryY + 18, { align: 'right' }); 
       doc.setFont(undefined, 'normal');
 
       const tableRows = campTransactions.map(t => [
@@ -244,16 +331,6 @@ export const Campaigns: React.FC = () => {
           3: { cellWidth: 35, halign: 'right' }
         }
       });
-
-      const pageCount = (doc as any).internal.getNumberOfPages();
-      for(let i = 1; i <= pageCount; i++) {
-        doc.setPage(i);
-        doc.setFontSize(8);
-        doc.setTextColor(150);
-        doc.text(`Gerado em ${new Date().toLocaleString('pt-BR')} via IgrejaApp`, 14, doc.internal.pageSize.height - 10);
-        doc.text(`Página ${i} de ${pageCount}`, doc.internal.pageSize.width - 20, doc.internal.pageSize.height - 10, {align: 'right'});
-      }
-
       doc.save(`Relatorio_Campanha_${selectedCampaign.name.replace(/\s+/g, '_')}.pdf`);
     };
 
@@ -261,13 +338,19 @@ export const Campaigns: React.FC = () => {
     const renderContent = () => {
       switch(viewMode) {
         case 'LANCAMENTOS':
+          // BLOQUEIO VISUAL
           if (isFinished) {
             return (
-              <div className="flex flex-col items-center justify-center p-10 bg-gray-50 border border-gray-200 rounded-lg text-gray-500">
-                <Lock size={48} className="mb-2 text-gray-300"/>
-                <p className="font-bold">Campanha Finalizada</p>
-                <p className="text-sm">Novos lançamentos estão bloqueados.</p>
-                <button onClick={() => setViewMode('DASHBOARD')} className="mt-4 text-brand-orange hover:underline text-sm">Voltar ao painel</button>
+              <div className="flex flex-col items-center justify-center p-12 bg-red-50 border-2 border-red-100 rounded-xl text-red-400">
+                <Lock size={64} className="mb-4 text-red-300"/>
+                <h3 className="text-xl font-bold text-red-600 mb-2">CAMPANHA ENCERRADA</h3>
+                <p className="text-sm text-center max-w-xs mb-6">Não é possível realizar novos lançamentos de entrada ou saída pois esta campanha foi finalizada.</p>
+                <button 
+                  onClick={() => setViewMode('DASHBOARD')} 
+                  className="px-6 py-2 bg-white border border-red-200 text-red-600 rounded-lg hover:bg-red-100 font-bold"
+                >
+                  Voltar ao Resumo
+                </button>
               </div>
             );
           }
@@ -357,10 +440,10 @@ export const Campaigns: React.FC = () => {
         case 'EDITAR':
            if (isFinished) {
             return (
-              <div className="flex flex-col items-center justify-center p-10 bg-gray-50 border border-gray-200 rounded-lg text-gray-500">
-                <Lock size={48} className="mb-2 text-gray-300"/>
-                <p className="font-bold">Campanha Finalizada</p>
-                <p className="text-sm">Edição bloqueada.</p>
+              <div className="flex flex-col items-center justify-center p-12 bg-gray-50 border border-gray-200 rounded-lg text-gray-500">
+                <Lock size={64} className="mb-4 text-gray-300"/>
+                <p className="font-bold text-lg">Campanha Encerrada</p>
+                <p className="text-sm">Edição de dados bloqueada.</p>
                 <button onClick={() => setViewMode('DASHBOARD')} className="mt-4 text-brand-orange hover:underline text-sm">Voltar ao painel</button>
               </div>
             );
@@ -375,7 +458,12 @@ export const Campaigns: React.FC = () => {
                  </div>
                  <div>
                    <label className="block text-xs font-bold text-gray-500 uppercase">Meta (R$)</label>
-                   <input type="number" step="0.01" className="w-full p-2 border rounded" value={editGoal} onChange={e => setEditGoal(e.target.value)} />
+                   <input 
+                      type="text" 
+                      className="w-full p-2 border rounded" 
+                      value={editGoal} 
+                      onChange={e => setEditGoal(formatCurrencyInput(e.target.value))} 
+                    />
                  </div>
                  <div>
                    <label className="block text-xs font-bold text-gray-500 uppercase">Data de Início</label>
@@ -388,10 +476,19 @@ export const Campaigns: React.FC = () => {
 
         default: // DASHBOARD
            return (
-             <div className="text-center py-10 text-gray-400 bg-gray-50 rounded border border-dashed">
-               <TrendingUp size={48} className="mx-auto mb-2 opacity-50"/>
-               <p>Selecione uma ação nos botões acima para gerenciar a campanha.</p>
-               {isFinished && <p className="text-sm font-bold text-brand-orange mt-2">Esta campanha está finalizada.</p>}
+             <div className={`text-center py-10 rounded border border-dashed transition-colors ${isFinished ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-200'}`}>
+               {isFinished ? (
+                   <>
+                    <Lock size={48} className="mx-auto mb-2 text-red-300"/>
+                    <p className="text-red-500 font-bold">CAMPANHA ENCERRADA</p>
+                    <p className="text-xs text-red-400">Nenhuma nova ação permitida.</p>
+                   </>
+               ) : (
+                   <>
+                    <TrendingUp size={48} className="mx-auto mb-2 opacity-50 text-gray-400"/>
+                    <p className="text-gray-400">Selecione uma ação nos botões acima.</p>
+                   </>
+               )}
              </div>
            );
       }
@@ -401,17 +498,27 @@ export const Campaigns: React.FC = () => {
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 overflow-y-auto">
         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl animate-fade-in-down flex flex-col max-h-[95vh]">
           
-          {/* HEADER - Changes color based on Status */}
-          <div className={`${isFinished ? 'bg-gray-600' : 'bg-brand-orange'} p-6 flex justify-between items-start text-white shrink-0 transition-colors`}>
+          {/* HEADER - Visual change based on Status */}
+          <div className={`${isFinished ? 'bg-gray-800' : 'bg-brand-orange'} p-6 flex justify-between items-start text-white shrink-0 transition-colors duration-300`}>
             <div>
-              <h2 className="text-3xl font-black flex items-center">
-                {isFinished ? <CheckCircle className="mr-3" size={32}/> : <Target className="mr-3" size={32}/>} 
-                {selectedCampaign.name}
-              </h2>
-              <p className="text-orange-100 mt-1 text-sm">{selectedCampaign.description}</p>
+              <div className="flex items-center space-x-3">
+                 {isFinished ? <Lock size={32} className="text-red-400"/> : <Target size={32}/>}
+                 <h2 className="text-3xl font-black">
+                    {selectedCampaign.name}
+                 </h2>
+              </div>
+              
               <div className="flex items-center space-x-2 mt-2">
                  <p className="text-xs bg-black/20 inline-block px-2 py-1 rounded">Início: {new Date(selectedCampaign.startDate).toLocaleDateString('pt-BR')}</p>
-                 {isFinished && <p className="text-xs bg-white text-gray-700 font-bold inline-block px-2 py-1 rounded border shadow-sm">FINALIZADA</p>}
+                 {isFinished ? (
+                    <p className="text-xs bg-red-600 text-white font-bold inline-block px-2 py-1 rounded border border-red-500 shadow-sm flex items-center">
+                        <Lock size={12} className="mr-1"/> STATUS: ENCERRADA
+                    </p>
+                 ) : (
+                    <p className="text-xs bg-green-600 text-white font-bold inline-block px-2 py-1 rounded border border-green-500 shadow-sm flex items-center">
+                        <Target size={12} className="mr-1"/> STATUS: ATIVA
+                    </p>
+                 )}
               </div>
             </div>
             <button onClick={() => setSelectedCampaign(null)} className="text-white/70 hover:text-white p-2 hover:bg-white/10 rounded-full">
@@ -446,13 +553,15 @@ export const Campaigns: React.FC = () => {
             <div className="grid grid-cols-5 gap-2 mb-6">
               <button 
                 onClick={() => setViewMode(viewMode === 'LANCAMENTOS' ? 'DASHBOARD' : 'LANCAMENTOS')}
-                disabled={isFinished}
+                // Removemos o disabled aqui para permitir que o usuário CLIQUE e veja a mensagem de bloqueio, 
+                // mas a UI interna tratará o bloqueio visualmente.
                 className={`flex flex-col items-center justify-center p-3 rounded-lg border transition-all ${
-                    isFinished ? 'bg-gray-50 text-gray-400 cursor-not-allowed opacity-60' : 
-                    viewMode === 'LANCAMENTOS' ? 'bg-brand-orange text-white border-brand-orange' : 'bg-white hover:bg-orange-50 text-gray-600'
+                    viewMode === 'LANCAMENTOS' 
+                    ? (isFinished ? 'bg-red-100 border-red-300 text-red-700' : 'bg-brand-orange text-white border-brand-orange') 
+                    : 'bg-white hover:bg-orange-50 text-gray-600'
                 }`}
               >
-                <DollarSign size={20} className="mb-1"/>
+                {isFinished ? <Lock size={20} className="mb-1"/> : <DollarSign size={20} className="mb-1"/>}
                 <span className="text-xs font-bold">Lançamentos</span>
               </button>
               
@@ -474,22 +583,27 @@ export const Campaigns: React.FC = () => {
 
               <button 
                 onClick={() => setViewMode(viewMode === 'EDITAR' ? 'DASHBOARD' : 'EDITAR')}
-                disabled={isFinished}
                 className={`flex flex-col items-center justify-center p-3 rounded-lg border transition-all ${
-                    isFinished ? 'bg-gray-50 text-gray-400 cursor-not-allowed opacity-60' :
-                    viewMode === 'EDITAR' ? 'bg-brand-orange text-white border-brand-orange' : 'bg-white hover:bg-orange-50 text-gray-600'
+                    viewMode === 'EDITAR' 
+                    ? (isFinished ? 'bg-red-100 border-red-300 text-red-700' : 'bg-brand-orange text-white border-brand-orange')
+                    : 'bg-white hover:bg-orange-50 text-gray-600'
                 }`}
               >
-                <Edit2 size={20} className="mb-1"/>
+                {isFinished ? <Lock size={20} className="mb-1"/> : <Edit2 size={20} className="mb-1"/>}
                 <span className="text-xs font-bold">Editar</span>
               </button>
 
+              {/* BOTÃO FINALIZAR / ENCERRADA */}
               <button 
                 onClick={handleFinishCampaign}
-                className={`flex flex-col items-center justify-center p-3 rounded-lg border transition-all ${isFinished ? 'bg-gray-100 text-gray-400 border-gray-200' : 'bg-white hover:bg-green-50 text-green-600 border-green-200'}`}
+                className={`flex flex-col items-center justify-center p-3 rounded-lg border transition-all ${
+                    isFinished 
+                    ? 'bg-red-100 text-red-600 border-red-200 hover:bg-red-200' 
+                    : 'bg-white hover:bg-green-50 text-green-600 border-green-200'
+                }`}
               >
-                <CheckCircle size={20} className="mb-1"/>
-                <span className="text-xs font-bold">{isFinished ? 'Finalizada' : 'Finalizar'}</span>
+                {isFinished ? <Lock size={20} className="mb-1"/> : <CheckCircle size={20} className="mb-1"/>}
+                <span className="text-xs font-bold">{isFinished ? 'Encerrada' : 'Finalizar'}</span>
               </button>
             </div>
 
@@ -510,6 +624,67 @@ export const Campaigns: React.FC = () => {
 
   return (
     <div className="space-y-6 relative">
+      {/* GLOBAL CONFIRM/ALERT MODAL */}
+      {modalState.isOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full overflow-hidden transform transition-all scale-100">
+             {/* Header Colorido baseado no tipo */}
+             <div className={`h-2 ${
+               modalState.variant === 'danger' ? 'bg-red-500' : 
+               modalState.variant === 'warning' ? 'bg-yellow-500' : 
+               modalState.variant === 'success' ? 'bg-green-500' : 
+               'bg-blue-500'
+             }`}></div>
+
+             <div className="p-6">
+                <div className="flex items-center mb-4">
+                    <div className={`p-3 rounded-full mr-4 ${
+                         modalState.variant === 'danger' ? 'bg-red-100 text-red-500' : 
+                         modalState.variant === 'warning' ? 'bg-yellow-100 text-yellow-600' : 
+                         modalState.variant === 'success' ? 'bg-green-100 text-green-600' : 
+                         'bg-blue-100 text-blue-600'
+                    }`}>
+                        {modalState.variant === 'danger' && <AlertTriangle size={24}/>}
+                        {modalState.variant === 'warning' && <AlertTriangle size={24}/>}
+                        {modalState.variant === 'success' && <CheckCircle size={24}/>}
+                        {modalState.variant === 'info' && <Info size={24}/>}
+                    </div>
+                    <h3 className="text-xl font-bold text-gray-800">{modalState.title}</h3>
+                </div>
+                
+                <p className="text-gray-600 mb-6 text-sm leading-relaxed whitespace-pre-line pl-[3.5rem] -mt-2">
+                    {modalState.message}
+                </p>
+
+                <div className="flex justify-end space-x-3">
+                    {modalState.showCancel && (
+                        <button 
+                            onClick={() => setModalState(prev => ({ ...prev, isOpen: false }))}
+                            className="px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium transition-colors"
+                        >
+                            Cancelar
+                        </button>
+                    )}
+                    <button 
+                        onClick={() => {
+                            if (modalState.onConfirm) modalState.onConfirm();
+                            else setModalState(prev => ({ ...prev, isOpen: false }));
+                        }}
+                        className={`px-6 py-2 rounded-lg text-white font-bold shadow-md transition-transform active:scale-95 ${
+                            modalState.variant === 'danger' ? 'bg-red-600 hover:bg-red-700' : 
+                            modalState.variant === 'warning' ? 'bg-yellow-600 hover:bg-yellow-700' : 
+                            modalState.variant === 'success' ? 'bg-green-600 hover:bg-green-700' : 
+                            'bg-blue-600 hover:bg-blue-700'
+                        }`}
+                    >
+                        {modalState.showCancel ? 'Confirmar' : 'OK'}
+                    </button>
+                </div>
+             </div>
+          </div>
+        </div>
+      )}
+
       <CampaignDetailModal />
 
       <div className="flex justify-between items-center">
@@ -534,7 +709,7 @@ export const Campaigns: React.FC = () => {
                 <input 
                   type="text" 
                   required
-                  placeholder="EX: REFORMA DO TELHADO 2024"
+                  placeholder="EX: REFORMA DO TELHADO"
                   className="mt-1 block w-full p-2 border rounded-md uppercase"
                   value={newName}
                   onChange={e => setNewName(e.target.value.toUpperCase())}
@@ -543,13 +718,12 @@ export const Campaigns: React.FC = () => {
               <div>
                 <label className="block text-sm font-medium text-gray-700">Meta de Valor (R$)</label>
                 <input 
-                  type="number" 
-                  step="0.01"
+                  type="text" 
                   required
-                  placeholder="0.00"
+                  placeholder="0,00"
                   className="mt-1 block w-full p-2 border rounded-md"
                   value={newGoal}
-                  onChange={e => setNewGoal(e.target.value)}
+                  onChange={e => setNewGoal(formatCurrencyInput(e.target.value))}
                 />
               </div>
               <div>
@@ -604,7 +778,7 @@ export const Campaigns: React.FC = () => {
                 <div className="flex justify-between items-start mb-4 pr-8">
                   <h3 className={`text-xl font-bold line-clamp-1 transition-colors ${isFinished ? 'text-gray-500' : 'text-gray-900 group-hover:text-brand-orange'}`} title={campaign.name}>{campaign.name}</h3>
                   <div className={`p-2 rounded-full shrink-0 ml-2 ${isFinished ? 'bg-gray-200 text-gray-500' : 'bg-orange-100 text-brand-orange'}`}>
-                    {isFinished ? <CheckCircle size={20} /> : <Target size={20} />}
+                    {isFinished ? <Lock size={20} /> : <Target size={20} />}
                   </div>
                 </div>
                 
@@ -625,7 +799,7 @@ export const Campaigns: React.FC = () => {
 
                   <div className="flex justify-between text-sm text-gray-500 pt-1">
                     <span className="flex items-center"><DollarSign size={14} className="mr-1"/> Meta: {campaign.goal.toLocaleString('pt-BR')}</span>
-                    {isFinished && <span className="text-xs font-bold bg-gray-200 px-2 rounded">CONCLUÍDA</span>}
+                    {isFinished && <span className="text-xs font-bold bg-red-100 text-red-600 px-2 rounded flex items-center"><Lock size={10} className="mr-1"/>ENCERRADA</span>}
                   </div>
                 </div>
               </div>

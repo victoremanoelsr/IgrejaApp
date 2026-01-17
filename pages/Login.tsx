@@ -1,18 +1,19 @@
 import React, { useState } from 'react';
 import { useApp } from '../context';
 import { useNavigate } from 'react-router-dom';
-import { Lock, User, ArrowRight, AlertCircle, CheckCircle, Building } from 'lucide-react';
+import { Lock, User, ArrowRight, AlertCircle, CheckCircle, Building, Eye, EyeOff } from 'lucide-react';
 
 type LoginStep = 'LOGIN' | 'RECOVERY_IDENTIFY' | 'RECOVERY_SELECT' | 'RECOVERY_RESET_USER' | 'RECOVERY_RESET_PASS';
 
 export const Login: React.FC = () => {
-  const { login, recoverAccount, updateUserCredentials, users } = useApp(); // users needed to check role before navigation
+  const { login, recoverAccount, updateUserCredentials } = useApp();
   const navigate = useNavigate();
   const [step, setStep] = useState<LoginStep>('LOGIN');
   
   // Form States
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false); // Novo estado para visibilidade
   
   // Recovery States
   const [recoveryName, setRecoveryName] = useState('');
@@ -42,19 +43,19 @@ export const Login: React.FC = () => {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Pass password to login function
-    const success = await login(username, password);
-    if (success) {
-      // Logic to determine where to send the user
-      // We need to look up the user again since 'user' in context might update async or we just want the direct data
-      const loggedUser = users.find(u => u.username.toLowerCase() === username.toLowerCase() || u.name.toLowerCase() === username.toLowerCase());
-      if (loggedUser?.role === 'SUPER_ADM') {
+    setError(''); 
+    
+    // Login retorna { user, error }
+    const result = await login(username, password);
+    
+    if (result.user) {
+      if (result.user.role === 'SUPER_ADM') {
         navigate('/admin/dashboard');
       } else {
         navigate('/dashboard');
       }
     } else {
-      setError('Usuário ou senha inválidos.');
+      setError(result.error || 'Erro desconhecido ao tentar logar.');
     }
   };
 
@@ -106,7 +107,7 @@ export const Login: React.FC = () => {
       </div>
       
       <div>
-        <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Usuário ou E-mail</label>
+        <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Usuário</label>
         <div className="relative">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
             <User className="h-4 w-4 text-gray-400" />
@@ -129,17 +130,28 @@ export const Login: React.FC = () => {
             <Lock className="h-4 w-4 text-gray-400" />
           </div>
           <input
-            type="password"
+            type={showPassword ? 'text' : 'password'}
             required
-            className="block w-full pl-9 pr-3 py-2.5 border border-gray-300 rounded-lg focus:ring-brand-orange focus:border-brand-orange text-sm transition-all"
+            className="block w-full pl-9 pr-10 py-2.5 border border-gray-300 rounded-lg focus:ring-brand-orange focus:border-brand-orange text-sm transition-all"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Digite sua senha"
           />
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 focus:outline-none"
+          >
+            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </button>
         </div>
       </div>
 
-      {error && <div className="text-brand-red text-xs font-bold flex items-center bg-red-50 p-2 rounded"><AlertCircle size={14} className="mr-1"/>{error}</div>}
+      {error && (
+        <div className="text-brand-red text-xs font-bold flex flex-col bg-red-50 p-2 rounded">
+            <div className="flex items-center"><AlertCircle size={14} className="mr-1 shrink-0"/> {error}</div>
+        </div>
+      )}
       {successMsg && <div className="text-green-600 text-xs font-bold flex items-center bg-green-50 p-2 rounded"><CheckCircle size={14} className="mr-1"/>{successMsg}</div>}
 
       <button type="submit" className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-lg shadow-md text-sm font-bold text-white bg-brand-orange hover:bg-brand-red focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-orange transition-all transform active:scale-95 mt-2">

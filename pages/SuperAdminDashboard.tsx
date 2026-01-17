@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useApp } from '../context';
 import { useNavigate } from 'react-router-dom';
@@ -16,7 +17,6 @@ export const SuperAdminDashboard: React.FC = () => {
 
   // Forms State
   const [newChurch, setNewChurch] = useState({ name: '', address: '', pastorName: '', cnpj: '' });
-  // ADICIONADO: password no estado inicial
   const [newPresident, setNewPresident] = useState({ name: '', username: '', cpf: '', churchId: '', password: '' });
 
   const totalMembers = members.length;
@@ -25,27 +25,27 @@ export const SuperAdminDashboard: React.FC = () => {
   // Helper to format CNPJ
   const formatCNPJ = (value: string) => {
     return value
-      .replace(/\D/g, '') // Remove tudo o que não é dígito
-      .replace(/^(\d{2})(\d)/, '$1.$2') // Coloca ponto entre o segundo e o terceiro dígitos
-      .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3') // Coloca ponto entre o quinto e o sexto dígitos
-      .replace(/\.(\d{3})(\d)/, '.$1/$2') // Coloca uma barra entre o oitavo e o nono dígitos
-      .replace(/(\d{4})(\d)/, '$1-$2') // Coloca um hífen depois do bloco de quatro dígitos
-      .replace(/(-\d{2})\d+?$/, '$1'); // Captura os dois últimos dígitos
+      .replace(/\D/g, '')
+      .replace(/^(\d{2})(\d)/, '$1.$2')
+      .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
+      .replace(/\.(\d{3})(\d)/, '.$1/$2')
+      .replace(/(\d{4})(\d)/, '$1-$2')
+      .replace(/(-\d{2})\d+?$/, '$1');
   };
 
   // Helper to format CPF
   const formatCPF = (value: string) => {
     return value
-      .replace(/\D/g, '') // Remove tudo o que não é dígito
-      .replace(/(\d{3})(\d)/, '$1.$2') // Coloca ponto entre o terceiro e o quarto dígitos
-      .replace(/(\d{3})(\d)/, '$1.$2') // Coloca ponto entre o sexto e o setimo dígitos
-      .replace(/(\d{3})(\d{1,2})/, '$1-$2') // Coloca hifen entre o nono e o decimo dígitos
-      .replace(/(-\d{2})\d+?$/, '$1'); // Limita o tamanho
+      .replace(/\D/g, '')
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d{1,2})/, '$1-$2')
+      .replace(/(-\d{2})\d+?$/, '$1');
   };
 
   const handleEnterChurch = (churchId: string) => {
     selectChurch(churchId);
-    navigate('/dashboard'); // Go to the operational dashboard as that church
+    navigate('/dashboard'); 
   };
 
   const handleAddChurch = (e: React.FormEvent) => {
@@ -57,7 +57,7 @@ export const SuperAdminDashboard: React.FC = () => {
       address: newChurch.address.toUpperCase(),
       pastorName: newChurch.pastorName.toUpperCase(),
       active: true,
-      type: 'SEDE', // Admin always creates SEDE first
+      type: 'SEDE', 
     };
     addChurch(church);
     setShowChurchForm(false);
@@ -65,18 +65,23 @@ export const SuperAdminDashboard: React.FC = () => {
     alert('Igreja Sede cadastrada com sucesso!');
   };
 
-  const handleUpdateChurch = (e: React.FormEvent) => {
+  const handleUpdateChurch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingChurch) return;
 
-    updateChurch(editingChurch.id, {
+    const res = await updateChurch(editingChurch.id, {
         name: editingChurch.name.toUpperCase(),
         address: editingChurch.address.toUpperCase(),
         pastorName: editingChurch.pastorName.toUpperCase(),
         cnpj: editingChurch.cnpj
     });
-    setEditingChurch(null);
-    alert('Dados da Sede atualizados com sucesso!');
+    
+    if (res.success) {
+        setEditingChurch(null);
+        alert('Dados da Sede atualizados com sucesso!');
+    } else {
+        alert(`Erro ao atualizar: ${res.error}`);
+    }
   };
 
   const handleDeleteChurch = (id: string, name: string) => {
@@ -85,19 +90,43 @@ export const SuperAdminDashboard: React.FC = () => {
       }
   };
 
-  const handleAddPresident = (e: React.FormEvent) => {
+  const handleAddPresident = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!newPresident.churchId) {
+        alert("Erro: É obrigatório selecionar a Igreja para vincular o Presidente.");
+        return;
+    }
+    
+    // 1. Criar o Usuário de Login na tabela 'profiles'
     const user: User = {
       id: '',
       ...newPresident,
       name: newPresident.name.toUpperCase(),
-      role: 'PRESIDENTE' // Strictly President
+      role: 'PRESIDENTE' 
     };
-    addUser(user);
+
+    // CORREÇÃO CRÍTICA: Verificar se o usuário foi realmente criado
+    const result = await addUser(user);
+    
+    if (!result.success) {
+        alert(`ERRO AO CRIAR USUÁRIO: ${result.error}\n\nVerifique se o login já existe.`);
+        return; // Para aqui e não atualiza a igreja falsamente
+    }
+
+    // 2. Se chegou aqui, o usuário foi criado. Agora atualiza o nome do pastor na igreja.
+    if (newPresident.churchId) {
+        const churchToUpdate = churches.find(c => c.id === newPresident.churchId);
+        if (churchToUpdate) {
+            await updateChurch(churchToUpdate.id, {
+                pastorName: newPresident.name.toUpperCase()
+            });
+        }
+    }
+
     setShowPresidentForm(false);
-    // Reset form including password
     setNewPresident({ name: '', username: '', cpf: '', churchId: '', password: '' });
-    alert('Pastor Presidente cadastrado com sucesso!');
+    alert('Pastor Presidente cadastrado e vinculado à igreja com sucesso!');
   };
 
   return (
@@ -122,7 +151,7 @@ export const SuperAdminDashboard: React.FC = () => {
         <div className="absolute right-0 top-0 h-full w-1/2 bg-gradient-to-l from-brand-dark to-transparent opacity-50 pointer-events-none"></div>
       </div>
 
-      {/* Action Buttons - STRICTLY WHAT WAS ASKED */}
+      {/* Action Buttons */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <button 
           onClick={() => setShowChurchForm(true)}
@@ -220,7 +249,6 @@ export const SuperAdminDashboard: React.FC = () => {
             />
             <input required placeholder="Login de Acesso" className="p-2 border rounded" value={newPresident.username} onChange={e => setNewPresident({...newPresident, username: e.target.value})} />
             
-            {/* Campo de Senha ADICIONADO */}
             <input 
               required 
               type="text" 

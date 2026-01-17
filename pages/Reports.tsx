@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useApp } from '../context';
 import { FileText, Download, TrendingUp, TrendingDown, DollarSign } from 'lucide-react';
@@ -14,9 +15,11 @@ export const Reports: React.FC = () => {
   const monthString = selectedMonth.toString().padStart(2, '0');
   
   // Filter by VIEWED Church ID, not User Church ID
+  // CRITICAL: Exclude Campaign Transactions
   const filteredTransactions = transactions.filter(t => {
     const d = new Date(t.date);
     return t.churchId === viewId && 
+           !t.campaignId && // --- EXCLUDE CAMPAIGNS ---
            (d.getMonth() + 1) === selectedMonth && 
            d.getFullYear() === selectedYear;
   });
@@ -49,7 +52,7 @@ export const Reports: React.FC = () => {
     
     doc.setFontSize(12);
     doc.setTextColor(0, 0, 0);
-    doc.text(`RELATÓRIO FINANCEIRO DETALHADO - ${monthString}/${selectedYear}`, pageWidth / 2, 30, { align: 'center' });
+    doc.text(`RELATÓRIO FINANCEIRO DETALHADO (CAIXA GERAL) - ${monthString}/${selectedYear}`, pageWidth / 2, 30, { align: 'center' });
     if(currentChurch?.cnpj) doc.text(`CNPJ: ${currentChurch.cnpj}`, pageWidth / 2, 36, { align: 'center' });
 
     let finalY = 45;
@@ -186,7 +189,7 @@ export const Reports: React.FC = () => {
       {/* Main Report Body */}
       <div className="bg-white p-8 rounded-xl shadow-lg border-t-8 border-brand-orange">
          <div className="text-center mb-10">
-            <h3 className="text-2xl font-black text-gray-800 uppercase tracking-widest">Resumo Financeiro</h3>
+            <h3 className="text-2xl font-black text-gray-800 uppercase tracking-widest">Resumo Financeiro (Caixa Principal)</h3>
             <p className="text-brand-orange font-bold">{monthString}/{selectedYear}</p>
          </div>
 

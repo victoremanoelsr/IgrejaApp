@@ -19,7 +19,7 @@ export const Users: React.FC = () => {
     cpf: '',
     birthDate: '',
     role: 'SECRETARIO' as Role,
-    churchId: currentUser?.churchId || churches[0]?.id || '', 
+    churchId: currentUser?.churchId || '', 
     password: '',
   };
   const [formData, setFormData] = useState(initialFormState);
@@ -38,10 +38,9 @@ export const Users: React.FC = () => {
   }, [wrapperRef]);
 
   // Filter users for the main list
-  // LOGIC: Show users that belong to churches I have access to (availableChurches)
   const filteredUsers = users.filter(u => {
-    // Check if user belongs to one of my available churches
-    const isInMyScope = availableChurches.some(ac => ac.id === u.churchId);
+    // Se sou Super Admin, vejo todos. Senão, só da minha scope
+    const isInMyScope = currentUser?.role === 'SUPER_ADM' || availableChurches.some(ac => ac.id === u.churchId);
     
     // Check search term
     const matchesSearch = u.name.toLowerCase().includes(searchTerm.toLowerCase()) || u.username.includes(searchTerm);
@@ -49,14 +48,11 @@ export const Users: React.FC = () => {
     return isInMyScope && matchesSearch;
   });
 
-  // Autocomplete Logic: Filter members based on typed name and selected church
+  // Autocomplete Logic
   const memberSuggestions = members.filter(m => {
-    // 1. Must belong to the selected church in the form
-    const targetChurchId = formData.churchId || currentUser?.churchId;
-    if (m.churchId !== targetChurchId) return false;
-
-    // 2. Must match the text typed so far
-    if (formData.name.length < 2) return false; // Start searching after 2 chars
+    if (!formData.churchId) return false;
+    if (m.churchId !== formData.churchId) return false;
+    if (formData.name.length < 2) return false; 
     return m.name.toLowerCase().includes(formData.name.toLowerCase());
   });
 
@@ -66,25 +62,21 @@ export const Users: React.FC = () => {
       name: member.name,
       cpf: member.cpf,
       birthDate: member.birthDate,
-      // We don't change the role automatically, let the user decide
     });
     setShowSuggestions(false);
   };
 
-  // Roles Logic - Dynamic based on selected Church Type
   const getAvailableRoles = () => {
     if (currentUser?.role === 'SUPER_ADM') {
       return [
-        { value: 'SUPER_ADM', label: 'Super Administrador' },
+        { value: 'SUPER_ADM', label: 'Super Administrador (Global)' },
         { value: 'PRESIDENTE', label: 'PR Presidente' },
         { value: 'VICE_PRESIDENTE', label: 'PR Vice-Presidente' },
       ];
     }
 
-    // Determine type of the selected church in the form
     const targetChurch = availableChurches.find(c => c.id === formData.churchId);
     
-    // If selecting a Congregation, I can create a Leader (Dirigente)
     if (targetChurch?.type === 'CONGREGACAO') {
         return [
             { value: 'DIRIGENTE', label: 'Dirigente da Congregação' },
@@ -93,7 +85,6 @@ export const Users: React.FC = () => {
         ];
     }
 
-    // If selecting a Sede (and I am Pres/Vice), I can create Sede staff
     return [
       { value: 'VICE_PRESIDENTE', label: 'PR Vice-Presidente' },
       { value: 'TESOUREIRO', label: 'Tesoureiro Sede' },
@@ -109,7 +100,7 @@ export const Users: React.FC = () => {
       cpf: user.cpf,
       birthDate: user.birthDate || '',
       role: user.role,
-      churchId: user.churchId,
+      churchId: user.churchId || '',
       password: '',
     });
     setView('FORM');
@@ -122,7 +113,7 @@ export const Users: React.FC = () => {
     setView('LIST');
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!editingUserId) {
@@ -133,6 +124,7 @@ export const Users: React.FC = () => {
       }
     }
 
+    // Se selecionar SUPER_ADM, pode não ter churchId
     const payload: User = {
       id: editingUserId || '',
       name: formData.name.toUpperCase(),
@@ -140,14 +132,19 @@ export const Users: React.FC = () => {
       cpf: formData.cpf,
       birthDate: formData.birthDate,
       role: formData.role,
-      churchId: formData.churchId,
+      churchId: formData.churchId || undefined, // Manda undefined se string vazia
+      password: formData.password // CRITICAL FIX: Sending password to create user
     };
 
     if (editingUserId) {
       updateUser(editingUserId, payload);
       alert("Usuário atualizado com sucesso!");
     } else {
-      addUser(payload);
+      const res = await addUser(payload);
+      if (!res.success) {
+          alert(`Erro ao cadastrar: ${res.error}`);
+          return;
+      }
       alert("Usuário cadastrado com sucesso!");
     }
     
@@ -221,9 +218,9 @@ export const Users: React.FC = () => {
                   {getRoleBadge(u.role)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {availableChurches.find(c => c.id === u.churchId)?.name || 'Desconhecida'}
-                  {availableChurches.find(c => c.id === u.churchId)?.type === 'SEDE' && 
-                    <span className="ml-2 text-xs bg-gray-200 px-1 rounded">Sede</span>
+                  {u.churchId 
+                    ? availableChurches.find(c => c.id === u.churchId)?.name || 'Desconhecida'
+                    : <span className="text-brand-orange font-bold">ACESSO GLOBAL</span>
                   }
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -265,12 +262,14 @@ export const Users: React.FC = () => {
           <div className="col-span-2">
             <label className="block text-sm font-medium text-gray-700">Unidade de Acesso</label>
             <select 
-              required
+              required={formData.role !== 'SUPER_ADM'} // Obrigatório apenas se não for Super Admin
               className="mt-1 block w-full p-2 border rounded-md focus:ring-brand-orange focus:border-brand-orange"
               value={formData.churchId}
               onChange={e => setFormData({...formData, churchId: e.target.value})}
             >
-              <option value="">Selecione a igreja...</option>
+              <option value="">
+                {currentUser?.role === 'SUPER_ADM' ? 'Sem Vínculo (Super Admin Global)' : 'Selecione a igreja...'}
+              </option>
               {availableChurches.map(c => (
                   <option key={c.id} value={c.id}>
                       {c.name} {c.type === 'SEDE' ? '(SEDE)' : '(CONGREGAÇÃO)'}
@@ -279,7 +278,6 @@ export const Users: React.FC = () => {
             </select>
           </div>
 
-          {/* Autocomplete Field for Name */}
           <div className="col-span-2 relative" ref={wrapperRef}>
             <label className="block text-sm font-medium text-gray-700">Nome Completo</label>
             <div className="relative">
@@ -287,17 +285,15 @@ export const Users: React.FC = () => {
                 type="text" 
                 required 
                 autoComplete="off"
-                placeholder="DIGITE PARA BUSCAR UM MEMBRO..."
-                className={`mt-1 block w-full p-2 border rounded-md focus:ring-brand-orange focus:border-brand-orange uppercase ${!formData.churchId ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                placeholder="NOME DO USUÁRIO..."
+                className={`mt-1 block w-full p-2 border rounded-md focus:ring-brand-orange focus:border-brand-orange uppercase`}
                 value={formData.name}
-                disabled={!formData.churchId}
                 onChange={e => {
                   setFormData({...formData, name: e.target.value.toUpperCase()});
                   setShowSuggestions(true);
                 }}
                 onFocus={() => setShowSuggestions(true)}
               />
-              {/* Suggestions Dropdown */}
               {showSuggestions && formData.name.length >= 2 && memberSuggestions.length > 0 && !editingUserId && (
                 <div className="absolute z-10 w-full bg-white mt-1 border border-gray-200 rounded-md shadow-lg max-h-60 overflow-y-auto">
                   {memberSuggestions.map((member) => (
@@ -308,7 +304,7 @@ export const Users: React.FC = () => {
                     >
                       <div>
                         <p className="font-medium text-gray-800">{member.name}</p>
-                        <p className="text-xs text-gray-500">CPF: {member.cpf} • Nasc: {new Date(member.birthDate).toLocaleDateString('pt-BR')}</p>
+                        <p className="text-xs text-gray-500">CPF: {member.cpf}</p>
                       </div>
                       <Plus size={16} className="text-brand-orange" />
                     </div>
@@ -316,9 +312,6 @@ export const Users: React.FC = () => {
                 </div>
               )}
             </div>
-            <p className="text-xs text-gray-500 mt-1">
-              {!formData.churchId ? "Selecione a unidade primeiro." : "Dica: Busque um membro da unidade selecionada."}
-            </p>
           </div>
 
           <div>
@@ -336,8 +329,7 @@ export const Users: React.FC = () => {
             <label className="block text-sm font-medium text-gray-700">Cargo / Nível de Acesso</label>
             <select 
               required
-              disabled={!formData.churchId}
-              className="mt-1 block w-full p-2 border rounded-md focus:ring-brand-orange focus:border-brand-orange disabled:bg-gray-100"
+              className="mt-1 block w-full p-2 border rounded-md focus:ring-brand-orange focus:border-brand-orange"
               value={formData.role}
               onChange={e => setFormData({...formData, role: e.target.value as Role})}
             >
@@ -361,7 +353,7 @@ export const Users: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Senha {editingUserId && '(Deixe em branco para manter)'}</label>
+                <label className="block text-sm font-medium text-gray-700">Senha {editingUserId && '(Vazio = Manter)'}</label>
                 <input 
                   type="password" 
                   required={!editingUserId}

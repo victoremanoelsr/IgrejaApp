@@ -1,3 +1,4 @@
+
 export type Role = 'SUPER_ADM' | 'PRESIDENTE' | 'VICE_PRESIDENTE' | 'DIRIGENTE' | 'TESOUREIRO' | 'SECRETARIO';
 
 export type ChurchType = 'SEDE' | 'CONGREGACAO';
@@ -11,36 +12,41 @@ export interface Church {
   logoUrl?: string;
   missionStatement?: string;
   active: boolean;
-  type: ChurchType; // Novo campo
-  parentId?: string; // Novo campo (ID da Sede se for congregação)
+  type: ChurchType; 
+  parentId?: string; 
 }
 
 export interface User {
   id: string;
   name: string;
-  username: string; // or email
+  username: string; 
   cpf: string;
-  birthDate?: string; // ISO Date
+  birthDate?: string; 
   role: Role;
-  churchId: string; // The specific unit they belong to
-  password?: string; // Senha opcional para validação
+  churchId?: string; // Agora opcional
+  password?: string; 
 }
 
 export interface Member {
   id: string;
   name: string;
   cpf: string;
-  birthDate: string; // ISO date
-  memberNumber?: string; // Novo campo solicitado
+  birthDate: string; 
+  memberNumber?: string; 
   churchId: string;
   isTither: boolean;
   baptismDate?: string;
+  photo?: string; // Nova propriedade para Foto (URL)
+  email?: string; // Novo campo
+  phone?: string; // Novo campo
+  maritalStatus?: string; // Novo campo: Estado Civil
   address: {
     street: string;
     number: string;
     neighborhood: string;
     city: string;
-    country?: string; // Novo campo solicitado
+    state: string; // Novo campo: Estado (UF)
+    country?: string; 
     zipCode: string;
   };
 }
@@ -54,12 +60,12 @@ export interface Transaction {
   type: TransactionType;
   category: TransactionCategory;
   amount: number;
-  date: string; // ISO Date
-  description: string; // "Culto de Domingo", "Conta de Luz"
-  memberId?: string; // For tithes
+  date: string; 
+  description: string; 
+  memberId?: string; 
   responsibleUserId: string;
-  attachmentUrl?: string; // Mock URL
-  campaignId?: string; // If linked to a campaign
+  attachmentUrl?: string; 
+  campaignId?: string; 
 }
 
 export interface Campaign {
@@ -82,10 +88,10 @@ export interface Event {
   imageUrl?: string;
 }
 
-export interface Minute { // "Ata"
+export interface Minute { 
   id: string;
   churchId: string;
   title: string;
   date: string;
-  fileUrl: string; // PDF link
+  fileUrl: string; 
 }

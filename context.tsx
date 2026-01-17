@@ -1,34 +1,20 @@
+
 import React, { createContext, useContext, useState, useMemo, useEffect } from 'react';
 import { User, Church, Member, Transaction, Campaign, Event, Minute } from './types';
+import { supabase } from './services/supabaseClient';
+import { 
+  toAppChurch, toAppUser, toAppMember, toAppTransaction, 
+  toAppCampaign, toAppEvent, toAppMinute 
+} from './services/dataMappers';
 
-// --- MOCK DATA ---
-
-// Dados limpos conforme solicitado, mantendo apenas o Super Admin
-const MOCK_CHurches: Church[] = [];
-
-const MOCK_USERS: User[] = [
-  { 
-    id: 'u1', 
-    name: 'Victor', 
-    username: 'victor', 
-    cpf: '000.000.000-00', 
-    role: 'SUPER_ADM', 
-    churchId: '', // Sem igreja vinculada inicialmente
-    password: '123' 
-  }
-];
-
-const MOCK_MEMBERS: Member[] = [];
-
-const MOCK_TRANSACTIONS: Transaction[] = [];
-
-const MOCK_CAMPAIGNS: Campaign[] = [];
-
-// --- CONTEXT SETUP ---
+interface LoginResult {
+  user: User | null;
+  error?: string;
+}
 
 interface AppContextType {
   user: User | null;
-  login: (username: string, password?: string) => Promise<boolean>;
+  login: (username: string, password?: string) => Promise<LoginResult>; 
   logout: () => void;
   
   // Data Access
@@ -40,34 +26,47 @@ interface AppContextType {
   events: Event[];
   minutes: Minute[];
   
-  // Hierarchy & Navigation
-  currentChurch: Church | null; // The church currently being VIEWED
-  availableChurches: Church[]; // List of churches the user CAN switch to
+  currentChurch: Church | null;
+  availableChurches: Church[];
   selectChurch: (churchId: string) => void;
 
-  // Actions
-  addTransaction: (t: Transaction) => void;
-  deleteTransaction: (id: string) => void; // Added
-  addMember: (m: Member) => void;
-  updateMember: (id: string, m: Member) => void;
-  deleteMember: (id: string) => void;
-  addEvent: (e: Event) => void;
-  addCampaign: (c: Campaign) => void;
-  updateCampaign: (id: string, c: Campaign) => void; // Added
-  deleteCampaign: (id: string) => void; // Added
-  addMinute: (m: Minute) => void;
-  addChurch: (c: Church) => void;
-  addCongregation: (c: Church) => void; // New action for Pastors
-  addUser: (u: User) => void;
-  updateUser: (id: string, u: User) => void;
-  deleteUser: (id: string) => void;
-  updateChurch: (id: string, data: Partial<Church>) => void;
-  deleteChurch: (id: string) => void; // Nova função
-  toggleChurchStatus: (id: string) => void;
+  // Actions (Async now)
+  addTransaction: (t: Transaction) => Promise<void>;
+  updateTransaction: (id: string, t: Transaction) => Promise<void>; // Nova função
+  deleteTransaction: (id: string) => Promise<void>;
+  uploadTransactionFile: (file: File) => Promise<string | null>; 
+  
+  addMember: (m: Member) => Promise<{ success: boolean; error?: string }>;
+  updateMember: (id: string, m: Member) => Promise<{ success: boolean; error?: string }>;
+  deleteMember: (id: string) => Promise<void>;
+  uploadMemberPhoto: (file: File) => Promise<string | null>;
+  
+  addEvent: (e: Event) => Promise<void>;
+  updateEvent: (id: string, e: Event) => Promise<void>;
+  deleteEvent: (id: string) => Promise<void>;
+  uploadEventImage: (file: File) => Promise<string | null>;
+  
+  addCampaign: (c: Campaign) => Promise<void>;
+  updateCampaign: (id: string, c: Campaign) => Promise<{ success: boolean; error?: string }>; 
+  deleteCampaign: (id: string) => Promise<void>;
+  
+  addMinute: (m: Minute) => Promise<void>;
+  updateMinute: (id: string, m: Minute) => Promise<void>;
+  deleteMinute: (id: string) => Promise<void>;
+  uploadMinuteFile: (file: File) => Promise<string | null>; 
+  
+  addChurch: (c: Church) => Promise<void>;
+  addCongregation: (c: Church) => Promise<string | null>;
+  addUser: (u: User) => Promise<{ success: boolean; error?: string }>;
+  updateUser: (id: string, u: User) => Promise<void>;
+  deleteUser: (id: string) => Promise<void>;
+  updateChurch: (id: string, data: Partial<Church>) => Promise<{ success: boolean; error?: string }>; // Updated Return Type
+  deleteChurch: (id: string) => Promise<void>;
+  toggleChurchStatus: (id: string) => Promise<void>;
   recoverAccount: (name: string, cpf: string) => string | null;
-  updateUserCredentials: (userId: string, newUsername?: string, newPassword?: string) => void;
+  updateUserCredentials: (userId: string, newUsername?: string, newPassword?: string) => Promise<void>;
+  uploadChurchLogo: (file: File) => Promise<string | null>;
 
-  // Super Admin Legacy (Ghost Mode is now integrated into selectChurch logic for simplicity, but keeping helpers if needed)
   enterAdminView: (churchId: string) => void;
   exitAdminView: () => void;
   adminViewChurchId: string | null;
@@ -75,97 +74,154 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
+// Helper robusto para gerar UUID v4
+function generateUUID() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+
+const cleanDate = (dateStr?: string) => {
+  if (!dateStr || dateStr.trim() === '') return null;
+  return dateStr;
+};
+
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  
-  // View State
   const [viewChurchId, setViewChurchId] = useState<string | null>(null);
 
-  // State for data (simulating DB)
-  const [users, setUsers] = useState<User[]>(MOCK_USERS);
-  const [churches, setChurches] = useState<Church[]>(MOCK_CHurches);
-  const [members, setMembers] = useState<Member[]>(MOCK_MEMBERS);
-  const [transactions, setTransactions] = useState<Transaction[]>(MOCK_TRANSACTIONS);
-  const [campaigns, setCampaigns] = useState<Campaign[]>(MOCK_CAMPAIGNS);
+  // Data States
+  const [users, setUsers] = useState<User[]>([]);
+  const [churches, setChurches] = useState<Church[]>([]);
+  const [members, setMembers] = useState<Member[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
   const [minutes, setMinutes] = useState<Minute[]>([]);
 
-  // --- HIERARCHY LOGIC ---
+  // --- DATA FETCHING ---
+  const refreshData = async () => {
+    try {
+      const { data: dChurches } = await supabase.from('churches').select('*');
+      if (dChurches) setChurches(dChurches.map(toAppChurch));
 
-  // Determine which churches are available to the current user
+      const { data: dUsers } = await supabase.from('profiles').select('*');
+      if (dUsers) setUsers(dUsers.map(toAppUser));
+
+      const { data: dMembers } = await supabase.from('members').select('*');
+      if (dMembers) setMembers(dMembers.map(toAppMember));
+
+      const { data: dTrans } = await supabase.from('transactions').select('*');
+      if (dTrans) setTransactions(dTrans.map(toAppTransaction));
+
+      const { data: dCamps } = await supabase.from('campaigns').select('*');
+      if (dCamps) setCampaigns(dCamps.map(toAppCampaign));
+
+      const { data: dEvents } = await supabase.from('events').select('*');
+      if (dEvents) setEvents(dEvents.map(toAppEvent));
+
+      const { data: dMinutes } = await supabase.from('minutes').select('*');
+      if (dMinutes) setMinutes(dMinutes.map(toAppMinute));
+
+    } catch (error) {
+      console.error("Erro ao carregar dados:", error);
+    }
+  };
+
+  // Initial Load
+  useEffect(() => {
+    refreshData();
+  }, [user]);
+
+  // --- HIERARCHY LOGIC ---
   const availableChurches = useMemo(() => {
     if (!user) return [];
+    if (user.role === 'SUPER_ADM') return churches;
 
-    // 1. Super Admin: All Churches
-    if (user.role === 'SUPER_ADM') {
-      return churches;
-    }
+    if (!user.churchId) return [];
 
-    // 2. Pastor Presidente/Vice (Sede Scope): Own Sede + All Child Congregations
     if (user.role === 'PRESIDENTE' || user.role === 'VICE_PRESIDENTE') {
       const myChurch = churches.find(c => c.id === user.churchId);
       if (!myChurch) return [];
-
-      // If I am at Sede, I see Sede + Children
       if (myChurch.type === 'SEDE') {
         return churches.filter(c => c.id === user.churchId || c.parentId === user.churchId);
       }
-      // If I am at Congregation (unlikely for Pres/Vice of field, but possible for local leaders), usually just local
       return [myChurch];
     }
-
-    // 3. Local Staff (Tesoureiro, Secretario): Only their specific unit
     const myChurch = churches.find(c => c.id === user.churchId);
     return myChurch ? [myChurch] : [];
   }, [user, churches]);
 
-  // Determine the Current Church Object based on selection
   const currentChurch = useMemo(() => {
     if (!viewChurchId) return null;
     return churches.find(c => c.id === viewChurchId) || null;
   }, [viewChurchId, churches]);
 
-  // Set default view upon login or user change
   useEffect(() => {
-    // CORREÇÃO: Se for SUPER_ADM, NÃO seleciona igreja automaticamente. Mantém viewChurchId como null.
-    // Isso garante que ele veja o "Painel Master" e não o menu operacional.
-    if (user && !viewChurchId && user.role !== 'SUPER_ADM') {
-      setViewChurchId(user.churchId);
+    if (user && !viewChurchId && user.churchId) {
+       if (user.role !== 'SUPER_ADM') {
+         setViewChurchId(user.churchId);
+       }
     }
   }, [user]);
 
   const selectChurch = (churchId: string) => {
-    // Security check: ensure user is allowed to view this church
-    const canView = availableChurches.some(c => c.id === churchId);
-    if (canView || user?.role === 'SUPER_ADM') {
-      setViewChurchId(churchId);
-    } else {
-      console.error("Acesso negado a esta unidade.");
-    }
+    setViewChurchId(churchId);
   };
 
-  const login = async (username: string, password?: string) => {
-    const found = users.find(u => u.username.toLowerCase() === username.toLowerCase() || u.name.toLowerCase() === username.toLowerCase());
-    
-    if (found) {
-      if (found.password && found.password !== password) return false;
+  const login = async (username: string, password?: string): Promise<LoginResult> => {
+    try {
+      const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .ilike('username', username) 
+          .eq('password', password)
+          .single();
+      
+      if (error) {
+        console.error("Erro Supabase:", error);
+        if (error.code === '42703') {
+           return { user: null, error: 'ERRO DE BANCO: Coluna "password" não existe. Execute o script setup.sql.' };
+        }
+        return { user: null, error: 'Usuário ou senha inválidos.' };
+      }
 
-      const usersChurch = churches.find(c => c.id === found.churchId);
-      // Admin não precisa de igreja ativa para logar
-      if (found.role !== 'SUPER_ADM' && usersChurch && !usersChurch.active) {
-        alert("Acesso suspenso. Entre em contato com a administração.");
-        return false;
+      if (data) {
+        const appUser = toAppUser(data);
+        
+        if (appUser.churchId) {
+          let userChurch = churches.find(c => c.id === appUser.churchId);
+          if (!userChurch && appUser.role !== 'SUPER_ADM') {
+              const { data: churchData } = await supabase.from('churches').select('*').eq('id', appUser.churchId).single();
+              if (churchData) userChurch = toAppChurch(churchData);
+          }
+          if (appUser.role !== 'SUPER_ADM' && userChurch && !userChurch.active) {
+            return { user: null, error: 'Acesso suspenso. Contate a administração.' };
+          }
+        } else {
+          if (appUser.role !== 'SUPER_ADM') {
+             return { user: null, error: 'Usuário sem vínculo com igreja. Contate o suporte.' };
+          }
+        }
+        
+        setUser(appUser);
+        if (appUser.role === 'SUPER_ADM') {
+          setViewChurchId(null);
+        } else if (appUser.churchId) {
+          setViewChurchId(appUser.churchId);
+        }
+        refreshData();
+        return { user: appUser };
       }
-      setUser(found);
-      // IMPORTANTE: Não setamos setViewChurchId aqui para Super Admins
-      if (found.role !== 'SUPER_ADM') {
-        setViewChurchId(found.churchId);
-      } else {
-        setViewChurchId(null); // Garante reset para Global View
-      }
-      return true;
+    } catch (e) {
+      console.error("Erro inesperado:", e);
+      return { user: null, error: 'Erro de conexão com o servidor.' };
     }
-    return false;
+    return { user: null, error: 'Usuário ou senha inválidos.' };
   };
 
   const logout = () => {
@@ -173,60 +229,423 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setViewChurchId(null);
   };
 
-  // --- ACTIONS ---
-
-  // Add Church (Sede - Super Admin)
-  const addChurch = (c: Church) => {
-    setChurches(prev => [...prev, { ...c, id: Math.random().toString(36).substr(2, 9), type: 'SEDE' }]);
+  const ensureId = (id?: string) => {
+      if (id && id.length > 10) return id;
+      return generateUUID();
   };
 
-  // Add Congregation (Child - Pastor)
-  const addCongregation = (c: Church) => {
-    if (!user) return;
-    // UPDATED: Allow passing an ID (for creating linked users immediately) or generate one
-    setChurches(prev => [...prev, { 
-      ...c, 
-      id: c.id || Math.random().toString(36).substr(2, 9), 
-      type: 'CONGREGACAO',
-      parentId: user.role === 'SUPER_ADM' && currentChurch ? currentChurch.id : user.churchId // Linked to the viewed Sede if Admin
+  const uploadMemberPhoto = async (file: File): Promise<string | null> => {
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('member-photos')
+        .upload(filePath, file);
+
+      if (uploadError) return null;
+      const { data } = supabase.storage.from('member-photos').getPublicUrl(filePath);
+      return data.publicUrl;
+    } catch (e) { return null; }
+  };
+
+  const uploadEventImage = async (file: File): Promise<string | null> => {
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('event-images')
+        .upload(filePath, file);
+
+      if (uploadError) return null;
+      const { data } = supabase.storage.from('event-images').getPublicUrl(filePath);
+      return data.publicUrl;
+    } catch (e) { return null; }
+  };
+
+  const uploadMinuteFile = async (file: File): Promise<string | null> => {
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('minutes-files')
+        .upload(filePath, file);
+
+      if (uploadError) return null;
+      const { data } = supabase.storage.from('minutes-files').getPublicUrl(filePath);
+      return data.publicUrl;
+    } catch (e) { return null; }
+  };
+
+  const uploadTransactionFile = async (file: File): Promise<string | null> => {
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('transaction-files')
+        .upload(filePath, file);
+
+      if (uploadError) return null;
+      const { data } = supabase.storage.from('transaction-files').getPublicUrl(filePath);
+      return data.publicUrl;
+    } catch (e) { return null; }
+  };
+  
+  const uploadChurchLogo = async (file: File): Promise<string | null> => {
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('church-logos')
+        .upload(filePath, file);
+
+      if (uploadError) return null;
+      const { data } = supabase.storage.from('church-logos').getPublicUrl(filePath);
+      return data.publicUrl;
+    } catch (e) { return null; }
+  };
+
+  const addChurch = async (c: Church) => {
+    const { error } = await supabase.from('churches').insert([{
+      id: ensureId(c.id),
+      name: c.name, address: c.address, active: c.active, type: c.type, 
+      pastor_name: c.pastorName, cnpj: c.cnpj
     }]);
+    if (!error) refreshData();
   };
 
-  const addTransaction = (t: Transaction) => setTransactions(prev => [...prev, { ...t, id: Math.random().toString(36).substr(2, 9) }]);
-  const deleteTransaction = (id: string) => setTransactions(prev => prev.filter(t => t.id !== id));
-  
-  const addMember = (m: Member) => setMembers(prev => [...prev, { ...m, id: Math.random().toString(36).substr(2, 9) }]);
-  const updateMember = (id: string, m: Member) => setMembers(prev => prev.map(item => item.id === id ? { ...m, id } : item));
-  const deleteMember = (id: string) => setMembers(prev => prev.filter(m => m.id !== id));
-  
-  const addEvent = (e: Event) => setEvents(prev => [...prev, { ...e, id: Math.random().toString(36).substr(2, 9) }]);
-  
-  const addCampaign = (c: Campaign) => setCampaigns(prev => [...prev, { ...c, id: Math.random().toString(36).substr(2, 9) }]);
-  const updateCampaign = (id: string, c: Campaign) => setCampaigns(prev => prev.map(item => item.id === id ? { ...c, id } : item));
-  const deleteCampaign = (id: string) => {
-    setCampaigns(prev => prev.filter(c => c.id !== id));
-    // Optional: Delete transactions linked to campaign? keeping them for safety for now or handled by logic
+  const addCongregation = async (c: Church): Promise<string | null> => {
+     const newId = ensureId(c.id);
+     const { data, error } = await supabase.from('churches').insert([{
+      id: newId,
+      name: c.name, 
+      address: c.address, 
+      active: c.active, 
+      type: 'CONGREGACAO',
+      parent_id: c.parentId, 
+      pastor_name: c.pastorName
+    }])
+    .select()
+    .single();
+
+    if (!error && data) {
+        refreshData();
+        return data.id;
+    }
+    return null;
   };
 
-  const addMinute = (m: Minute) => setMinutes(prev => [...prev, { ...m, id: Math.random().toString(36).substr(2, 9) }]);
-  const addUser = (u: User) => setUsers(prev => [...prev, { ...u, id: Math.random().toString(36).substr(2, 9) }]);
-  const updateUser = (id: string, updated: User) => setUsers(prev => prev.map(u => u.id === id ? { ...updated, id } : u));
-  const deleteUser = (id: string) => setUsers(prev => prev.filter(u => u.id !== id));
-  const updateChurch = (id: string, data: Partial<Church>) => setChurches(prev => prev.map(c => c.id === id ? { ...c, ...data } : c));
-  
-  const deleteChurch = (id: string) => setChurches(prev => prev.filter(c => c.id !== id));
+  const addUser = async (u: User): Promise<{ success: boolean; error?: string }> => {
+    const newId = ensureId(u.id);
+    const { error } = await supabase.from('profiles').insert([{
+        id: newId,
+        name: u.name, username: u.username, password: u.password, cpf: u.cpf,
+        role: u.role, church_id: u.churchId || null
+    }]);
 
-  const toggleChurchStatus = (id: string) => {
-    setChurches(prev => prev.map(c => c.id === id ? { ...c, active: !c.active } : c));
+    if (error) {
+        console.error("Erro ao adicionar usuário:", error);
+        if (error.code === '23505') return { success: false, error: 'Este nome de usuário já existe.' };
+        return { success: false, error: error.message };
+    }
+    refreshData();
+    return { success: true };
+  };
+
+  const addMember = async (m: Member): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const { error } = await supabase.from('members').insert([{
+          id: ensureId(m.id),
+          church_id: m.churchId, 
+          name: m.name, 
+          cpf: m.cpf, 
+          birth_date: cleanDate(m.birthDate), 
+          member_number: m.memberNumber, 
+          is_tither: m.isTither, 
+          baptism_date: cleanDate(m.baptismDate), 
+          address: m.address,
+          photo_url: m.photo,
+          email: m.email, 
+          phone: m.phone,
+          marital_status: m.maritalStatus
+      }]);
+      
+      if (error) {
+        console.error("Erro ao adicionar membro:", error);
+        return { success: false, error: error.message };
+      }
+      refreshData();
+      return { success: true };
+    } catch (e: any) {
+       return { success: false, error: e.message };
+    }
+  };
+
+  const updateMember = async (id: string, m: Member): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const { error } = await supabase.from('members').update({
+          name: m.name, 
+          cpf: m.cpf, 
+          birth_date: cleanDate(m.birthDate), 
+          member_number: m.memberNumber,
+          is_tither: m.isTither, 
+          baptism_date: cleanDate(m.baptismDate), 
+          address: m.address,
+          photo_url: m.photo,
+          email: m.email, 
+          phone: m.phone,
+          marital_status: m.maritalStatus
+      }).eq('id', id);
+
+      if (error) {
+          return { success: false, error: error.message };
+      }
+      refreshData();
+      return { success: true };
+    } catch (e: any) {
+        return { success: false, error: e.message };
+    }
+  };
+
+  const deleteMember = async (id: string) => {
+    try {
+      const { error } = await supabase.from('members').delete().eq('id', id);
+      if (error) {
+        if (error.code === '23503') {
+           alert("Erro: Este membro possui registros financeiros (dízimos/ofertas) vinculados. Não é possível excluí-lo diretamente.");
+        } else {
+           alert(`Erro ao excluir membro: ${error.message}`);
+        }
+        return;
+      }
+      refreshData();
+      alert("Membro excluído com sucesso.");
+    } catch (e: any) {
+      alert("Ocorreu um erro inesperado ao tentar excluir o membro.");
+    }
+  };
+
+  const addTransaction = async (t: Transaction) => {
+    const { error } = await supabase.from('transactions').insert([{
+        id: ensureId(t.id),
+        church_id: t.churchId, type: t.type, category: t.category, amount: t.amount,
+        date: t.date, description: t.description, member_id: t.memberId,
+        responsible_user_id: t.responsibleUserId, campaign_id: t.campaignId,
+        attachment_url: t.attachmentUrl
+    }]);
+    if (error) console.error("Erro transação", error);
+    refreshData();
+  };
+
+  const updateTransaction = async (id: string, t: Transaction) => {
+    const { error } = await supabase.from('transactions').update({
+        type: t.type, 
+        category: t.category, 
+        amount: t.amount,
+        date: t.date, 
+        description: t.description, 
+        member_id: t.memberId,
+        attachment_url: t.attachmentUrl,
+        campaign_id: t.campaignId // Ensure this field is handled if passed
+    }).eq('id', id);
+    if (error) console.error("Erro ao atualizar transação", error);
+    refreshData();
+  };
+
+  const deleteTransaction = async (id: string) => {
+    await supabase.from('transactions').delete().eq('id', id);
+    refreshData();
+  };
+
+  const addCampaign = async (c: Campaign) => {
+    await supabase.from('campaigns').insert([{
+        id: ensureId(c.id),
+        church_id: c.churchId, name: c.name, goal: c.goal, 
+        start_date: c.startDate, description: c.description, status: c.status
+    }]);
+    refreshData();
+  };
+
+  const updateCampaign = async (id: string, c: Campaign): Promise<{ success: boolean; error?: string }> => {
+    const { error } = await supabase.from('campaigns').update({
+        name: c.name, goal: c.goal, start_date: c.startDate, 
+        description: c.description, status: c.status
+    }).eq('id', id);
+    
+    if (error) {
+        console.error("Erro ao atualizar campanha:", error);
+        return { success: false, error: error.message };
+    }
+    
+    refreshData();
+    return { success: true };
+  };
+
+  const deleteCampaign = async (id: string) => {
+    try {
+        // 1. Tentar deletar as transações vinculadas primeiro (garantia no app)
+        await supabase.from('transactions').delete().eq('campaign_id', id);
+
+        // 2. Deletar a campanha
+        const { error } = await supabase.from('campaigns').delete().eq('id', id);
+        
+        if (error) {
+            console.error("Erro ao excluir campanha:", error);
+            alert(`Erro ao excluir campanha: ${error.message}`);
+            return;
+        }
+        refreshData();
+        alert("Campanha e seus registros financeiros foram excluídos com sucesso.");
+    } catch (e: any) {
+        console.error("Exceção:", e);
+        alert("Erro inesperado ao excluir campanha.");
+    }
+  };
+
+  const addEvent = async (e: Event) => {
+    await supabase.from('events').insert([{
+        id: ensureId(e.id),
+        church_id: e.churchId, name: e.name, date: e.date, 
+        time: e.time, responsible_name: e.responsibleName,
+        image_url: e.imageUrl 
+    }]);
+    refreshData();
+  };
+
+  const updateEvent = async (id: string, e: Event) => {
+    await supabase.from('events').update({
+        name: e.name,
+        date: e.date,
+        time: e.time,
+        responsible_name: e.responsibleName,
+        image_url: e.imageUrl
+    }).eq('id', id);
+    refreshData();
+  };
+
+  const deleteEvent = async (id: string) => {
+    await supabase.from('events').delete().eq('id', id);
+    refreshData();
+  };
+
+  const addMinute = async (m: Minute) => {
+    await supabase.from('minutes').insert([{
+        id: ensureId(m.id),
+        church_id: m.churchId, title: m.title, date: m.date, file_url: m.fileUrl
+    }]);
+    refreshData();
+  };
+
+  const updateMinute = async (id: string, m: Minute) => {
+    await supabase.from('minutes').update({
+        title: m.title,
+        date: m.date,
+        file_url: m.fileUrl
+    }).eq('id', id);
+    refreshData();
+  };
+
+  const deleteMinute = async (id: string) => {
+    await supabase.from('minutes').delete().eq('id', id);
+    refreshData();
+  };
+
+  const updateUser = async (id: string, u: User) => {
+     await supabase.from('profiles').update({
+         name: u.name, username: u.username, cpf: u.cpf, role: u.role,
+         church_id: u.churchId || null
+     }).eq('id', id);
+     refreshData();
+  };
+
+  const deleteUser = async (id: string) => {
+      await supabase.from('profiles').delete().eq('id', id);
+      refreshData();
+  };
+
+  const updateChurch = async (id: string, data: Partial<Church>): Promise<{ success: boolean; error?: string }> => {
+      const updates: any = {};
+      if (data.name !== undefined) updates.name = data.name;
+      if (data.address !== undefined) updates.address = data.address;
+      if (data.pastorName !== undefined) updates.pastor_name = data.pastorName;
+      if (data.cnpj !== undefined) updates.cnpj = data.cnpj;
+      if (data.missionStatement !== undefined) updates.mission_statement = data.missionStatement;
+      if (data.active !== undefined) updates.active = data.active;
+      if (data.logoUrl !== undefined) updates.logo_url = data.logoUrl;
+
+      if (Object.keys(updates).length > 0) {
+          const { error } = await supabase.from('churches').update(updates).eq('id', id);
+          
+          if (error) {
+              console.error("Erro ao atualizar igreja:", error);
+              return { success: false, error: error.message };
+          }
+          refreshData();
+          return { success: true };
+      }
+      return { success: true };
+  };
+
+  const deleteChurch = async (id: string) => {
+      try {
+        // 1. Limpar dependências para evitar erro 409 (Foreign Key Constraint)
+        // Ordem importa: Transações dependem de Membros e Campanhas, então delete transações primeiro.
+        
+        await supabase.from('transactions').delete().eq('church_id', id);
+        await supabase.from('campaigns').delete().eq('church_id', id);
+        await supabase.from('members').delete().eq('church_id', id);
+        await supabase.from('events').delete().eq('church_id', id);
+        await supabase.from('minutes').delete().eq('church_id', id);
+        
+        // MUDANÇA: Excluir usuários (Dirigentes/Tesoureiros) vinculados EXCLUSIVAMENTE a esta igreja
+        // Ao invés de apenas desvincular (update church_id=null), nós deletamos o usuário.
+        await supabase.from('profiles').delete().eq('church_id', id);
+
+        // 2. Excluir a Igreja
+        const { error } = await supabase.from('churches').delete().eq('id', id);
+        
+        if (error) {
+            console.error("Erro ao excluir igreja:", error);
+            alert(`Erro ao excluir: ${error.message}`);
+        } else {
+            alert("Congregação e dados vinculados (incluindo usuários dirigentes) excluídos com sucesso.");
+        }
+        
+        refreshData();
+      } catch (e: any) {
+          console.error("Erro inesperado ao excluir igreja:", e);
+          alert("Ocorreu um erro inesperado. Verifique o console.");
+      }
+  };
+
+  const toggleChurchStatus = async (id: string) => {
+      const church = churches.find(c => c.id === id);
+      if (church) {
+          await supabase.from('churches').update({ active: !church.active }).eq('id', id);
+          refreshData();
+      }
+  };
+  
+  const updateUserCredentials = async (userId: string, newUsername?: string, newPassword?: string) => {
+      const updates: any = {};
+      if (newUsername) updates.username = newUsername;
+      if (newPassword) updates.password = newPassword;
+      await supabase.from('profiles').update(updates).eq('id', userId);
+      refreshData();
   };
 
   const recoverAccount = (name: string, cpf: string) => {
     const found = users.find(u => u.name.toLowerCase() === name.toLowerCase() && u.cpf === cpf);
     return found ? found.id : null;
-  };
-
-  const updateUserCredentials = (userId: string, newUsername?: string, newPassword?: string) => {
-    setUsers(prev => prev.map(u => u.id === userId ? { ...u, username: newUsername || u.username, password: newPassword || u.password } : u));
   };
 
   const enterAdminView = (churchId: string) => selectChurch(churchId);
@@ -239,11 +658,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       
       users, churches, members, transactions, campaigns, events, minutes,
       
-      addTransaction, deleteTransaction, 
-      addMember, updateMember, deleteMember, addEvent, 
+      addTransaction, updateTransaction, deleteTransaction, uploadTransactionFile,
+      addMember, updateMember, deleteMember, uploadMemberPhoto,
+      addEvent, updateEvent, deleteEvent, uploadEventImage,
       addCampaign, updateCampaign, deleteCampaign,
-      addMinute, addChurch, addCongregation, addUser, updateUser, deleteUser, updateChurch, deleteChurch,
-      recoverAccount, updateUserCredentials, toggleChurchStatus,
+      
+      addMinute, 
+      updateMinute, 
+      deleteMinute, 
+      uploadMinuteFile, 
+      
+      addChurch, addCongregation, 
+      addUser, updateUser, deleteUser, updateUserCredentials, recoverAccount,
+      updateChurch, deleteChurch, toggleChurchStatus, uploadChurchLogo,
       
       adminViewChurchId: viewChurchId, enterAdminView, exitAdminView
     }}>

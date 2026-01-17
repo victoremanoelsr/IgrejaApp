@@ -36,7 +36,7 @@ export const Admin: React.FC = () => {
     setChurchPastor('');
   };
 
-  const handleAddUser = (e: React.FormEvent) => {
+  const handleAddUser = async (e: React.FormEvent) => {
     e.preventDefault();
     const newUser: User = {
       id: '',
@@ -46,7 +46,12 @@ export const Admin: React.FC = () => {
       role: userRole,
       churchId: userChurchId
     };
-    addUser(newUser);
+    const res = await addUser(newUser);
+    if (!res.success) {
+        alert(`Erro ao adicionar usuário: ${res.error}`);
+        return;
+    }
+    
     alert('Novo usuário adicionado!');
     setUserName('');
     setUserLogin('');
