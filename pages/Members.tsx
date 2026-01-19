@@ -206,7 +206,7 @@ export const Members: React.FC = () => {
   };
 
   const renderList = () => (
-    <div className="space-y-4 pl-10 md:pl-0">
+    <div className="space-y-4">
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-xl md:text-2xl font-bold text-gray-800">Membros</h2>
@@ -281,7 +281,7 @@ export const Members: React.FC = () => {
   );
 
   const renderForm = () => (
-    <div className="max-w-5xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden pl-10 md:pl-0 border border-gray-100">
+    <div className="max-w-5xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100">
       <div className="bg-brand-black p-4 flex justify-between items-center text-white">
         <h2 className="text-lg font-bold flex items-center">
             {editingMemberId ? <Edit2 className="mr-2" size={20}/> : <Plus className="mr-2" size={20}/>}

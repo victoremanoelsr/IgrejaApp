@@ -129,7 +129,7 @@ export const Dashboard: React.FC = () => {
   return (
     <div className="space-y-2 md:space-y-6">
       {/* HEADER COMPACTO */}
-      <div className="flex justify-between items-center pl-10 md:pl-0 mb-1">
+      <div className="flex justify-between items-center mb-1">
         <div>
            <h1 className="text-lg md:text-3xl font-bold text-gray-800">Painel Geral</h1>
            <div className="flex items-center space-x-1 md:space-x-2">

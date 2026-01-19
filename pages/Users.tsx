@@ -169,7 +169,7 @@ export const Users: React.FC = () => {
   };
 
   const renderList = () => (
-    <div className="space-y-4 pl-10 md:pl-0">
+    <div className="space-y-4">
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-xl md:text-2xl font-bold text-gray-800">Controle de Usuários</h2>
@@ -296,7 +296,7 @@ export const Users: React.FC = () => {
   );
 
   const renderForm = () => (
-    <div className="max-w-2xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden pl-10 md:pl-0">
+    <div className="max-w-2xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100">
       <div className="bg-brand-black p-4 md:p-6 flex justify-between items-center text-white">
         <h2 className="text-lg md:text-xl font-bold flex items-center">
           <ShieldCheck className="mr-2" /> {editingUserId ? 'Editar Usuário' : 'Novo Usuário'}

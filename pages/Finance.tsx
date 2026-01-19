@@ -373,7 +373,7 @@ export const Finance: React.FC = () => {
   );
 
   return (
-    <div className="max-w-4xl mx-auto space-y-3 md:space-y-6 pl-10 md:pl-0">
+    <div className="w-full space-y-3 md:space-y-6">
        {!editingTransactionId && (
            <div className="flex flex-col md:flex-row gap-2 mb-2 md:mb-8">
              <button onClick={() => { handleCancelForm(); setActiveTab('LISTA'); }} className={`w-full py-2 md:py-4 rounded-lg font-bold text-xs md:text-base ${activeTab === 'LISTA' ? 'bg-brand-black text-white' : 'bg-white text-gray-500 border'}`}>
