@@ -167,13 +167,13 @@ export const Dashboard: React.FC = () => {
             <div className="text-center px-1 md:px-2 flex-1">
                <p className="text-gray-500 text-[9px] md:text-base font-bold uppercase tracking-widest mb-0.5">Entradas</p>
                <p className="text-sm md:text-3xl font-black text-green-600 truncate">
-                 R$ {totalIn.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 0 })}
+                 R$ {totalIn.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                </p>
             </div>
             <div className="text-center px-1 md:px-2 flex-1">
                <p className="text-gray-500 text-[9px] md:text-base font-bold uppercase tracking-widest mb-0.5">Saídas</p>
                <p className="text-sm md:text-3xl font-black text-brand-red truncate">
-                 R$ {totalOut.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 0 })}
+                 R$ {totalOut.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                </p>
             </div>
             <div className="text-center px-1 md:px-2 flex-1">

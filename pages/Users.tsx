@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../context';
 import { User, Role, Member } from '../types';
@@ -161,36 +162,83 @@ export const Users: React.FC = () => {
       SECRETARIO: 'bg-blue-100 text-blue-700',
     };
     return (
-      <span className={`px-2 py-1 rounded-full text-xs font-bold ${styles[role] || 'bg-gray-100'}`}>
+      <span className={`px-2 py-0.5 rounded text-[10px] md:text-xs font-bold ${styles[role] || 'bg-gray-100'} whitespace-nowrap`}>
         {role.replace('_', ' ')}
       </span>
     );
   };
 
   const renderList = () => (
-    <div className="space-y-6">
+    <div className="space-y-4 pl-10 md:pl-0">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-bold text-gray-800">Controle de Usuários</h2>
-          <p className="text-sm text-gray-500">Gestão de Equipe ({availableChurches.length > 1 ? 'Campo' : 'Local'})</p>
+          <h2 className="text-xl md:text-2xl font-bold text-gray-800">Controle de Usuários</h2>
+          <p className="text-xs md:text-sm text-gray-500">Gestão de Equipe ({availableChurches.length > 1 ? 'Campo' : 'Local'})</p>
         </div>
-        <button onClick={() => setView('FORM')} className="bg-brand-black text-white px-4 py-2 rounded-lg flex items-center hover:bg-gray-800 transition-colors">
-          <Plus size={20} className="mr-2"/> Novo Usuário
+        <button onClick={() => setView('FORM')} className="bg-brand-black text-white px-3 py-2 md:px-4 rounded-lg flex items-center hover:bg-gray-800 transition-colors shadow-sm">
+          <Plus size={18} className="md:mr-2"/> <span className="hidden md:inline">Novo Usuário</span>
         </button>
       </div>
 
-      <div className="bg-white p-4 rounded-lg shadow-sm border flex items-center">
-        <Search className="text-gray-400 mr-2" />
+      <div className="bg-white p-2 md:p-4 rounded-lg shadow-sm border flex items-center">
+        <Search className="text-gray-400 mr-2" size={18}/>
         <input 
           type="text" 
           placeholder="Buscar por nome ou login..." 
-          className="flex-1 outline-none"
+          className="flex-1 outline-none text-sm"
           value={searchTerm}
           onChange={e => setSearchTerm(e.target.value)}
         />
       </div>
 
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      {/* MOBILE LIST VIEW (Cards) */}
+      <div className="md:hidden space-y-2">
+        {filteredUsers.map((u) => (
+          <div key={u.id} className="bg-white p-3 rounded-lg shadow-sm border border-gray-100 flex flex-col gap-2 relative">
+             <div className="flex items-start gap-3 pr-8">
+                 <div className="h-10 w-10 bg-brand-black rounded-full flex items-center justify-center text-white shrink-0">
+                    <UserIcon size={18}/>
+                 </div>
+                 <div className="min-w-0">
+                    <div className="text-sm font-bold text-gray-900 leading-tight truncate">{u.name}</div>
+                    <div className="text-[10px] text-gray-500 font-medium">@{u.username}</div>
+                    <div className="mt-1 flex items-center gap-2">
+                       {getRoleBadge(u.role)}
+                    </div>
+                 </div>
+             </div>
+             
+             {/* Unidade */}
+             <div className="text-[10px] text-gray-400 border-t pt-2 mt-1 truncate">
+                {u.churchId 
+                    ? availableChurches.find(c => c.id === u.churchId)?.name || 'Desconhecida'
+                    : <span className="text-brand-orange font-bold">ACESSO GLOBAL</span>
+                }
+             </div>
+
+             {/* Actions Absolute Top Right */}
+             <div className="absolute top-3 right-3 flex flex-col gap-2">
+                {u.id !== currentUser?.id && (currentUser?.role === 'SUPER_ADM' || u.role !== 'SUPER_ADM') && (
+                    <>
+                      <button onClick={() => handleEdit(u)} className="p-1 text-gray-400 hover:text-brand-orange rounded-full hover:bg-orange-50">
+                        <Edit2 size={16}/>
+                      </button>
+                      <button 
+                        onClick={() => { if(window.confirm('Excluir este acesso?')) deleteUser(u.id); }}
+                        className="p-1 text-gray-400 hover:text-red-600 rounded-full hover:bg-red-50"
+                      >
+                        <Trash2 size={16}/>
+                      </button>
+                    </>
+                )}
+             </div>
+          </div>
+        ))}
+        {filteredUsers.length === 0 && <div className="text-center text-xs text-gray-500 py-4">Nenhum usuário encontrado.</div>}
+      </div>
+
+      {/* DESKTOP TABLE VIEW */}
+      <div className="hidden md:block bg-white rounded-lg shadow overflow-hidden">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
@@ -248,22 +296,22 @@ export const Users: React.FC = () => {
   );
 
   const renderForm = () => (
-    <div className="max-w-2xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden">
-      <div className="bg-brand-black p-6 flex justify-between items-center text-white">
-        <h2 className="text-xl font-bold flex items-center">
-          <ShieldCheck className="mr-2" /> {editingUserId ? 'Editar Usuário' : 'Cadastrar Novo Usuário'}
+    <div className="max-w-2xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden pl-10 md:pl-0">
+      <div className="bg-brand-black p-4 md:p-6 flex justify-between items-center text-white">
+        <h2 className="text-lg md:text-xl font-bold flex items-center">
+          <ShieldCheck className="mr-2" /> {editingUserId ? 'Editar Usuário' : 'Novo Usuário'}
         </h2>
         <button onClick={handleCancel} className="hover:text-brand-orange transition-colors"><X/></button>
       </div>
 
-      <form onSubmit={handleSubmit} className="p-8 space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <form onSubmit={handleSubmit} className="p-4 md:p-8 space-y-4 md:space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
           
-          <div className="col-span-2">
-            <label className="block text-sm font-medium text-gray-700">Unidade de Acesso</label>
+          <div className="col-span-1 md:col-span-2">
+            <label className="block text-xs md:text-sm font-medium text-gray-700">Unidade de Acesso</label>
             <select 
               required={formData.role !== 'SUPER_ADM'} // Obrigatório apenas se não for Super Admin
-              className="mt-1 block w-full p-2 border rounded-md focus:ring-brand-orange focus:border-brand-orange"
+              className="mt-1 block w-full p-2 border rounded-md focus:ring-brand-orange focus:border-brand-orange text-sm"
               value={formData.churchId}
               onChange={e => setFormData({...formData, churchId: e.target.value})}
             >
@@ -278,15 +326,15 @@ export const Users: React.FC = () => {
             </select>
           </div>
 
-          <div className="col-span-2 relative" ref={wrapperRef}>
-            <label className="block text-sm font-medium text-gray-700">Nome Completo</label>
+          <div className="col-span-1 md:col-span-2 relative" ref={wrapperRef}>
+            <label className="block text-xs md:text-sm font-medium text-gray-700">Nome Completo</label>
             <div className="relative">
               <input 
                 type="text" 
                 required 
                 autoComplete="off"
                 placeholder="NOME DO USUÁRIO..."
-                className={`mt-1 block w-full p-2 border rounded-md focus:ring-brand-orange focus:border-brand-orange uppercase`}
+                className={`mt-1 block w-full p-2 border rounded-md focus:ring-brand-orange focus:border-brand-orange uppercase text-sm`}
                 value={formData.name}
                 onChange={e => {
                   setFormData({...formData, name: e.target.value.toUpperCase()});
@@ -295,7 +343,7 @@ export const Users: React.FC = () => {
                 onFocus={() => setShowSuggestions(true)}
               />
               {showSuggestions && formData.name.length >= 2 && memberSuggestions.length > 0 && !editingUserId && (
-                <div className="absolute z-10 w-full bg-white mt-1 border border-gray-200 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                <div className="absolute z-10 w-full bg-white mt-1 border border-gray-200 rounded-md shadow-lg max-h-40 md:max-h-60 overflow-y-auto">
                   {memberSuggestions.map((member) => (
                     <div 
                       key={member.id}
@@ -303,8 +351,8 @@ export const Users: React.FC = () => {
                       className="p-3 hover:bg-orange-50 cursor-pointer flex justify-between items-center border-b border-gray-50 last:border-0"
                     >
                       <div>
-                        <p className="font-medium text-gray-800">{member.name}</p>
-                        <p className="text-xs text-gray-500">CPF: {member.cpf}</p>
+                        <p className="font-medium text-gray-800 text-xs md:text-sm">{member.name}</p>
+                        <p className="text-[10px] text-gray-500">CPF: {member.cpf}</p>
                       </div>
                       <Plus size={16} className="text-brand-orange" />
                     </div>
@@ -315,21 +363,21 @@ export const Users: React.FC = () => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700">CPF</label>
+            <label className="block text-xs md:text-sm font-medium text-gray-700">CPF</label>
             <input 
               type="text" 
               required 
-              className="mt-1 block w-full p-2 border rounded-md focus:ring-brand-orange focus:border-brand-orange"
+              className="mt-1 block w-full p-2 border rounded-md focus:ring-brand-orange focus:border-brand-orange text-sm"
               value={formData.cpf}
               onChange={e => setFormData({...formData, cpf: e.target.value})}
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700">Cargo / Nível de Acesso</label>
+            <label className="block text-xs md:text-sm font-medium text-gray-700">Cargo / Nível</label>
             <select 
               required
-              className="mt-1 block w-full p-2 border rounded-md focus:ring-brand-orange focus:border-brand-orange"
+              className="mt-1 block w-full p-2 border rounded-md focus:ring-brand-orange focus:border-brand-orange text-sm"
               value={formData.role}
               onChange={e => setFormData({...formData, role: e.target.value as Role})}
             >
@@ -339,25 +387,25 @@ export const Users: React.FC = () => {
             </select>
           </div>
 
-          <div className="border-t col-span-2 pt-4 mt-2">
-            <h3 className="text-sm font-bold text-gray-500 mb-4 flex items-center uppercase tracking-widest"><Lock size={14} className="mr-1"/> Credenciais de Acesso</h3>
+          <div className="border-t col-span-1 md:col-span-2 pt-4 mt-2">
+            <h3 className="text-xs md:text-sm font-bold text-gray-500 mb-4 flex items-center uppercase tracking-widest"><Lock size={14} className="mr-1"/> Credenciais</h3>
             <div className="grid grid-cols-2 gap-4">
                <div>
-                <label className="block text-sm font-medium text-gray-700">Usuário de Login</label>
+                <label className="block text-xs md:text-sm font-medium text-gray-700">Usuário (Login)</label>
                 <input 
                   type="text" 
                   required 
-                  className="mt-1 block w-full p-2 border rounded-md focus:ring-brand-orange"
+                  className="mt-1 block w-full p-2 border rounded-md focus:ring-brand-orange text-sm"
                   value={formData.username}
                   onChange={e => setFormData({...formData, username: e.target.value})}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Senha {editingUserId && '(Vazio = Manter)'}</label>
+                <label className="block text-xs md:text-sm font-medium text-gray-700">Senha {editingUserId && '(Opcional)'}</label>
                 <input 
                   type="password" 
                   required={!editingUserId}
-                  className="mt-1 block w-full p-2 border rounded-md focus:ring-brand-orange"
+                  className="mt-1 block w-full p-2 border rounded-md focus:ring-brand-orange text-sm"
                   value={formData.password}
                   onChange={e => setFormData({...formData, password: e.target.value})}
                 />
@@ -366,10 +414,10 @@ export const Users: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex justify-end space-x-4 pt-4">
-          <button type="button" onClick={handleCancel} className="px-6 py-2 border rounded-lg hover:bg-gray-50 transition-colors">Cancelar</button>
-          <button type="submit" className="px-8 py-2 bg-brand-orange text-white rounded-lg hover:bg-brand-red flex items-center shadow-lg transform hover:scale-105 transition-all">
-            <Save size={18} className="mr-2"/> {editingUserId ? 'Salvar Alterações' : 'Confirmar Cadastro'}
+        <div className="flex justify-end space-x-4 pt-4 border-t">
+          <button type="button" onClick={handleCancel} className="px-4 py-2 border rounded-lg hover:bg-gray-50 transition-colors text-xs font-bold">Cancelar</button>
+          <button type="submit" className="px-6 py-2 bg-brand-orange text-white rounded-lg hover:bg-brand-red flex items-center shadow-lg text-xs font-bold">
+            <Save size={16} className="mr-2"/> {editingUserId ? 'Salvar' : 'Cadastrar'}
           </button>
         </div>
       </form>

@@ -3,9 +3,8 @@ import React, { useState, useRef } from 'react';
 import { useApp } from '../context';
 import { Member } from '../types';
 import { 
-  Search, Plus, Trash2, Edit2, User, Save, X, Building, ShieldAlert, MapPin, Loader, 
-  Camera, Phone, Mail, ZoomIn, Calendar, Hash, CheckCircle, CreditCard, Heart,
-  AlertTriangle, Info
+  Search, Plus, Trash2, Edit2, User, Save, X, Phone, Mail, ZoomIn, 
+  CheckCircle, Camera, Loader, MapPin, Calendar, Hash, Flag
 } from 'lucide-react';
 
 export const Members: React.FC = () => {
@@ -38,9 +37,10 @@ export const Members: React.FC = () => {
   const canEdit = user?.role !== 'TESOUREIRO';
   const viewId = currentChurch?.id;
 
+  // MUDANÇA: country inicia vazio ('') em vez de 'BRASIL'
   const initialFormState = {
     name: '', cpf: '', birthDate: '', memberNumber: '', churchId: viewId || '', isTither: false, baptismDate: '', email: '', phone: '', maritalStatus: 'SOLTEIRO', 
-    zipCode: '', street: '', number: '', neighborhood: '', city: '', state: '', country: 'BRASIL', photo: ''
+    zipCode: '', street: '', number: '', neighborhood: '', city: '', state: '', country: '', photo: ''
   };
   const [formData, setFormData] = useState(initialFormState);
 
@@ -58,6 +58,7 @@ export const Members: React.FC = () => {
         const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
         const data = await response.json();
         if (!data.erro) {
+          // MUDANÇA: Preenche 'BRASIL' automaticamente ao achar o CEP
           setFormData(prev => ({
             ...prev, street: data.logradouro.toUpperCase(), neighborhood: data.bairro.toUpperCase(), city: data.localidade.toUpperCase(), state: data.uf.toUpperCase(), country: 'BRASIL'
           }));
@@ -152,38 +153,50 @@ export const Members: React.FC = () => {
     const formatDate = (d?: string) => d ? new Date(d).toLocaleDateString('pt-BR') : '-';
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-        <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden relative max-h-[90vh] overflow-y-auto">
-          <div className="h-20 bg-brand-orange relative">
-             <button onClick={() => setViewingMember(null)} className="absolute top-2 right-2 bg-black/20 text-white rounded-full p-1"><X size={18}/></button>
+        <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden relative max-h-[90vh] overflow-y-auto">
+          {/* HEADER MAIS COMPACTO */}
+          <div className="h-16 bg-brand-orange relative">
+             <button onClick={() => setViewingMember(null)} className="absolute top-2 right-2 bg-black/20 text-white rounded-full p-1 z-20 hover:bg-black/40 transition-colors"><X size={18}/></button>
           </div>
-          <div className="px-6 pb-6 -mt-10">
+          <div className="px-4 pb-6 -mt-8">
              <div className="flex flex-col items-center">
-                <div className="h-20 w-20 rounded-full border-4 border-white bg-gray-200 overflow-hidden" onClick={() => viewingMember.photo && setEnlargedPhoto(viewingMember.photo)}>
+                {/* FOTO MENOR E COM Z-INDEX */}
+                <div className="h-20 w-20 rounded-full border-4 border-white bg-gray-200 overflow-hidden relative z-10 shadow-md cursor-pointer" onClick={() => viewingMember.photo && setEnlargedPhoto(viewingMember.photo)}>
                     {viewingMember.photo ? <img src={viewingMember.photo} className="h-full w-full object-cover"/> : <User size={32} className="m-auto mt-4 text-gray-400"/>}
                 </div>
-                <h2 className="text-lg font-bold text-center mt-2 leading-tight">{viewingMember.name}</h2>
-                <div className="flex gap-2 mt-1">
-                    <span className="text-[10px] bg-gray-100 px-2 rounded-full text-gray-600 border">CPF: {viewingMember.cpf}</span>
-                    {viewingMember.isTither && <span className="text-[10px] bg-green-100 px-2 rounded-full text-green-700 border border-green-200">Dizimista</span>}
+                <h2 className="text-lg font-bold text-center mt-2 leading-tight text-gray-800">{viewingMember.name}</h2>
+                <div className="flex gap-2 mt-1 flex-wrap justify-center">
+                    <span className="text-[10px] bg-gray-100 px-2 py-0.5 rounded-full text-gray-600 border font-medium">CPF: {viewingMember.cpf}</span>
+                    {viewingMember.isTither && <span className="text-[10px] bg-green-100 px-2 py-0.5 rounded-full text-green-700 border border-green-200 font-bold">Dizimista</span>}
                 </div>
-                {canEdit && <button onClick={() => { setViewingMember(null); handleEdit(viewingMember); }} className="mt-3 text-xs bg-gray-100 hover:bg-gray-200 px-3 py-1 rounded border">Editar</button>}
+                {canEdit && <button onClick={() => { setViewingMember(null); handleEdit(viewingMember); }} className="mt-2 text-xs bg-white hover:bg-gray-50 border border-gray-300 px-3 py-1 rounded shadow-sm transition-colors text-gray-700">Editar Dados</button>}
              </div>
-             <div className="mt-6 space-y-3 text-sm">
-                 <div className="bg-gray-50 p-3 rounded border">
-                    <p className="text-[10px] uppercase font-bold text-gray-400 mb-1">Contato</p>
-                    <p className="flex items-center"><Phone size={14} className="mr-2 text-blue-500"/> {viewingMember.phone || '-'}</p>
-                 </div>
-                 <div className="bg-gray-50 p-3 rounded border">
-                    <p className="text-[10px] uppercase font-bold text-gray-400 mb-1">Eclesiástico</p>
-                    <div className="grid grid-cols-2 gap-2">
-                        <div><span className="text-xs text-gray-500">Nascimento:</span> <br/>{formatDate(viewingMember.birthDate)}</div>
-                        <div><span className="text-xs text-gray-500">Batismo:</span> <br/>{formatDate(viewingMember.baptismDate)}</div>
+             
+             {/* LISTA DE DADOS COMPACTA */}
+             <div className="mt-4 space-y-2 text-xs">
+                 <div className="bg-gray-50 p-2 rounded border border-gray-100">
+                    <p className="text-[10px] uppercase font-bold text-gray-400 mb-1 tracking-wider">Contato</p>
+                    <div className="grid grid-cols-1 gap-1">
+                        <p className="flex items-center text-gray-700 font-medium"><Phone size={12} className="mr-2 text-blue-500"/> {viewingMember.phone || '-'}</p>
+                        {viewingMember.email && <p className="flex items-center text-gray-700 font-medium truncate"><Mail size={12} className="mr-2 text-gray-500"/> {viewingMember.email}</p>}
                     </div>
                  </div>
-                 <div className="bg-gray-50 p-3 rounded border">
-                    <p className="text-[10px] uppercase font-bold text-gray-400 mb-1">Endereço</p>
-                    <p className="text-xs">{viewingMember.address.street}, {viewingMember.address.number}</p>
-                    <p className="text-xs text-gray-500">{viewingMember.address.neighborhood} - {viewingMember.address.city}</p>
+                 <div className="bg-gray-50 p-2 rounded border border-gray-100">
+                    <p className="text-[10px] uppercase font-bold text-gray-400 mb-1 tracking-wider">Pessoal / Eclesiástico</p>
+                    <div className="grid grid-cols-2 gap-2">
+                        <div><span className="text-[10px] text-gray-500 block">Nascimento</span> <span className="font-medium text-gray-800">{formatDate(viewingMember.birthDate)}</span></div>
+                        <div><span className="text-[10px] text-gray-500 block">Batismo</span> <span className="font-medium text-gray-800">{formatDate(viewingMember.baptismDate)}</span></div>
+                        <div><span className="text-[10px] text-gray-500 block">Est. Civil</span> <span className="font-medium text-gray-800">{viewingMember.maritalStatus || '-'}</span></div>
+                        {viewingMember.memberNumber && <div><span className="text-[10px] text-gray-500 block">Nº Membro</span> <span className="font-medium text-gray-800">{viewingMember.memberNumber}</span></div>}
+                    </div>
+                 </div>
+                 <div className="bg-gray-50 p-2 rounded border border-gray-100">
+                    <p className="text-[10px] uppercase font-bold text-gray-400 mb-1 tracking-wider">Endereço</p>
+                    <p className="font-medium text-gray-800 leading-tight">{viewingMember.address.street}, {viewingMember.address.number}</p>
+                    <p className="text-gray-500 mt-0.5">
+                       {viewingMember.address.neighborhood} - {viewingMember.address.city}/{viewingMember.address.state}
+                       {viewingMember.address.country && viewingMember.address.country !== 'BRASIL' ? ` (${viewingMember.address.country})` : ''}
+                    </p>
                  </div>
              </div>
           </div>
@@ -196,67 +209,67 @@ export const Members: React.FC = () => {
     <div className="space-y-4 pl-10 md:pl-0">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-xl font-bold text-gray-800">Membros</h2>
+          <h2 className="text-xl md:text-2xl font-bold text-gray-800">Membros</h2>
           <p className="text-xs text-gray-500">{currentChurch?.name}</p>
         </div>
         {canEdit && (
-          <button onClick={() => { setEditingMemberId(null); setSelectedFile(null); setFormData({...initialFormState, churchId: viewId}); setView('FORM'); }} className="bg-brand-black text-white p-2 md:px-4 md:py-2 rounded-lg flex items-center hover:bg-gray-800 shadow-sm">
-            <Plus size={18} className="md:mr-2"/> <span className="hidden md:inline">Novo Membro</span>
+          <button onClick={() => { setEditingMemberId(null); setSelectedFile(null); setFormData({...initialFormState, churchId: viewId}); setView('FORM'); }} className="bg-brand-black text-white px-3 py-2 rounded-lg flex items-center hover:bg-gray-800 shadow-md transition-colors text-xs md:text-sm">
+            <Plus size={16} className="mr-1 md:mr-2"/> <span className="hidden md:inline">Novo Membro</span><span className="md:hidden">Novo</span>
           </button>
         )}
       </div>
 
       <div className="bg-white p-2 rounded-lg shadow-sm border flex items-center">
         <Search className="text-gray-400 mr-2" size={18} />
-        <input type="text" placeholder="BUSCAR..." className="flex-1 outline-none uppercase text-sm" value={searchTerm} onChange={e => setSearchTerm(e.target.value.toUpperCase())} />
+        <input type="text" placeholder="BUSCAR POR NOME OU CPF..." className="flex-1 outline-none text-sm uppercase" value={searchTerm} onChange={e => setSearchTerm(e.target.value.toUpperCase())} />
       </div>
 
       <div className="bg-white rounded-lg shadow overflow-hidden border border-gray-100">
         <table className="min-w-full divide-y divide-gray-200">
           <tbody className="divide-y divide-gray-200">
             {filteredMembers.map((member) => (
-              <tr key={member.id} className="hover:bg-gray-50">
-                <td className="px-3 py-2 whitespace-nowrap">
+              <tr key={member.id} className="hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => setViewingMember(member)}>
+                <td className="px-3 py-2 text-left">
                   <div className="flex items-center">
-                    <div className="flex-shrink-0 h-8 w-8 bg-gray-200 rounded-full overflow-hidden border cursor-zoom-in" onClick={(e) => { e.stopPropagation(); if(member.photo) setEnlargedPhoto(member.photo); }}>
-                       {member.photo ? <img src={member.photo} className="h-full w-full object-cover"/> : <User size={16} className="m-auto mt-2 text-gray-400"/>}
+                    <div className="flex-shrink-0 h-9 w-9 bg-gray-200 rounded-full overflow-hidden border cursor-zoom-in" onClick={(e) => { e.stopPropagation(); if(member.photo) setEnlargedPhoto(member.photo); }}>
+                       {member.photo ? <img src={member.photo} className="h-full w-full object-cover"/> : <User size={18} className="m-auto mt-2 text-gray-400"/>}
                     </div>
-                    <div className="ml-3 cursor-pointer" onClick={() => setViewingMember(member)}>
-                      <div className="text-xs font-bold text-gray-900 truncate max-w-[140px] md:max-w-none">{member.name}</div>
-                      <div className="text-[10px] text-gray-500 flex items-center gap-2">
-                          <span>{member.cpf}</span>
-                          {member.isTither && <CheckCircle size={10} className="text-green-600"/>}
+                    <div className="ml-3 overflow-hidden">
+                      <div className="text-sm font-bold text-gray-900 leading-tight whitespace-normal">{member.name}</div>
+                      <div className="text-[10px] text-gray-500 flex items-center gap-2 mt-0.5">
+                          <span className="truncate">CPF: {member.cpf}</span>
+                          {member.isTither && <span className="bg-green-100 text-green-800 px-1.5 rounded text-[9px] font-bold">DIZIMISTA</span>}
                       </div>
                     </div>
                   </div>
                 </td>
-                <td className="px-3 py-2 whitespace-nowrap text-right text-sm font-medium">
-                  <div className="flex justify-end gap-3">
+                <td className="px-2 py-2 whitespace-nowrap text-right text-sm font-medium w-16">
+                  <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
                       {canEdit ? (
                         <>
-                            <button onClick={() => handleEdit(member)} className="text-gray-400 hover:text-brand-orange"><Edit2 size={16}/></button>
-                            <button onClick={() => handleConfirmDelete(member)} className="text-gray-400 hover:text-red-600"><Trash2 size={16}/></button>
+                            <button onClick={() => handleEdit(member)} className="text-gray-400 hover:text-brand-orange p-1.5 rounded-full hover:bg-orange-50 transition-colors"><Edit2 size={16}/></button>
+                            <button onClick={() => handleConfirmDelete(member)} className="text-gray-400 hover:text-red-600 p-1.5 rounded-full hover:bg-red-50 transition-colors"><Trash2 size={16}/></button>
                         </>
                       ) : (
-                         <button onClick={() => setViewingMember(member)} className="text-gray-400"><ZoomIn size={16}/></button>
+                         <button onClick={() => setViewingMember(member)} className="text-gray-400 hover:text-gray-600 p-1"><ZoomIn size={16}/></button>
                       )}
                   </div>
                 </td>
               </tr>
             ))}
-            {filteredMembers.length === 0 && <tr><td colSpan={2} className="px-4 py-6 text-center text-xs text-gray-500">Nenhum membro.</td></tr>}
+            {filteredMembers.length === 0 && <tr><td colSpan={2} className="px-4 py-8 text-center text-gray-500 text-xs">Nenhum membro encontrado.</td></tr>}
           </tbody>
         </table>
       </div>
       
       {modalState.isOpen && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-xs w-full p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full p-4">
              <h3 className="font-bold text-base mb-2">{modalState.title}</h3>
              <p className="text-xs text-gray-600 mb-4">{modalState.message}</p>
              <div className="flex justify-end gap-2">
-                {modalState.showCancel && <button onClick={() => setModalState(prev => ({...prev, isOpen: false}))} className="px-3 py-1.5 border rounded text-xs">Cancelar</button>}
-                <button onClick={() => { if (modalState.onConfirm) modalState.onConfirm(); else setModalState(prev => ({...prev, isOpen: false})); }} className={`px-4 py-1.5 rounded text-white text-xs font-bold ${modalState.variant === 'danger' ? 'bg-red-600' : 'bg-brand-black'}`}>OK</button>
+                {modalState.showCancel && <button onClick={() => setModalState(prev => ({...prev, isOpen: false}))} className="px-3 py-1.5 border rounded text-xs font-medium hover:bg-gray-50">Cancelar</button>}
+                <button onClick={() => { if (modalState.onConfirm) modalState.onConfirm(); else setModalState(prev => ({...prev, isOpen: false})); }} className={`px-4 py-1.5 rounded text-white text-xs font-bold shadow ${modalState.variant === 'danger' ? 'bg-red-600 hover:bg-red-700' : 'bg-brand-black hover:bg-gray-800'}`}>OK</button>
              </div>
           </div>
         </div>
@@ -268,74 +281,159 @@ export const Members: React.FC = () => {
   );
 
   const renderForm = () => (
-    <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden pl-10 md:pl-0">
-      <div className="bg-brand-black p-3 md:p-4 flex justify-between items-center text-white">
-        <h2 className="text-sm md:text-lg font-bold">{editingMemberId ? 'Editar' : 'Novo'} Membro</h2>
-        <button onClick={handleCancel}><X/></button>
+    <div className="max-w-5xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden pl-10 md:pl-0 border border-gray-100">
+      <div className="bg-brand-black p-4 flex justify-between items-center text-white">
+        <h2 className="text-lg font-bold flex items-center">
+            {editingMemberId ? <Edit2 className="mr-2" size={20}/> : <Plus className="mr-2" size={20}/>}
+            {editingMemberId ? 'Editar Membro' : 'Novo Cadastro'}
+        </h2>
+        <button onClick={handleCancel} className="hover:text-gray-300 transition-colors bg-white/10 p-1 rounded-full"><X size={20}/></button>
       </div>
       
-      <form onSubmit={handleSubmit} className="p-4 space-y-4">
-        <div className="flex justify-center mb-4">
-            <div className="h-20 w-20 rounded-full border-2 border-gray-100 bg-gray-50 overflow-hidden relative cursor-pointer" onClick={triggerFileInput}>
-                {selectedFile ? <img src={URL.createObjectURL(selectedFile)} className="h-full w-full object-cover" /> : formData.photo ? <img src={formData.photo} className="h-full w-full object-cover" /> : <User size={32} className="m-auto mt-4 text-gray-300" />}
-                <div className="absolute inset-0 bg-black/30 flex items-center justify-center text-white opacity-0 hover:opacity-100"><Camera size={16}/></div>
+      <form onSubmit={handleSubmit} className="p-4 md:p-8 space-y-6">
+        
+        {/* FOTO E CABEÇALHO */}
+        <div className="flex flex-col items-center mb-6">
+            <div className="relative group">
+                <div 
+                    className="h-28 w-28 rounded-full border-4 border-gray-100 bg-gray-50 overflow-hidden shadow-md cursor-pointer hover:border-brand-orange transition-colors" 
+                    onClick={triggerFileInput}
+                >
+                    {selectedFile ? <img src={URL.createObjectURL(selectedFile)} className="h-full w-full object-cover" /> : formData.photo ? <img src={formData.photo} className="h-full w-full object-cover" /> : <User size={48} className="m-auto mt-6 text-gray-300" />}
+                </div>
+                <div className="absolute bottom-0 right-0 bg-brand-orange text-white p-2 rounded-full shadow-lg cursor-pointer hover:bg-brand-red transition-colors" onClick={triggerFileInput}>
+                    <Camera size={16}/>
+                </div>
             </div>
             <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
+            <p className="text-xs text-gray-400 mt-2 font-medium">Toque para alterar a foto</p>
         </div>
 
-        <div className="space-y-3">
-             <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-               <div className="md:col-span-3">
-                 <label className="text-xs font-medium text-gray-700 block">Nome</label>
-                 <input type="text" required className="w-full p-1.5 border rounded uppercase text-sm" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value.toUpperCase()})}/>
-               </div>
-               <div>
-                 <label className="text-xs font-medium text-gray-700 block">Nº (Opc)</label>
-                 <input type="text" className="w-full p-1.5 border rounded uppercase text-sm" value={formData.memberNumber} onChange={e => setFormData({...formData, memberNumber: e.target.value.toUpperCase()})}/>
-               </div>
-             </div>
-             
-             <div className="grid grid-cols-2 gap-3">
-               <div>
-                 <label className="text-xs font-medium text-gray-700 block">CPF</label>
-                 <input type="text" required maxLength={14} className="w-full p-1.5 border rounded text-sm" value={formData.cpf} onChange={handleCpfChange}/>
-               </div>
-               <div>
-                 <label className="text-xs font-medium text-gray-700 block">Nascimento</label>
-                 <input type="date" required className="w-full p-1.5 border rounded text-sm" value={formData.birthDate} onChange={e => setFormData({...formData, birthDate: e.target.value})}/>
-               </div>
-             </div>
+        {/* SEÇÃO DADOS PESSOAIS */}
+        <div className="bg-gray-50/50 p-4 rounded-lg border border-gray-100">
+            <h3 className="text-sm font-bold text-brand-orange uppercase tracking-wider border-b border-gray-200 pb-2 mb-4 flex items-center">
+                <User size={16} className="mr-2"/> Dados Pessoais
+            </h3>
+            
+            <div className="space-y-4">
+                <div className="flex flex-col md:flex-row gap-4">
+                    <div className="flex-1">
+                        <label className="block text-xs font-bold text-gray-600 uppercase mb-1.5">Nome Completo *</label>
+                        <input type="text" required className="w-full p-2.5 border border-gray-300 rounded-lg text-sm uppercase focus:ring-2 focus:ring-brand-orange focus:border-transparent outline-none transition-all" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value.toUpperCase()})}/>
+                    </div>
+                    <div className="w-full md:w-32">
+                        <label className="block text-xs font-bold text-gray-600 uppercase mb-1.5">Nº Membro</label>
+                        <div className="relative">
+                             <Hash className="absolute left-2.5 top-2.5 text-gray-400" size={16}/>
+                             <input type="text" className="w-full pl-9 p-2.5 border border-gray-300 rounded-lg text-sm uppercase focus:ring-2 focus:ring-brand-orange focus:border-transparent outline-none transition-all" value={formData.memberNumber} onChange={e => setFormData({...formData, memberNumber: e.target.value.toUpperCase()})}/>
+                        </div>
+                    </div>
+                </div>
 
-             <div className="grid grid-cols-2 gap-3">
-               <div>
-                 <label className="text-xs font-medium text-gray-700 block">Telefone</label>
-                 <input type="text" className="w-full p-1.5 border rounded text-sm" value={formData.phone} onChange={handlePhoneChange}/>
-               </div>
-               <div className="flex items-center h-full pt-4">
-                  <input type="checkbox" id="isTither" className="h-4 w-4 text-brand-orange rounded" checked={formData.isTither} onChange={e => setFormData({...formData, isTither: e.target.checked})}/>
-                  <label htmlFor="isTither" className="ml-2 text-xs font-bold text-gray-700">Dizimista?</label>
-               </div>
-             </div>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div>
+                        <label className="block text-xs font-bold text-gray-600 uppercase mb-1.5">CPF *</label>
+                        <input type="text" required maxLength={14} className="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-orange focus:border-transparent outline-none transition-all" value={formData.cpf} onChange={handleCpfChange}/>
+                    </div>
+                    <div>
+                        <label className="block text-xs font-bold text-gray-600 uppercase mb-1.5">Nascimento *</label>
+                        <input type="date" required className="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-orange focus:border-transparent outline-none transition-all" value={formData.birthDate} onChange={e => setFormData({...formData, birthDate: e.target.value})}/>
+                    </div>
+                    <div>
+                        <label className="block text-xs font-bold text-gray-600 uppercase mb-1.5">Batismo</label>
+                        <input type="date" className="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-orange focus:border-transparent outline-none transition-all" value={formData.baptismDate} onChange={e => setFormData({...formData, baptismDate: e.target.value})}/>
+                    </div>
+                    <div>
+                        <label className="block text-xs font-bold text-gray-600 uppercase mb-1.5">Estado Civil</label>
+                        <select className="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-orange focus:border-transparent outline-none transition-all bg-white" value={formData.maritalStatus} onChange={e => setFormData({...formData, maritalStatus: e.target.value})}>
+                            <option value="SOLTEIRO">SOLTEIRO(A)</option>
+                            <option value="CASADO">CASADO(A)</option>
+                            <option value="VIUVO">VIÚVO(A)</option>
+                            <option value="DIVORCIADO">DIVORCIADO(A)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-             <div className="border-t pt-2 mt-2">
-               <label className="text-xs font-medium text-gray-700 block">CEP</label>
-               <div className="relative">
-                <input type="text" maxLength={9} className="w-full p-1.5 border rounded text-sm" value={formData.zipCode} onChange={handleCepChange} onBlur={handleCepBlur}/>
-                {isLoadingCep && <Loader className="absolute right-2 top-1.5 animate-spin" size={14}/>}
+        {/* SEÇÃO CONTATO */}
+        <div className="bg-gray-50/50 p-4 rounded-lg border border-gray-100">
+             <h3 className="text-sm font-bold text-brand-orange uppercase tracking-wider border-b border-gray-200 pb-2 mb-4 flex items-center">
+                <Phone size={16} className="mr-2"/> Contato & Vínculo
+            </h3>
+             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+               <div>
+                 <label className="block text-xs font-bold text-gray-600 uppercase mb-1.5">Telefone / WhatsApp</label>
+                 <input type="text" className="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-orange focus:border-transparent outline-none transition-all" value={formData.phone} onChange={handlePhoneChange}/>
                </div>
-             </div>
-             
-             <div className="grid grid-cols-3 gap-2">
-                <div className="col-span-2"><input type="text" placeholder="RUA" className="w-full p-1.5 border rounded text-xs uppercase" value={formData.street} onChange={e => setFormData({...formData, street: e.target.value.toUpperCase()})}/></div>
-                <div><input type="text" placeholder="Nº" className="w-full p-1.5 border rounded text-xs uppercase" value={formData.number} onChange={e => setFormData({...formData, number: e.target.value.toUpperCase()})}/></div>
-                <div className="col-span-3"><input type="text" placeholder="BAIRRO" className="w-full p-1.5 border rounded text-xs uppercase" value={formData.neighborhood} onChange={e => setFormData({...formData, neighborhood: e.target.value.toUpperCase()})}/></div>
+               <div>
+                 <label className="block text-xs font-bold text-gray-600 uppercase mb-1.5">Email</label>
+                 <input type="email" className="w-full p-2.5 border border-gray-300 rounded-lg text-sm lowercase focus:ring-2 focus:ring-brand-orange focus:border-transparent outline-none transition-all" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value.toLowerCase()})}/>
+               </div>
+               <div className="flex items-end">
+                  <label className={`flex items-center justify-center w-full p-2.5 border rounded-lg cursor-pointer transition-all ${formData.isTither ? 'bg-green-50 border-green-200' : 'bg-white border-gray-300'}`}>
+                    <input type="checkbox" className="h-4 w-4 text-brand-orange rounded focus:ring-brand-orange" checked={formData.isTither} onChange={e => setFormData({...formData, isTither: e.target.checked})}/>
+                    <span className={`ml-2 text-sm font-bold ${formData.isTither ? 'text-green-700' : 'text-gray-500'}`}>Membro Dizimista</span>
+                  </label>
+               </div>
              </div>
         </div>
 
-        <div className="flex justify-end gap-2 pt-2 border-t">
-           <button type="button" onClick={handleCancel} className="px-4 py-2 border rounded-lg text-xs font-bold">Cancelar</button>
-           <button type="submit" disabled={isSaving} className="px-6 py-2 bg-brand-orange text-white rounded-lg text-xs font-bold flex items-center">
-             {isSaving ? <Loader className="animate-spin mr-1" size={14}/> : <Save size={14} className="mr-1" />} Salvar
+        {/* SEÇÃO ENDEREÇO */}
+        <div className="bg-gray-50/50 p-4 rounded-lg border border-gray-100">
+           <h3 className="text-sm font-bold text-brand-orange uppercase tracking-wider border-b border-gray-200 pb-2 mb-4 flex items-center">
+                <MapPin size={16} className="mr-2"/> Endereço
+            </h3>
+           
+           <div className="space-y-4">
+                {/* Linha 1: CEP, Rua, Número */}
+               <div className="flex flex-col md:flex-row gap-4">
+                   <div className="w-full md:w-40">
+                      <label className="block text-xs font-bold text-gray-600 uppercase mb-1.5">CEP</label>
+                      <div className="relative">
+                        <input type="text" maxLength={9} className="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-orange focus:border-transparent outline-none transition-all" value={formData.zipCode} onChange={handleCepChange} onBlur={handleCepBlur}/>
+                        {isLoadingCep && <Loader className="absolute right-3 top-2.5 animate-spin text-brand-orange" size={16}/>}
+                      </div>
+                   </div>
+                   <div className="flex-1">
+                      <label className="block text-xs font-bold text-gray-600 uppercase mb-1.5">Rua / Logradouro</label>
+                      <input type="text" className="w-full p-2.5 border border-gray-300 rounded-lg text-sm uppercase focus:ring-2 focus:ring-brand-orange focus:border-transparent outline-none transition-all" value={formData.street} onChange={e => setFormData({...formData, street: e.target.value.toUpperCase()})}/>
+                   </div>
+                   <div className="w-full md:w-24">
+                      <label className="block text-xs font-bold text-gray-600 uppercase mb-1.5">Número</label>
+                      <input type="text" className="w-full p-2.5 border border-gray-300 rounded-lg text-sm uppercase focus:ring-2 focus:ring-brand-orange focus:border-transparent outline-none transition-all" value={formData.number} onChange={e => setFormData({...formData, number: e.target.value.toUpperCase()})}/>
+                   </div>
+               </div>
+               
+               {/* Linha 2: Bairro, Cidade, UF, País */}
+               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="md:col-span-1">
+                      <label className="block text-xs font-bold text-gray-600 uppercase mb-1.5">Bairro</label>
+                      <input type="text" className="w-full p-2.5 border border-gray-300 rounded-lg text-sm uppercase focus:ring-2 focus:ring-brand-orange focus:border-transparent outline-none transition-all" value={formData.neighborhood} onChange={e => setFormData({...formData, neighborhood: e.target.value.toUpperCase()})}/>
+                  </div>
+                  <div className="md:col-span-1">
+                       <label className="block text-xs font-bold text-gray-600 uppercase mb-1.5">Cidade</label>
+                       <input type="text" className="w-full p-2.5 border border-gray-300 rounded-lg text-sm uppercase focus:ring-2 focus:ring-brand-orange focus:border-transparent outline-none transition-all" value={formData.city} onChange={e => setFormData({...formData, city: e.target.value.toUpperCase()})}/>
+                  </div>
+                   <div className="md:col-span-1">
+                       <label className="block text-xs font-bold text-gray-600 uppercase mb-1.5">UF</label>
+                       <input type="text" maxLength={2} className="w-full p-2.5 border border-gray-300 rounded-lg text-sm uppercase focus:ring-2 focus:ring-brand-orange focus:border-transparent outline-none transition-all" value={formData.state} onChange={e => setFormData({...formData, state: e.target.value.toUpperCase()})}/>
+                  </div>
+                  <div className="md:col-span-1">
+                       <label className="block text-xs font-bold text-gray-600 uppercase mb-1.5">País</label>
+                       <div className="relative">
+                            <Flag className="absolute left-2.5 top-2.5 text-gray-400" size={16}/>
+                            <input type="text" className="w-full pl-9 p-2.5 border border-gray-300 rounded-lg text-sm uppercase focus:ring-2 focus:ring-brand-orange focus:border-transparent outline-none transition-all" value={formData.country} onChange={e => setFormData({...formData, country: e.target.value.toUpperCase()})}/>
+                       </div>
+                  </div>
+               </div>
+             </div>
+        </div>
+
+        <div className="flex justify-end gap-3 pt-4 border-t mt-4">
+           <button type="button" onClick={handleCancel} className="px-5 py-2.5 border border-gray-300 rounded-lg text-sm font-bold hover:bg-gray-50 text-gray-700 transition-colors">Cancelar</button>
+           <button type="submit" disabled={isSaving} className="px-8 py-2.5 bg-brand-orange text-white rounded-lg text-sm font-bold flex items-center hover:bg-brand-red shadow-lg transition-all transform hover:scale-105">
+             {isSaving ? <Loader className="animate-spin mr-2" size={18}/> : <Save size={18} className="mr-2" />} Salvar
            </button>
         </div>
       </form>
