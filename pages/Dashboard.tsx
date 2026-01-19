@@ -58,7 +58,9 @@ export const Dashboard: React.FC = () => {
   });
 
   const missionsIn = currentMonthTransactions.filter(t => t.category === 'MISSOES' && t.type === 'ENTRADA').reduce((acc, t) => acc + t.amount, 0);
-  const missionsOut = currentMonthTransactions.filter(t => t.description.toLowerCase().includes('missões') && t.type === 'SAIDA').reduce((acc, t) => acc + t.amount, 0);
+  // CORREÇÃO: Buscar saídas pela categoria exata
+  const missionsOut = currentMonthTransactions.filter(t => t.category === 'MISSOES' && t.type === 'SAIDA').reduce((acc, t) => acc + t.amount, 0);
+  const missionsBalance = missionsIn - missionsOut;
   const missionsDonors = new Set(currentMonthTransactions.filter(t => t.category === 'MISSOES' && t.type === 'ENTRADA').map(t => t.memberId || 'anon')).size;
 
   const tithesTotal = currentMonthTransactions.filter(t => t.category === 'DIZIMO' && t.type === 'ENTRADA').reduce((acc, t) => acc + t.amount, 0);
@@ -221,28 +223,47 @@ export const Dashboard: React.FC = () => {
           onClick={() => navigate('/financeiro')}
           className="bg-white rounded-xl shadow-sm p-3 md:p-6 cursor-pointer transition-all active:scale-95"
         >
-          <h3 className="text-xs md:text-lg font-bold text-gray-700 mb-2 flex items-center"><HeartHandshake className="mr-1 text-brand-red" size={16}/> Missões</h3>
+          <h3 className="text-xs md:text-lg font-bold text-gray-700 mb-2 flex items-center justify-between">
+              <span className="flex items-center"><HeartHandshake className="mr-1 text-brand-red" size={16}/> Missões</span>
+              {/* Saldo Líquido Badge */}
+              <span className={`text-[10px] md:text-xs px-2 py-0.5 rounded font-bold ${missionsBalance >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                  Saldo: R$ {missionsBalance.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}
+              </span>
+          </h3>
           <div className="h-24 md:h-40 flex justify-center">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie 
-                  data={pieDataMissions} 
-                  innerRadius={25} 
-                  outerRadius={45} 
-                  paddingAngle={5} 
-                  dataKey="value"
-                >
-                  {pieDataMissions.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS_MISSIONS[index]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
+            {missionsIn > 0 || missionsOut > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                    <Pie 
+                    data={pieDataMissions} 
+                    innerRadius={25} 
+                    outerRadius={45} 
+                    paddingAngle={5} 
+                    dataKey="value"
+                    >
+                    {pieDataMissions.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS_MISSIONS[index]} />
+                    ))}
+                    </Pie>
+                    <Tooltip formatter={(value: number) => `R$ ${value.toLocaleString('pt-BR')}`}/>
+                </PieChart>
+                </ResponsiveContainer>
+            ) : (
+                <div className="flex flex-col items-center justify-center text-gray-400">
+                    <HeartHandshake size={24} className="mb-1 opacity-50"/>
+                    <p className="text-[10px]">Sem movimento</p>
+                </div>
+            )}
           </div>
-          <div className="text-center mt-1">
-            <p className="text-sm md:text-xl font-bold">R$ {missionsIn.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}</p>
-            <p className="text-[9px] md:text-sm text-gray-500">Arrecadado</p>
+          <div className="text-center mt-1 grid grid-cols-2 gap-2 text-[10px] md:text-xs">
+            <div>
+                <p className="font-bold text-green-600">R$ {missionsIn.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}</p>
+                <p className="text-gray-400">Entradas</p>
+            </div>
+            <div>
+                <p className="font-bold text-red-600">R$ {missionsOut.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}</p>
+                <p className="text-gray-400">Saídas</p>
+            </div>
           </div>
         </div>
 

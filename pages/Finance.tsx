@@ -5,7 +5,7 @@ import { TransactionCategory, Transaction } from '../types';
 import { 
   PlusCircle, MinusCircle, Search, CheckCircle, ShieldAlert, X, 
   Paperclip, ExternalLink, Trash2, Upload, Loader, Filter, 
-  Calendar, Edit2, AlertTriangle, Info, ChevronDown, ChevronUp 
+  Calendar, Edit2, AlertTriangle, Info, ChevronDown, ChevronUp, Globe 
 } from 'lucide-react';
 
 export const Finance: React.FC = () => {
@@ -164,11 +164,17 @@ export const Finance: React.FC = () => {
         if (url) attachmentUrl = url;
     }
 
+    // Determine final category for output
+    let finalCategory = category;
+    if (activeTab === 'SAIDA' && !category) {
+        finalCategory = 'DESPESA_VARIAVEL'; // Default fallback
+    }
+
     const transactionPayload: Transaction = {
       id: editingTransactionId || '',
       churchId: viewId, 
       type: activeTab === 'ENTRADA' ? 'ENTRADA' : 'SAIDA',
-      category: category as TransactionCategory,
+      category: finalCategory as TransactionCategory,
       amount: parseFloat(amount),
       date: date,
       description: (description || (activeTab === 'ENTRADA' ? category : 'Saída')).toUpperCase(),
@@ -190,6 +196,7 @@ export const Finance: React.FC = () => {
   };
 
   const formatCategoryName = (cat: string, type: string) => {
+      if (type === 'SAIDA' && cat === 'MISSOES') return 'SAÍDA MISSÕES';
       if (type === 'SAIDA') return 'SAÍDA';
       if (cat === 'DIZIMO') return 'DÍZIMO';
       if (cat === 'MISSOES') return 'MISSÕES';
@@ -202,7 +209,7 @@ export const Finance: React.FC = () => {
     <div className="bg-white rounded-xl shadow-md p-3 md:p-8 animate-fade-in-down">
        <div className="mb-4 border-b pb-2 flex justify-between items-center">
          <div>
-            <h2 className="text-lg md:text-2xl font-bold">
+            <h2 className="text-lg md:text-2xl font-bold flex items-center">
             {editingTransactionId 
                 ? 'Editar' 
                 : (activeTab === 'ENTRADA' ? 'Nova Receita' : 'Nova Despesa')}
@@ -214,7 +221,7 @@ export const Finance: React.FC = () => {
        <form onSubmit={handleSubmit} className="space-y-3 md:space-y-6">
           {activeTab === 'ENTRADA' ? (
             <div>
-              <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1">Tipo</label>
+              <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1">Tipo de Entrada</label>
               <div className="flex gap-2 overflow-x-auto pb-1">
                 {[ { val: 'DIZIMO', label: 'DÍZIMO' }, { val: 'MISSOES', label: 'MISSÕES' }, { val: 'OFERTA', label: 'OFERTA' } ].map((item) => (
                   <button type="button" key={item.val} onClick={() => { setCategory(item.val as TransactionCategory); if (!editingTransactionId) clearMemberSelection(); }}
@@ -227,8 +234,28 @@ export const Finance: React.FC = () => {
             </div>
           ) : (
              <div>
-               <label className="block text-xs md:text-sm font-medium text-gray-700">Motivo</label>
-               <input type="text" required placeholder="EX: CONTA DE LUZ" className="mt-1 w-full p-2 border rounded-lg uppercase text-sm" value={description} onChange={e => setDescription(e.target.value.toUpperCase())} />
+                <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1">Categoria da Saída</label>
+                <div className="flex gap-2 mb-3">
+                    <button 
+                        type="button" 
+                        onClick={() => setCategory('DESPESA_VARIAVEL')}
+                        className={`flex-1 py-2 px-3 rounded-lg border text-xs font-bold transition-colors ${category !== 'MISSOES' ? 'bg-brand-red text-white border-brand-red' : 'bg-white text-gray-600 border-gray-300'}`}
+                    >
+                        Despesa Administrativa
+                    </button>
+                    <button 
+                        type="button" 
+                        onClick={() => setCategory('MISSOES')}
+                        className={`flex-1 py-2 px-3 rounded-lg border text-xs font-bold transition-colors flex items-center justify-center ${category === 'MISSOES' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300'}`}
+                    >
+                        <Globe size={14} className="mr-1"/> Saída de Missões
+                    </button>
+                </div>
+
+               <label className="block text-xs md:text-sm font-medium text-gray-700">
+                   {category === 'MISSOES' ? 'Destino / Favorecido / Motivo' : 'Motivo / Descrição'}
+               </label>
+               <input type="text" required placeholder={category === 'MISSOES' ? "EX: MISSIONÁRIO JOÃO NA ÁFRICA" : "EX: CONTA DE LUZ"} className="mt-1 w-full p-2 border rounded-lg uppercase text-sm" value={description} onChange={e => setDescription(e.target.value.toUpperCase())} />
              </div>
           )}
 
@@ -384,7 +411,7 @@ export const Finance: React.FC = () => {
                 <button onClick={() => { setActiveTab('ENTRADA'); setEditingTransactionId(null); setCategory(''); clearMemberSelection(); setSelectedFile(null); }} className={`flex-1 py-2 md:py-4 rounded-lg flex justify-center items-center gap-1 font-bold text-xs md:text-base ${activeTab === 'ENTRADA' ? 'bg-green-600 text-white' : 'bg-white text-green-600 border border-green-200'}`}>
                   <PlusCircle size={14} /> Entrada
                 </button>
-                <button onClick={() => { setActiveTab('SAIDA'); setEditingTransactionId(null); setCategory(''); setDescription(''); setSelectedFile(null); }} className={`flex-1 py-2 md:py-4 rounded-lg flex justify-center items-center gap-1 font-bold text-xs md:text-base ${activeTab === 'SAIDA' ? 'bg-brand-red text-white' : 'bg-white text-brand-red border border-red-200'}`}>
+                <button onClick={() => { setActiveTab('SAIDA'); setEditingTransactionId(null); setCategory('DESPESA_VARIAVEL'); setDescription(''); setSelectedFile(null); }} className={`flex-1 py-2 md:py-4 rounded-lg flex justify-center items-center gap-1 font-bold text-xs md:text-base ${activeTab === 'SAIDA' ? 'bg-brand-red text-white' : 'bg-white text-brand-red border border-red-200'}`}>
                   <MinusCircle size={14} /> Saída
                 </button>
                </div>
