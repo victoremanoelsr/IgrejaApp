@@ -146,10 +146,10 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
 
       {/* MOBILE TOGGLE BUTTON (Floating) */}
       <button 
-        className={`md:hidden fixed top-3 left-3 z-50 p-2 rounded-full shadow-xl transition-colors ${isMobileOpen ? 'bg-white text-brand-black' : 'bg-brand-black text-white'}`}
+        className={`md:hidden fixed top-2 left-2 z-50 p-2 rounded-full shadow-xl transition-colors ${isMobileOpen ? 'bg-white text-brand-black' : 'bg-brand-black text-white'}`}
         onClick={() => setIsMobileOpen(!isMobileOpen)}
       >
-        {isMobileOpen ? <X size={20} /> : <Menu size={20} />}
+        {isMobileOpen ? <X size={18} /> : <Menu size={18} />}
       </button>
 
       {/* Sidebar */}
@@ -167,7 +167,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
         }}
       >
         {/* Header Logo & Church Name */}
-        <div className="h-20 flex items-center justify-center border-b border-gray-800 shrink-0 overflow-hidden bg-black/20 px-2 transition-all duration-300">
+        <div className="h-16 md:h-20 flex items-center justify-center border-b border-gray-800 shrink-0 overflow-hidden bg-black/20 px-2 transition-all duration-300">
            {isSuperAdminGlobal ? (
              isExpanded ? (
                <span className="text-xl font-bold text-brand-orange tracking-wider animate-fade-in-down">SUPER ADM</span>
@@ -181,10 +181,10 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                     <img 
                         src={currentChurch.logoUrl} 
                         alt="Logo" 
-                        className="w-10 h-10 rounded-full object-cover border-2 border-gray-700 bg-white shrink-0"
+                        className="w-8 h-8 md:w-10 md:h-10 rounded-full object-cover border-2 border-gray-700 bg-white shrink-0"
                     />
                 ) : (
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-brand-orange to-red-600 flex items-center justify-center text-white font-bold text-sm shrink-0 shadow-lg border border-gray-700">
+                    <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-gradient-to-br from-brand-orange to-red-600 flex items-center justify-center text-white font-bold text-xs md:text-sm shrink-0 shadow-lg border border-gray-700">
                         {currentChurch.name.substring(0, 2).toUpperCase()}
                     </div>
                 )}
@@ -353,28 +353,28 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
         </div>
       </aside>
 
-      {/* Main Content */}
+      {/* Main Content - PADDING COMPACTADO NO MOBILE (p-1 pt-16) */}
       <main className="flex-1 flex flex-col overflow-hidden bg-gray-50 dark:bg-gray-900 relative">
         
         {/* Ghost Mode Banner */}
         {isGhostMode && (
-          <div className="bg-brand-yellow text-brand-black px-6 py-3 flex justify-between items-center shadow-md z-10 pl-16 md:pl-6">
+          <div className="bg-brand-yellow text-brand-black px-4 py-2 text-xs md:text-base flex justify-between items-center shadow-md z-10 pl-14 md:pl-6">
             <div className="flex items-center font-bold">
-              <EyeOff className="mr-2" size={20}/>
+              <EyeOff className="mr-2" size={16}/>
               <span className="hidden sm:inline">MODO SUPER VISÃO: Acessando {currentChurch?.name}</span>
               <span className="sm:hidden">SUPER VISÃO: {currentChurch?.name}</span>
             </div>
             <button 
               onClick={handleReturnToAdminPanel} 
-              className="bg-black text-white px-4 py-1 rounded text-sm hover:bg-gray-800 font-bold whitespace-nowrap"
+              className="bg-black text-white px-3 py-1 rounded text-xs hover:bg-gray-800 font-bold whitespace-nowrap"
             >
               Sair
             </button>
           </div>
         )}
 
-        {/* ADJUSTED PADDING FOR MOBILE COMPACTNESS */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden p-2 pt-14 sm:p-6 lg:p-8 md:pt-8 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600">
+        {/* ADJUSTED PADDING FOR MOBILE COMPACTNESS - Use p-1 for mobile, p-6 for desktop */}
+        <div className="flex-1 overflow-y-auto overflow-x-hidden p-1 pt-16 sm:p-6 lg:p-8 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600">
            {children}
         </div>
       </main>

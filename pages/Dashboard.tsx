@@ -43,8 +43,6 @@ export const Dashboard: React.FC = () => {
   const viewId = currentChurch.id;
   const churchMembers = members.filter(m => m.churchId === viewId);
   
-  // --- ALTERAÇÃO CRÍTICA: FILTRAR APENAS TRANSAÇÕES DO CAIXA PRINCIPAL ---
-  // A propriedade 'campaignId' deve ser nula ou undefined para aparecer aqui.
   const churchTransactions = transactions.filter(t => t.churchId === viewId && !t.campaignId);
 
   // --- METRICS CALCULATION ---
@@ -54,7 +52,6 @@ export const Dashboard: React.FC = () => {
 
   const totalMembers = churchMembers.length;
 
-  // Filtrar transações APENAS DESTE MÊS para os cards de resumo
   const currentMonthTransactions = churchTransactions.filter(t => {
       const d = new Date(t.date);
       return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
@@ -66,21 +63,16 @@ export const Dashboard: React.FC = () => {
 
   const tithesTotal = currentMonthTransactions.filter(t => t.category === 'DIZIMO' && t.type === 'ENTRADA').reduce((acc, t) => acc + t.amount, 0);
   
-  // Dizimistas que contribuíram ESTE MÊS
   const tithersCount = new Set(currentMonthTransactions.filter(t => t.category === 'DIZIMO' && t.type === 'ENTRADA').map(t => t.memberId)).size;
 
-  // Total de Membros marcados como DIZIMISTA no cadastro
   const totalRegisteredTithers = churchMembers.filter(m => m.isTither).length;
   
-  // Cálculo da porcentagem
   const titherPercentage = totalRegisteredTithers > 0 ? Math.round((tithersCount / totalRegisteredTithers) * 100) : 0;
 
-  // Monthly Consolidated (Total do Mês - CAIXA PRINCIPAL)
   const totalIn = currentMonthTransactions.filter(t => t.type === 'ENTRADA').reduce((acc, t) => acc + t.amount, 0);
   const totalOut = currentMonthTransactions.filter(t => t.type === 'SAIDA').reduce((acc, t) => acc + t.amount, 0);
   const balance = totalIn - totalOut;
 
-  // --- DYNAMIC CHART DATA: OFFERINGS (Last 5 records regardless of date for trend, or filter by month? Let's keep recent trend) ---
   const offersRaw = churchTransactions.filter(t => t.category === 'OFERTA' && t.type === 'ENTRADA');
   const offersByDate: Record<string, number> = {};
   offersRaw.forEach(t => {
@@ -116,7 +108,6 @@ export const Dashboard: React.FC = () => {
   ];
   const COLORS_MISSIONS = ['#16a34a', '#dc2626'];
 
-  // --- FLUXO DE CAIXA MENSAL (DIÁRIO) ---
   const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
   const dailyFlowData = Array.from({ length: daysInMonth }, (_, i) => ({
     day: (i + 1).toString(),
@@ -124,10 +115,8 @@ export const Dashboard: React.FC = () => {
     saidas: 0
   }));
 
-  // Reuse filtered transactions for chart performance
   currentMonthTransactions.forEach(t => {
       const [tYear, tMonth, tDay] = t.date.split('-').map(Number);
-      // Double check date consistency (though already filtered)
       if (tYear === currentYear && (tMonth - 1) === currentMonth) {
         const dayIndex = tDay - 1;
         if (dayIndex >= 0 && dayIndex < daysInMonth) {
@@ -138,55 +127,58 @@ export const Dashboard: React.FC = () => {
   });
 
   return (
-    <div className="space-y-4 md:space-y-6">
-      <div className="flex justify-between items-center pl-10 md:pl-0">
+    <div className="space-y-2 md:space-y-6">
+      {/* HEADER COMPACTO */}
+      <div className="flex justify-between items-center pl-10 md:pl-0 mb-1">
         <div>
-           <h1 className="text-xl md:text-3xl font-bold text-gray-800">Painel Geral</h1>
-           <div className="flex items-center space-x-2">
-             <span className={`px-2 py-0.5 rounded text-[10px] md:text-xs font-bold ${currentChurch.type === 'SEDE' ? 'bg-brand-red text-white' : 'bg-gray-200 text-gray-700'}`}>
+           <h1 className="text-lg md:text-3xl font-bold text-gray-800">Painel Geral</h1>
+           <div className="flex items-center space-x-1 md:space-x-2">
+             <span className={`px-1.5 py-0.5 rounded text-[9px] md:text-xs font-bold ${currentChurch.type === 'SEDE' ? 'bg-brand-red text-white' : 'bg-gray-200 text-gray-700'}`}>
                 {currentChurch.type}
              </span>
-             <p className="text-gray-500 font-medium text-sm md:text-lg truncate max-w-[200px] md:max-w-none">{currentChurch.name}</p>
+             <p className="text-gray-500 font-medium text-xs md:text-lg truncate max-w-[200px] md:max-w-none">{currentChurch.name}</p>
            </div>
         </div>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-6">
+      {/* GRID PRINCIPAL */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 md:gap-6">
+        
+        {/* CARD MEMBROS */}
         <div 
           onClick={() => navigate('/membros')}
-          className="bg-white rounded-xl shadow-md md:shadow-lg p-4 md:p-6 border-l-4 border-brand-black flex items-center justify-between cursor-pointer transition-all duration-300 active:scale-95 md:hover:-translate-y-2 md:hover:shadow-2xl"
+          className="bg-white rounded-xl shadow-sm md:shadow-lg p-3 md:p-6 border-l-4 border-brand-black flex items-center justify-between cursor-pointer transition-all active:scale-95"
         >
           <div>
-             <p className="text-gray-500 text-xs md:text-sm font-medium uppercase">Total de Membros</p>
-             <p className="text-3xl md:text-4xl font-bold text-brand-black mt-1 md:mt-2">{totalMembers}</p>
+             <p className="text-gray-500 text-[10px] md:text-sm font-medium uppercase">Total de Membros</p>
+             <p className="text-2xl md:text-4xl font-bold text-brand-black mt-0.5 md:mt-2">{totalMembers}</p>
           </div>
           <div className="bg-gray-100 p-2 md:p-3 rounded-full">
-            <Users size={24} className="text-brand-black md:w-8 md:h-8" />
+            <Users size={20} className="text-brand-black md:w-8 md:h-8" />
           </div>
         </div>
 
+        {/* CARD FINANCEIRO GERAL (Compacto no Mobile) */}
         <div 
           onClick={() => navigate('/financeiro')}
-          className="bg-white rounded-xl shadow-md md:shadow-lg p-4 md:p-6 border-l-4 border-brand-orange flex items-center col-span-1 md:col-span-2 lg:col-span-2 cursor-pointer transition-all duration-300 active:scale-95 md:hover:-translate-y-2 md:hover:shadow-2xl"
+          className="bg-white rounded-xl shadow-sm md:shadow-lg p-3 md:p-6 border-l-4 border-brand-orange flex items-center col-span-1 md:col-span-2 lg:col-span-2 cursor-pointer transition-all active:scale-95"
         >
-          <div className="flex w-full justify-around items-center divide-x divide-gray-100 md:divide-none">
-            <div className="text-center px-2">
-               <p className="text-gray-500 text-[10px] md:text-base font-bold uppercase tracking-widest mb-1">Entradas (Principal)</p>
-               <p className="text-lg md:text-3xl font-black text-green-600 flex flex-col md:flex-row items-center justify-center">
-                 <span className="hidden md:inline"><TrendingUp size={28} className="mr-2"/></span> 
-                 R$ {totalIn.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          <div className="flex w-full justify-between items-center divide-x divide-gray-100">
+            <div className="text-center px-1 md:px-2 flex-1">
+               <p className="text-gray-500 text-[9px] md:text-base font-bold uppercase tracking-widest mb-0.5">Entradas</p>
+               <p className="text-sm md:text-3xl font-black text-green-600 truncate">
+                 R$ {totalIn.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 0 })}
                </p>
             </div>
-            <div className="text-center px-2">
-               <p className="text-gray-500 text-[10px] md:text-base font-bold uppercase tracking-widest mb-1">Saídas (Principal)</p>
-               <p className="text-lg md:text-3xl font-black text-brand-red flex flex-col md:flex-row items-center justify-center">
-                 <span className="hidden md:inline"><TrendingDown size={28} className="mr-2"/></span>
-                 R$ {totalOut.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            <div className="text-center px-1 md:px-2 flex-1">
+               <p className="text-gray-500 text-[9px] md:text-base font-bold uppercase tracking-widest mb-0.5">Saídas</p>
+               <p className="text-sm md:text-3xl font-black text-brand-red truncate">
+                 R$ {totalOut.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 0 })}
                </p>
             </div>
-            <div className="text-center px-2">
-               <p className="text-gray-500 text-[10px] md:text-base font-bold uppercase tracking-widest mb-1">Saldo em Caixa</p>
-               <p className={`text-lg md:text-3xl font-black ${balance >= 0 ? 'text-brand-black' : 'text-brand-red'}`}>
+            <div className="text-center px-1 md:px-2 flex-1">
+               <p className="text-gray-500 text-[9px] md:text-base font-bold uppercase tracking-widest mb-0.5">Saldo</p>
+               <p className={`text-base md:text-3xl font-black ${balance >= 0 ? 'text-brand-black' : 'text-brand-red'} truncate`}>
                  R$ {balance.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                </p>
             </div>
@@ -194,60 +186,49 @@ export const Dashboard: React.FC = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-6">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 md:gap-6">
+        
+        {/* CARD DÍZIMOS */}
         <div 
           onClick={() => navigate('/financeiro')}
-          className="bg-white rounded-xl shadow-md p-4 md:p-6 flex flex-col h-full cursor-pointer transition-all duration-300 active:scale-95 md:hover:-translate-y-2 md:hover:shadow-2xl"
+          className="bg-white rounded-xl shadow-sm p-3 md:p-6 flex flex-col cursor-pointer transition-all active:scale-95 col-span-2 md:col-span-1"
         >
-          <h3 className="text-base md:text-lg font-bold text-gray-700 mb-4 md:mb-6 flex items-center">
-            <Coins className="mr-2 text-brand-yellow" size={20}/> Dízimos
+          <h3 className="text-sm md:text-lg font-bold text-gray-700 mb-2 md:mb-6 flex items-center">
+            <Coins className="mr-1 md:mr-2 text-brand-yellow" size={16}/> Dízimos
           </h3>
-          <div className="flex-1 flex flex-col justify-center space-y-4 md:space-y-6">
-            <div className="flex justify-between items-center border-b border-gray-100 pb-3">
-              <span className="text-gray-600 font-medium text-sm md:text-lg">Entradas</span>
-              <span className="font-bold text-green-600 text-xl md:text-2xl">R$ {tithesTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+          <div className="flex-1 flex flex-col justify-center space-y-2 md:space-y-6">
+            <div className="flex justify-between items-center border-b border-gray-100 pb-2 md:pb-3">
+              <span className="text-gray-600 font-medium text-xs md:text-lg">Total</span>
+              <span className="font-bold text-green-600 text-sm md:text-2xl">R$ {tithesTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
             </div>
             
-            <div className="grid grid-cols-2 gap-3">
-                <div className="bg-green-50 p-3 rounded-xl text-center border border-green-100 flex flex-col justify-center items-center">
-                    <span className="text-green-600 font-black text-2xl md:text-3xl">{tithersCount}</span>
-                    <p className="text-green-800 text-[10px] md:text-xs font-bold uppercase mt-1 leading-tight">Dizimaram<br/>Este Mês</p>
+            <div className="grid grid-cols-2 gap-2 md:gap-3">
+                <div className="bg-green-50 p-2 md:p-3 rounded-lg text-center border border-green-100">
+                    <span className="text-green-600 font-black text-lg md:text-3xl">{tithersCount}</span>
+                    <p className="text-green-800 text-[8px] md:text-xs font-bold uppercase mt-0.5 leading-tight">Dizimistas<br/>Ativos</p>
                 </div>
 
-                <div className="bg-orange-50 p-3 rounded-xl text-center border border-orange-100 flex flex-col justify-center items-center">
-                    <span className="text-brand-orange font-black text-2xl md:text-3xl">{totalRegisteredTithers}</span>
-                    <p className="text-brand-orange text-[10px] md:text-xs font-bold uppercase mt-1 leading-tight">Cadastrados<br/>Como Dizimistas</p>
+                <div className="bg-orange-50 p-2 md:p-3 rounded-lg text-center border border-orange-100">
+                    <span className="text-brand-orange font-black text-lg md:text-3xl">{totalRegisteredTithers}</span>
+                    <p className="text-brand-orange text-[8px] md:text-xs font-bold uppercase mt-0.5 leading-tight">Total<br/>Cadastrados</p>
                 </div>
             </div>
-
-            <div className="text-center">
-                <div className="flex justify-between items-end mb-1">
-                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Fidelidade</p>
-                    <p className="text-xs font-bold text-gray-600">{titherPercentage}%</p>
-                </div>
-                <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
-                    <div 
-                        className="bg-brand-orange h-1.5 rounded-full transition-all duration-1000 ease-out" 
-                        style={{ width: `${titherPercentage}%` }}
-                    ></div>
-                </div>
-            </div>
-
           </div>
         </div>
 
+        {/* CARD MISSÕES */}
         <div 
           onClick={() => navigate('/financeiro')}
-          className="bg-white rounded-xl shadow-md p-4 md:p-6 cursor-pointer transition-all duration-300 active:scale-95 md:hover:-translate-y-2 md:hover:shadow-2xl"
+          className="bg-white rounded-xl shadow-sm p-3 md:p-6 cursor-pointer transition-all active:scale-95"
         >
-          <h3 className="text-base md:text-lg font-bold text-gray-700 mb-4 flex items-center"><HeartHandshake className="mr-2 text-brand-red" size={20}/> Missões</h3>
-          <div className="h-40 flex justify-center">
+          <h3 className="text-xs md:text-lg font-bold text-gray-700 mb-2 flex items-center"><HeartHandshake className="mr-1 text-brand-red" size={16}/> Missões</h3>
+          <div className="h-24 md:h-40 flex justify-center">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie 
                   data={pieDataMissions} 
-                  innerRadius={40} 
-                  outerRadius={70} 
+                  innerRadius={25} 
+                  outerRadius={45} 
                   paddingAngle={5} 
                   dataKey="value"
                 >
@@ -255,63 +236,60 @@ export const Dashboard: React.FC = () => {
                     <Cell key={`cell-${index}`} fill={COLORS_MISSIONS[index]} />
                   ))}
                 </Pie>
-                <Tooltip formatter={(value: number) => `R$ ${value.toFixed(2)}`} />
+                <Tooltip />
               </PieChart>
             </ResponsiveContainer>
           </div>
-          <div className="text-center mt-2">
-            <p className="text-lg md:text-xl font-bold">R$ {missionsIn.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
-            <p className="text-xs md:text-sm text-gray-500">Entradas para Missões</p>
-            <div className="mt-3 bg-green-50 p-2 rounded text-green-700 font-medium text-xs md:text-sm">
-               {missionsDonors} contribuintes este mês
-            </div>
+          <div className="text-center mt-1">
+            <p className="text-sm md:text-xl font-bold">R$ {missionsIn.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}</p>
+            <p className="text-[9px] md:text-sm text-gray-500">Arrecadado</p>
           </div>
         </div>
 
+        {/* CARD OFERTAS */}
         <div 
           onClick={() => navigate('/financeiro')}
-          className="bg-white rounded-xl shadow-md p-4 md:p-6 cursor-pointer transition-all duration-300 active:scale-95 md:hover:-translate-y-2 md:hover:shadow-2xl"
+          className="bg-white rounded-xl shadow-sm p-3 md:p-6 cursor-pointer transition-all active:scale-95"
         >
-           <h3 className="text-base md:text-lg font-bold text-gray-700 mb-4 flex items-center"><Banknote className="mr-2 text-brand-orange" size={20}/> Ofertas</h3>
-           <div className="h-48 md:h-64">
+           <h3 className="text-xs md:text-lg font-bold text-gray-700 mb-2 flex items-center"><Banknote className="mr-1 text-brand-orange" size={16}/> Ofertas</h3>
+           <div className="h-24 md:h-64">
              {offersRaw.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={offerData} margin={{ top: 10, right: 10, left: 0, bottom: 20 }}>
+                  <BarChart data={offerData} margin={{ top: 5, right: 0, left: -25, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} />
                     <XAxis 
                       dataKey="name" 
-                      tick={{ fontSize: 10, fontWeight: 'bold' }} 
+                      tick={{ fontSize: 8, fontWeight: 'bold' }} 
                       interval={0}
-                      angle={-15}
-                      textAnchor="end"
+                      hide // Hide X Axis text on mobile tiny chart to save space
                     />
                     <YAxis 
-                      tickFormatter={(value) => `R$ ${value}`} 
-                      tick={{ fontSize: 10 }}
-                      width={55}
+                      tick={{ fontSize: 8 }}
+                      width={30}
                     />
                     <Tooltip 
-                      formatter={(value: number) => [`R$ ${value.toFixed(2)}`, 'Oferta']}
-                      contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                      formatter={(value: number) => [`R$ ${value.toFixed(2)}`, '']}
+                      labelStyle={{fontSize: '10px'}}
+                      contentStyle={{fontSize: '10px'}}
                     />
                     <Bar dataKey="valor" fill="#f97316" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
              ) : (
                 <div className="h-full flex flex-col items-center justify-center text-gray-400">
-                  <Banknote size={48} className="mb-2 opacity-50"/>
-                  <p className="text-sm">Nenhuma oferta registrada recentemente.</p>
+                  <Banknote size={24} className="mb-1 opacity-50"/>
+                  <p className="text-[10px]">Sem dados.</p>
                 </div>
              )}
            </div>
         </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-md p-4 md:p-6">
-        <h3 className="text-base md:text-lg font-bold text-gray-700 mb-4 md:mb-6">Fluxo de Caixa - Principal ({new Date().toLocaleString('pt-BR', { month: 'long' })})</h3>
-        <div className="h-60 md:h-80">
+      <div className="bg-white rounded-xl shadow-sm p-3 md:p-6">
+        <h3 className="text-sm md:text-lg font-bold text-gray-700 mb-2 md:mb-6">Fluxo de Caixa</h3>
+        <div className="h-40 md:h-80">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={dailyFlowData}>
+            <AreaChart data={dailyFlowData} margin={{top: 5, right: 0, left: -20, bottom: 0}}>
               <defs>
                 <linearGradient id="colorIn" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#16a34a" stopOpacity={0.8}/>
@@ -324,32 +302,15 @@ export const Dashboard: React.FC = () => {
               </defs>
               <XAxis 
                 dataKey="day" 
-                label={{ value: 'Dias', position: 'insideBottomRight', offset: -5 }}
-                tick={{fontSize: 10}}
+                tick={{fontSize: 9}}
+                interval={4} // Show fewer labels on mobile
               />
-              <YAxis tickFormatter={(value) => `R$ ${value}`} tick={{fontSize: 10}} width={45} />
+              <YAxis tickFormatter={(value) => `${value}`} tick={{fontSize: 9}} width={25} />
               <CartesianGrid strokeDasharray="3 3" />
-              <Tooltip 
-                formatter={(value: number) => `R$ ${value.toFixed(2)}`} 
-                labelFormatter={(label) => `Dia ${label}`}
-              />
-              <Legend verticalAlign="top" height={36}/>
-              <Area 
-                type="monotone" 
-                dataKey="entradas" 
-                name="Entradas"
-                stroke="#16a34a" 
-                fillOpacity={1} 
-                fill="url(#colorIn)" 
-              />
-              <Area 
-                type="monotone" 
-                dataKey="saidas" 
-                name="Saídas"
-                stroke="#dc2626" 
-                fillOpacity={1} 
-                fill="url(#colorOut)" 
-              />
+              <Tooltip formatter={(value: number) => `R$ ${value.toFixed(2)}`} />
+              <Legend verticalAlign="top" iconSize={10} wrapperStyle={{fontSize: '10px'}}/>
+              <Area type="monotone" dataKey="entradas" stroke="#16a34a" fillOpacity={1} fill="url(#colorIn)" />
+              <Area type="monotone" dataKey="saidas" stroke="#dc2626" fillOpacity={1} fill="url(#colorOut)" />
             </AreaChart>
           </ResponsiveContainer>
         </div>
