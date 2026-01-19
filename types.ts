@@ -84,6 +84,7 @@ export interface Event {
   name: string;
   date: string;
   time: string;
+  location?: string; // Novo campo para o Local do evento
   responsibleName: string;
   imageUrl?: string;
 }
@@ -93,5 +94,5 @@ export interface Minute {
   churchId: string;
   title: string;
   date: string;
-  fileUrl: string; 
+  fileUrls: string[]; // Alterado para array de strings para suportar múltiplos arquivos
 }

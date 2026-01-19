@@ -3,7 +3,7 @@ import React, { useState, useRef } from 'react';
 import { useApp } from '../context';
 import { 
     FileText, Plus, Download, Calendar, ShieldAlert, Upload, Loader, X, 
-    Eye, Trash2, Edit2, AlertTriangle, CheckCircle, Info, Save 
+    Eye, Trash2, Edit2, AlertTriangle, CheckCircle, Info, Save, Paperclip, Files
 } from 'lucide-react';
 import { Minute } from '../types';
 
@@ -18,7 +18,7 @@ export const Minutes: React.FC = () => {
   // Form State
   const [title, setTitle] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [isUploading, setIsUploading] = useState(false);
 
   // Custom Modal State (Confirmation)
@@ -67,22 +67,32 @@ export const Minutes: React.FC = () => {
   
   // Isolate by Current Church (like other pages)
   const viewId = currentChurch?.id;
-  const churchMinutes = minutes.filter(m => m.churchId === viewId);
+  const churchMinutes = minutes.filter(m => m.churchId === viewId).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   // Verificação de Permissão: Tesoureiro só pode ver
   const canEdit = user?.role !== 'TESOUREIRO';
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      if (e.target.files && e.target.files[0]) {
-          setSelectedFile(e.target.files[0]);
+      if (e.target.files && e.target.files.length > 0) {
+          // Convert FileList to Array
+          const newFiles = Array.from(e.target.files);
+          setSelectedFiles(prev => [...prev, ...newFiles]);
       }
+  };
+
+  const removeSelectedFile = (index: number) => {
+      setSelectedFiles(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleEdit = (minute: Minute) => {
       setEditingMinuteId(minute.id);
       setTitle(minute.title);
       setDate(minute.date);
-      setSelectedFile(null); // Reset file selection
+      setSelectedFiles([]); // Reset file selection. User must upload NEW files to replace or add?
+                            // Strategy: For editing, if user uploads files, they REPLACE the existing ones 
+                            // OR we can make it complex to manage existing vs new.
+                            // Simplest & Safe: If files selected, we REPLACE the whole list.
+                            // If empty, we keep existing.
       setShowForm(true);
   };
 
@@ -99,23 +109,33 @@ export const Minutes: React.FC = () => {
     e.preventDefault();
     if (!user || !canEdit || !viewId) return;
 
-    if (!editingMinuteId && !selectedFile) {
-        showAlert("Aviso", "Por favor, selecione um arquivo (PDF ou Imagem) para a nova ata.", 'warning');
+    // Check validation: Creating requires at least one file. Editing without files keeps existing.
+    if (!editingMinuteId && selectedFiles.length === 0) {
+        showAlert("Aviso", "Por favor, selecione pelo menos um arquivo (PDF ou Imagem).", 'warning');
         return;
     }
 
     setIsUploading(true);
-    let finalFileUrl = editingMinuteId ? churchMinutes.find(m => m.id === editingMinuteId)?.fileUrl : '';
+    let finalFileUrls: string[] = [];
 
-    // 1. Upload do Arquivo (se houver novo)
-    if (selectedFile) {
-        const uploadedUrl = await uploadMinuteFile(selectedFile);
-        if (uploadedUrl) {
-            finalFileUrl = uploadedUrl;
-        } else {
-            showAlert("Erro", "Falha ao fazer upload do arquivo. Tente novamente.", 'danger');
-            setIsUploading(false);
-            return;
+    // Se estiver editando e não selecionou novos arquivos, mantém os antigos
+    if (editingMinuteId && selectedFiles.length === 0) {
+        const existing = churchMinutes.find(m => m.id === editingMinuteId);
+        if (existing) finalFileUrls = existing.fileUrls;
+    } 
+    // Se selecionou novos arquivos, faz upload e substitui (ou cria novo)
+    else if (selectedFiles.length > 0) {
+        for (const file of selectedFiles) {
+            const url = await uploadMinuteFile(file);
+            if (url) {
+                finalFileUrls.push(url);
+            }
+        }
+        
+        if (finalFileUrls.length === 0) {
+             showAlert("Erro", "Falha ao fazer upload dos arquivos.", 'danger');
+             setIsUploading(false);
+             return;
         }
     }
 
@@ -124,7 +144,7 @@ export const Minutes: React.FC = () => {
       churchId: viewId,
       title: title.toUpperCase(),
       date,
-      fileUrl: finalFileUrl || ''
+      fileUrls: finalFileUrls
     };
 
     if (editingMinuteId) {
@@ -139,7 +159,7 @@ export const Minutes: React.FC = () => {
     setShowForm(false);
     setTitle('');
     setDate(new Date().toISOString().split('T')[0]);
-    setSelectedFile(null);
+    setSelectedFiles([]);
     setEditingMinuteId(null);
     if(fileInputRef.current) fileInputRef.current.value = '';
   };
@@ -147,49 +167,52 @@ export const Minutes: React.FC = () => {
   const renderViewModal = () => {
       if (!viewingMinute) return null;
 
-      const isImage = viewingMinute.fileUrl.match(/\.(jpeg|jpg|gif|png)$/i) != null;
-      const isPdf = viewingMinute.fileUrl.match(/\.pdf$/i) != null;
-
       return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in-down">
-              <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl h-[90vh] flex flex-col relative overflow-hidden">
-                  <div className="flex justify-between items-center p-4 bg-gray-100 border-b">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 animate-fade-in-down">
+              <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl h-[90vh] flex flex-col relative overflow-hidden">
+                  <div className="flex justify-between items-center p-3 bg-gray-100 border-b shrink-0">
                       <div>
-                          <h3 className="font-bold text-lg text-gray-800">{viewingMinute.title}</h3>
-                          <p className="text-sm text-gray-500">{new Date(viewingMinute.date).toLocaleDateString('pt-BR')}</p>
+                          <h3 className="font-bold text-base md:text-lg text-gray-800 line-clamp-1">{viewingMinute.title}</h3>
+                          <p className="text-xs text-gray-500">{new Date(viewingMinute.date).toLocaleDateString('pt-BR')}</p>
                       </div>
-                      <div className="flex items-center space-x-2">
-                           <a 
-                                href={viewingMinute.fileUrl} 
-                                target="_blank" 
-                                rel="noreferrer" 
-                                className="bg-brand-orange hover:bg-brand-red text-white px-3 py-1.5 rounded-lg flex items-center text-sm font-bold transition-colors"
-                            >
-                                <Download size={16} className="mr-2"/> Baixar Original
-                            </a>
-                            <button onClick={() => setViewingMinute(null)} className="text-gray-500 hover:text-gray-800 p-2 hover:bg-gray-200 rounded-full">
-                                <X size={24}/>
-                            </button>
-                      </div>
+                      <button onClick={() => setViewingMinute(null)} className="text-gray-500 hover:text-gray-800 p-2 hover:bg-gray-200 rounded-full">
+                          <X size={24}/>
+                      </button>
                   </div>
                   
-                  <div className="flex-1 bg-gray-200 overflow-auto flex items-center justify-center p-4">
-                      {isImage ? (
-                          <img src={viewingMinute.fileUrl} alt="Ata" className="max-w-full max-h-full object-contain shadow-lg" />
-                      ) : isPdf ? (
-                          <iframe src={viewingMinute.fileUrl} className="w-full h-full rounded shadow-lg" title="PDF Viewer">
-                              <div className="text-center p-10">
-                                  <p>Seu navegador não suporta visualização de PDF.</p>
-                                  <a href={viewingMinute.fileUrl} target="_blank" rel="noreferrer" className="text-brand-orange underline">Clique para baixar</a>
-                              </div>
-                          </iframe>
-                      ) : (
-                           <div className="text-center text-gray-500">
-                               <FileText size={64} className="mx-auto mb-4 opacity-50"/>
-                               <p className="text-lg font-medium">Pré-visualização não disponível para este formato.</p>
-                               <a href={viewingMinute.fileUrl} target="_blank" rel="noreferrer" className="text-brand-orange hover:underline mt-2 inline-block">Fazer Download do Arquivo</a>
-                           </div>
-                      )}
+                  <div className="flex-1 bg-gray-200 overflow-y-auto p-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {viewingMinute.fileUrls.map((url, idx) => {
+                              const isImage = url.match(/\.(jpeg|jpg|gif|png)$/i) != null;
+                              const isPdf = url.match(/\.pdf$/i) != null;
+                              
+                              return (
+                                <div key={idx} className="bg-white p-2 rounded shadow-sm flex flex-col">
+                                    <div className="flex justify-between items-center mb-2 px-1">
+                                        <span className="text-xs font-bold text-gray-500">Arquivo {idx + 1}</span>
+                                        <a href={url} target="_blank" rel="noreferrer" className="text-blue-600 hover:text-blue-800 text-xs flex items-center">
+                                            <Download size={12} className="mr-1"/> Baixar
+                                        </a>
+                                    </div>
+                                    
+                                    <div className="flex-1 flex items-center justify-center bg-gray-50 border rounded overflow-hidden min-h-[300px]">
+                                        {isImage ? (
+                                            <img src={url} alt={`Anexo ${idx+1}`} className="max-w-full max-h-[500px] object-contain" />
+                                        ) : isPdf ? (
+                                            <iframe src={url} className="w-full h-[500px]" title={`PDF Viewer ${idx}`}>
+                                                <p className="text-center p-4">Seu navegador não suporta visualização de PDF.</p>
+                                            </iframe>
+                                        ) : (
+                                            <div className="text-center p-10 text-gray-400">
+                                                <FileText size={48} className="mx-auto mb-2"/>
+                                                <p>Visualização não disponível.</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                              );
+                          })}
+                      </div>
                   </div>
               </div>
           </div>
@@ -199,18 +222,18 @@ export const Minutes: React.FC = () => {
   if (!viewId) return <div>Carregando unidade...</div>;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex justify-between items-center">
         <div>
-            <h1 className="text-3xl font-bold text-gray-800 flex items-center">
-            <FileText className="mr-3 text-brand-orange" /> Livro de Atas
+            <h1 className="text-2xl font-bold text-gray-800 flex items-center">
+            <FileText className="mr-2 text-brand-orange" size={28} /> Livro de Atas
             </h1>
             {!canEdit && (
-                <div className="flex items-center text-xs font-bold text-brand-orange uppercase bg-orange-50 px-2 py-1 rounded border border-orange-200 mt-1 w-fit">
-                    <ShieldAlert size={14} className="mr-1"/> Apenas Visualização (Tesoureiro)
+                <div className="flex items-center text-[10px] font-bold text-brand-orange uppercase bg-orange-50 px-2 py-0.5 rounded border border-orange-200 mt-1 w-fit">
+                    <ShieldAlert size={12} className="mr-1"/> Apenas Visualização
                 </div>
             )}
-            <p className="text-gray-500 text-sm mt-1 ml-1">{currentChurch?.name}</p>
+            <p className="text-gray-500 text-xs mt-0.5 ml-1">{currentChurch?.name}</p>
         </div>
         
         {canEdit && (
@@ -219,50 +242,51 @@ export const Minutes: React.FC = () => {
                 setEditingMinuteId(null);
                 setTitle('');
                 setDate(new Date().toISOString().split('T')[0]);
-                setSelectedFile(null);
+                setSelectedFiles([]);
                 setShowForm(!showForm);
             }}
-            className="bg-brand-black text-white px-4 py-2 rounded-lg flex items-center hover:bg-gray-800"
+            className="bg-brand-black text-white px-3 py-2 rounded-lg flex items-center hover:bg-gray-800 shadow transition-transform active:scale-95"
             >
-            <Plus size={20} className="mr-2"/> Nova Ata
+            <Plus size={18} className="md:mr-1"/> <span className="hidden md:inline">Nova Ata</span><span className="md:hidden">Nova</span>
             </button>
         )}
       </div>
 
       {showForm && canEdit && (
-        <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-200 animate-fade-in-down">
-          <div className="flex justify-between items-center mb-4">
+        <div className="bg-white p-4 md:p-6 rounded-xl shadow-lg border border-gray-200 animate-fade-in-down">
+          <div className="flex justify-between items-center mb-4 border-b pb-2">
               <h3 className="font-bold text-lg text-gray-700">{editingMinuteId ? 'Editar Ata' : 'Arquivar Nova Ata'}</h3>
               <button onClick={() => setShowForm(false)} className="text-gray-400 hover:text-red-500"><X size={20}/></button>
           </div>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700">Título da Reunião</label>
+              <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Título da Reunião</label>
               <input 
                 type="text" 
                 required
                 placeholder="EX: ASSEMBLEIA GERAL ORDINÁRIA"
-                className="mt-1 block w-full p-2 border rounded-md uppercase focus:ring-brand-orange"
+                className="w-full p-2 border rounded-md uppercase text-sm focus:ring-brand-orange focus:border-brand-orange"
                 value={title}
                 onChange={e => setTitle(e.target.value.toUpperCase())}
               />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700">Data</label>
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Data</label>
                 <input 
                   type="date" 
                   required
-                  className="mt-1 block w-full p-2 border rounded-md focus:ring-brand-orange"
+                  className="w-full p-2 border rounded-md text-sm focus:ring-brand-orange focus:border-brand-orange"
                   value={date}
                   onChange={e => setDate(e.target.value)}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">
-                    Arquivo {editingMinuteId ? '(Deixe vazio para manter o atual)' : '(PDF ou Imagem)'}
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">
+                    Arquivos {editingMinuteId ? '(Selecione para substituir)' : '(Múltipla Seleção)'}
                 </label>
-                <div className="mt-1 relative flex items-center">
+                
+                <div className="mt-1">
                    <input 
                       type="file" 
                       ref={fileInputRef}
@@ -270,38 +294,56 @@ export const Minutes: React.FC = () => {
                       accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
                       className="hidden"
                       id="file-upload"
+                      multiple // ENABLE MULTIPLE
                    />
                    <label 
                       htmlFor="file-upload" 
-                      className="cursor-pointer flex items-center justify-center w-full p-2 border-2 border-dashed border-gray-300 rounded-lg hover:border-brand-orange hover:bg-orange-50 transition-colors text-sm text-gray-600"
+                      className="cursor-pointer flex items-center justify-center w-full p-2 border-2 border-dashed border-gray-300 rounded-lg hover:border-brand-orange hover:bg-orange-50 transition-colors text-xs font-bold text-gray-600"
                    >
-                      <Upload size={18} className="mr-2"/> 
-                      {selectedFile ? selectedFile.name : (editingMinuteId ? 'Clique para substituir o arquivo' : 'Clique para selecionar o arquivo')}
+                      <Upload size={16} className="mr-2"/> 
+                      Adicionar Arquivos
                    </label>
                 </div>
+
+                {/* FILE LIST PREVIEW */}
+                {selectedFiles.length > 0 && (
+                    <div className="mt-2 space-y-1 max-h-32 overflow-y-auto bg-gray-50 p-2 rounded border">
+                        {selectedFiles.map((file, idx) => (
+                            <div key={idx} className="flex justify-between items-center text-xs bg-white p-1 rounded border shadow-sm">
+                                <span className="truncate max-w-[80%]">{file.name}</span>
+                                <button type="button" onClick={() => removeSelectedFile(idx)} className="text-red-500 hover:text-red-700"><X size={14}/></button>
+                            </div>
+                        ))}
+                    </div>
+                )}
+                {selectedFiles.length === 0 && editingMinuteId && (
+                    <p className="text-[10px] text-gray-400 mt-1 italic">Nenhum novo arquivo selecionado. Os atuais serão mantidos.</p>
+                )}
               </div>
             </div>
-            <div className="flex justify-end pt-2">
+            <div className="flex justify-end pt-2 border-t mt-2">
                <button 
                 type="submit" 
                 disabled={isUploading}
-                className={`bg-brand-orange text-white px-6 py-2 rounded-lg hover:bg-brand-red flex items-center ${isUploading ? 'opacity-70 cursor-not-allowed' : ''}`}
+                className={`bg-brand-orange text-white px-6 py-2 rounded-lg hover:bg-brand-red flex items-center text-sm font-bold shadow-md ${isUploading ? 'opacity-70 cursor-not-allowed' : ''}`}
                >
-                 {isUploading ? <Loader className="animate-spin mr-2" size={18}/> : <Save size={18} className="mr-2"/>}
-                 {isUploading ? 'Enviando...' : (editingMinuteId ? 'Atualizar' : 'Arquivar')}
+                 {isUploading ? <Loader className="animate-spin mr-2" size={16}/> : <Save size={16} className="mr-2"/>}
+                 {isUploading ? 'Enviando...' : (editingMinuteId ? 'Salvar' : 'Arquivar')}
                </button>
             </div>
           </form>
         </div>
       )}
 
-      <div className="bg-white rounded-xl shadow overflow-hidden">
+      {/* LISTA COMPACTA */}
+      <div className="bg-white rounded-lg shadow overflow-hidden border border-gray-100">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assunto</th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
+              <th className="px-3 py-2 text-left text-[10px] font-bold text-gray-500 uppercase tracking-wider w-24">Data</th>
+              <th className="px-3 py-2 text-left text-[10px] font-bold text-gray-500 uppercase tracking-wider">Assunto</th>
+              <th className="px-3 py-2 text-center text-[10px] font-bold text-gray-500 uppercase tracking-wider w-16">Anexos</th>
+              <th className="px-3 py-2 text-right text-[10px] font-bold text-gray-500 uppercase tracking-wider w-20">Ações</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
@@ -311,51 +353,44 @@ export const Minutes: React.FC = () => {
                 className="hover:bg-gray-50 cursor-pointer group transition-colors"
                 onClick={() => setViewingMinute(minute)}
               >
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 flex items-center">
-                  <Calendar size={16} className="mr-2 text-gray-400 group-hover:text-brand-orange"/>
+                <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-600 font-medium">
                   {new Date(minute.date).toLocaleDateString('pt-BR')}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900 group-hover:text-brand-orange">
+                <td className="px-3 py-2 text-xs font-bold text-gray-800 uppercase group-hover:text-brand-orange truncate max-w-[150px] md:max-w-none">
                   {minute.title}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                   <div className="flex justify-end space-x-2" onClick={(e) => e.stopPropagation()}>
+                <td className="px-3 py-2 text-center">
+                    <span className="inline-flex items-center justify-center bg-gray-100 text-gray-600 text-[10px] font-bold px-2 py-0.5 rounded-full border">
+                        <Paperclip size={10} className="mr-1"/> {minute.fileUrls.length}
+                    </span>
+                </td>
+                <td className="px-3 py-2 whitespace-nowrap text-right text-xs font-medium">
+                   <div className="flex justify-end space-x-1" onClick={(e) => e.stopPropagation()}>
                        {/* BOTÃO VER / LER */}
                        <button 
                             onClick={() => setViewingMinute(minute)}
-                            className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                            className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
                             title="Ler Ata"
                         >
-                            <Eye size={18}/>
+                            <Eye size={16}/>
                        </button>
-
-                       {/* BOTÃO BAIXAR */}
-                       <a 
-                            href={minute.fileUrl} 
-                            target="_blank" 
-                            rel="noreferrer" 
-                            className="p-1.5 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
-                            title="Baixar Arquivo"
-                        >
-                           <Download size={18} />
-                        </a>
 
                        {/* BOTÕES DE EDIÇÃO (RESTRICTED) */}
                        {canEdit && (
                            <>
                                 <button 
                                     onClick={() => handleEdit(minute)}
-                                    className="p-1.5 text-gray-500 hover:text-brand-orange hover:bg-orange-50 rounded transition-colors"
+                                    className="p-1.5 text-gray-400 hover:text-brand-orange hover:bg-orange-50 rounded transition-colors"
                                     title="Editar"
                                 >
-                                    <Edit2 size={18}/>
+                                    <Edit2 size={16}/>
                                 </button>
                                 <button 
                                     onClick={() => handleDelete(minute)}
-                                    className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                                    className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
                                     title="Excluir"
                                 >
-                                    <Trash2 size={18}/>
+                                    <Trash2 size={16}/>
                                 </button>
                            </>
                        )}
@@ -365,7 +400,7 @@ export const Minutes: React.FC = () => {
             ))}
             {churchMinutes.length === 0 && (
               <tr>
-                <td colSpan={3} className="px-6 py-8 text-center text-gray-500">Nenhuma ata registrada nesta unidade.</td>
+                <td colSpan={4} className="px-6 py-8 text-center text-xs text-gray-500">Nenhuma ata registrada nesta unidade.</td>
               </tr>
             )}
           </tbody>

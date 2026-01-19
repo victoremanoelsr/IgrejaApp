@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../context';
 import { User, Role, Member } from '../types';
-import { Search, Plus, Trash2, Edit2, User as UserIcon, Save, X, ShieldCheck, Lock, CheckCircle } from 'lucide-react';
+import { Search, Plus, Trash2, Edit2, User as UserIcon, Save, X, ShieldCheck, Lock, CheckCircle, AlertTriangle, Info } from 'lucide-react';
 
 export const Users: React.FC = () => {
   const { users, churches, members, user: currentUser, addUser, updateUser, deleteUser, availableChurches } = useApp();
@@ -13,6 +13,48 @@ export const Users: React.FC = () => {
   // State for Autocomplete
   const [showSuggestions, setShowSuggestions] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
+
+  // --- CUSTOM MODAL STATE ---
+  const [modalState, setModalState] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    variant: 'danger' | 'warning' | 'success' | 'info';
+    showCancel: boolean;
+    onConfirm?: () => void;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    variant: 'info',
+    showCancel: false,
+    onConfirm: undefined
+  });
+
+  const showAlert = (title: string, message: string, variant: 'success' | 'info' | 'danger' | 'warning' = 'info') => {
+    setModalState({
+      isOpen: true,
+      title,
+      message,
+      variant,
+      showCancel: false,
+      onConfirm: () => setModalState(prev => ({ ...prev, isOpen: false }))
+    });
+  };
+
+  const showConfirm = (title: string, message: string, onConfirm: () => void, variant: 'warning' | 'danger' = 'warning') => {
+    setModalState({
+      isOpen: true,
+      title,
+      message,
+      variant,
+      showCancel: true,
+      onConfirm: () => {
+        onConfirm();
+        setModalState(prev => ({ ...prev, isOpen: false }));
+      }
+    });
+  };
 
   const initialFormState = {
     name: '',
@@ -120,7 +162,7 @@ export const Users: React.FC = () => {
     if (!editingUserId) {
       const exists = users.find(u => u.username === formData.username);
       if (exists) {
-        alert("Erro: Este nome de usuário já está em uso.");
+        showAlert("Erro", "Este nome de usuário já está em uso.", 'danger');
         return;
       }
     }
@@ -139,14 +181,14 @@ export const Users: React.FC = () => {
 
     if (editingUserId) {
       updateUser(editingUserId, payload);
-      alert("Usuário atualizado com sucesso!");
+      showAlert("Sucesso", "Usuário atualizado com sucesso!", 'success');
     } else {
       const res = await addUser(payload);
       if (!res.success) {
-          alert(`Erro ao cadastrar: ${res.error}`);
+          showAlert("Erro", `Erro ao cadastrar: ${res.error}`, 'danger');
           return;
       }
-      alert("Usuário cadastrado com sucesso!");
+      showAlert("Sucesso", "Usuário cadastrado com sucesso!", 'success');
     }
     
     handleCancel();
@@ -224,7 +266,7 @@ export const Users: React.FC = () => {
                         <Edit2 size={16}/>
                       </button>
                       <button 
-                        onClick={() => { if(window.confirm('Excluir este acesso?')) deleteUser(u.id); }}
+                        onClick={() => showConfirm('Excluir Usuário', 'Deseja excluir este acesso?', () => deleteUser(u.id), 'danger')}
                         className="p-1 text-gray-400 hover:text-red-600 rounded-full hover:bg-red-50"
                       >
                         <Trash2 size={16}/>
@@ -279,7 +321,7 @@ export const Users: React.FC = () => {
                         <Edit2 size={18}/>
                       </button>
                       <button 
-                        onClick={() => { if(window.confirm('Excluir este acesso?')) deleteUser(u.id); }}
+                        onClick={() => showConfirm('Excluir Usuário', 'Deseja excluir este acesso?', () => deleteUser(u.id), 'danger')}
                         className="text-red-600 hover:text-red-900 transition-colors"
                       >
                         <Trash2 size={18}/>
@@ -427,6 +469,66 @@ export const Users: React.FC = () => {
   return (
     <div className="container mx-auto">
       {view === 'LIST' ? renderList() : renderForm()}
+
+      {/* GLOBAL CONFIRM/ALERT MODAL */}
+      {modalState.isOpen && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full overflow-hidden transform transition-all scale-100">
+             <div className={`h-2 ${
+               modalState.variant === 'danger' ? 'bg-red-500' : 
+               modalState.variant === 'warning' ? 'bg-yellow-500' : 
+               modalState.variant === 'success' ? 'bg-green-500' : 
+               'bg-blue-500'
+             }`}></div>
+
+             <div className="p-6">
+                <div className="flex items-center mb-4">
+                    <div className={`p-3 rounded-full mr-4 ${
+                         modalState.variant === 'danger' ? 'bg-red-100 text-red-500' : 
+                         modalState.variant === 'warning' ? 'bg-yellow-100 text-yellow-600' : 
+                         modalState.variant === 'success' ? 'bg-green-100 text-green-600' : 
+                         'bg-blue-100 text-blue-600'
+                    }`}>
+                        {modalState.variant === 'danger' && <AlertTriangle size={24}/>}
+                        {modalState.variant === 'warning' && <AlertTriangle size={24}/>}
+                        {modalState.variant === 'success' && <CheckCircle size={24}/>}
+                        {modalState.variant === 'info' && <Info size={24}/>}
+                    </div>
+                    <h3 className="text-xl font-bold text-gray-800">{modalState.title}</h3>
+                </div>
+                
+                <p className="text-gray-600 mb-6 text-sm leading-relaxed whitespace-pre-line pl-[3.5rem] -mt-2">
+                    {modalState.message}
+                </p>
+
+                <div className="flex justify-end space-x-3">
+                    {modalState.showCancel && (
+                        <button 
+                            onClick={() => setModalState(prev => ({ ...prev, isOpen: false }))}
+                            className="px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium transition-colors"
+                        >
+                            Cancelar
+                        </button>
+                    )}
+                    <button 
+                        onClick={() => {
+                            if (modalState.onConfirm) modalState.onConfirm();
+                            else setModalState(prev => ({ ...prev, isOpen: false }));
+                        }}
+                        className={`px-6 py-2 rounded-lg text-white font-bold shadow-md transition-transform active:scale-95 ${
+                            modalState.variant === 'danger' ? 'bg-red-600 hover:bg-red-700' : 
+                            modalState.variant === 'warning' ? 'bg-yellow-600 hover:bg-yellow-700' : 
+                            modalState.variant === 'success' ? 'bg-green-600 hover:bg-green-700' : 
+                            'bg-blue-600 hover:bg-blue-700'
+                        }`}
+                    >
+                        {modalState.showCancel ? 'Confirmar' : 'OK'}
+                    </button>
+                </div>
+             </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

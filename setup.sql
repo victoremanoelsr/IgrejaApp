@@ -215,6 +215,9 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='events' AND column_name='image_url') THEN
         ALTER TABLE events ADD COLUMN image_url TEXT;
     END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='events' AND column_name='location') THEN
+        ALTER TABLE events ADD COLUMN location TEXT;
+    END IF;
 END $$;
 
 CREATE TABLE IF NOT EXISTS minutes (

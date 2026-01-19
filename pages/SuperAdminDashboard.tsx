@@ -2,8 +2,8 @@
 import React, { useState } from 'react';
 import { useApp } from '../context';
 import { useNavigate } from 'react-router-dom';
-import { Building, Users, Eye, Power, Plus, UserPlus, Trash2, Edit2 } from 'lucide-react';
-import { Church, User } from '../types';
+import { Building, Users, Eye, Power, Plus, UserPlus, Trash2, Edit2, User, AlertTriangle, CheckCircle, Info } from 'lucide-react';
+import { Church, User as UserType } from '../types';
 
 export const SuperAdminDashboard: React.FC = () => {
   const { churches, members, selectChurch, toggleChurchStatus, addChurch, addUser, deleteChurch, updateChurch } = useApp();
@@ -18,6 +18,48 @@ export const SuperAdminDashboard: React.FC = () => {
   // Forms State
   const [newChurch, setNewChurch] = useState({ name: '', address: '', pastorName: '', cnpj: '' });
   const [newPresident, setNewPresident] = useState({ name: '', username: '', cpf: '', churchId: '', password: '' });
+
+  // --- CUSTOM MODAL STATE ---
+  const [modalState, setModalState] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    variant: 'danger' | 'warning' | 'success' | 'info';
+    showCancel: boolean;
+    onConfirm?: () => void;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    variant: 'info',
+    showCancel: false,
+    onConfirm: undefined
+  });
+
+  const showAlert = (title: string, message: string, variant: 'success' | 'info' | 'danger' | 'warning' = 'info') => {
+    setModalState({
+      isOpen: true,
+      title,
+      message,
+      variant,
+      showCancel: false,
+      onConfirm: () => setModalState(prev => ({ ...prev, isOpen: false }))
+    });
+  };
+
+  const showConfirm = (title: string, message: string, onConfirm: () => void, variant: 'warning' | 'danger' = 'warning') => {
+    setModalState({
+      isOpen: true,
+      title,
+      message,
+      variant,
+      showCancel: true,
+      onConfirm: () => {
+        onConfirm();
+        setModalState(prev => ({ ...prev, isOpen: false }));
+      }
+    });
+  };
 
   const totalMembers = members.length;
   const activeChurches = churches.filter(c => c.active).length;
@@ -62,7 +104,7 @@ export const SuperAdminDashboard: React.FC = () => {
     addChurch(church);
     setShowChurchForm(false);
     setNewChurch({ name: '', address: '', pastorName: '', cnpj: '' });
-    alert('Igreja Sede cadastrada com sucesso!');
+    showAlert('Sucesso', 'Igreja Sede cadastrada com sucesso!', 'success');
   };
 
   const handleUpdateChurch = async (e: React.FormEvent) => {
@@ -78,28 +120,31 @@ export const SuperAdminDashboard: React.FC = () => {
     
     if (res.success) {
         setEditingChurch(null);
-        alert('Dados da Sede atualizados com sucesso!');
+        showAlert('Sucesso', 'Dados da Sede atualizados com sucesso!', 'success');
     } else {
-        alert(`Erro ao atualizar: ${res.error}`);
+        showAlert('Erro', `Erro ao atualizar: ${res.error}`, 'danger');
     }
   };
 
   const handleDeleteChurch = (id: string, name: string) => {
-      if (window.confirm(`Tem certeza que deseja EXCLUIR a Sede "${name}"?\n\nATENÇÃO: Isso pode deixar congregações e usuários sem vínculo. Essa ação não pode ser desfeita.`)) {
-          deleteChurch(id);
-      }
+      showConfirm(
+          'Excluir Sede',
+          `Tem certeza que deseja EXCLUIR a Sede "${name}"?\n\nATENÇÃO: Isso excluirá também todas as congregações filhas e todos os dados vinculados (membros, financeiro, usuários).\n\nEssa ação não pode ser desfeita.`,
+          () => deleteChurch(id),
+          'danger'
+      );
   };
 
   const handleAddPresident = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!newPresident.churchId) {
-        alert("Erro: É obrigatório selecionar a Igreja para vincular o Presidente.");
+        showAlert("Erro", "É obrigatório selecionar a Igreja para vincular o Presidente.", 'warning');
         return;
     }
     
     // 1. Criar o Usuário de Login na tabela 'profiles'
-    const user: User = {
+    const user: UserType = {
       id: '',
       ...newPresident,
       name: newPresident.name.toUpperCase(),
@@ -110,7 +155,7 @@ export const SuperAdminDashboard: React.FC = () => {
     const result = await addUser(user);
     
     if (!result.success) {
-        alert(`ERRO AO CRIAR USUÁRIO: ${result.error}\n\nVerifique se o login já existe.`);
+        showAlert("Erro ao criar usuário", `${result.error}\n\nVerifique se o login já existe.`, 'danger');
         return; // Para aqui e não atualiza a igreja falsamente
     }
 
@@ -126,56 +171,56 @@ export const SuperAdminDashboard: React.FC = () => {
 
     setShowPresidentForm(false);
     setNewPresident({ name: '', username: '', cpf: '', churchId: '', password: '' });
-    alert('Pastor Presidente cadastrado e vinculado à igreja com sucesso!');
+    showAlert('Sucesso', 'Pastor Presidente cadastrado e vinculado à igreja com sucesso!', 'success');
   };
 
   return (
-    <div className="space-y-8">
-      {/* Header Stats */}
-      <div className="bg-brand-black text-white p-8 rounded-2xl shadow-xl flex flex-col md:flex-row justify-between items-center relative overflow-hidden">
+    <div className="space-y-4">
+      {/* Header Stats - COMPACTO */}
+      <div className="bg-brand-black text-white p-4 md:p-6 rounded-xl shadow-lg flex flex-col md:flex-row justify-between items-center relative overflow-hidden">
         <div className="z-10">
-          <h1 className="text-4xl font-black tracking-tight mb-2">Painel Master</h1>
-          <p className="text-gray-400">Bem-vindo, Administrador Geral.</p>
+          <h1 className="text-2xl md:text-3xl font-black tracking-tight mb-1">Painel Master</h1>
+          <p className="text-gray-400 text-xs md:text-sm">Bem-vindo, Administrador Geral.</p>
         </div>
-        <div className="flex space-x-8 mt-6 md:mt-0 z-10">
+        <div className="flex space-x-6 mt-4 md:mt-0 z-10">
           <div className="text-center">
-            <p className="text-4xl font-bold text-brand-orange">{churches.length}</p>
-            <p className="text-xs uppercase tracking-widest text-gray-500">Unidades na Rede</p>
+            <p className="text-2xl md:text-3xl font-bold text-brand-orange">{churches.length}</p>
+            <p className="text-[10px] uppercase tracking-widest text-gray-500">Unidades</p>
           </div>
           <div className="text-center">
-            <p className="text-4xl font-bold text-brand-yellow">{totalMembers}</p>
-            <p className="text-xs uppercase tracking-widest text-gray-500">Total de Membros</p>
+            <p className="text-2xl md:text-3xl font-bold text-brand-yellow">{totalMembers}</p>
+            <p className="text-[10px] uppercase tracking-widest text-gray-500">Membros</p>
           </div>
         </div>
         {/* Decorative BG */}
         <div className="absolute right-0 top-0 h-full w-1/2 bg-gradient-to-l from-brand-dark to-transparent opacity-50 pointer-events-none"></div>
       </div>
 
-      {/* Action Buttons */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* Action Buttons - COMPACTO */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <button 
           onClick={() => setShowChurchForm(true)}
-          className="p-6 bg-white border-2 border-dashed border-gray-300 rounded-xl flex items-center justify-center hover:border-brand-orange hover:bg-orange-50 transition-all group"
+          className="p-4 bg-white border border-dashed border-gray-300 rounded-lg flex items-center justify-center hover:border-brand-orange hover:bg-orange-50 transition-all group shadow-sm"
         >
-          <div className="bg-brand-black text-white p-3 rounded-full mr-4 group-hover:scale-110 transition-transform">
-            <Plus size={24}/>
+          <div className="bg-brand-black text-white p-2 rounded-full mr-3 group-hover:scale-110 transition-transform">
+            <Plus size={18}/>
           </div>
           <div className="text-left">
-            <h3 className="font-bold text-lg text-gray-800">Cadastrar Nova Igreja Sede</h3>
-            <p className="text-sm text-gray-500">Adicionar nova sede à rede</p>
+            <h3 className="font-bold text-sm text-gray-800">Cadastrar Nova Igreja Sede</h3>
+            <p className="text-xs text-gray-500">Adicionar nova sede à rede</p>
           </div>
         </button>
 
         <button 
           onClick={() => setShowPresidentForm(true)}
-          className="p-6 bg-white border-2 border-dashed border-gray-300 rounded-xl flex items-center justify-center hover:border-brand-orange hover:bg-orange-50 transition-all group"
+          className="p-4 bg-white border border-dashed border-gray-300 rounded-lg flex items-center justify-center hover:border-brand-orange hover:bg-orange-50 transition-all group shadow-sm"
         >
-          <div className="bg-brand-black text-white p-3 rounded-full mr-4 group-hover:scale-110 transition-transform">
-            <UserPlus size={24}/>
+          <div className="bg-brand-black text-white p-2 rounded-full mr-3 group-hover:scale-110 transition-transform">
+            <UserPlus size={18}/>
           </div>
           <div className="text-left">
-            <h3 className="font-bold text-lg text-gray-800">Cadastrar PR Presidente</h3>
-            <p className="text-sm text-gray-500">Criar acesso principal</p>
+            <h3 className="font-bold text-sm text-gray-800">Cadastrar PR Presidente</h3>
+            <p className="text-xs text-gray-500">Criar acesso principal</p>
           </div>
         </button>
       </div>
@@ -185,19 +230,19 @@ export const SuperAdminDashboard: React.FC = () => {
         <div className="bg-white p-6 rounded-xl shadow-lg border-l-4 border-brand-orange animate-fade-in-down">
           <h3 className="text-lg font-bold mb-4">Nova Igreja Sede</h3>
           <form onSubmit={handleAddChurch} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <input required placeholder="NOME DA IGREJA" className="p-2 border rounded uppercase" value={newChurch.name} onChange={e => setNewChurch({...newChurch, name: e.target.value.toUpperCase()})} />
+            <input required placeholder="NOME DA IGREJA" className="p-2 border rounded uppercase text-sm" value={newChurch.name} onChange={e => setNewChurch({...newChurch, name: e.target.value.toUpperCase()})} />
             <input 
-              placeholder="CNPJ (00.000.000/0000-00)" 
-              className="p-2 border rounded" 
+              placeholder="CNPJ" 
+              className="p-2 border rounded text-sm" 
               value={newChurch.cnpj} 
               maxLength={18}
               onChange={e => setNewChurch({...newChurch, cnpj: formatCNPJ(e.target.value)})} 
             />
-            <input required placeholder="ENDEREÇO" className="p-2 border rounded uppercase" value={newChurch.address} onChange={e => setNewChurch({...newChurch, address: e.target.value.toUpperCase()})} />
-            <input required placeholder="NOME DO PASTOR RESPONSÁVEL" className="p-2 border rounded uppercase" value={newChurch.pastorName} onChange={e => setNewChurch({...newChurch, pastorName: e.target.value.toUpperCase()})} />
+            <input required placeholder="ENDEREÇO" className="p-2 border rounded uppercase text-sm" value={newChurch.address} onChange={e => setNewChurch({...newChurch, address: e.target.value.toUpperCase()})} />
+            <input required placeholder="NOME DO PASTOR" className="p-2 border rounded uppercase text-sm" value={newChurch.pastorName} onChange={e => setNewChurch({...newChurch, pastorName: e.target.value.toUpperCase()})} />
             <div className="md:col-span-2 flex justify-end space-x-2">
-              <button type="button" onClick={() => setShowChurchForm(false)} className="px-4 py-2 text-gray-500">Cancelar</button>
-              <button type="submit" className="px-4 py-2 bg-brand-orange text-white rounded">Salvar</button>
+              <button type="button" onClick={() => setShowChurchForm(false)} className="px-4 py-2 text-gray-500 text-sm">Cancelar</button>
+              <button type="submit" className="px-4 py-2 bg-brand-orange text-white rounded text-sm font-bold">Salvar</button>
             </div>
           </form>
         </div>
@@ -210,24 +255,24 @@ export const SuperAdminDashboard: React.FC = () => {
                 <h3 className="text-lg font-bold mb-4 flex items-center"><Edit2 size={20} className="mr-2"/> Editar Sede</h3>
                 <form onSubmit={handleUpdateChurch} className="space-y-4">
                     <div>
-                        <label className="block text-sm font-medium text-gray-700">Nome da Igreja</label>
-                        <input required className="w-full p-2 border rounded uppercase" value={editingChurch.name} onChange={e => setEditingChurch({...editingChurch, name: e.target.value.toUpperCase()})} />
+                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Nome da Igreja</label>
+                        <input required className="w-full p-2 border rounded uppercase text-sm" value={editingChurch.name} onChange={e => setEditingChurch({...editingChurch, name: e.target.value.toUpperCase()})} />
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-gray-700">CNPJ</label>
-                        <input className="w-full p-2 border rounded" maxLength={18} value={editingChurch.cnpj || ''} onChange={e => setEditingChurch({...editingChurch, cnpj: formatCNPJ(e.target.value)})} />
+                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">CNPJ</label>
+                        <input className="w-full p-2 border rounded text-sm" maxLength={18} value={editingChurch.cnpj || ''} onChange={e => setEditingChurch({...editingChurch, cnpj: formatCNPJ(e.target.value)})} />
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-gray-700">Endereço</label>
-                        <input required className="w-full p-2 border rounded uppercase" value={editingChurch.address} onChange={e => setEditingChurch({...editingChurch, address: e.target.value.toUpperCase()})} />
+                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Endereço</label>
+                        <input required className="w-full p-2 border rounded uppercase text-sm" value={editingChurch.address} onChange={e => setEditingChurch({...editingChurch, address: e.target.value.toUpperCase()})} />
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-gray-700">Pastor Responsável</label>
-                        <input required className="w-full p-2 border rounded uppercase" value={editingChurch.pastorName} onChange={e => setEditingChurch({...editingChurch, pastorName: e.target.value.toUpperCase()})} />
+                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Pastor Responsável</label>
+                        <input required className="w-full p-2 border rounded uppercase text-sm" value={editingChurch.pastorName} onChange={e => setEditingChurch({...editingChurch, pastorName: e.target.value.toUpperCase()})} />
                     </div>
                     <div className="flex justify-end space-x-2 pt-2">
-                        <button type="button" onClick={() => setEditingChurch(null)} className="px-4 py-2 text-gray-500">Cancelar</button>
-                        <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Atualizar</button>
+                        <button type="button" onClick={() => setEditingChurch(null)} className="px-4 py-2 text-gray-500 text-sm">Cancelar</button>
+                        <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm font-bold">Atualizar</button>
                     </div>
                 </form>
             </div>
@@ -238,148 +283,229 @@ export const SuperAdminDashboard: React.FC = () => {
         <div className="bg-white p-6 rounded-xl shadow-lg border-l-4 border-brand-orange animate-fade-in-down">
           <h3 className="text-lg font-bold mb-4">Novo Presidente</h3>
           <form onSubmit={handleAddPresident} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <input required placeholder="NOME COMPLETO" className="p-2 border rounded uppercase" value={newPresident.name} onChange={e => setNewPresident({...newPresident, name: e.target.value.toUpperCase()})} />
+            <input required placeholder="NOME COMPLETO" className="p-2 border rounded uppercase text-sm" value={newPresident.name} onChange={e => setNewPresident({...newPresident, name: e.target.value.toUpperCase()})} />
             <input 
               required 
-              placeholder="CPF (000.000.000-00)" 
-              className="p-2 border rounded" 
+              placeholder="CPF" 
+              className="p-2 border rounded text-sm" 
               value={newPresident.cpf} 
               maxLength={14}
               onChange={e => setNewPresident({...newPresident, cpf: formatCPF(e.target.value)})} 
             />
-            <input required placeholder="Login de Acesso" className="p-2 border rounded" value={newPresident.username} onChange={e => setNewPresident({...newPresident, username: e.target.value})} />
+            <input required placeholder="Login" className="p-2 border rounded text-sm" value={newPresident.username} onChange={e => setNewPresident({...newPresident, username: e.target.value})} />
             
             <input 
               required 
               type="text" 
-              placeholder="Senha de Acesso" 
-              className="p-2 border rounded" 
+              placeholder="Senha" 
+              className="p-2 border rounded text-sm" 
               value={newPresident.password} 
               onChange={e => setNewPresident({...newPresident, password: e.target.value})} 
             />
 
-            <select required className="p-2 border rounded md:col-span-2" value={newPresident.churchId} onChange={e => setNewPresident({...newPresident, churchId: e.target.value})}>
+            <select required className="p-2 border rounded md:col-span-2 text-sm" value={newPresident.churchId} onChange={e => setNewPresident({...newPresident, churchId: e.target.value})}>
               <option value="">Selecione a Igreja</option>
               {churches.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
             <div className="md:col-span-2 flex justify-end space-x-2">
-              <button type="button" onClick={() => setShowPresidentForm(false)} className="px-4 py-2 text-gray-500">Cancelar</button>
-              <button type="submit" className="px-4 py-2 bg-brand-orange text-white rounded">Salvar</button>
+              <button type="button" onClick={() => setShowPresidentForm(false)} className="px-4 py-2 text-gray-500 text-sm">Cancelar</button>
+              <button type="submit" className="px-4 py-2 bg-brand-orange text-white rounded text-sm font-bold">Salvar</button>
             </div>
           </form>
         </div>
       )}
 
-      {/* Super Vision Module - LIST AND ACCESS ONLY */}
-      <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-        <div className="p-6 border-b flex justify-between items-center">
-          <h2 className="text-xl font-bold text-gray-800 flex items-center"><Eye className="mr-2 text-brand-black"/> Super Visão Global</h2>
-          <span className="text-sm text-gray-500">{activeChurches} Igrejas Ativas</span>
+      {/* Super Vision Module - COMPACT LIST */}
+      <div className="bg-white rounded-lg shadow border border-gray-100 overflow-hidden">
+        <div className="p-3 border-b flex justify-between items-center bg-gray-50">
+          <h2 className="text-sm md:text-base font-bold text-gray-800 flex items-center"><Eye className="mr-2 text-brand-black" size={18}/> Super Visão Global</h2>
+          <span className="text-xs font-bold text-gray-500 bg-white px-2 py-1 rounded border">{activeChurches} Igrejas Ativas</span>
         </div>
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Igreja</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tipo</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Pastor</th>
-              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Status</th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Ações</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {churches.filter(c => c.type === 'SEDE').map((church) => (
-              <React.Fragment key={church.id}>
-                {/* SEDE ROW */}
-                <tr className="hover:bg-gray-50 bg-white">
-                  <td className="px-6 py-4">
-                    <div className="flex items-center">
-                      <div className="h-10 w-10 bg-brand-black text-white rounded-lg flex items-center justify-center mr-3">
-                        <Building size={20}/>
-                      </div>
-                      <div>
-                        <div className="font-bold text-gray-900">{church.name}</div>
-                        <div className="text-xs text-gray-500">{church.address}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-xs font-bold text-gray-500">SEDE</td>
-                  <td className="px-6 py-4 text-sm text-gray-600">{church.pastorName}</td>
-                  <td className="px-6 py-4 text-center">
-                    <span className={`px-2 py-1 text-xs rounded-full font-bold ${church.active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                      {church.active ? 'ATIVA' : 'SUSPENSA'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-right flex justify-end space-x-2">
-                    <button 
-                      onClick={() => handleEnterChurch(church.id)}
-                      className="flex items-center px-3 py-1 bg-brand-black text-white text-xs rounded hover:bg-gray-800 transition-colors"
-                      title="Acessar Painel como Presidente"
-                    >
-                      <Eye size={14} className="mr-1"/>
-                    </button>
-                    <button 
-                      onClick={() => setEditingChurch(church)}
-                      className="p-1.5 bg-blue-50 text-blue-600 rounded hover:bg-blue-100 transition-colors"
-                      title="Editar Dados da Sede"
-                    >
-                      <Edit2 size={16} />
-                    </button>
-                    <button 
-                      onClick={() => toggleChurchStatus(church.id)}
-                      className={`p-1.5 rounded transition-colors ${church.active ? 'bg-yellow-50 text-yellow-600 hover:bg-yellow-100' : 'bg-green-50 text-green-600 hover:bg-green-100'}`}
-                      title={church.active ? "Suspender Acesso" : "Ativar Acesso"}
-                    >
-                      <Power size={16} />
-                    </button>
-                    <button 
-                      onClick={() => handleDeleteChurch(church.id, church.name)}
-                      className="p-1.5 bg-red-50 text-red-600 rounded hover:bg-red-100 transition-colors"
-                      title="Excluir Sede"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </td>
-                </tr>
-                {/* CONGREGATION ROWS (Nested) */}
-                {churches.filter(child => child.parentId === church.id).map(child => (
-                   <tr key={child.id} className="hover:bg-gray-50 bg-gray-50/50">
-                    <td className="px-6 py-3 pl-16 relative">
-                      <div className="absolute left-10 top-1/2 w-4 h-[1px] bg-gray-300"></div>
-                      <div className="flex items-center">
-                        <div className="h-8 w-8 bg-gray-200 text-gray-500 rounded flex items-center justify-center mr-3">
-                          <Users size={16}/>
-                        </div>
-                        <div>
-                          <div className="font-medium text-sm text-gray-700">{child.name}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-3 text-xs text-gray-400">CONGREGAÇÃO</td>
-                    <td className="px-6 py-3 text-sm text-gray-600">{child.pastorName}</td>
-                    <td className="px-6 py-3 text-center">
-                       <span className={`px-2 py-1 text-xs rounded-full font-bold ${child.active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                        {child.active ? 'ATIVA' : 'SUSPENSA'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-3 text-right flex justify-end space-x-3">
-                      <button 
-                        onClick={() => handleEnterChurch(child.id)}
-                        className="flex items-center px-2 py-1 border border-gray-300 text-gray-600 text-xs rounded hover:bg-gray-200 transition-colors"
-                      >
-                        <Eye size={12} className="mr-1"/> Ver
-                      </button>
-                    </td>
-                   </tr>
-                ))}
-              </React.Fragment>
-            ))}
-            {churches.length === 0 && (
+        <div className="w-full">
+            <table className="w-full divide-y divide-gray-200 table-fixed">
+            <thead className="bg-gray-100">
                 <tr>
-                    <td colSpan={5} className="text-center py-8 text-gray-500">Nenhuma igreja cadastrada. Use os botões acima para começar.</td>
+                <th className="px-2 py-2 text-left text-[10px] font-bold text-gray-500 uppercase w-auto">Unidade / Detalhes</th>
+                <th className="hidden md:table-cell px-2 py-2 text-left text-[10px] font-bold text-gray-500 uppercase w-20">Tipo</th>
+                <th className="hidden md:table-cell px-2 py-2 text-left text-[10px] font-bold text-gray-500 uppercase w-1/3">Pastor</th>
+                <th className="px-2 py-2 text-center text-[10px] font-bold text-gray-500 uppercase w-14">Status</th>
+                <th className="px-2 py-2 text-right text-[10px] font-bold text-gray-500 uppercase w-36">Ações</th>
                 </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+                {churches.filter(c => c.type === 'SEDE').map((church) => (
+                <React.Fragment key={church.id}>
+                    {/* SEDE ROW */}
+                    <tr className="hover:bg-gray-50 bg-white">
+                    <td className="px-2 py-2 overflow-hidden">
+                        <div className="flex items-start">
+                            <div className="h-8 w-8 bg-brand-black text-white rounded flex items-center justify-center mr-2 shrink-0 mt-1">
+                                <Building size={16}/>
+                            </div>
+                            <div className="min-w-0 flex-1">
+                                <div className="font-bold text-xs md:text-sm text-gray-900 truncate uppercase">{church.name}</div>
+                                <div className="text-[10px] text-gray-500 truncate">{church.address}</div>
+                                
+                                {/* MOBILE DATA VISIBLE HERE (Stacked) */}
+                                <div className="md:hidden mt-1 flex flex-wrap gap-1 items-center">
+                                    <span className="bg-blue-100 text-blue-800 text-[8px] px-1.5 py-0.5 rounded font-bold uppercase">SEDE</span>
+                                    <span className="text-[9px] text-gray-700 flex items-center truncate">
+                                        <User size={10} className="mr-1"/> {church.pastorName}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </td>
+                    <td className="hidden md:table-cell px-2 py-2 text-[10px] font-bold text-gray-500">SEDE</td>
+                    <td className="hidden md:table-cell px-2 py-2 text-xs text-gray-600 truncate">{church.pastorName}</td>
+                    <td className="px-2 py-2 text-center">
+                        <span className={`px-1 py-0.5 text-[8px] md:text-[9px] rounded font-bold ${church.active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                        {church.active ? 'ON' : 'OFF'}
+                        </span>
+                    </td>
+                    <td className="px-2 py-2 text-right whitespace-nowrap">
+                        <div className="flex justify-end space-x-1">
+                            <button 
+                            onClick={() => handleEnterChurch(church.id)}
+                            className="p-1.5 bg-brand-black text-white rounded hover:bg-gray-800 transition-colors"
+                            title="Acessar Painel"
+                            >
+                            <Eye size={14}/>
+                            </button>
+                            <button 
+                            onClick={() => setEditingChurch(church)}
+                            className="p-1.5 bg-blue-50 text-blue-600 rounded hover:bg-blue-100 transition-colors"
+                            title="Editar"
+                            >
+                            <Edit2 size={14} />
+                            </button>
+                            <button 
+                            onClick={() => toggleChurchStatus(church.id)}
+                            className={`p-1.5 rounded transition-colors ${church.active ? 'bg-yellow-50 text-yellow-600 hover:bg-yellow-100' : 'bg-green-50 text-green-600 hover:bg-green-100'}`}
+                            title="Status"
+                            >
+                            <Power size={14} />
+                            </button>
+                            <button 
+                            onClick={() => handleDeleteChurch(church.id, church.name)}
+                            className="p-1.5 bg-red-50 text-red-600 rounded hover:bg-red-100 transition-colors"
+                            title="Excluir"
+                            >
+                            <Trash2 size={14} />
+                            </button>
+                        </div>
+                    </td>
+                    </tr>
+                    {/* CONGREGATION ROWS (Nested) */}
+                    {churches.filter(child => child.parentId === church.id).map(child => (
+                    <tr key={child.id} className="hover:bg-gray-50 bg-gray-50/30">
+                        <td className="px-2 py-2 pl-6 md:pl-12 relative overflow-hidden">
+                            <div className="absolute left-4 md:left-8 top-1/2 w-2 h-[1px] bg-gray-300"></div>
+                            <div className="flex items-start">
+                                <div className="h-6 w-6 bg-gray-200 text-gray-500 rounded flex items-center justify-center mr-2 shrink-0 mt-0.5">
+                                    <Users size={12}/>
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                    <div className="font-medium text-[11px] md:text-xs text-gray-600 truncate uppercase">{child.name}</div>
+                                    
+                                    {/* MOBILE DATA VISIBLE HERE (Stacked) */}
+                                    <div className="md:hidden mt-0.5 flex flex-wrap gap-1 items-center">
+                                        <span className="bg-gray-200 text-gray-600 text-[8px] px-1.5 py-0.5 rounded font-bold uppercase">CONG.</span>
+                                        <span className="text-[9px] text-gray-500 flex items-center truncate">
+                                            <User size={10} className="mr-1"/> {child.pastorName}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                        <td className="hidden md:table-cell px-2 py-2 text-[10px] text-gray-400">CONG.</td>
+                        <td className="hidden md:table-cell px-2 py-2 text-xs text-gray-500 truncate">{child.pastorName}</td>
+                        <td className="px-2 py-2 text-center">
+                        <span className={`px-1 py-0.5 text-[8px] md:text-[9px] rounded font-bold ${child.active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                            {child.active ? 'ON' : 'OFF'}
+                        </span>
+                        </td>
+                        <td className="px-2 py-2 text-right">
+                        <button 
+                            onClick={() => handleEnterChurch(child.id)}
+                            className="p-1 border border-gray-300 text-gray-600 rounded hover:bg-gray-200 transition-colors inline-flex items-center justify-center"
+                            title="Ver"
+                        >
+                            <Eye size={12}/>
+                        </button>
+                        </td>
+                    </tr>
+                    ))}
+                </React.Fragment>
+                ))}
+                {churches.length === 0 && (
+                    <tr>
+                        <td colSpan={5} className="text-center py-4 text-xs text-gray-500">Nenhuma igreja cadastrada.</td>
+                    </tr>
+                )}
+            </tbody>
+            </table>
+        </div>
+
+        {/* GLOBAL CONFIRM/ALERT MODAL */}
+        {modalState.isOpen && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full overflow-hidden transform transition-all scale-100">
+             <div className={`h-2 ${
+               modalState.variant === 'danger' ? 'bg-red-500' : 
+               modalState.variant === 'warning' ? 'bg-yellow-500' : 
+               modalState.variant === 'success' ? 'bg-green-500' : 
+               'bg-blue-500'
+             }`}></div>
+
+             <div className="p-6">
+                <div className="flex items-center mb-4">
+                    <div className={`p-3 rounded-full mr-4 ${
+                         modalState.variant === 'danger' ? 'bg-red-100 text-red-500' : 
+                         modalState.variant === 'warning' ? 'bg-yellow-100 text-yellow-600' : 
+                         modalState.variant === 'success' ? 'bg-green-100 text-green-600' : 
+                         'bg-blue-100 text-blue-600'
+                    }`}>
+                        {modalState.variant === 'danger' && <AlertTriangle size={24}/>}
+                        {modalState.variant === 'warning' && <AlertTriangle size={24}/>}
+                        {modalState.variant === 'success' && <CheckCircle size={24}/>}
+                        {modalState.variant === 'info' && <Info size={24}/>}
+                    </div>
+                    <h3 className="text-xl font-bold text-gray-800">{modalState.title}</h3>
+                </div>
+                
+                <p className="text-gray-600 mb-6 text-sm leading-relaxed whitespace-pre-line pl-[3.5rem] -mt-2">
+                    {modalState.message}
+                </p>
+
+                <div className="flex justify-end space-x-3">
+                    {modalState.showCancel && (
+                        <button 
+                            onClick={() => setModalState(prev => ({ ...prev, isOpen: false }))}
+                            className="px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium transition-colors"
+                        >
+                            Cancelar
+                        </button>
+                    )}
+                    <button 
+                        onClick={() => {
+                            if (modalState.onConfirm) modalState.onConfirm();
+                            else setModalState(prev => ({ ...prev, isOpen: false }));
+                        }}
+                        className={`px-6 py-2 rounded-lg text-white font-bold shadow-md transition-transform active:scale-95 ${
+                            modalState.variant === 'danger' ? 'bg-red-600 hover:bg-red-700' : 
+                            modalState.variant === 'warning' ? 'bg-yellow-600 hover:bg-yellow-700' : 
+                            modalState.variant === 'success' ? 'bg-green-600 hover:bg-green-700' : 
+                            'bg-blue-600 hover:bg-blue-700'
+                        }`}
+                    >
+                        {modalState.showCancel ? 'Confirmar' : 'OK'}
+                    </button>
+                </div>
+             </div>
+          </div>
+        </div>
+      )}
       </div>
     </div>
   );

@@ -516,7 +516,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         id: ensureId(e.id),
         church_id: e.churchId, name: e.name, date: e.date, 
         time: e.time, responsible_name: e.responsibleName,
-        image_url: e.imageUrl 
+        image_url: e.imageUrl,
+        location: e.location // ADICIONADO CAMPO LOCATION
     }]);
     refreshData();
   };
@@ -527,7 +528,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         date: e.date,
         time: e.time,
         responsible_name: e.responsibleName,
-        image_url: e.imageUrl
+        image_url: e.imageUrl,
+        location: e.location // ADICIONADO CAMPO LOCATION
     }).eq('id', id);
     refreshData();
   };
@@ -540,7 +542,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const addMinute = async (m: Minute) => {
     await supabase.from('minutes').insert([{
         id: ensureId(m.id),
-        church_id: m.churchId, title: m.title, date: m.date, file_url: m.fileUrl
+        church_id: m.churchId, 
+        title: m.title, 
+        date: m.date, 
+        file_url: JSON.stringify(m.fileUrls) // MUDANÇA: Salva array como string
     }]);
     refreshData();
   };
@@ -549,7 +554,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     await supabase.from('minutes').update({
         title: m.title,
         date: m.date,
-        file_url: m.fileUrl
+        file_url: JSON.stringify(m.fileUrls) // MUDANÇA: Salva array como string
     }).eq('id', id);
     refreshData();
   };
@@ -597,27 +602,43 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const deleteChurch = async (id: string) => {
       try {
-        // 1. Limpar dependências para evitar erro 409 (Foreign Key Constraint)
-        // Ordem importa: Transações dependem de Membros e Campanhas, então delete transações primeiro.
+        // 1. Identificar TODAS as igrejas envolvidas (Sede + Congregações)
+        const idsToDelete = [id];
         
-        await supabase.from('transactions').delete().eq('church_id', id);
-        await supabase.from('campaigns').delete().eq('church_id', id);
-        await supabase.from('members').delete().eq('church_id', id);
-        await supabase.from('events').delete().eq('church_id', id);
-        await supabase.from('minutes').delete().eq('church_id', id);
-        
-        // MUDANÇA: Excluir usuários (Dirigentes/Tesoureiros) vinculados EXCLUSIVAMENTE a esta igreja
-        // Ao invés de apenas desvincular (update church_id=null), nós deletamos o usuário.
-        await supabase.from('profiles').delete().eq('church_id', id);
+        // Encontrar congregações filhas
+        const children = churches.filter(c => c.parentId === id);
+        children.forEach(c => idsToDelete.push(c.id));
 
-        // 2. Excluir a Igreja
-        const { error } = await supabase.from('churches').delete().eq('id', id);
+        console.log("Deletando igrejas e dados para IDs:", idsToDelete);
+
+        // 2. Exclusão em Lote (Batch Delete) para todas as tabelas dependentes
+        // A ordem importa para evitar conflitos de Foreign Key (Transações > Membros/Campanhas > Igrejas)
+
+        // A. Transações (dependem de Membros, Campanhas e Igrejas)
+        await supabase.from('transactions').delete().in('church_id', idsToDelete);
+        
+        // B. Campanhas (dependem de Igrejas)
+        await supabase.from('campaigns').delete().in('church_id', idsToDelete);
+        
+        // C. Membros (dependem de Igrejas)
+        await supabase.from('members').delete().in('church_id', idsToDelete);
+        
+        // D. Eventos e Atas
+        await supabase.from('events').delete().in('church_id', idsToDelete);
+        await supabase.from('minutes').delete().in('church_id', idsToDelete);
+        
+        // E. Usuários vinculados a estas igrejas
+        await supabase.from('profiles').delete().in('church_id', idsToDelete);
+
+        // 3. Excluir as Igrejas (Filhas e Pai)
+        // O uso do .in resolve tudo de uma vez
+        const { error } = await supabase.from('churches').delete().in('id', idsToDelete);
         
         if (error) {
             console.error("Erro ao excluir igreja:", error);
             alert(`Erro ao excluir: ${error.message}`);
         } else {
-            alert("Congregação e dados vinculados (incluindo usuários dirigentes) excluídos com sucesso.");
+            alert(`Igreja e ${children.length} congregações (com todos os dados vinculados) excluídas com sucesso.`);
         }
         
         refreshData();

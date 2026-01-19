@@ -79,14 +79,31 @@ export const toAppEvent = (data: any): Event => ({
   name: data.name,
   date: data.date,
   time: data.time,
+  location: data.location, // Mapeando o novo campo
   responsibleName: data.responsible_name,
   imageUrl: data.image_url
 });
 
-export const toAppMinute = (data: any): Minute => ({
-  id: data.id,
-  churchId: data.church_id,
-  title: data.title,
-  date: data.date,
-  fileUrl: data.file_url
-});
+export const toAppMinute = (data: any): Minute => {
+  let urls: string[] = [];
+  if (data.file_url) {
+    // Tenta parsear como JSON (novo formato array), se falhar assume string única (formato antigo)
+    try {
+        const parsed = JSON.parse(data.file_url);
+        if (Array.isArray(parsed)) {
+            urls = parsed;
+        } else {
+            urls = [data.file_url];
+        }
+    } catch (e) {
+        urls = [data.file_url];
+    }
+  }
+  return {
+    id: data.id,
+    churchId: data.church_id,
+    title: data.title,
+    date: data.date,
+    fileUrls: urls
+  };
+};

@@ -3,7 +3,7 @@ import React, { useState, useRef } from 'react';
 import { useApp } from '../context';
 import { 
   Calendar as CalendarIcon, Plus, Clock, User, MapPin, Image, Upload, X, Loader, 
-  Edit2, Trash2, Save, AlertTriangle, CheckCircle, Info 
+  Edit2, Trash2, Save, AlertTriangle, CheckCircle, Info, History
 } from 'lucide-react';
 import { Event } from '../types';
 
@@ -15,12 +15,16 @@ export const Events: React.FC = () => {
   const [name, setName] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [time, setTime] = useState('19:00');
+  const [location, setLocation] = useState(''); // Novo estado para local
   const [responsibleName, setResponsibleName] = useState('');
   
   // Image Upload State
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Lightbox State
+  const [enlargedPhoto, setEnlargedPhoto] = useState<string | null>(null);
 
   // --- CUSTOM CONFIRM/ALERT MODAL STATE ---
   const [modalState, setModalState] = useState<{
@@ -64,7 +68,19 @@ export const Events: React.FC = () => {
     });
   };
 
-  const churchEvents = events.filter(e => e.churchId === currentChurch?.id);
+  // --- LOGIC: FILTER AND SORT EVENTS ---
+  const today = new Date().toISOString().split('T')[0];
+  const churchEventsRaw = events.filter(e => e.churchId === currentChurch?.id);
+
+  // 1. Upcoming Events (Date >= Today) - Ascending Order (Nearest first)
+  const upcomingEvents = churchEventsRaw
+    .filter(e => e.date >= today)
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+  // 2. Past Events (Date < Today) - Descending Order (Most recent past first)
+  const pastEvents = churchEventsRaw
+    .filter(e => e.date < today)
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -77,9 +93,11 @@ export const Events: React.FC = () => {
       setName(event.name);
       setDate(event.date);
       setTime(event.time);
+      setLocation(event.location || '');
       setResponsibleName(event.responsibleName);
       setSelectedFile(null); // Reset image unless changed
       setShowForm(true);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleDelete = (event: Event) => {
@@ -99,6 +117,7 @@ export const Events: React.FC = () => {
       setName('');
       setDate(new Date().toISOString().split('T')[0]);
       setTime('19:00');
+      setLocation('');
       setResponsibleName('');
       setSelectedFile(null);
       if(fileInputRef.current) fileInputRef.current.value = '';
@@ -109,7 +128,8 @@ export const Events: React.FC = () => {
     if (!user || !currentChurch) return;
 
     setIsUploading(true);
-    let finalImageUrl = editingEventId ? churchEvents.find(e => e.id === editingEventId)?.imageUrl : undefined;
+    // Find image URL from RAW list to ensure we find it regardless of sorting
+    let finalImageUrl = editingEventId ? churchEventsRaw.find(e => e.id === editingEventId)?.imageUrl : undefined;
 
     if (selectedFile) {
         const url = await uploadEventImage(selectedFile);
@@ -126,6 +146,7 @@ export const Events: React.FC = () => {
       name: name.toUpperCase(),
       date,
       time,
+      location: location.toUpperCase(),
       responsibleName: responsibleName.toUpperCase(),
       imageUrl: finalImageUrl
     };
@@ -140,8 +161,96 @@ export const Events: React.FC = () => {
     handleCancel();
   };
 
+  const renderPhotoLightbox = () => {
+      if (!enlargedPhoto) return null;
+      return (
+          <div className="fixed inset-0 z-[80] bg-black/95 flex items-center justify-center p-4 cursor-pointer" onClick={() => setEnlargedPhoto(null)}>
+             <button className="absolute top-4 right-4 text-white bg-black/50 rounded-full p-2 hover:bg-black/80 transition-colors z-50">
+                 <X size={32}/>
+             </button>
+             <img src={enlargedPhoto} alt="Zoom" className="max-h-[90vh] max-w-[90vw] rounded object-contain shadow-2xl" onClick={(e) => e.stopPropagation()} />
+          </div>
+      );
+  };
+
+  // Helper to Render Cards
+  const renderEventCard = (event: Event, isPast: boolean) => (
+    <div key={event.id} className={`bg-white rounded-xl shadow-md overflow-hidden group flex flex-col h-full relative transition-all ${isPast ? 'opacity-80 hover:opacity-100 border border-gray-200' : 'hover:shadow-xl'}`}>
+      
+      {/* ACTION BUTTONS (EDIT/DELETE) */}
+      <div className="absolute top-2 right-2 z-20 flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button 
+              onClick={(e) => { e.stopPropagation(); handleEdit(event); }}
+              className="p-2 bg-white/90 text-brand-orange hover:bg-white rounded-full shadow-lg hover:text-brand-red transition-colors"
+              title="Editar Evento"
+          >
+              <Edit2 size={16}/>
+          </button>
+          <button 
+              onClick={(e) => { e.stopPropagation(); handleDelete(event); }}
+              className="p-2 bg-white/90 text-gray-500 hover:bg-white rounded-full shadow-lg hover:text-red-600 transition-colors"
+              title="Excluir Evento"
+          >
+              <Trash2 size={16}/>
+          </button>
+      </div>
+
+      {/* IMAGE BANNER */}
+      <div 
+          className={`h-40 w-full bg-gray-100 relative overflow-hidden cursor-pointer ${isPast ? 'grayscale-[0.5]' : ''}`}
+          onClick={() => event.imageUrl && setEnlargedPhoto(event.imageUrl)}
+      >
+          {event.imageUrl ? (
+              <img 
+                  src={event.imageUrl} 
+                  alt={event.name} 
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              />
+          ) : (
+              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-brand-orange/10 to-brand-red/10">
+                  <CalendarIcon size={48} className="text-brand-orange/20"/>
+              </div>
+          )}
+          {/* DATE BADGE OVERLAY */}
+          <div className="absolute top-3 left-3 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-lg shadow text-center min-w-[60px] z-10 pointer-events-none">
+              <span className="block text-xs font-bold text-gray-500 uppercase">{new Date(event.date).toLocaleDateString('pt-BR', { month: 'short' })}</span>
+              <span className="block text-xl font-black text-brand-black leading-none">{new Date(event.date).getDate()}</span>
+          </div>
+          
+          {isPast && (
+             <div className="absolute inset-0 bg-black/10 flex items-center justify-center pointer-events-none">
+                 <span className="bg-black/60 text-white px-3 py-1 rounded text-xs font-bold uppercase tracking-widest border border-white/20">Finalizado</span>
+             </div>
+          )}
+      </div>
+
+      <div className="p-5 flex flex-col flex-1">
+         <h3 className="text-xl font-bold text-gray-900 mb-4 line-clamp-2 uppercase">{event.name}</h3>
+         
+         <div className="space-y-3 mt-auto">
+             <div className="flex items-center text-sm text-gray-600">
+               <Clock size={16} className="mr-3 text-brand-orange"/>
+               {event.time}
+             </div>
+             <div className="flex items-center text-sm text-gray-600">
+               <User size={16} className="mr-3 text-brand-orange"/>
+               {event.responsibleName}
+             </div>
+             <div className="flex items-center text-sm text-gray-600">
+               <MapPin size={16} className="mr-3 text-brand-orange"/>
+               <span className="truncate" title={event.location || 'Na Igreja'}>
+                  {event.location || 'Na Igreja'}
+               </span>
+             </div>
+         </div>
+      </div>
+    </div>
+  );
+
   return (
     <div className="space-y-6">
+      {renderPhotoLightbox()}
+
       <div className="flex justify-between items-center">
         <div>
             <h1 className="text-3xl font-bold text-gray-800 flex items-center">
@@ -210,6 +319,22 @@ export const Events: React.FC = () => {
                 </div>
               </div>
 
+              {/* LOCATION INPUT */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Local</label>
+                <div className="relative">
+                    <MapPin size={16} className="absolute left-2.5 top-3 text-gray-400"/>
+                    <input 
+                        type="text" 
+                        placeholder="EX: NA IGREJA / PRAÇA CENTRAL"
+                        className="mt-1 block w-full pl-8 p-2 border rounded-md uppercase focus:ring-brand-orange"
+                        value={location}
+                        onChange={e => setLocation(e.target.value.toUpperCase())}
+                    />
+                </div>
+                <p className="text-xs text-gray-400 mt-1">Deixe em branco para usar "Na Igreja"</p>
+              </div>
+
               {/* IMAGE UPLOAD SECTION */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Arte / Banner do Evento {editingEventId && '(Opcional)'}</label>
@@ -269,75 +394,34 @@ export const Events: React.FC = () => {
         </div>
       )}
 
+      {/* --- UPCOMING EVENTS LIST --- */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {churchEvents.map((event) => (
-          <div key={event.id} className="bg-white rounded-xl shadow-md hover:shadow-xl transition-all overflow-hidden group flex flex-col h-full relative">
-            
-            {/* ACTION BUTTONS (EDIT/DELETE) */}
-            <div className="absolute top-2 right-2 z-20 flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button 
-                    onClick={(e) => { e.stopPropagation(); handleEdit(event); }}
-                    className="p-2 bg-white/90 text-brand-orange hover:bg-white rounded-full shadow-lg hover:text-brand-red transition-colors"
-                    title="Editar Evento"
-                >
-                    <Edit2 size={16}/>
-                </button>
-                <button 
-                    onClick={(e) => { e.stopPropagation(); handleDelete(event); }}
-                    className="p-2 bg-white/90 text-gray-500 hover:bg-white rounded-full shadow-lg hover:text-red-600 transition-colors"
-                    title="Excluir Evento"
-                >
-                    <Trash2 size={16}/>
-                </button>
-            </div>
+        {upcomingEvents.map((event) => renderEventCard(event, false))}
+      </div>
 
-            {/* IMAGE BANNER */}
-            <div className="h-40 w-full bg-gray-100 relative overflow-hidden">
-                {event.imageUrl ? (
-                    <img 
-                        src={event.imageUrl} 
-                        alt={event.name} 
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
-                ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-brand-orange/10 to-brand-red/10">
-                        <CalendarIcon size={48} className="text-brand-orange/20"/>
-                    </div>
-                )}
-                {/* DATE BADGE OVERLAY */}
-                <div className="absolute top-3 left-3 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-lg shadow text-center min-w-[60px] z-10">
-                    <span className="block text-xs font-bold text-gray-500 uppercase">{new Date(event.date).toLocaleDateString('pt-BR', { month: 'short' })}</span>
-                    <span className="block text-xl font-black text-brand-black leading-none">{new Date(event.date).getDate()}</span>
-                </div>
-            </div>
-
-            <div className="p-5 flex flex-col flex-1">
-               <h3 className="text-xl font-bold text-gray-900 mb-4 line-clamp-2 uppercase">{event.name}</h3>
-               
-               <div className="space-y-3 mt-auto">
-                   <div className="flex items-center text-sm text-gray-600">
-                     <Clock size={16} className="mr-3 text-brand-orange"/>
-                     {event.time}
-                   </div>
-                   <div className="flex items-center text-sm text-gray-600">
-                     <User size={16} className="mr-3 text-brand-orange"/>
-                     {event.responsibleName}
-                   </div>
-                   <div className="flex items-center text-sm text-gray-600">
-                     <MapPin size={16} className="mr-3 text-brand-orange"/>
-                     Na Igreja
-                   </div>
-               </div>
-            </div>
-          </div>
-        ))}
-        {churchEvents.length === 0 && (
+      {upcomingEvents.length === 0 && pastEvents.length === 0 && (
            <div className="col-span-full py-16 text-center bg-white rounded-xl border border-dashed border-gray-300">
                <CalendarIcon size={48} className="mx-auto text-gray-300 mb-3"/>
                <p className="text-gray-500 font-medium">Nenhum evento agendado.</p>
            </div>
-        )}
-      </div>
+      )}
+
+      {/* --- SEPARATOR & PAST EVENTS --- */}
+      {pastEvents.length > 0 && (
+        <div className="mt-12">
+            <div className="flex items-center mb-6">
+                <div className="flex-grow border-t border-gray-300"></div>
+                <div className="mx-4 flex items-center text-gray-400 font-bold uppercase text-sm tracking-wider">
+                    <History size={16} className="mr-2"/> Eventos Finalizados
+                </div>
+                <div className="flex-grow border-t border-gray-300"></div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {pastEvents.map((event) => renderEventCard(event, true))}
+            </div>
+        </div>
+      )}
 
       {/* GLOBAL CONFIRM/ALERT MODAL */}
       {modalState.isOpen && (
