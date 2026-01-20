@@ -3,10 +3,21 @@ import React, { useState } from 'react';
 import { useApp } from '../context';
 import { useNavigate } from 'react-router-dom';
 import { Building, Users, Eye, Power, Plus, UserPlus, Trash2, Edit2, User, AlertTriangle, CheckCircle, Info } from 'lucide-react';
-import { Church, User as UserType } from '../types';
+import { Church, User as UserType, Member } from '../types';
+
+// Helper para gerar UUID v4 (mesma lógica do contexto para garantir consistência)
+function generateUUID() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
 
 export const SuperAdminDashboard: React.FC = () => {
-  const { churches, members, selectChurch, toggleChurchStatus, addChurch, addUser, deleteChurch, updateChurch } = useApp();
+  const { churches, members, selectChurch, toggleChurchStatus, addChurch, addUser, addMember, deleteChurch, updateChurch } = useApp();
   const navigate = useNavigate();
   
   const [showChurchForm, setShowChurchForm] = useState(false);
@@ -142,24 +153,53 @@ export const SuperAdminDashboard: React.FC = () => {
         showAlert("Erro", "É obrigatório selecionar a Igreja para vincular o Presidente.", 'warning');
         return;
     }
+
+    // 1. Gerar um UUID único que será usado tanto para o Perfil (Login) quanto para o Membro
+    const sharedId = generateUUID();
     
-    // 1. Criar o Usuário de Login na tabela 'profiles'
-    const user: UserType = {
-      id: '',
+    // 2. Criar o Usuário de Login na tabela 'profiles'
+    const userPayload: UserType = {
+      id: sharedId, // ID Forçado
       ...newPresident,
       name: newPresident.name.toUpperCase(),
       role: 'PRESIDENTE' 
     };
 
-    // CORREÇÃO CRÍTICA: Verificar se o usuário foi realmente criado
-    const result = await addUser(user);
+    // 3. Criar o Registro de Membro na tabela 'members'
+    // Isso permite que o pastor edite seus próprios dados (foto, endereço, etc)
+    const memberPayload: Member = {
+      id: sharedId, // ID Forçado (Vínculo de Identidade)
+      churchId: newPresident.churchId,
+      name: newPresident.name.toUpperCase(),
+      cpf: newPresident.cpf,
+      isTither: true, // Pastores presidentes geralmente são dizimistas
+      birthDate: '', // Será completado depois pelo pastor
+      address: {
+        street: '',
+        number: '',
+        neighborhood: '',
+        city: '',
+        state: '',
+        zipCode: ''
+      }
+    };
+
+    // Executa a criação do usuário
+    const userResult = await addUser(userPayload);
     
-    if (!result.success) {
-        showAlert("Erro ao criar usuário", `${result.error}\n\nVerifique se o login já existe.`, 'danger');
-        return; // Para aqui e não atualiza a igreja falsamente
+    if (!userResult.success) {
+        showAlert("Erro ao criar usuário", `${userResult.error}\n\nVerifique se o login já existe.`, 'danger');
+        return; 
     }
 
-    // 2. Se chegou aqui, o usuário foi criado. Agora atualiza o nome do pastor na igreja.
+    // Executa a criação do membro (falha aqui não deve impedir o login, mas avisamos)
+    const memberResult = await addMember(memberPayload);
+    if (!memberResult.success) {
+       console.error("Erro ao criar registro de membro para o pastor:", memberResult.error);
+       // Não paramos o fluxo, pois o login foi criado. O pastor pode ser adicionado como membro depois manualmente se falhar.
+    }
+
+    // 4. Atualiza o nome do pastor na igreja (Visual)
     if (newPresident.churchId) {
         const churchToUpdate = churches.find(c => c.id === newPresident.churchId);
         if (churchToUpdate) {
@@ -171,7 +211,7 @@ export const SuperAdminDashboard: React.FC = () => {
 
     setShowPresidentForm(false);
     setNewPresident({ name: '', username: '', cpf: '', churchId: '', password: '' });
-    showAlert('Sucesso', 'Pastor Presidente cadastrado e vinculado à igreja com sucesso!', 'success');
+    showAlert('Sucesso', 'Pastor Presidente cadastrado! Ele já possui acesso ao sistema e registro na lista de membros para autogestão.', 'success');
   };
 
   return (
@@ -220,7 +260,7 @@ export const SuperAdminDashboard: React.FC = () => {
           </div>
           <div className="text-left">
             <h3 className="font-bold text-sm text-gray-800">Cadastrar PR Presidente</h3>
-            <p className="text-xs text-gray-500">Criar acesso principal</p>
+            <p className="text-xs text-gray-500">Criar acesso principal e perfil</p>
           </div>
         </button>
       </div>
@@ -309,7 +349,7 @@ export const SuperAdminDashboard: React.FC = () => {
             </select>
             <div className="md:col-span-2 flex justify-end space-x-2">
               <button type="button" onClick={() => setShowPresidentForm(false)} className="px-4 py-2 text-gray-500 text-sm">Cancelar</button>
-              <button type="submit" className="px-4 py-2 bg-brand-orange text-white rounded text-sm font-bold">Salvar</button>
+              <button type="submit" className="px-4 py-2 bg-brand-orange text-white rounded text-sm font-bold">Salvar e Vincular</button>
             </div>
           </form>
         </div>

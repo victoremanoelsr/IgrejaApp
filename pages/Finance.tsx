@@ -65,7 +65,7 @@ export const Finance: React.FC = () => {
     .filter(t => t.churchId === viewId)
     .filter(t => !t.campaignId) 
     .filter(t => {
-        const tDate = new Date(t.date);
+        const tDate = new Date(t.date + 'T12:00:00'); // Fix para filtro: garante meio dia para evitar problemas de fuso na comparação
         const matchesDate = (tDate.getMonth() + 1) === filterMonth && tDate.getFullYear() === filterYear;
         let matchesCategory = true;
         if (filterType !== 'TODOS') {
@@ -342,7 +342,10 @@ export const Finance: React.FC = () => {
                 {Array.from({length: 12}, (_, i) => (<option key={i+1} value={i+1}>{new Date(0, i).toLocaleString('pt-BR', { month: 'short' }).toUpperCase()}</option>))}
               </select>
               <select value={filterYear} onChange={e => setFilterYear(parseInt(e.target.value))} className="bg-transparent border-none text-xs font-bold text-gray-700 py-1 pl-1 pr-6 cursor-pointer">
-                 <option value={2024}>2024</option><option value={2025}>2025</option>
+                 <option value={2024}>2024</option>
+                 <option value={2025}>2025</option>
+                 <option value={2026}>2026</option>
+                 <option value={2027}>2027</option>
               </select>
           </div>
 
@@ -368,9 +371,14 @@ export const Finance: React.FC = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {churchTransactions.map(t => (
+              {churchTransactions.map(t => {
+                // CORREÇÃO DE DATA: Divide a string YYYY-MM-DD para criar a data localmente sem conversão de fuso horário
+                const [year, month, day] = t.date.split('-').map(Number);
+                const displayDate = new Date(year, month - 1, day).toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'});
+
+                return (
                 <tr key={t.id} className="hover:bg-gray-50">
-                  <td className="px-2 py-2 text-[10px] text-gray-600 whitespace-nowrap">{new Date(t.date).toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'})}</td>
+                  <td className="px-2 py-2 text-[10px] text-gray-600 whitespace-nowrap">{displayDate}</td>
                   <td className="px-2 py-2 text-[10px] font-medium text-gray-900 truncate max-w-[100px] md:max-w-none uppercase">
                     {t.description}
                     <div className="md:hidden text-[9px] text-gray-400">{formatCategoryName(t.category, t.type)}</div>
@@ -390,7 +398,7 @@ export const Finance: React.FC = () => {
                       )}
                   </td>
                 </tr>
-              ))}
+              )})}
               {churchTransactions.length === 0 && <tr><td colSpan={5} className="p-4 text-center text-gray-400 text-xs">Sem lançamentos.</td></tr>}
             </tbody>
           </table>

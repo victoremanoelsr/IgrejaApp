@@ -32,7 +32,7 @@ interface AppContextType {
 
   // Actions (Async now)
   addTransaction: (t: Transaction) => Promise<void>;
-  updateTransaction: (id: string, t: Transaction) => Promise<void>; // Nova função
+  updateTransaction: (id: string, t: Transaction) => Promise<void>; 
   deleteTransaction: (id: string) => Promise<void>;
   uploadTransactionFile: (file: File) => Promise<string | null>; 
   
@@ -60,11 +60,11 @@ interface AppContextType {
   addUser: (u: User) => Promise<{ success: boolean; error?: string }>;
   updateUser: (id: string, u: User) => Promise<void>;
   deleteUser: (id: string) => Promise<void>;
-  updateChurch: (id: string, data: Partial<Church>) => Promise<{ success: boolean; error?: string }>; // Updated Return Type
+  updateChurch: (id: string, data: Partial<Church>) => Promise<{ success: boolean; error?: string }>;
   deleteChurch: (id: string) => Promise<void>;
   toggleChurchStatus: (id: string) => Promise<void>;
   recoverAccount: (name: string, cpf: string) => string | null;
-  updateUserCredentials: (userId: string, newUsername?: string, newPassword?: string) => Promise<void>;
+  updateUserCredentials: (userId: string, newUsername?: string, newPassword?: string) => Promise<{ success: boolean; error?: string }>;
   uploadChurchLogo: (file: File) => Promise<string | null>;
 
   enterAdminView: (churchId: string) => void;
@@ -180,14 +180,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           .select('*')
           .ilike('username', username) 
           .eq('password', password)
-          .single();
+          .maybeSingle(); // Alterado de .single() para .maybeSingle() para evitar erro PGRST116 (0 rows)
       
       if (error) {
         console.error("Erro Supabase:", error);
         if (error.code === '42703') {
            return { user: null, error: 'ERRO DE BANCO: Coluna "password" não existe. Execute o script setup.sql.' };
         }
-        return { user: null, error: 'Usuário ou senha inválidos.' };
+        return { user: null, error: 'Erro ao tentar fazer login.' };
       }
 
       if (data) {
@@ -656,17 +656,56 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
   };
   
-  const updateUserCredentials = async (userId: string, newUsername?: string, newPassword?: string) => {
-      const updates: any = {};
-      if (newUsername) updates.username = newUsername;
-      if (newPassword) updates.password = newPassword;
-      await supabase.from('profiles').update(updates).eq('id', userId);
-      refreshData();
+  const updateUserCredentials = async (userId: string, newUsername?: string, newPassword?: string): Promise<{ success: boolean; error?: string }> => {
+      try {
+        const updates: any = {};
+        if (newUsername) updates.username = newUsername.trim(); // Trim spaces
+        if (newPassword) updates.password = newPassword.trim(); // Trim spaces
+        
+        const { error } = await supabase.from('profiles').update(updates).eq('id', userId);
+        
+        if (error) {
+            console.error("Erro ao atualizar credenciais:", error);
+            return { success: false, error: error.message };
+        }
+        
+        await refreshData();
+        return { success: true };
+      } catch (e: any) {
+          return { success: false, error: e.message };
+      }
   };
 
   const recoverAccount = (name: string, cpf: string) => {
-    const found = users.find(u => u.name.toLowerCase() === name.toLowerCase() && u.cpf === cpf);
-    return found ? found.id : null;
+    const searchName = name.toLowerCase().trim();
+    const searchCpf = cpf.trim();
+
+    // 1. Busca na tabela de MEMBROS (Prioridade Solicitada)
+    // Usamos 'includes' para ser mais tolerante com nomes incompletos (ex: "Victor" acha "Victor Hugo")
+    const memberMatch = members.find(m => 
+        m.cpf === searchCpf && 
+        m.name.toLowerCase().includes(searchName)
+    );
+
+    // 2. Busca na tabela de USUÁRIOS (Profiles)
+    // Necessário, pois só podemos resetar a senha se existir um Usuário de Sistema
+    const userMatch = users.find(u => u.cpf === searchCpf);
+
+    // Cenário Ideal: É Membro e tem Usuário vinculado pelo CPF
+    if (memberMatch && userMatch) {
+        return userMatch.id;
+    }
+
+    // Cenário Alternativo: Não achou como membro, mas achou como usuário (ex: Admin externo)
+    // Nesse caso, verifica se o nome bate com o do usuário
+    if (!memberMatch && userMatch) {
+        if (userMatch.name.toLowerCase().includes(searchName)) {
+            return userMatch.id;
+        }
+    }
+
+    // Se achou membro mas NÃO tem usuário -> Não dá pra recuperar senha (não tem conta)
+    return null;
   };
 
   const enterAdminView = (churchId: string) => selectChurch(churchId);

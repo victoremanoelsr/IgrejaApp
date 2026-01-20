@@ -86,22 +86,21 @@ export const Dashboard: React.FC = () => {
 
   const offerData = Object.keys(offersByDate)
     .sort()
-    .slice(-5)
+    .slice(-5) // Últimas 5 datas
     .map(dateStr => {
       const [year, month, day] = dateStr.split('-').map(Number);
       const dateObj = new Date(year, month - 1, day);
-      const weekday = dateObj.toLocaleDateString('pt-BR', { weekday: 'short' });
+      // Formato solicitado: DD/MM
       const dayMonth = dateObj.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
-      const weekdayCap = weekday.charAt(0).toUpperCase() + weekday.slice(1).replace('.', '');
 
       return { 
-        name: `${weekdayCap} (${dayMonth})`, 
+        name: dayMonth, 
         valor: offersByDate[dateStr] 
       };
     });
 
   if (offerData.length === 0) {
-    offerData.push({ name: 'Sem dados', valor: 0 });
+    offerData.push({ name: '-', valor: 0 });
   }
 
   const pieDataMissions = [
@@ -255,14 +254,16 @@ export const Dashboard: React.FC = () => {
                 </div>
             )}
           </div>
-          <div className="text-center mt-1 grid grid-cols-2 gap-2 text-[10px] md:text-xs">
+          
+          {/* LEGENDA AUMENTADA NO DESKTOP */}
+          <div className="text-center mt-2 grid grid-cols-2 gap-2">
             <div>
-                <p className="font-bold text-green-600">R$ {missionsIn.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}</p>
-                <p className="text-gray-400">Entradas</p>
+                <p className="font-black text-green-600 text-xs md:text-2xl">R$ {missionsIn.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}</p>
+                <p className="text-gray-400 text-[10px] md:text-sm font-bold uppercase">Entradas</p>
             </div>
             <div>
-                <p className="font-bold text-red-600">R$ {missionsOut.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}</p>
-                <p className="text-gray-400">Saídas</p>
+                <p className="font-black text-red-600 text-xs md:text-2xl">R$ {missionsOut.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}</p>
+                <p className="text-gray-400 text-[10px] md:text-sm font-bold uppercase">Saídas</p>
             </div>
           </div>
         </div>
@@ -276,24 +277,28 @@ export const Dashboard: React.FC = () => {
            <div className="h-24 md:h-64">
              {offersRaw.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={offerData} margin={{ top: 5, right: 0, left: -25, bottom: 0 }}>
+                  <BarChart data={offerData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} />
                     <XAxis 
                       dataKey="name" 
-                      tick={{ fontSize: 8, fontWeight: 'bold' }} 
+                      tick={{ fontSize: 10, fill: '#6b7280', fontWeight: 'bold' }} 
                       interval={0}
-                      hide // Hide X Axis text on mobile tiny chart to save space
+                      axisLine={false}
+                      tickLine={false}
                     />
                     <YAxis 
-                      tick={{ fontSize: 8 }}
-                      width={30}
+                      tick={{ fontSize: 10, fill: '#6b7280' }}
+                      axisLine={false}
+                      tickLine={false}
+                      tickFormatter={(value) => `${value}`}
                     />
                     <Tooltip 
+                      cursor={{ fill: '#f3f4f6' }}
                       formatter={(value: number) => [`R$ ${value.toFixed(2)}`, '']}
-                      labelStyle={{fontSize: '10px'}}
-                      contentStyle={{fontSize: '10px'}}
+                      labelStyle={{fontSize: '12px', fontWeight: 'bold'}}
+                      contentStyle={{fontSize: '12px', borderRadius: '8px'}}
                     />
-                    <Bar dataKey="valor" fill="#f97316" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="valor" fill="#f97316" radius={[4, 4, 0, 0]} barSize={30} />
                   </BarChart>
                 </ResponsiveContainer>
              ) : (
@@ -330,8 +335,22 @@ export const Dashboard: React.FC = () => {
               <CartesianGrid strokeDasharray="3 3" />
               <Tooltip formatter={(value: number) => `R$ ${value.toFixed(2)}`} />
               <Legend verticalAlign="top" iconSize={10} wrapperStyle={{fontSize: '10px'}}/>
-              <Area type="monotone" dataKey="entradas" stroke="#16a34a" fillOpacity={1} fill="url(#colorIn)" />
-              <Area type="monotone" dataKey="saidas" stroke="#dc2626" fillOpacity={1} fill="url(#colorOut)" />
+              <Area 
+                type="monotone" 
+                dataKey="entradas" 
+                stroke="#16a34a" 
+                fillOpacity={1} 
+                fill="url(#colorIn)" 
+                strokeWidth={3}
+              />
+              <Area 
+                type="monotone" 
+                dataKey="saidas" 
+                stroke="#dc2626" 
+                fillOpacity={1} 
+                fill="url(#colorOut)" 
+                strokeWidth={3}
+              />
             </AreaChart>
           </ResponsiveContainer>
         </div>

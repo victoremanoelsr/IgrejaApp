@@ -260,18 +260,21 @@ export const Users: React.FC = () => {
 
              {/* Actions Absolute Top Right */}
              <div className="absolute top-3 right-3 flex flex-col gap-2">
-                {u.id !== currentUser?.id && (currentUser?.role === 'SUPER_ADM' || u.role !== 'SUPER_ADM') && (
-                    <>
-                      <button onClick={() => handleEdit(u)} className="p-1 text-gray-400 hover:text-brand-orange rounded-full hover:bg-orange-50">
+                {/* BOTÃO EDITAR: Aparece para o próprio usuário OU se o logado tiver permissão */}
+                {(u.id === currentUser?.id || currentUser?.role === 'SUPER_ADM' || u.role !== 'SUPER_ADM') && (
+                    <button onClick={() => handleEdit(u)} className="p-1 text-gray-400 hover:text-brand-orange rounded-full hover:bg-orange-50">
                         <Edit2 size={16}/>
-                      </button>
-                      <button 
+                    </button>
+                )}
+
+                {/* BOTÃO EXCLUIR: Não pode excluir a si mesmo */}
+                {u.id !== currentUser?.id && (currentUser?.role === 'SUPER_ADM' || u.role !== 'SUPER_ADM') && (
+                    <button 
                         onClick={() => showConfirm('Excluir Usuário', 'Deseja excluir este acesso?', () => deleteUser(u.id), 'danger')}
                         className="p-1 text-gray-400 hover:text-red-600 rounded-full hover:bg-red-50"
-                      >
+                    >
                         <Trash2 size={16}/>
-                      </button>
-                    </>
+                    </button>
                 )}
              </div>
           </div>
@@ -314,20 +317,25 @@ export const Users: React.FC = () => {
                   }
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  {/* Prevents deleting yourself or Super Admins if you're not one */}
-                  {u.id !== currentUser?.id && (currentUser?.role === 'SUPER_ADM' || u.role !== 'SUPER_ADM') && (
-                    <>
-                      <button onClick={() => handleEdit(u)} className="text-brand-orange hover:text-brand-red mr-4 transition-colors">
-                        <Edit2 size={18}/>
-                      </button>
-                      <button 
-                        onClick={() => showConfirm('Excluir Usuário', 'Deseja excluir este acesso?', () => deleteUser(u.id), 'danger')}
-                        className="text-red-600 hover:text-red-900 transition-colors"
-                      >
-                        <Trash2 size={18}/>
-                      </button>
-                    </>
-                  )}
+                    <div className="flex justify-end items-center space-x-3">
+                        {/* EDITAR: Permitido para si mesmo ou Admins */}
+                        {(u.id === currentUser?.id || currentUser?.role === 'SUPER_ADM' || u.role !== 'SUPER_ADM') && (
+                            <button onClick={() => handleEdit(u)} className="text-brand-orange hover:text-brand-red transition-colors" title="Editar Usuário">
+                                <Edit2 size={18}/>
+                            </button>
+                        )}
+                        
+                        {/* EXCLUIR: Proibido para si mesmo */}
+                        {u.id !== currentUser?.id && (currentUser?.role === 'SUPER_ADM' || u.role !== 'SUPER_ADM') && (
+                            <button 
+                                onClick={() => showConfirm('Excluir Usuário', 'Deseja excluir este acesso?', () => deleteUser(u.id), 'danger')}
+                                className="text-red-600 hover:text-red-900 transition-colors"
+                                title="Excluir Usuário"
+                            >
+                                <Trash2 size={18}/>
+                            </button>
+                        )}
+                    </div>
                 </td>
               </tr>
             ))}
@@ -337,7 +345,12 @@ export const Users: React.FC = () => {
     </div>
   );
 
-  const renderForm = () => (
+  const renderForm = () => {
+    // Se estiver editando o próprio usuário e NÃO for Super Admin, bloqueia mudança de Cargo e Unidade
+    const isSelfEdit = editingUserId === currentUser?.id;
+    const isRestrictedEdit = isSelfEdit && currentUser?.role !== 'SUPER_ADM';
+
+    return (
     <div className="max-w-2xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100">
       <div className="bg-brand-black p-4 md:p-6 flex justify-between items-center text-white">
         <h2 className="text-lg md:text-xl font-bold flex items-center">
@@ -347,13 +360,22 @@ export const Users: React.FC = () => {
       </div>
 
       <form onSubmit={handleSubmit} className="p-4 md:p-8 space-y-4 md:space-y-6">
+        
+        {isRestrictedEdit && (
+            <div className="bg-yellow-50 text-yellow-700 p-3 rounded text-xs border border-yellow-200 flex items-center mb-2">
+                <Info size={16} className="mr-2"/>
+                Você está editando seu próprio perfil. Alterações de cargo e unidade estão bloqueadas por segurança.
+            </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
           
           <div className="col-span-1 md:col-span-2">
             <label className="block text-xs md:text-sm font-medium text-gray-700">Unidade de Acesso</label>
             <select 
               required={formData.role !== 'SUPER_ADM'} // Obrigatório apenas se não for Super Admin
-              className="mt-1 block w-full p-2 border rounded-md focus:ring-brand-orange focus:border-brand-orange text-sm"
+              disabled={isRestrictedEdit} // Bloqueia se for auto-edição
+              className={`mt-1 block w-full p-2 border rounded-md text-sm ${isRestrictedEdit ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : 'focus:ring-brand-orange focus:border-brand-orange'}`}
               value={formData.churchId}
               onChange={e => setFormData({...formData, churchId: e.target.value})}
             >
@@ -419,7 +441,8 @@ export const Users: React.FC = () => {
             <label className="block text-xs md:text-sm font-medium text-gray-700">Cargo / Nível</label>
             <select 
               required
-              className="mt-1 block w-full p-2 border rounded-md focus:ring-brand-orange focus:border-brand-orange text-sm"
+              disabled={isRestrictedEdit} // Bloqueia se for auto-edição
+              className={`mt-1 block w-full p-2 border rounded-md text-sm ${isRestrictedEdit ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : 'focus:ring-brand-orange focus:border-brand-orange'}`}
               value={formData.role}
               onChange={e => setFormData({...formData, role: e.target.value as Role})}
             >
@@ -447,6 +470,7 @@ export const Users: React.FC = () => {
                 <input 
                   type="password" 
                   required={!editingUserId}
+                  placeholder={editingUserId ? "Deixe em branco para manter" : ""}
                   className="mt-1 block w-full p-2 border rounded-md focus:ring-brand-orange text-sm"
                   value={formData.password}
                   onChange={e => setFormData({...formData, password: e.target.value})}
@@ -464,7 +488,8 @@ export const Users: React.FC = () => {
         </div>
       </form>
     </div>
-  );
+    );
+  };
 
   return (
     <div className="container mx-auto">

@@ -4,11 +4,11 @@ import { useApp } from '../context';
 import { Member } from '../types';
 import { 
   Search, Plus, Trash2, Edit2, User, Save, X, Phone, Mail, ZoomIn, 
-  CheckCircle, Camera, Loader, MapPin, Calendar, Hash, Flag
+  CheckCircle, Camera, Loader, MapPin, Calendar, Hash, Flag, Lock, Key, Info
 } from 'lucide-react';
 
 export const Members: React.FC = () => {
-  const { members, churches, user, addMember, updateMember, deleteMember, uploadMemberPhoto, currentChurch } = useApp();
+  const { members, churches, user, addMember, updateMember, deleteMember, uploadMemberPhoto, currentChurch, updateUserCredentials } = useApp();
   const [view, setView] = useState<'LIST' | 'FORM'>('LIST');
   const [searchTerm, setSearchTerm] = useState('');
   const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
@@ -37,7 +37,9 @@ export const Members: React.FC = () => {
   const canEdit = user?.role !== 'TESOUREIRO';
   const viewId = currentChurch?.id;
 
-  // MUDANÇA: country inicia vazio ('') em vez de 'BRASIL'
+  // Estado adicional para mudança de senha
+  const [newPassword, setNewPassword] = useState('');
+
   const initialFormState = {
     name: '', cpf: '', birthDate: '', memberNumber: '', churchId: viewId || '', isTither: false, baptismDate: '', email: '', phone: '', maritalStatus: 'SOLTEIRO', 
     zipCode: '', street: '', number: '', neighborhood: '', city: '', state: '', country: '', photo: ''
@@ -58,7 +60,6 @@ export const Members: React.FC = () => {
         const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
         const data = await response.json();
         if (!data.erro) {
-          // MUDANÇA: Preenche 'BRASIL' automaticamente ao achar o CEP
           setFormData(prev => ({
             ...prev, street: data.logradouro.toUpperCase(), neighborhood: data.bairro.toUpperCase(), city: data.localidade.toUpperCase(), state: data.uf.toUpperCase(), country: 'BRASIL'
           }));
@@ -84,9 +85,11 @@ export const Members: React.FC = () => {
     .sort((a, b) => a.name.localeCompare(b.name));
 
   const handleEdit = (member: Member) => {
-    if(!canEdit) return;
+    if(!canEdit && member.id !== user?.id) return; // Permite edição se for o próprio usuário
+    
     setEditingMemberId(member.id);
     setSelectedFile(null);
+    setNewPassword(''); // Reseta senha
     setFormData({
       name: member.name, cpf: member.cpf, birthDate: member.birthDate, memberNumber: member.memberNumber || '', churchId: member.churchId, isTither: member.isTither,
       baptismDate: member.baptismDate || '', email: member.email || '', phone: member.phone || '', maritalStatus: member.maritalStatus || 'SOLTEIRO',
@@ -97,12 +100,12 @@ export const Members: React.FC = () => {
   };
 
   const handleCancel = () => {
-    setFormData(initialFormState); setEditingMemberId(null); setSelectedFile(null); setIsSaving(false); setView('LIST');
+    setFormData(initialFormState); setEditingMemberId(null); setSelectedFile(null); setNewPassword(''); setIsSaving(false); setView('LIST');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if(!canEdit) return;
+    if(!canEdit && editingMemberId !== user?.id) return; // Segurança extra
     setIsSaving(true);
     
     if (!editingMemberId) {
@@ -126,10 +129,19 @@ export const Members: React.FC = () => {
     };
 
     const result = editingMemberId ? await updateMember(editingMemberId, payload) : await addMember(payload);
-    setIsSaving(false);
+    
+    // Se for o próprio usuário e houver nova senha, atualiza a credencial
+    if (editingMemberId && editingMemberId === user?.id && newPassword.trim() !== '') {
+        await updateUserCredentials(user.id, undefined, newPassword.trim());
+        showAlert('Atualizado', 'Seus dados e sua senha foram atualizados com sucesso!', 'success');
+    } else if (result.success) {
+        showAlert('Sucesso', "Salvo com sucesso!", 'success');
+    } else {
+        showAlert('Erro', result.error || 'Erro desconhecido', 'danger');
+    }
 
-    if (result.success) { showAlert('Sucesso', "Salvo com sucesso!", 'success'); handleCancel(); } 
-    else { showAlert('Erro', result.error || 'Erro desconhecido', 'danger'); }
+    setIsSaving(false);
+    if(result.success) handleCancel();
   };
 
   const handleConfirmDelete = (member: Member) => {
@@ -151,6 +163,10 @@ export const Members: React.FC = () => {
   const renderDetailsModal = () => {
     if (!viewingMember) return null;
     const formatDate = (d?: string) => d ? new Date(d).toLocaleDateString('pt-BR') : '-';
+    // Verifica se é o próprio usuário para permitir "Editar Perfil"
+    const isSelf = viewingMember.id === user?.id;
+    const canModify = canEdit || isSelf;
+
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
         <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden relative max-h-[90vh] overflow-y-auto">
@@ -169,7 +185,7 @@ export const Members: React.FC = () => {
                     <span className="text-[10px] bg-gray-100 px-2 py-0.5 rounded-full text-gray-600 border font-medium">CPF: {viewingMember.cpf}</span>
                     {viewingMember.isTither && <span className="text-[10px] bg-green-100 px-2 py-0.5 rounded-full text-green-700 border border-green-200 font-bold">Dizimista</span>}
                 </div>
-                {canEdit && <button onClick={() => { setViewingMember(null); handleEdit(viewingMember); }} className="mt-2 text-xs bg-white hover:bg-gray-50 border border-gray-300 px-3 py-1 rounded shadow-sm transition-colors text-gray-700">Editar Dados</button>}
+                {canModify && <button onClick={() => { setViewingMember(null); handleEdit(viewingMember); }} className="mt-2 text-xs bg-white hover:bg-gray-50 border border-gray-300 px-3 py-1 rounded shadow-sm transition-colors text-gray-700 font-bold flex items-center"><Edit2 size={12} className="mr-1"/> {isSelf ? 'Editar Meu Perfil' : 'Editar Dados'}</button>}
              </div>
              
              {/* LISTA DE DADOS COMPACTA */}
@@ -231,11 +247,15 @@ export const Members: React.FC = () => {
               <tr key={member.id} className="hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => setViewingMember(member)}>
                 <td className="px-3 py-2 text-left">
                   <div className="flex items-center">
-                    <div className="flex-shrink-0 h-9 w-9 bg-gray-200 rounded-full overflow-hidden border cursor-zoom-in" onClick={(e) => { e.stopPropagation(); if(member.photo) setEnlargedPhoto(member.photo); }}>
+                    <div className="flex-shrink-0 h-9 w-9 bg-gray-200 rounded-full overflow-hidden border cursor-zoom-in relative" onClick={(e) => { e.stopPropagation(); if(member.photo) setEnlargedPhoto(member.photo); }}>
                        {member.photo ? <img src={member.photo} className="h-full w-full object-cover"/> : <User size={18} className="m-auto mt-2 text-gray-400"/>}
+                       {member.id === user?.id && <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-brand-orange rounded-full border border-white"></div>}
                     </div>
                     <div className="ml-3 overflow-hidden">
-                      <div className="text-sm font-bold text-gray-900 leading-tight whitespace-normal">{member.name}</div>
+                      <div className="text-sm font-bold text-gray-900 leading-tight whitespace-normal flex items-center">
+                          {member.name}
+                          {member.id === user?.id && <span className="ml-2 text-[8px] bg-brand-black text-white px-1 rounded uppercase">Eu</span>}
+                      </div>
                       <div className="text-[10px] text-gray-500 flex items-center gap-2 mt-0.5">
                           <span className="truncate">CPF: {member.cpf}</span>
                           {member.isTither && <span className="bg-green-100 text-green-800 px-1.5 rounded text-[9px] font-bold">DIZIMISTA</span>}
@@ -245,10 +265,11 @@ export const Members: React.FC = () => {
                 </td>
                 <td className="px-2 py-2 whitespace-nowrap text-right text-sm font-medium w-16">
                   <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
-                      {canEdit ? (
+                      {canEdit || member.id === user?.id ? (
                         <>
                             <button onClick={() => handleEdit(member)} className="text-gray-400 hover:text-brand-orange p-1.5 rounded-full hover:bg-orange-50 transition-colors"><Edit2 size={16}/></button>
-                            <button onClick={() => handleConfirmDelete(member)} className="text-gray-400 hover:text-red-600 p-1.5 rounded-full hover:bg-red-50 transition-colors"><Trash2 size={16}/></button>
+                            {/* Somente tesoureiro deleta, exceto o próprio usuário não pode se deletar aqui */}
+                            {canEdit && <button onClick={() => handleConfirmDelete(member)} className="text-gray-400 hover:text-red-600 p-1.5 rounded-full hover:bg-red-50 transition-colors"><Trash2 size={16}/></button>}
                         </>
                       ) : (
                          <button onClick={() => setViewingMember(member)} className="text-gray-400 hover:text-gray-600 p-1"><ZoomIn size={16}/></button>
@@ -285,7 +306,7 @@ export const Members: React.FC = () => {
       <div className="bg-brand-black p-4 flex justify-between items-center text-white">
         <h2 className="text-lg font-bold flex items-center">
             {editingMemberId ? <Edit2 className="mr-2" size={20}/> : <Plus className="mr-2" size={20}/>}
-            {editingMemberId ? 'Editar Membro' : 'Novo Cadastro'}
+            {editingMemberId ? (editingMemberId === user?.id ? 'Editar Meu Perfil' : 'Editar Membro') : 'Novo Cadastro'}
         </h2>
         <button onClick={handleCancel} className="hover:text-gray-300 transition-colors bg-white/10 p-1 rounded-full"><X size={20}/></button>
       </div>
@@ -308,6 +329,37 @@ export const Members: React.FC = () => {
             <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
             <p className="text-xs text-gray-400 mt-2 font-medium">Toque para alterar a foto</p>
         </div>
+
+        {/* ÁREA DE SEGURANÇA (VISÍVEL APENAS PARA O PRÓPRIO USUÁRIO) */}
+        {editingMemberId === user?.id && (
+            <div className="bg-orange-50 p-4 rounded-lg border border-orange-200 animate-fade-in-down mb-6">
+                <h3 className="text-sm font-bold text-brand-orange uppercase tracking-wider border-b border-orange-200 pb-2 mb-4 flex items-center">
+                    <Lock size={16} className="mr-2"/> Segurança e Acesso
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-xs font-bold text-gray-600 uppercase mb-1.5">Nova Senha</label>
+                        <div className="relative">
+                            <Key className="absolute left-3 top-2.5 text-gray-400" size={16}/>
+                            <input 
+                                type="password" 
+                                placeholder="Digite para alterar..." 
+                                className="w-full pl-9 p-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-orange focus:border-transparent outline-none transition-all bg-white"
+                                value={newPassword}
+                                onChange={e => setNewPassword(e.target.value)}
+                            />
+                        </div>
+                        <p className="text-[10px] text-gray-500 mt-1">Deixe em branco para manter a senha atual.</p>
+                    </div>
+                    <div className="flex items-center">
+                        <div className="text-xs text-orange-800 bg-orange-100 p-2 rounded flex items-center">
+                            <Info size={14} className="mr-2 shrink-0"/>
+                            Você está editando seus próprios dados. Mantenha seu CPF e telefone atualizados.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        )}
 
         {/* SEÇÃO DADOS PESSOAIS */}
         <div className="bg-gray-50/50 p-4 rounded-lg border border-gray-100">
@@ -336,8 +388,8 @@ export const Members: React.FC = () => {
                         <input type="text" required maxLength={14} className="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-orange focus:border-transparent outline-none transition-all" value={formData.cpf} onChange={handleCpfChange}/>
                     </div>
                     <div>
-                        <label className="block text-xs font-bold text-gray-600 uppercase mb-1.5">Nascimento *</label>
-                        <input type="date" required className="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-orange focus:border-transparent outline-none transition-all" value={formData.birthDate} onChange={e => setFormData({...formData, birthDate: e.target.value})}/>
+                        <label className="block text-xs font-bold text-gray-600 uppercase mb-1.5">Nascimento</label>
+                        <input type="date" className="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-orange focus:border-transparent outline-none transition-all" value={formData.birthDate} onChange={e => setFormData({...formData, birthDate: e.target.value})}/>
                     </div>
                     <div>
                         <label className="block text-xs font-bold text-gray-600 uppercase mb-1.5">Batismo</label>

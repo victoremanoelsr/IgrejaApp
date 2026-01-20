@@ -1,7 +1,8 @@
+
 import React, { useState } from 'react';
 import { useApp } from '../context';
 import { useNavigate } from 'react-router-dom';
-import { Lock, User, ArrowRight, AlertCircle, CheckCircle, Building, Eye, EyeOff } from 'lucide-react';
+import { Lock, User, ArrowRight, AlertCircle, CheckCircle, Building, Eye, EyeOff, Loader } from 'lucide-react';
 
 type LoginStep = 'LOGIN' | 'RECOVERY_IDENTIFY' | 'RECOVERY_SELECT' | 'RECOVERY_RESET_USER' | 'RECOVERY_RESET_PASS';
 
@@ -13,7 +14,7 @@ export const Login: React.FC = () => {
   // Form States
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false); // Novo estado para visibilidade
+  const [showPassword, setShowPassword] = useState(false); // Visibilidade Login
   
   // Recovery States
   const [recoveryName, setRecoveryName] = useState('');
@@ -24,8 +25,13 @@ export const Login: React.FC = () => {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   
+  // Novos estados para visibilidade na recuperação
+  const [showNewPass, setShowNewPass] = useState(false);
+  const [showConfirmPass, setShowConfirmPass] = useState(false);
+  
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
 
   // Helpers
   const formatCPF = (value: string) => {
@@ -45,8 +51,8 @@ export const Login: React.FC = () => {
     e.preventDefault();
     setError(''); 
     
-    // Login retorna { user, error }
-    const result = await login(username, password);
+    // Trim para garantir que não haja espaços extras no login
+    const result = await login(username.trim(), password.trim());
     
     if (result.user) {
       if (result.user.role === 'SUPER_ADM') {
@@ -71,30 +77,51 @@ export const Login: React.FC = () => {
     }
   };
 
-  const handleUpdateUser = () => {
+  const handleUpdateUser = async () => {
     if (!identifiedUserId) return;
-    updateUserCredentials(identifiedUserId, newUsername, undefined);
-    setSuccessMsg('Sucesso! Agora você já pode logar com seus novos dados.');
-    setTimeout(() => {
-      setStep('LOGIN');
-      setSuccessMsg('');
-      setIdentifiedUserId(null);
-    }, 3000);
+    setIsProcessing(true);
+    // Trim no novo usuário
+    const res = await updateUserCredentials(identifiedUserId, newUsername.trim(), undefined);
+    setIsProcessing(false);
+
+    if (res.success) {
+      setSuccessMsg('Sucesso! Agora você já pode logar com seu novo usuário.');
+      setTimeout(() => {
+        setStep('LOGIN');
+        setSuccessMsg('');
+        setIdentifiedUserId(null);
+        setNewUsername('');
+      }, 3000);
+    } else {
+      setError('Erro ao atualizar usuário: ' + res.error);
+    }
   };
 
-  const handleUpdatePass = () => {
+  const handleUpdatePass = async () => {
     if (!identifiedUserId) return;
     if (newPassword !== confirmPassword) {
       setError('Senhas não conferem');
       return;
     }
-    updateUserCredentials(identifiedUserId, undefined, newPassword);
-    setSuccessMsg('Sucesso! Agora você já pode logar com seus novos dados.');
-    setTimeout(() => {
-      setStep('LOGIN');
-      setSuccessMsg('');
-      setIdentifiedUserId(null);
-    }, 3000);
+    setIsProcessing(true);
+    // Trim na nova senha para evitar espaços fantasmas
+    const res = await updateUserCredentials(identifiedUserId, undefined, newPassword.trim());
+    setIsProcessing(false);
+
+    if (res.success) {
+      setSuccessMsg('Sucesso! Senha alterada. Use-a para entrar.');
+      setTimeout(() => {
+        setStep('LOGIN');
+        setSuccessMsg('');
+        setIdentifiedUserId(null);
+        setNewPassword('');
+        setConfirmPassword('');
+        setShowNewPass(false);
+        setShowConfirmPass(false);
+      }, 3000);
+    } else {
+      setError('Erro ao atualizar senha: ' + res.error);
+    }
   };
 
   // --- RENDER HELPERS ---
@@ -243,7 +270,14 @@ export const Login: React.FC = () => {
         value={newUsername}
         onChange={e => setNewUsername(e.target.value)}
       />
-      <button onClick={handleUpdateUser} className="w-full py-2.5 bg-brand-orange text-white rounded-lg hover:bg-brand-red text-sm font-bold shadow-md">Atualizar Usuário</button>
+      {error && <div className="text-brand-red text-xs font-bold bg-red-50 p-2 rounded">{error}</div>}
+      <button 
+        onClick={handleUpdateUser} 
+        disabled={isProcessing}
+        className="w-full py-2.5 bg-brand-orange text-white rounded-lg hover:bg-brand-red text-sm font-bold shadow-md flex items-center justify-center"
+      >
+        {isProcessing ? <Loader className="animate-spin" size={18}/> : 'Atualizar Usuário'}
+      </button>
        {successMsg && <div className="text-green-600 text-xs text-center font-bold bg-green-50 p-2 rounded">{successMsg}</div>}
     </div>
   );
@@ -251,22 +285,52 @@ export const Login: React.FC = () => {
   const renderResetPass = () => (
      <div className="space-y-4">
       <h2 className="text-xl font-bold text-center text-gray-800">Nova Senha</h2>
-      <input 
-        type="password" 
-        placeholder="Nova Senha" 
-        className="w-full p-2.5 border rounded-lg focus:ring-brand-orange text-sm"
-        value={newPassword}
-        onChange={e => setNewPassword(e.target.value)}
-      />
-       <input 
-        type="password" 
-        placeholder="Confirmar Nova Senha" 
-        className="w-full p-2.5 border rounded-lg focus:ring-brand-orange text-sm"
-        value={confirmPassword}
-        onChange={e => setConfirmPassword(e.target.value)}
-      />
+      
+      {/* Campo Nova Senha com Toggle */}
+      <div className="relative">
+        <input 
+          type={showNewPass ? 'text' : 'password'}
+          placeholder="Nova Senha" 
+          className="w-full p-2.5 pr-10 border rounded-lg focus:ring-brand-orange text-sm"
+          value={newPassword}
+          onChange={e => setNewPassword(e.target.value)}
+        />
+        <button
+          type="button"
+          onClick={() => setShowNewPass(!showNewPass)}
+          className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 focus:outline-none"
+        >
+          {showNewPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+        </button>
+      </div>
+
+      {/* Campo Confirmar Senha com Toggle */}
+      <div className="relative">
+        <input 
+          type={showConfirmPass ? 'text' : 'password'} 
+          placeholder="Confirmar Nova Senha" 
+          className="w-full p-2.5 pr-10 border rounded-lg focus:ring-brand-orange text-sm"
+          value={confirmPassword}
+          onChange={e => setConfirmPassword(e.target.value)}
+        />
+        <button
+          type="button"
+          onClick={() => setShowConfirmPass(!showConfirmPass)}
+          className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 focus:outline-none"
+        >
+          {showConfirmPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+        </button>
+      </div>
+
       {error && <div className="text-brand-red text-xs font-bold bg-red-50 p-2 rounded">{error}</div>}
-      <button onClick={handleUpdatePass} className="w-full py-2.5 bg-brand-orange text-white rounded-lg hover:bg-brand-red text-sm font-bold shadow-md">Atualizar Senha</button>
+      
+      <button 
+        onClick={handleUpdatePass} 
+        disabled={isProcessing}
+        className="w-full py-2.5 bg-brand-orange text-white rounded-lg hover:bg-brand-red text-sm font-bold shadow-md flex items-center justify-center"
+      >
+        {isProcessing ? <Loader className="animate-spin" size={18}/> : 'Atualizar Senha'}
+      </button>
       {successMsg && <div className="text-green-600 text-xs text-center font-bold bg-green-50 p-2 rounded">{successMsg}</div>}
     </div>
   );
