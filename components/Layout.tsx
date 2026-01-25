@@ -57,7 +57,7 @@ const ChurchOption: React.FC<ChurchOptionProps> = ({ church, isChild = false, cu
 );
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, logout, currentChurch, availableChurches, selectChurch, exitAdminView } = useApp();
+  const { user, logout, currentChurch, availableChurches, selectChurch, exitAdminView, members } = useApp();
   const location = useLocation();
   const navigate = useNavigate();
   
@@ -67,6 +67,10 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   const [showChurchSelector, setShowChurchSelector] = useState(false);
   
   if (!user) return <>{children}</>;
+
+  // Busca o perfil de membro associado ao usuário logado para pegar a foto
+  const linkedMember = members.find(m => m.id === user.id);
+  const userPhotoUrl = linkedMember?.photo;
 
   // Super Admin GLOBAL mode (not viewing a specific church)
   const isSuperAdminGlobal = user.role === 'SUPER_ADM' && !currentChurch; 
@@ -256,9 +260,14 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                          
                          {/* Nome do Usuário + Ícone Dropdown */}
                          <div className="flex justify-between items-center mb-2">
-                             <h4 className="text-white font-bold text-sm truncate pr-2 leading-tight">
-                                {user.name}
-                             </h4>
+                             <div className="flex items-center">
+                                 {userPhotoUrl && (
+                                     <img src={userPhotoUrl} alt="User" className="w-5 h-5 rounded-full mr-2 object-cover border border-gray-600"/>
+                                 )}
+                                 <h4 className="text-white font-bold text-sm truncate pr-2 leading-tight">
+                                    {user.name}
+                                 </h4>
+                             </div>
                              {canSwitchChurch && (
                                 <ChevronDown size={14} className={`text-gray-500 transition-transform duration-300 ${showChurchSelector ? 'rotate-180 text-brand-orange' : ''}`}/>
                              )}
@@ -277,9 +286,13 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                 ) : (
                     /* VISÃO COLAPSADA (ÍCONE APENAS) */
                     <div className="flex justify-center">
-                        <div className="w-10 h-10 rounded-full bg-gray-800 border-2 border-red-600 flex items-center justify-center text-white font-bold text-sm shadow-lg relative cursor-default" title={user.name}>
-                            {user.name.charAt(0)}
-                            <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-gray-900 rounded-full"></div>
+                        <div className="w-10 h-10 rounded-full bg-gray-800 border-2 border-red-600 flex items-center justify-center text-white font-bold text-sm shadow-lg relative cursor-default overflow-hidden" title={user.name}>
+                            {userPhotoUrl ? (
+                                <img src={userPhotoUrl} alt={user.name} className="w-full h-full object-cover" />
+                            ) : (
+                                user.name.charAt(0)
+                            )}
+                            <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-gray-900 rounded-full z-10"></div>
                         </div>
                     </div>
                 )}

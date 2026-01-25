@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { useApp } from '../context';
 import { 
   Megaphone, Plus, Target, Calendar, DollarSign, X, TrendingUp, History, 
-  Trash2, Edit2, FileText, ArrowUpCircle, ArrowDownCircle, Save, Download, CheckCircle, Lock, AlertTriangle, Info
+  Trash2, Edit2, FileText, ArrowUpCircle, ArrowDownCircle, Save, Download, CheckCircle, Lock, AlertTriangle, Info, ShieldAlert
 } from 'lucide-react';
 import { Campaign, Transaction } from '../types';
 import jsPDF from 'jspdf';
@@ -26,6 +26,10 @@ export const Campaigns: React.FC = () => {
   const [newGoal, setNewGoal] = useState(''); 
   const [newStartDate, setNewStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [newDescription, setNewDescription] = useState('');
+
+  // --- PERMISSIONS ---
+  // Secretário não pode gerenciar (Criar, Editar, Excluir, Finalizar) NEM fazer lançamentos. Apenas visualiza.
+  const canManageCampaigns = user?.role !== 'SECRETARIO';
 
   // --- CUSTOM CONFIRM/ALERT MODAL STATE ---
   const [modalState, setModalState] = useState<{
@@ -176,7 +180,8 @@ export const Campaigns: React.FC = () => {
         amount: parseFloat(transAmount),
         date: transDate,
         description: descriptionFinal.toUpperCase(),
-        responsibleUserId: user.id
+        responsibleUserId: user.id,
+        status: 'PAGO'
       };
 
       addTransaction(newT);
@@ -425,9 +430,11 @@ export const Campaigns: React.FC = () => {
                          {t.type === 'ENTRADA' ? '+' : '-'} R$ {t.amount.toFixed(2)}
                        </td>
                        <td className="p-3 text-center">
-                         <button onClick={() => handleDeleteTransaction(t.id)} className="text-red-400 hover:text-red-600 p-1">
-                           <Trash2 size={16}/>
-                         </button>
+                         {canManageCampaigns && (
+                            <button onClick={() => handleDeleteTransaction(t.id)} className="text-red-400 hover:text-red-600 p-1">
+                                <Trash2 size={16}/>
+                            </button>
+                         )}
                        </td>
                      </tr>
                    ))}
@@ -551,19 +558,21 @@ export const Campaigns: React.FC = () => {
 
             {/* 2. ACTION BUTTONS */}
             <div className="grid grid-cols-5 gap-2 mb-6">
-              <button 
-                onClick={() => setViewMode(viewMode === 'LANCAMENTOS' ? 'DASHBOARD' : 'LANCAMENTOS')}
-                // Removemos o disabled aqui para permitir que o usuário CLIQUE e veja a mensagem de bloqueio, 
-                // mas a UI interna tratará o bloqueio visualmente.
-                className={`flex flex-col items-center justify-center p-3 rounded-lg border transition-all ${
-                    viewMode === 'LANCAMENTOS' 
-                    ? (isFinished ? 'bg-red-100 border-red-300 text-red-700' : 'bg-brand-orange text-white border-brand-orange') 
-                    : 'bg-white hover:bg-orange-50 text-gray-600'
-                }`}
-              >
-                {isFinished ? <Lock size={20} className="mb-1"/> : <DollarSign size={20} className="mb-1"/>}
-                <span className="text-xs font-bold">Lançamentos</span>
-              </button>
+              
+              {/* BOTÃO LANÇAMENTOS - APENAS PARA QUEM PODE GERENCIAR (NÃO SECRETARIO) */}
+              {canManageCampaigns && (
+                  <button 
+                    onClick={() => setViewMode(viewMode === 'LANCAMENTOS' ? 'DASHBOARD' : 'LANCAMENTOS')}
+                    className={`flex flex-col items-center justify-center p-3 rounded-lg border transition-all ${
+                        viewMode === 'LANCAMENTOS' 
+                        ? (isFinished ? 'bg-red-100 border-red-300 text-red-700' : 'bg-brand-orange text-white border-brand-orange') 
+                        : 'bg-white hover:bg-orange-50 text-gray-600'
+                    }`}
+                  >
+                    {isFinished ? <Lock size={20} className="mb-1"/> : <DollarSign size={20} className="mb-1"/>}
+                    <span className="text-xs font-bold">Lançamentos</span>
+                  </button>
+              )}
               
               <button 
                 onClick={() => setViewMode(viewMode === 'HISTORICO' ? 'DASHBOARD' : 'HISTORICO')}
@@ -581,30 +590,34 @@ export const Campaigns: React.FC = () => {
                 <span className="text-xs font-bold">Relatório</span>
               </button>
 
-              <button 
-                onClick={() => setViewMode(viewMode === 'EDITAR' ? 'DASHBOARD' : 'EDITAR')}
-                className={`flex flex-col items-center justify-center p-3 rounded-lg border transition-all ${
-                    viewMode === 'EDITAR' 
-                    ? (isFinished ? 'bg-red-100 border-red-300 text-red-700' : 'bg-brand-orange text-white border-brand-orange')
-                    : 'bg-white hover:bg-orange-50 text-gray-600'
-                }`}
-              >
-                {isFinished ? <Lock size={20} className="mb-1"/> : <Edit2 size={20} className="mb-1"/>}
-                <span className="text-xs font-bold">Editar</span>
-              </button>
+              {canManageCampaigns && (
+                <button 
+                    onClick={() => setViewMode(viewMode === 'EDITAR' ? 'DASHBOARD' : 'EDITAR')}
+                    className={`flex flex-col items-center justify-center p-3 rounded-lg border transition-all ${
+                        viewMode === 'EDITAR' 
+                        ? (isFinished ? 'bg-red-100 border-red-300 text-red-700' : 'bg-brand-orange text-white border-brand-orange')
+                        : 'bg-white hover:bg-orange-50 text-gray-600'
+                    }`}
+                >
+                    {isFinished ? <Lock size={20} className="mb-1"/> : <Edit2 size={20} className="mb-1"/>}
+                    <span className="text-xs font-bold">Editar</span>
+                </button>
+              )}
 
               {/* BOTÃO FINALIZAR / ENCERRADA */}
-              <button 
-                onClick={handleFinishCampaign}
-                className={`flex flex-col items-center justify-center p-3 rounded-lg border transition-all ${
-                    isFinished 
-                    ? 'bg-red-100 text-red-600 border-red-200 hover:bg-red-200' 
-                    : 'bg-white hover:bg-green-50 text-green-600 border-green-200'
-                }`}
-              >
-                {isFinished ? <Lock size={20} className="mb-1"/> : <CheckCircle size={20} className="mb-1"/>}
-                <span className="text-xs font-bold">{isFinished ? 'Encerrada' : 'Finalizar'}</span>
-              </button>
+              {canManageCampaigns && (
+                <button 
+                    onClick={handleFinishCampaign}
+                    className={`flex flex-col items-center justify-center p-3 rounded-lg border transition-all ${
+                        isFinished 
+                        ? 'bg-red-100 text-red-600 border-red-200 hover:bg-red-200' 
+                        : 'bg-white hover:bg-green-50 text-green-600 border-green-200'
+                    }`}
+                >
+                    {isFinished ? <Lock size={20} className="mb-1"/> : <CheckCircle size={20} className="mb-1"/>}
+                    <span className="text-xs font-bold">{isFinished ? 'Encerrada' : 'Finalizar'}</span>
+                </button>
+              )}
             </div>
 
             {/* 3. DYNAMIC CONTENT AREA */}
@@ -688,15 +701,25 @@ export const Campaigns: React.FC = () => {
       <CampaignDetailModal />
 
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-gray-800 flex items-center">
-          <Megaphone className="mr-3 text-brand-orange" /> Campanhas
-        </h1>
-        <button 
-          onClick={() => setShowCreateForm(!showCreateForm)}
-          className="bg-brand-black text-white px-4 py-2 rounded-lg flex items-center hover:bg-gray-800"
-        >
-          <Plus size={20} className="mr-2"/> Cadastrar Campanha
-        </button>
+        <div>
+            <h1 className="text-3xl font-bold text-gray-800 flex items-center">
+            <Megaphone className="mr-3 text-brand-orange" /> Campanhas
+            </h1>
+            {!canManageCampaigns && (
+                <div className="flex items-center text-[10px] font-bold text-brand-orange uppercase bg-orange-50 px-2 py-0.5 rounded border border-orange-200 mt-1 w-fit">
+                    <ShieldAlert size={12} className="mr-1"/> Apenas Visualização
+                </div>
+            )}
+        </div>
+        
+        {canManageCampaigns && (
+            <button 
+            onClick={() => setShowCreateForm(!showCreateForm)}
+            className="bg-brand-black text-white px-4 py-2 rounded-lg flex items-center hover:bg-gray-800"
+            >
+            <Plus size={20} className="mr-2"/> Cadastrar Campanha
+            </button>
+        )}
       </div>
 
       {showCreateForm && (
@@ -766,13 +789,15 @@ export const Campaigns: React.FC = () => {
             <div key={campaign.id} className={`bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-all border ${isFinished ? 'border-gray-200 bg-gray-50' : 'border-gray-100'} group relative`}>
               
                {/* DELETE BUTTON */}
-               <button 
-                onClick={(e) => handleDeleteCampaign(e, campaign.id, campaign.name)}
-                className="absolute top-4 right-4 p-1.5 bg-gray-100 text-gray-400 hover:text-red-600 rounded-full hover:bg-red-50 z-10 transition-colors"
-                title="Excluir Campanha"
-              >
-                <Trash2 size={16}/>
-              </button>
+               {canManageCampaigns && (
+                   <button 
+                    onClick={(e) => handleDeleteCampaign(e, campaign.id, campaign.name)}
+                    className="absolute top-4 right-4 p-1.5 bg-gray-100 text-gray-400 hover:text-red-600 rounded-full hover:bg-red-50 z-10 transition-colors"
+                    title="Excluir Campanha"
+                    >
+                    <Trash2 size={16}/>
+                    </button>
+               )}
 
               <div className="p-6">
                 <div className="flex justify-between items-start mb-4 pr-8">
@@ -808,7 +833,7 @@ export const Campaigns: React.FC = () => {
                   onClick={() => setSelectedCampaign(campaign)}
                   className="w-full text-center bg-white border border-gray-300 text-gray-700 py-2 rounded-lg font-bold hover:bg-brand-black hover:text-white hover:border-transparent transition-all shadow-sm"
                 >
-                  Gerenciar Campanha
+                  {canManageCampaigns ? 'Gerenciar Campanha' : 'Visualizar Detalhes'}
                 </button>
               </div>
             </div>

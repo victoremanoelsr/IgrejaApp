@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../context';
-import { Settings as SettingsIcon, Save, Building, Camera, Upload } from 'lucide-react';
+import { Settings as SettingsIcon, Save, Building, Camera, Upload, AlertTriangle, CheckCircle, Info } from 'lucide-react';
 
 export const Settings: React.FC = () => {
   const { user, churches, updateChurch, uploadChurchLogo } = useApp();
@@ -17,6 +17,34 @@ export const Settings: React.FC = () => {
   const [logoUrl, setLogoUrl] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+
+  // --- CUSTOM MODAL STATE ---
+  const [modalState, setModalState] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    variant: 'danger' | 'warning' | 'success' | 'info';
+    showCancel: boolean;
+    onConfirm?: () => void;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    variant: 'info',
+    showCancel: false,
+    onConfirm: undefined
+  });
+
+  const showAlert = (title: string, message: string, variant: 'success' | 'info' | 'danger' | 'warning' = 'info') => {
+    setModalState({
+      isOpen: true,
+      title,
+      message,
+      variant,
+      showCancel: false,
+      onConfirm: () => setModalState(prev => ({ ...prev, isOpen: false }))
+    });
+  };
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -39,10 +67,12 @@ export const Settings: React.FC = () => {
             // Salva imediatamente o logo
             const res = await updateChurch(currentChurch.id, { logoUrl: url });
             if (!res.success) {
-                alert(`Erro ao salvar logo no banco de dados: ${res.error}`);
+                showAlert('Erro', `Erro ao salvar logo no banco de dados: ${res.error}`, 'danger');
+            } else {
+                showAlert('Sucesso', 'Logo atualizada com sucesso!', 'success');
             }
         } else {
-            alert("Erro ao enviar a logo.");
+            showAlert('Erro', "Erro ao enviar a logo.", 'danger');
         }
         setIsUploading(false);
     }
@@ -62,9 +92,9 @@ export const Settings: React.FC = () => {
       setIsSaving(false);
 
       if (res.success) {
-          alert('Informações atualizadas com sucesso!');
+          showAlert('Sucesso', 'Informações atualizadas com sucesso!', 'success');
       } else {
-          alert(`Erro ao atualizar informações: ${res.error}\n\nVerifique se o script de atualização do banco de dados foi executado.`);
+          showAlert('Erro', `Erro ao atualizar informações: ${res.error}\n\nVerifique se o script de atualização do banco de dados foi executado.`, 'danger');
       }
     }
   };
@@ -199,6 +229,66 @@ export const Settings: React.FC = () => {
              </div>
           </form>
        </div>
+
+       {/* GLOBAL CONFIRM/ALERT MODAL */}
+       {modalState.isOpen && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full overflow-hidden transform transition-all scale-100">
+             <div className={`h-2 ${
+               modalState.variant === 'danger' ? 'bg-red-500' : 
+               modalState.variant === 'warning' ? 'bg-yellow-500' : 
+               modalState.variant === 'success' ? 'bg-green-500' : 
+               'bg-blue-500'
+             }`}></div>
+
+             <div className="p-6">
+                <div className="flex items-center mb-4">
+                    <div className={`p-3 rounded-full mr-4 ${
+                         modalState.variant === 'danger' ? 'bg-red-100 text-red-500' : 
+                         modalState.variant === 'warning' ? 'bg-yellow-100 text-yellow-600' : 
+                         modalState.variant === 'success' ? 'bg-green-100 text-green-600' : 
+                         'bg-blue-100 text-blue-600'
+                    }`}>
+                        {modalState.variant === 'danger' && <AlertTriangle size={24}/>}
+                        {modalState.variant === 'warning' && <AlertTriangle size={24}/>}
+                        {modalState.variant === 'success' && <CheckCircle size={24}/>}
+                        {modalState.variant === 'info' && <Info size={24}/>}
+                    </div>
+                    <h3 className="text-xl font-bold text-gray-800">{modalState.title}</h3>
+                </div>
+                
+                <p className="text-gray-600 mb-6 text-sm leading-relaxed whitespace-pre-line pl-[3.5rem] -mt-2">
+                    {modalState.message}
+                </p>
+
+                <div className="flex justify-end space-x-3">
+                    {modalState.showCancel && (
+                        <button 
+                            onClick={() => setModalState(prev => ({ ...prev, isOpen: false }))}
+                            className="px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium transition-colors"
+                        >
+                            Cancelar
+                        </button>
+                    )}
+                    <button 
+                        onClick={() => {
+                            if (modalState.onConfirm) modalState.onConfirm();
+                            else setModalState(prev => ({ ...prev, isOpen: false }));
+                        }}
+                        className={`px-6 py-2 rounded-lg text-white font-bold shadow-md transition-transform active:scale-95 ${
+                            modalState.variant === 'danger' ? 'bg-red-600 hover:bg-red-700' : 
+                            modalState.variant === 'warning' ? 'bg-yellow-600 hover:bg-yellow-700' : 
+                            modalState.variant === 'success' ? 'bg-green-600 hover:bg-green-700' : 
+                            'bg-blue-600 hover:bg-blue-700'
+                        }`}
+                    >
+                        {modalState.showCancel ? 'Confirmar' : 'OK'}
+                    </button>
+                </div>
+             </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

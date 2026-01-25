@@ -52,7 +52,8 @@ export interface Member {
 }
 
 export type TransactionType = 'ENTRADA' | 'SAIDA';
-export type TransactionCategory = 'DIZIMO' | 'OFERTA' | 'MISSOES' | 'CONSTRUCAO' | 'DESPESA_FIXA' | 'DESPESA_VARIAVEL' | 'OUTROS';
+export type TransactionCategory = 'DIZIMO' | 'OFERTA' | 'MISSOES' | 'CONSTRUCAO' | 'DESPESA_FIXA' | 'DESPESA_VARIAVEL' | 'OUTROS' | 'ALUGUEL' | 'AGUA' | 'LUZ' | 'INTERNET' | 'SALARIO';
+export type TransactionStatus = 'PAGO' | 'PENDENTE';
 
 export interface Transaction {
   id: string;
@@ -65,7 +66,23 @@ export interface Transaction {
   memberId?: string; 
   responsibleUserId: string;
   attachmentUrl?: string; 
-  campaignId?: string; 
+  campaignId?: string;
+  isFixed?: boolean; 
+  fixedExpenseId?: string;
+  status: TransactionStatus; // Novo campo para controle de pagamento/projeção
+  createdAt?: string; // Campo para ordenação por cadastro
+}
+
+export interface FixedExpense {
+  id: string;
+  churchId: string;
+  description: string;
+  amount: number;
+  dueDay: number;
+  category: TransactionCategory;
+  autoGenerate: boolean;
+  active: boolean;
+  createdAt?: string; 
 }
 
 export interface Campaign {
@@ -84,7 +101,7 @@ export interface Event {
   name: string;
   date: string;
   time: string;
-  location?: string; // Novo campo para o Local do evento
+  location?: string; 
   responsibleName: string;
   imageUrl?: string;
 }
@@ -94,5 +111,5 @@ export interface Minute {
   churchId: string;
   title: string;
   date: string;
-  fileUrls: string[]; // Alterado para array de strings para suportar múltiplos arquivos
+  fileUrls: string[]; 
 }

@@ -1,5 +1,5 @@
 
-import { Church, User, Member, Transaction, Campaign, Event, Minute } from '../types';
+import { Church, User, Member, Transaction, Campaign, Event, Minute, FixedExpense } from '../types';
 
 export const toAppChurch = (data: any): Church => ({
   id: data.id,
@@ -60,7 +60,23 @@ export const toAppTransaction = (data: any): Transaction => ({
   memberId: data.member_id,
   responsibleUserId: data.responsible_user_id,
   campaignId: data.campaign_id,
-  attachmentUrl: data.attachment_url
+  attachmentUrl: data.attachment_url,
+  isFixed: data.is_fixed,
+  fixedExpenseId: data.fixed_expense_id,
+  status: data.status || 'PAGO', // Default para PAGO se nulo (retrocompatibilidade)
+  createdAt: data.created_at
+});
+
+export const toAppFixedExpense = (data: any): FixedExpense => ({
+  id: data.id,
+  churchId: data.church_id,
+  description: data.description,
+  amount: parseFloat(data.amount),
+  dueDay: data.due_day,
+  category: data.category,
+  autoGenerate: data.auto_generate,
+  active: data.active,
+  createdAt: data.created_at
 });
 
 export const toAppCampaign = (data: any): Campaign => ({
@@ -70,7 +86,7 @@ export const toAppCampaign = (data: any): Campaign => ({
   goal: parseFloat(data.goal),
   startDate: data.start_date,
   description: data.description,
-  status: data.status || 'ATIVA' // Garante padrão caso venha nulo do banco
+  status: data.status || 'ATIVA'
 });
 
 export const toAppEvent = (data: any): Event => ({
@@ -79,7 +95,7 @@ export const toAppEvent = (data: any): Event => ({
   name: data.name,
   date: data.date,
   time: data.time,
-  location: data.location, // Mapeando o novo campo
+  location: data.location,
   responsibleName: data.responsible_name,
   imageUrl: data.image_url
 });
@@ -87,7 +103,6 @@ export const toAppEvent = (data: any): Event => ({
 export const toAppMinute = (data: any): Minute => {
   let urls: string[] = [];
   if (data.file_url) {
-    // Tenta parsear como JSON (novo formato array), se falhar assume string única (formato antigo)
     try {
         const parsed = JSON.parse(data.file_url);
         if (Array.isArray(parsed)) {
