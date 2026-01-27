@@ -1,4 +1,5 @@
 
+
 // ... (imports remain the same as previous implementation)
 import React, { createContext, useContext, useState, useMemo, useEffect } from 'react';
 import { User, Church, Member, Transaction, Campaign, Event, Minute, FixedExpense } from './types';
@@ -199,7 +200,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const { error } = await supabase.from('fixed_expenses').insert([{ 
           id: newId, church_id: fe.churchId, description: fe.description, 
           amount: encAmount, due_day: fe.dueDay, category: fe.category, 
-          auto_generate: fe.auto_generate, active: fe.active 
+          auto_generate: fe.autoGenerate, active: fe.active 
       }]);
       if (!error) { refreshData(); return newId; }
       return null;
@@ -208,8 +209,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const updateFixedExpense = async (id: string, fe: FixedExpense) => {
       const encAmount = await encryptData(fe.amount.toString());
       await supabase.from('fixed_expenses').update({ 
-          description: fe.description, amount: encAmount, due_day: fe.due_day, 
-          category: fe.category, auto_generate: fe.auto_generate, active: fe.active 
+          description: fe.description, amount: encAmount, due_day: fe.dueDay, 
+          category: fe.category, auto_generate: fe.autoGenerate, active: fe.active 
       }).eq('id', id);
       refreshData();
   };

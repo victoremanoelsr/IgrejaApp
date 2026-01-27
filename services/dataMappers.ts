@@ -3,7 +3,8 @@ import { Church, User, Member, Transaction, Campaign, Event, Minute, FixedExpens
 
 // Helper para tratar valores que podem estar criptografados ou ser números legados
 const handleNumericField = (val: any): number => {
-  if (typeof val === 'string' && val.startsWith('ENCv1:')) return 0; // Será descriptografado no context
+  // Detecta ENCv1 ou ENCv2
+  if (typeof val === 'string' && val.startsWith('ENC')) return 0; // Será descriptografado no context
   return typeof val === 'string' ? parseFloat(val) || 0 : (val || 0);
 };
 
@@ -18,7 +19,7 @@ export const toAppChurch = (data: any): Church => ({
   cnpj: data.cnpj,
   mission_statement: data.mission_statement,
   logo_url: data.logo_url
-} as any); // Type cast para simplificar mappers internos
+} as any); 
 
 export const toAppUser = (data: any): User => ({
   id: data.id,
