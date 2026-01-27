@@ -1,13 +1,6 @@
 
 import { Church, User, Member, Transaction, Campaign, Event, Minute, FixedExpense } from '../types';
 
-// Helper para tratar valores que podem estar criptografados ou ser números legados
-const handleNumericField = (val: any): number => {
-  // Detecta ENCv1 ou ENCv2
-  if (typeof val === 'string' && val.startsWith('ENC')) return 0; // Será descriptografado no context
-  return typeof val === 'string' ? parseFloat(val) || 0 : (val || 0);
-};
-
 export const toAppChurch = (data: any): Church => ({
   id: data.id,
   name: data.name,
@@ -17,9 +10,9 @@ export const toAppChurch = (data: any): Church => ({
   parentId: data.parent_id,
   pastorName: data.pastor_name,
   cnpj: data.cnpj,
-  mission_statement: data.mission_statement,
-  logo_url: data.logo_url
-} as any); 
+  missionStatement: data.mission_statement,
+  logoUrl: data.logo_url
+});
 
 export const toAppUser = (data: any): User => ({
   id: data.id,
@@ -61,7 +54,7 @@ export const toAppTransaction = (data: any): Transaction => ({
   churchId: data.church_id,
   type: data.type,
   category: data.category,
-  amount: handleNumericField(data.amount),
+  amount: parseFloat(data.amount),
   date: data.date,
   description: data.description,
   memberId: data.member_id,
@@ -70,27 +63,27 @@ export const toAppTransaction = (data: any): Transaction => ({
   attachmentUrl: data.attachment_url,
   isFixed: data.is_fixed,
   fixedExpenseId: data.fixed_expense_id,
-  status: data.status || 'PAGO',
+  status: data.status || 'PAGO', // Default para PAGO se nulo (retrocompatibilidade)
   createdAt: data.created_at
 });
 
 export const toAppFixedExpense = (data: any): FixedExpense => ({
   id: data.id,
-  church_id: data.church_id,
+  churchId: data.church_id,
   description: data.description,
-  amount: handleNumericField(data.amount),
+  amount: parseFloat(data.amount),
   dueDay: data.due_day,
   category: data.category,
   autoGenerate: data.auto_generate,
   active: data.active,
   createdAt: data.created_at
-} as any);
+});
 
 export const toAppCampaign = (data: any): Campaign => ({
   id: data.id,
   churchId: data.church_id,
   name: data.name,
-  goal: handleNumericField(data.goal),
+  goal: parseFloat(data.goal),
   startDate: data.start_date,
   description: data.description,
   status: data.status || 'ATIVA'
@@ -112,9 +105,14 @@ export const toAppMinute = (data: any): Minute => {
   if (data.file_url) {
     try {
         const parsed = JSON.parse(data.file_url);
-        if (Array.isArray(parsed)) urls = parsed;
-        else urls = [data.file_url];
-    } catch (e) { urls = [data.file_url]; }
+        if (Array.isArray(parsed)) {
+            urls = parsed;
+        } else {
+            urls = [data.file_url];
+        }
+    } catch (e) {
+        urls = [data.file_url];
+    }
   }
   return {
     id: data.id,
