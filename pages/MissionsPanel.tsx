@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../context';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -273,9 +272,45 @@ export const MissionsPanel: React.FC = () => {
 
   const handleNewTemplate = () => { setEditingTemplateId(null); setTemplateName(''); setBackgroundUrl(undefined); setLayoutElements([]); setBgStyle({ mode: 'fill', opacity: 1.0 }); };
   const handleEditTemplate = (t: CarnetTemplate) => { setEditingTemplateId(t.id); setTemplateName(t.name); setBackgroundUrl(t.backgroundUrl); setLayoutElements(t.layoutJson || REQUIRED_FIELDS); setBgStyle(t.backgroundStyle || { mode: 'fill', opacity: 1.0 }); window.scrollTo({top: 0, behavior: 'smooth'}); };
-  const handleSaveTemplate = async (asNew: boolean) => { if(!currentChurch) return; if(!templateName.trim()) { showFeedback('Digite um nome.', 'error'); return; } if(!backgroundUrl) { showFeedback('Carregue uma imagem.', 'error'); return; } setIsSavingSettings(true); if (asNew || !editingTemplateId) { const newT: CarnetTemplate = { id: '', churchId: currentChurch.id, name: templateName, backgroundUrl, backgroundStyle: bgStyle, layoutJson: layoutElements, isDefault: templates.length === 0 }; await addCarnetTemplate(newT); showFeedback('Salvo!'); } else { await updateCarnetTemplate(editingTemplateId, { name: templateName, backgroundUrl, backgroundStyle: bgStyle, layoutJson: layoutElements }); showFeedback('Atualizado!'); } await loadTemplates(); setIsSavingSettings(false); };
+  
+  // FIX: Added 'category' field to newT and updateCarnetTemplate
+  const handleSaveTemplate = async (asNew: boolean) => { 
+      if(!currentChurch) return; 
+      if(!templateName.trim()) { showFeedback('Digite um nome.', 'error'); return; } 
+      if(!backgroundUrl) { showFeedback('Carregue uma imagem.', 'error'); return; } 
+      setIsSavingSettings(true); 
+      if (asNew || !editingTemplateId) { 
+          const newT: CarnetTemplate = { 
+              id: '', 
+              churchId: currentChurch.id, 
+              name: templateName, 
+              backgroundUrl, 
+              backgroundStyle: bgStyle, 
+              layoutJson: layoutElements, 
+              isDefault: templates.length === 0,
+              category: 'MISSOES' // Added
+          }; 
+          await addCarnetTemplate(newT); 
+          showFeedback('Salvo!'); 
+      } else { 
+          await updateCarnetTemplate(editingTemplateId, { 
+              name: templateName, 
+              backgroundUrl, 
+              backgroundStyle: bgStyle, 
+              layoutJson: layoutElements,
+              category: 'MISSOES' // Added
+          }); 
+          showFeedback('Atualizado!'); 
+      } 
+      await loadTemplates(); 
+      setIsSavingSettings(false); 
+  };
+
   const handleDeleteTemplate = async (id: string) => { setConfirmModal({ isOpen: true, title: 'Excluir', message: 'Confirma exclusão?', variant: 'danger', onConfirm: async () => { await deleteCarnetTemplate(id); await loadTemplates(); if(editingTemplateId === id) handleNewTemplate(); showFeedback('Excluído.'); setConfirmModal(prev => ({...prev, isOpen: false})); }}); };
-  const handleSetDefault = async (id: string) => { if(!currentChurch) return; await setDefaultTemplate(id, currentChurch.id); await loadTemplates(); showFeedback('Padrão definido.'); };
+  
+  // FIX: Added 'category' argument to setDefaultTemplate
+  const handleSetDefault = async (id: string) => { if(!currentChurch) return; await setDefaultTemplate(id, currentChurch.id, 'MISSOES'); await loadTemplates(); showFeedback('Padrão definido.'); };
+  
   const handleAddTag = (tag: string, x: number = 50, y: number = 50) => { if (layoutElements.some(el => el.content === tag)) { setLayoutElements(prev => prev.map(el => el.content === tag ? { ...el, x, y } : el)); return; } const newEl: LayoutElement = { id: `field_${Date.now()}_${Math.random()}`, type: 'tag', content: tag, x: x, y: y, style: { fontSize: 12, color: '#000000', fontWeight: 'bold', textAlign: 'left' } }; setLayoutElements(prev => [...prev, newEl]); if (x === 50 && y === 50) setSelectedElementId(newEl.id); };
   const handleDeleteElement = (id: string) => { setLayoutElements(prev => prev.filter(el => el.id !== id)); setSelectedElementId(null); };
   

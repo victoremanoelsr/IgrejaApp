@@ -82,7 +82,7 @@ interface AppContextType {
   addCarnetTemplate: (t: CarnetTemplate) => Promise<{success: boolean, error?: string}>;
   updateCarnetTemplate: (id: string, t: Partial<CarnetTemplate>) => Promise<{success: boolean, error?: string}>;
   deleteCarnetTemplate: (id: string) => Promise<void>;
-  setDefaultTemplate: (id: string, churchId: string) => Promise<void>;
+  setDefaultTemplate: (id: string, churchId: string, category: string) => Promise<void>;
   
   // Letter Template Logic
   getLetterTemplates: (churchId: string) => Promise<LetterTemplate[]>;
@@ -608,9 +608,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           church_id: t.churchId,
           name: t.name,
           background_url: t.backgroundUrl,
-          background_style: t.backgroundStyle, // NOVO
+          background_style: t.backgroundStyle, 
           layout_json: t.layoutJson,
-          is_default: t.isDefault
+          is_default: t.isDefault,
+          category: t.category // SAVING CATEGORY
       };
       const { data, error } = await supabase.from('mission_carnet_templates').insert([payload]).select();
       if (!error) return { success: true };
@@ -621,9 +622,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const payload: any = {};
       if(t.name) payload.name = t.name;
       if(t.backgroundUrl !== undefined) payload.background_url = t.backgroundUrl;
-      if(t.backgroundStyle) payload.background_style = t.backgroundStyle; // NOVO
+      if(t.backgroundStyle) payload.background_style = t.backgroundStyle; 
       if(t.layoutJson) payload.layout_json = t.layoutJson;
       if(t.isDefault !== undefined) payload.is_default = t.isDefault;
+      if(t.category) payload.category = t.category;
 
       const { error } = await supabase.from('mission_carnet_templates').update(payload).eq('id', id);
       if (!error) return { success: true };
@@ -634,8 +636,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       await supabase.from('mission_carnet_templates').delete().eq('id', id);
   };
 
-  const setDefaultTemplate = async (id: string, churchId: string) => {
-      await supabase.from('mission_carnet_templates').update({ is_default: false }).eq('church_id', churchId);
+  const setDefaultTemplate = async (id: string, churchId: string, category: string) => {
+      // Unset default only for the specific category
+      await supabase.from('mission_carnet_templates').update({ is_default: false }).eq('church_id', churchId).eq('category', category);
       await supabase.from('mission_carnet_templates').update({ is_default: true }).eq('id', id);
   };
 

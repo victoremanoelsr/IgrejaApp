@@ -34,8 +34,8 @@ export const toAppMember = (data: any): Member => ({
   memberNumber: data.member_number,
   isTither: data.is_tither,
   isYouth: data.is_youth, 
-  isChild: data.is_child, // NOVO
-  isLady: data.is_lady,   // NOVO
+  isChild: data.is_child, 
+  isLady: data.is_lady,   
   baptismDate: data.baptism_date || '', 
   photo: data.photo_url, 
   email: data.email, 
@@ -145,6 +145,7 @@ export const toAppCarnetTemplate = (data: any): CarnetTemplate => ({
   backgroundStyle: data.background_style || { mode: 'cover', opacity: 0.5 },
   layoutJson: data.layout_json || [],
   isDefault: data.is_default,
+  category: data.category || 'MISSOES', // Fallback
   createdAt: data.created_at
 });
 
