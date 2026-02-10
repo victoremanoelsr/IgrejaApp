@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AppProvider, useApp } from './context';
@@ -14,13 +15,33 @@ import { Settings } from './pages/Settings';
 import { SuperAdminDashboard } from './pages/SuperAdminDashboard';
 import { Users } from './pages/Users';
 import { Congregations } from './pages/Congregations';
+import { MissionsPanel } from './pages/MissionsPanel';
+import { YouthPanel } from './pages/YouthPanel';
+import { ChildrenPanel } from './pages/ChildrenPanel';
+import { LadiesPanel } from './pages/LadiesPanel';
+import { Departments } from './pages/Departments';
+import { Letters } from './pages/Letters';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles?: string[] }> = ({ children, allowedRoles }) => {
   const { user } = useApp();
   if (!user) return <Navigate to="/" replace />;
-  if (allowedRoles && !allowedRoles.includes(user.role)) {
+  
+  // Listas de cargos exclusivos
+  const missionsRoles = ['PRESIDENTE_MISSOES', 'VICE_MISSOES', 'TESOUREIRO_MISSOES', 'SECRETARIO_MISSOES'];
+  const youthRoles = ['LIDER_JOVENS', 'TESOUREIRO_JOVENS'];
+  const childrenRoles = ['LIDER_CRIANCAS', 'TESOUREIRO_CRIANCAS'];
+  const ladiesRoles = ['LIDER_SENHORAS', 'TESOUREIRO_SENHORAS'];
+  
+  // Redirecionamentos de acesso exclusivo
+  if (missionsRoles.includes(user.role) && window.location.hash !== '#/missoes') return <Navigate to="/missoes" replace />;
+  if (youthRoles.includes(user.role) && window.location.hash !== '#/jovens') return <Navigate to="/jovens" replace />;
+  if (childrenRoles.includes(user.role) && window.location.hash !== '#/criancas') return <Navigate to="/criancas" replace />;
+  if (ladiesRoles.includes(user.role) && window.location.hash !== '#/senhoras') return <Navigate to="/senhoras" replace />;
+
+  if (allowedRoles && !allowedRoles.includes(user.role) && !allowedRoles.includes('ALL')) {
      return <Navigate to="/" replace />;
   }
+  
   return <Layout>{children}</Layout>;
 };
 
@@ -30,22 +51,34 @@ const AppRoutes = () => {
       <Route path="/" element={<Login />} />
       
       {/* Super Admin Panel */}
-      <Route path="/admin/dashboard" element={
-        <ProtectedRoute allowedRoles={['SUPER_ADM']}>
-          <SuperAdminDashboard />
-        </ProtectedRoute>
-      } />
+      <Route path="/admin/dashboard" element={<ProtectedRoute allowedRoles={['SUPER_ADM']}><SuperAdminDashboard /></ProtectedRoute>} />
 
-      {/* Church Operations Panel */}
-      <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-      <Route path="/financeiro" element={<ProtectedRoute><Finance /></ProtectedRoute>} />
-      <Route path="/relatorios" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
-      <Route path="/membros" element={<ProtectedRoute><Members /></ProtectedRoute>} />
-      <Route path="/campanhas" element={<ProtectedRoute><Campaigns /></ProtectedRoute>} />
-      <Route path="/atas" element={<ProtectedRoute><Minutes /></ProtectedRoute>} />
-      <Route path="/eventos" element={<ProtectedRoute><Events /></ProtectedRoute>} />
-      <Route path="/configuracoes" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-      <Route path="/usuarios" element={<ProtectedRoute><Users /></ProtectedRoute>} />
+      {/* Nova Rota Central de Departamentos */}
+      <Route path="/departamentos" element={<ProtectedRoute allowedRoles={['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE']}><Departments /></ProtectedRoute>} />
+
+      {/* Rota Exclusiva de Missões */}
+      <Route path="/missoes" element={<ProtectedRoute allowedRoles={['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'DIRIGENTE', 'TESOUREIRO', 'SECRETARIO', 'PRESIDENTE_MISSOES', 'VICE_MISSOES', 'TESOUREIRO_MISSOES', 'SECRETARIO_MISSOES']}><MissionsPanel /></ProtectedRoute>} />
+
+      {/* Rota Exclusiva de Jovens */}
+      <Route path="/jovens" element={<ProtectedRoute allowedRoles={['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'DIRIGENTE', 'TESOUREIRO', 'SECRETARIO', 'LIDER_JOVENS', 'TESOUREIRO_JOVENS']}><YouthPanel /></ProtectedRoute>} />
+
+      {/* Rota Exclusiva de Crianças */}
+      <Route path="/criancas" element={<ProtectedRoute allowedRoles={['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'DIRIGENTE', 'TESOUREIRO', 'SECRETARIO', 'LIDER_CRIANCAS', 'TESOUREIRO_CRIANCAS']}><ChildrenPanel /></ProtectedRoute>} />
+
+      {/* Rota Exclusiva de Senhoras */}
+      <Route path="/senhoras" element={<ProtectedRoute allowedRoles={['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'DIRIGENTE', 'TESOUREIRO', 'SECRETARIO', 'LIDER_SENHORAS', 'TESOUREIRO_SENHORAS']}><LadiesPanel /></ProtectedRoute>} />
+
+      {/* Standard Routes */}
+      <Route path="/dashboard" element={<ProtectedRoute allowedRoles={['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'DIRIGENTE', 'TESOUREIRO', 'SECRETARIO']}><Dashboard /></ProtectedRoute>} />
+      <Route path="/financeiro" element={<ProtectedRoute allowedRoles={['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'DIRIGENTE', 'TESOUREIRO', 'SECRETARIO']}><Finance /></ProtectedRoute>} />
+      <Route path="/relatorios" element={<ProtectedRoute allowedRoles={['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'DIRIGENTE', 'TESOUREIRO', 'SECRETARIO']}><Reports /></ProtectedRoute>} />
+      <Route path="/membros" element={<ProtectedRoute allowedRoles={['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'DIRIGENTE', 'TESOUREIRO', 'SECRETARIO']}><Members /></ProtectedRoute>} /> 
+      <Route path="/cartas" element={<ProtectedRoute allowedRoles={['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'DIRIGENTE', 'TESOUREIRO', 'SECRETARIO']}><Letters /></ProtectedRoute>} />
+      <Route path="/campanhas" element={<ProtectedRoute allowedRoles={['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'DIRIGENTE', 'TESOUREIRO', 'SECRETARIO']}><Campaigns /></ProtectedRoute>} />
+      <Route path="/atas" element={<ProtectedRoute allowedRoles={['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'DIRIGENTE', 'TESOUREIRO', 'SECRETARIO']}><Minutes /></ProtectedRoute>} />
+      <Route path="/eventos" element={<ProtectedRoute allowedRoles={['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'DIRIGENTE', 'TESOUREIRO', 'SECRETARIO']}><Events /></ProtectedRoute>} />
+      <Route path="/configuracoes" element={<ProtectedRoute allowedRoles={['SUPER_ADM', 'PRESIDENTE', 'DIRIGENTE']}><Settings /></ProtectedRoute>} />
+      <Route path="/usuarios" element={<ProtectedRoute allowedRoles={['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'DIRIGENTE']}><Users /></ProtectedRoute>} />
       <Route path="/congregacoes" element={<ProtectedRoute allowedRoles={['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE']}><Congregations /></ProtectedRoute>} />
     </Routes>
   );

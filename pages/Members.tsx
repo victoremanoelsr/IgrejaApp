@@ -4,7 +4,8 @@ import { useApp } from '../context';
 import { Member } from '../types';
 import { 
   Search, Plus, Trash2, Edit2, User, Save, X, Phone, Mail, ZoomIn, 
-  CheckCircle, Camera, Loader, MapPin, Calendar, Hash, Flag, Lock, Key, Info
+  CheckCircle, Camera, Loader, MapPin, Calendar, Hash, Flag, Lock, Key, Info,
+  Users, Baby, Heart, Zap
 } from 'lucide-react';
 
 export const Members: React.FC = () => {
@@ -41,8 +42,10 @@ export const Members: React.FC = () => {
   const [newPassword, setNewPassword] = useState('');
 
   const initialFormState = {
-    name: '', cpf: '', birthDate: '', memberNumber: '', churchId: viewId || '', isTither: false, baptismDate: '', email: '', phone: '', maritalStatus: 'SOLTEIRO', 
-    zipCode: '', street: '', number: '', neighborhood: '', city: '', state: '', country: '', photo: ''
+    name: '', cpf: '', birthDate: '', memberNumber: '', churchId: viewId || '', 
+    isTither: false, isYouth: false, isChild: false, isLady: false,
+    baptismDate: '', email: '', phone: '', maritalStatus: 'SOLTEIRO', 
+    zipCode: '', street: '', number: '', neighborhood: '', city: '', state: '', country: '', photo: '', status: 'ATIVO' as 'ATIVO' | 'INATIVO' | 'TRANSFERIDO'
   };
   const [formData, setFormData] = useState(initialFormState);
 
@@ -82,6 +85,7 @@ export const Members: React.FC = () => {
 
   const filteredMembers = members
     .filter(m => m.churchId === viewId && (m.name.toLowerCase().includes(searchTerm.toLowerCase()) || m.cpf.includes(searchTerm)))
+    .filter(m => (m.status || 'ATIVO') === 'ATIVO') // Exibir apenas membros ativos
     .sort((a, b) => a.name.localeCompare(b.name));
 
   const handleEdit = (member: Member) => {
@@ -91,10 +95,11 @@ export const Members: React.FC = () => {
     setSelectedFile(null);
     setNewPassword(''); // Reseta senha
     setFormData({
-      name: member.name, cpf: member.cpf, birthDate: member.birthDate, memberNumber: member.memberNumber || '', churchId: member.churchId, isTither: member.isTither,
+      name: member.name, cpf: member.cpf, birthDate: member.birthDate, memberNumber: member.memberNumber || '', churchId: member.churchId, 
+      isTither: member.isTither, isYouth: member.isYouth || false, isChild: member.isChild || false, isLady: member.isLady || false,
       baptismDate: member.baptismDate || '', email: member.email || '', phone: member.phone || '', maritalStatus: member.maritalStatus || 'SOLTEIRO',
       street: member.address.street, number: member.address.number, neighborhood: member.address.neighborhood, city: member.address.city, state: member.address.state || '',
-      zipCode: member.address.zipCode, country: member.address.country || 'BRASIL', photo: member.photo || ''
+      zipCode: member.address.zipCode, country: member.address.country || 'BRASIL', photo: member.photo || '', status: member.status || 'ATIVO'
     });
     setView('FORM');
   };
@@ -121,8 +126,9 @@ export const Members: React.FC = () => {
 
     const payload: Member = {
       id: editingMemberId || '', name: formData.name.toUpperCase(), cpf: formData.cpf, birthDate: formData.birthDate, memberNumber: formData.memberNumber.toUpperCase(),
-      churchId: formData.churchId, isTither: formData.isTither, baptismDate: formData.baptismDate, photo: finalPhotoUrl, email: formData.email.toLowerCase(),
-      phone: formData.phone, maritalStatus: formData.maritalStatus, address: {
+      churchId: formData.churchId, isTither: formData.isTither, isYouth: formData.isYouth, isChild: formData.isChild, isLady: formData.isLady,
+      baptismDate: formData.baptismDate, photo: finalPhotoUrl, email: formData.email.toLowerCase(),
+      phone: formData.phone, maritalStatus: formData.maritalStatus, status: formData.status, address: {
         street: formData.street.toUpperCase(), number: formData.number.toUpperCase(), neighborhood: formData.neighborhood.toUpperCase(), city: formData.city.toUpperCase(),
         state: formData.state.toUpperCase(), zipCode: formData.zipCode, country: formData.country.toUpperCase()
       }
@@ -185,7 +191,14 @@ export const Members: React.FC = () => {
                     <span className="text-[10px] bg-gray-100 px-2 py-0.5 rounded-full text-gray-600 border font-medium">CPF: {viewingMember.cpf}</span>
                     {viewingMember.isTither && <span className="text-[10px] bg-green-100 px-2 py-0.5 rounded-full text-green-700 border border-green-200 font-bold">Dizimista</span>}
                 </div>
-                {canModify && <button onClick={() => { setViewingMember(null); handleEdit(viewingMember); }} className="mt-2 text-xs bg-white hover:bg-gray-50 border border-gray-300 px-3 py-1 rounded shadow-sm transition-colors text-gray-700 font-bold flex items-center"><Edit2 size={12} className="mr-1"/> {isSelf ? 'Editar Meu Perfil' : 'Editar Dados'}</button>}
+                {/* DEPARTAMENTOS BADGES NO MODAL */}
+                <div className="flex gap-1 mt-2 flex-wrap justify-center">
+                    {viewingMember.isYouth && <span className="text-[9px] bg-orange-100 text-orange-700 px-2 py-0.5 rounded font-bold">JOVENS</span>}
+                    {viewingMember.isLady && <span className="text-[9px] bg-pink-100 text-pink-700 px-2 py-0.5 rounded font-bold">SENHORAS</span>}
+                    {viewingMember.isChild && <span className="text-[9px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-bold">INFANTIL</span>}
+                </div>
+
+                {canModify && <button onClick={() => { setViewingMember(null); handleEdit(viewingMember); }} className="mt-3 text-xs bg-white hover:bg-gray-50 border border-gray-300 px-3 py-1 rounded shadow-sm transition-colors text-gray-700 font-bold flex items-center"><Edit2 size={12} className="mr-1"/> {isSelf ? 'Editar Meu Perfil' : 'Editar Dados'}</button>}
              </div>
              
              {/* LISTA DE DADOS COMPACTA */}
@@ -256,9 +269,12 @@ export const Members: React.FC = () => {
                           {member.name}
                           {member.id === user?.id && <span className="ml-2 text-[8px] bg-brand-black text-white px-1 rounded uppercase">Eu</span>}
                       </div>
-                      <div className="text-[10px] text-gray-500 flex items-center gap-2 mt-0.5">
-                          <span className="truncate">CPF: {member.cpf}</span>
-                          {member.isTither && <span className="bg-green-100 text-green-800 px-1.5 rounded text-[9px] font-bold">DIZIMISTA</span>}
+                      <div className="text-[10px] text-gray-500 flex flex-wrap items-center gap-1 mt-0.5">
+                          <span className="truncate mr-1">CPF: {member.cpf}</span>
+                          {member.isTither && <span className="bg-green-100 text-green-800 px-1.5 rounded text-[9px] font-bold border border-green-200">DIZIMISTA</span>}
+                          {member.isYouth && <span className="bg-orange-100 text-orange-800 px-1.5 rounded text-[9px] font-bold border border-orange-200">JOVENS</span>}
+                          {member.isLady && <span className="bg-pink-100 text-pink-800 px-1.5 rounded text-[9px] font-bold border border-pink-200">SENHORAS</span>}
+                          {member.isChild && <span className="bg-blue-100 text-blue-800 px-1.5 rounded text-[9px] font-bold border border-blue-200">INFANTIL</span>}
                       </div>
                     </div>
                   </div>
@@ -408,12 +424,58 @@ export const Members: React.FC = () => {
             </div>
         </div>
 
+        {/* SEÇÃO VÍNCULOS E GRUPOS */}
+        <div className="bg-gray-50/50 p-4 rounded-lg border border-gray-100">
+             <h3 className="text-sm font-bold text-brand-orange uppercase tracking-wider border-b border-gray-200 pb-2 mb-4 flex items-center">
+                <Users size={16} className="mr-2"/> Grupos & Departamentos
+            </h3>
+             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <label className={`flex items-center p-3 border rounded-lg cursor-pointer transition-all hover:shadow-sm ${formData.isTither ? 'bg-green-50 border-green-300' : 'bg-white border-gray-200'}`}>
+                    <input type="checkbox" className="h-4 w-4 text-green-600 rounded focus:ring-green-500" checked={formData.isTither} onChange={e => setFormData({...formData, isTither: e.target.checked})}/>
+                    <div className="ml-2">
+                        <span className={`block text-xs font-bold uppercase ${formData.isTither ? 'text-green-700' : 'text-gray-500'}`}>Dizimista</span>
+                        <span className="text-[9px] text-gray-400">Contribuinte ativo</span>
+                    </div>
+                </label>
+
+                <label className={`flex items-center p-3 border rounded-lg cursor-pointer transition-all hover:shadow-sm ${formData.isYouth ? 'bg-orange-50 border-orange-300' : 'bg-white border-gray-200'}`}>
+                    <input type="checkbox" className="h-4 w-4 text-orange-600 rounded focus:ring-orange-500" checked={formData.isYouth} onChange={e => setFormData({...formData, isYouth: e.target.checked})}/>
+                    <div className="ml-2">
+                        <span className={`block text-xs font-bold uppercase flex items-center ${formData.isYouth ? 'text-orange-700' : 'text-gray-500'}`}>
+                            <Zap size={10} className="mr-1"/> Jovens
+                        </span>
+                        <span className="text-[9px] text-gray-400">União de Jovens</span>
+                    </div>
+                </label>
+
+                <label className={`flex items-center p-3 border rounded-lg cursor-pointer transition-all hover:shadow-sm ${formData.isLady ? 'bg-pink-50 border-pink-300' : 'bg-white border-gray-200'}`}>
+                    <input type="checkbox" className="h-4 w-4 text-pink-600 rounded focus:ring-pink-500" checked={formData.isLady} onChange={e => setFormData({...formData, isLady: e.target.checked})}/>
+                    <div className="ml-2">
+                        <span className={`block text-xs font-bold uppercase flex items-center ${formData.isLady ? 'text-pink-700' : 'text-gray-500'}`}>
+                            <Heart size={10} className="mr-1"/> Senhoras
+                        </span>
+                        <span className="text-[9px] text-gray-400">Círculo de Oração</span>
+                    </div>
+                </label>
+
+                <label className={`flex items-center p-3 border rounded-lg cursor-pointer transition-all hover:shadow-sm ${formData.isChild ? 'bg-blue-50 border-blue-300' : 'bg-white border-gray-200'}`}>
+                    <input type="checkbox" className="h-4 w-4 text-blue-600 rounded focus:ring-blue-500" checked={formData.isChild} onChange={e => setFormData({...formData, isChild: e.target.checked})}/>
+                    <div className="ml-2">
+                        <span className={`block text-xs font-bold uppercase flex items-center ${formData.isChild ? 'text-blue-700' : 'text-gray-500'}`}>
+                            <Baby size={10} className="mr-1"/> Infantil
+                        </span>
+                        <span className="text-[9px] text-gray-400">Depto. Infantil</span>
+                    </div>
+                </label>
+             </div>
+        </div>
+
         {/* SEÇÃO CONTATO */}
         <div className="bg-gray-50/50 p-4 rounded-lg border border-gray-100">
              <h3 className="text-sm font-bold text-brand-orange uppercase tracking-wider border-b border-gray-200 pb-2 mb-4 flex items-center">
-                <Phone size={16} className="mr-2"/> Contato & Vínculo
+                <Phone size={16} className="mr-2"/> Contato
             </h3>
-             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                <div>
                  <label className="block text-xs font-bold text-gray-600 uppercase mb-1.5">Telefone / WhatsApp</label>
                  <input type="text" className="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-orange focus:border-transparent outline-none transition-all" value={formData.phone} onChange={handlePhoneChange}/>
@@ -421,12 +483,6 @@ export const Members: React.FC = () => {
                <div>
                  <label className="block text-xs font-bold text-gray-600 uppercase mb-1.5">Email</label>
                  <input type="email" className="w-full p-2.5 border border-gray-300 rounded-lg text-sm lowercase focus:ring-2 focus:ring-brand-orange focus:border-transparent outline-none transition-all" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value.toLowerCase()})}/>
-               </div>
-               <div className="flex items-end">
-                  <label className={`flex items-center justify-center w-full p-2.5 border rounded-lg cursor-pointer transition-all ${formData.isTither ? 'bg-green-50 border-green-200' : 'bg-white border-gray-300'}`}>
-                    <input type="checkbox" className="h-4 w-4 text-brand-orange rounded focus:ring-brand-orange" checked={formData.isTither} onChange={e => setFormData({...formData, isTither: e.target.checked})}/>
-                    <span className={`ml-2 text-sm font-bold ${formData.isTither ? 'text-green-700' : 'text-gray-500'}`}>Membro Dizimista</span>
-                  </label>
                </div>
              </div>
         </div>

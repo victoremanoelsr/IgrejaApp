@@ -1,17 +1,16 @@
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useApp } from '../context';
 import { useNavigate } from 'react-router-dom';
 import { 
   Users, 
   Coins, 
   Banknote, 
-  TrendingUp, 
-  TrendingDown, 
-  HeartHandshake,
   LayoutDashboard,
-  CalendarClock,
-  AlertCircle
+  Calendar,
+  Wallet,
+  Globe,
+  TrendingDown
 } from 'lucide-react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
@@ -19,8 +18,12 @@ import {
 } from 'recharts';
 
 export const Dashboard: React.FC = () => {
-  const { members, transactions, currentChurch, user, fixedExpenses } = useApp();
+  const { members, transactions, currentChurch, user } = useApp();
   const navigate = useNavigate();
+
+  // Estados para filtro de data (Padrão: Mês/Ano atual)
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 
   // UX Check
   useEffect(() => {
@@ -43,252 +46,283 @@ export const Dashboard: React.FC = () => {
   // 1. DATA FILTERING
   const viewId = currentChurch.id;
   const churchMembers = members.filter(m => m.churchId === viewId);
-  const churchTransactions = transactions.filter(t => t.churchId === viewId && !t.campaignId);
-  const churchFixedExpenses = fixedExpenses.filter(fe => fe.churchId === viewId && fe.active);
+  
+  // Categorias que NÃO entram no financeiro GERAL do topo (Caixas separados)
+  const excludedCategoriesFromGeneral = ['MISSOES', 'JOVENS', 'CRIANCAS', 'SENHORAS'];
 
-  // --- METRICS CALCULATION ---
-  const now = new Date();
-  const currentYear = now.getFullYear();
-  const currentMonth = now.getMonth();
+  // Helper para verificar data selecionada
+  const matchesSelectedDate = (dateStr: string) => {
+      const [y, m] = dateStr.split('-').map(Number);
+      return m === selectedMonth && y === selectedYear;
+  };
 
-  const totalMembers = churchMembers.length;
-  // Total de membros marcados como dizimistas no cadastro
+  // --- CÁLCULOS GERAIS (Topo Direita) ---
+  const generalTransactions = transactions.filter(t => 
+      t.churchId === viewId && 
+      !t.campaignId &&
+      !excludedCategoriesFromGeneral.includes(t.category) &&
+      matchesSelectedDate(t.date) &&
+      t.status === 'PAGO'
+  );
+
+  const totalInGeneral = generalTransactions.filter(t => t.type === 'ENTRADA').reduce((acc, t) => acc + t.amount, 0);
+  const totalOutGeneral = generalTransactions.filter(t => t.type === 'SAIDA').reduce((acc, t) => acc + t.amount, 0);
+  const balanceGeneral = totalInGeneral - totalOutGeneral;
+
+  // --- CÁLCULOS DÍZIMOS (Meio Esquerda) ---
+  const tithesTransactions = transactions.filter(t => 
+      t.churchId === viewId &&
+      t.category === 'DIZIMO' &&
+      t.type === 'ENTRADA' &&
+      matchesSelectedDate(t.date) &&
+      t.status === 'PAGO'
+  );
+  const tithesTotal = tithesTransactions.reduce((acc, t) => acc + t.amount, 0);
+  const activeTithersCount = new Set(tithesTransactions.filter(t => t.memberId).map(t => t.memberId)).size;
   const totalRegisteredTithers = churchMembers.filter(m => m.isTither).length;
 
-  const currentMonthTransactions = churchTransactions.filter(t => {
-      const d = new Date(t.date);
-      return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
-  });
-
-  const totalIn = currentMonthTransactions.filter(t => t.type === 'ENTRADA').reduce((acc, t) => acc + t.amount, 0);
-  const totalOut = currentMonthTransactions.filter(t => t.type === 'SAIDA').reduce((acc, t) => acc + t.amount, 0);
-  const balance = totalIn - totalOut;
-
-  // --- CÁLCULO DE VENCIMENTOS FIXOS PENDENTES ---
-  const pendingFixedExpenses = churchFixedExpenses.filter(fe => {
-      const exists = currentMonthTransactions.some(t => t.fixedExpenseId === fe.id);
-      return !exists;
-  }).sort((a, b) => a.dueDay - b.dueDay);
-
-  const pendingFixedTotal = pendingFixedExpenses.reduce((acc, fe) => acc + fe.amount, 0);
-
-  // --- CHART DATA PREP ---
-  const tithesTotal = currentMonthTransactions.filter(t => t.category === 'DIZIMO' && t.type === 'ENTRADA').reduce((acc, t) => acc + t.amount, 0);
-  
-  // Cálculo de Dizimistas Ativos (Membros que deram dízimo este mês)
-  const activeTithersCount = new Set(
-      currentMonthTransactions
-          .filter(t => t.category === 'DIZIMO' && t.type === 'ENTRADA' && t.memberId)
-          .map(t => t.memberId)
-  ).size;
-
-  const missionsIn = currentMonthTransactions.filter(t => t.category === 'MISSOES' && t.type === 'ENTRADA').reduce((acc, t) => acc + t.amount, 0);
-  const missionsOut = currentMonthTransactions.filter(t => t.category === 'MISSOES' && t.type === 'SAIDA').reduce((acc, t) => acc + t.amount, 0);
+  // --- CÁLCULOS MISSÕES (Meio Centro) ---
+  const missionsTransactions = transactions.filter(t => 
+      t.churchId === viewId &&
+      t.category === 'MISSOES' &&
+      matchesSelectedDate(t.date) &&
+      t.status === 'PAGO'
+  );
+  const missionsIn = missionsTransactions.filter(t => t.type === 'ENTRADA').reduce((acc, t) => acc + t.amount, 0);
+  const missionsOut = missionsTransactions.filter(t => t.type === 'SAIDA').reduce((acc, t) => acc + t.amount, 0);
   const missionsBalance = missionsIn - missionsOut;
-  
-  // Ajuste: O gráfico mostra Saldo (Verde) vs Saídas (Vermelho). Se o saldo for negativo, mostramos 0 para não quebrar o gráfico.
-  const pieDataMissions = [
-      { name: 'Saldo', value: Math.max(0, missionsBalance) }, 
-      { name: 'Saídas', value: missionsOut }
+
+  const missionsChartData = [
+      { name: 'Saldo', value: missionsBalance > 0 ? missionsBalance : 0, color: '#10b981' }, // green-500
+      { name: 'Saídas', value: missionsOut, color: '#ef4444' } // red-500
   ];
-  const COLORS_MISSIONS = ['#16a34a', '#dc2626'];
+  // Se não houver dados, para não quebrar o gráfico
+  if (missionsBalance <= 0 && missionsOut === 0) {
+      missionsChartData.push({ name: 'Vazio', value: 1, color: '#e5e7eb' });
+  }
 
-  const offerData = Object.entries(churchTransactions.filter(t => t.category === 'OFERTA' && t.type === 'ENTRADA').reduce((acc: any, t) => {
-      acc[t.date] = (acc[t.date] || 0) + t.amount; return acc;
-  }, {})).sort().slice(-5).map(([dateStr, val]) => {
-      const [y,m,d] = dateStr.split('-').map(Number);
-      return { name: new Date(y, m-1, d).toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit'}), valor: val };
-  });
-  if (offerData.length === 0) offerData.push({ name: '-', valor: 0 });
+  // --- CÁLCULOS OFERTAS (Meio Direita) ---
+  // Pegamos as ofertas do mês para o gráfico
+  const offersData = Object.entries(generalTransactions
+    .filter(t => t.category === 'OFERTA' && t.type === 'ENTRADA')
+    .reduce((acc: any, t) => {
+        const day = t.date.split('-')[2];
+        acc[day] = (acc[day] || 0) + t.amount; 
+        return acc;
+    }, {})
+  ).sort((a: any, b: any) => parseInt(a[0]) - parseInt(b[0])).slice(-5).map(([day, val]) => ({
+      name: `${day}`,
+      valor: val
+  }));
 
-  const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+  // --- CÁLCULOS FLUXO DE CAIXA MENSAL (Fundo) ---
+  // Considera TODAS as transações do mês para o fluxo global da igreja (incluindo departamentos se desejar, ou apenas geral. 
+  // O print sugere "Fluxo de Caixa Mensal", geralmente é o Geral. Vamos usar o generalTransactions.
+  const daysInMonth = new Date(selectedYear, selectedMonth, 0).getDate();
   const dailyFlowData = Array.from({ length: daysInMonth }, (_, i) => ({ day: (i + 1).toString(), entradas: 0, saidas: 0 }));
-  currentMonthTransactions.forEach(t => {
-      const d = new Date(t.date).getDate();
-      if(t.type === 'ENTRADA') dailyFlowData[d-1].entradas += t.amount; else dailyFlowData[d-1].saidas += t.amount;
+  
+  generalTransactions.forEach(t => {
+      const d = parseInt(t.date.split('-')[2]);
+      if (d >= 1 && d <= daysInMonth) {
+          if(t.type === 'ENTRADA') dailyFlowData[d-1].entradas += t.amount; 
+          else dailyFlowData[d-1].saidas += t.amount;
+      }
   });
 
   return (
-    <div className="space-y-4 md:space-y-6 pb-20">
-      {/* HEADER COMPACTO */}
-      <div className="flex justify-between items-center mb-1">
+    <div className="space-y-8 pb-20 font-sans">
+      {/* HEADER */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-2">
         <div>
-           <h1 className="text-lg md:text-3xl font-bold text-gray-800">Painel Geral</h1>
-           <div className="flex items-center space-x-1 md:space-x-2">
-             <span className={`px-1.5 py-0.5 rounded text-[9px] md:text-xs font-bold ${currentChurch.type === 'SEDE' ? 'bg-brand-red text-white' : 'bg-gray-200 text-gray-700'}`}>
+           <h1 className="text-2xl font-bold text-gray-800">Painel Geral</h1>
+           <div className="flex items-center gap-2 mt-1">
+             <span className={`px-2 py-0.5 rounded text-[10px] font-bold text-white ${currentChurch.type === 'SEDE' ? 'bg-brand-red' : 'bg-blue-600'}`}>
                 {currentChurch.type}
              </span>
-             <p className="text-gray-500 font-medium text-xs md:text-lg truncate max-w-[200px] md:max-w-none">{currentChurch.name}</p>
+             <span className="text-sm font-medium text-gray-500 uppercase">{currentChurch.name}</span>
            </div>
+        </div>
+
+        {/* SELETOR DE MÊS/ANO */}
+        <div className="flex items-center bg-white rounded-lg shadow-sm border border-gray-200 p-1">
+            <div className="px-2 text-gray-400"><Calendar size={16}/></div>
+            <select 
+                value={selectedMonth} 
+                onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
+                className="bg-transparent text-sm font-bold text-gray-700 p-1 outline-none cursor-pointer border-r border-gray-200"
+            >
+                {Array.from({length: 12}, (_, i) => (
+                    <option key={i} value={i+1}>{new Date(0, i).toLocaleString('pt-BR', {month: 'long'}).toUpperCase()}</option>
+                ))}
+            </select>
+            <select 
+                value={selectedYear} 
+                onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+                className="bg-transparent text-sm font-bold text-gray-700 p-1 outline-none cursor-pointer pl-2"
+            >
+                <option value={2023}>2023</option>
+                <option value={2024}>2024</option>
+                <option value={2025}>2025</option>
+                <option value={2026}>2026</option>
+            </select>
         </div>
       </div>
       
-      {/* CARD DE AVISO: VENCIMENTOS FIXOS */}
-      {pendingFixedExpenses.length > 0 && (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-4 shadow-sm animate-fade-in-down">
-              <div className="flex justify-between items-center mb-2">
-                  <h3 className="text-red-700 font-bold flex items-center text-sm md:text-base">
-                      <CalendarClock className="mr-2" size={20}/> Contas Fixas Pendentes (Mês Atual)
-                  </h3>
-                  <span className="text-xs font-bold bg-white text-red-600 px-2 py-1 rounded border border-red-100">
-                      Total: R$ {pendingFixedTotal.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
-                  </span>
-              </div>
-              <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-red-200">
-                  {pendingFixedExpenses.map(fe => {
-                      const isLate = now.getDate() > fe.dueDay;
-                      return (
-                        <div key={fe.id} className={`flex-shrink-0 min-w-[140px] bg-white p-3 rounded-lg border-l-4 shadow-sm flex flex-col justify-between ${isLate ? 'border-red-500' : 'border-orange-400'}`}>
-                            <span className="text-[10px] text-gray-500 font-bold uppercase mb-1">{fe.category}</span>
-                            <span className="font-bold text-gray-800 text-xs truncate" title={fe.description}>{fe.description}</span>
-                            <div className="flex justify-between items-end mt-2">
-                                <span className="text-sm font-black text-gray-700">R$ {fe.amount}</span>
-                                <span className={`text-[10px] font-bold px-1.5 rounded ${isLate ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-600'}`}>Dia {fe.dueDay}</span>
-                            </div>
-                        </div>
-                      );
-                  })}
-              </div>
-          </div>
-      )}
-
-      {/* GRID PRINCIPAL */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 md:gap-6">
+      {/* LINHA 1: MEMBROS E FINANCEIRO GERAL */}
+      <div className="grid grid-cols-12 gap-8">
         
-        {/* CARD MEMBROS */}
-        <div onClick={() => navigate('/membros')} className="bg-white rounded-xl shadow-sm md:shadow-lg p-3 md:p-6 border-l-4 border-brand-black flex items-center justify-between cursor-pointer transition-all active:scale-95">
-          <div><p className="text-gray-500 text-[10px] md:text-sm font-medium uppercase">Total de Membros</p><p className="text-2xl md:text-4xl font-bold text-brand-black mt-0.5 md:mt-2">{totalMembers}</p></div>
-          <div className="bg-gray-100 p-2 md:p-3 rounded-full"><Users size={20} className="text-brand-black md:w-8 md:h-8" /></div>
+        {/* CARD MEMBROS (3 colunas em LG) */}
+        <div onClick={() => navigate('/membros')} className="col-span-12 lg:col-span-4 bg-white rounded-xl shadow-sm border-l-4 border-brand-black p-6 flex items-center justify-between cursor-pointer hover:shadow-md transition-all">
+            <div>
+                <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Total de Membros</p>
+                <p className="text-4xl font-extrabold text-gray-800 mt-2">{churchMembers.length}</p>
+            </div>
+            <div className="bg-gray-100 p-3 rounded-full text-gray-700">
+                <Users size={28}/>
+            </div>
         </div>
 
-        {/* CARD FINANCEIRO GERAL */}
-        <div onClick={() => navigate('/financeiro')} className="bg-white rounded-xl shadow-sm md:shadow-lg p-3 md:p-6 border-l-4 border-brand-orange flex items-center col-span-1 md:col-span-2 lg:col-span-2 cursor-pointer transition-all active:scale-95">
-          <div className="flex w-full justify-between items-center divide-x divide-gray-100">
-            <div className="text-center px-1 md:px-2 flex-1">
-               <p className="text-gray-500 text-[9px] md:text-base font-bold uppercase tracking-widest mb-0.5">Entradas</p>
-               <p className="text-sm md:text-3xl font-black text-green-600 truncate">R$ {totalIn.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+        {/* CARD FINANCEIRO GERAL (9 colunas em LG) */}
+        <div onClick={() => navigate('/financeiro')} className="col-span-12 lg:col-span-8 bg-white rounded-xl shadow-sm border-l-4 border-brand-orange p-6 flex flex-col justify-center cursor-pointer hover:shadow-md transition-all">
+            <div className="grid grid-cols-3 gap-4 divide-x divide-gray-100">
+                <div className="text-center px-4">
+                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Entradas</p>
+                    <p className="text-2xl font-black text-green-600">R$ {totalInGeneral.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p>
+                </div>
+                <div className="text-center px-4">
+                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Saídas</p>
+                    <p className="text-2xl font-black text-red-600">R$ {totalOutGeneral.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p>
+                </div>
+                <div className="text-center px-4">
+                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Saldo</p>
+                    <p className={`text-2xl font-black ${balanceGeneral >= 0 ? 'text-gray-800' : 'text-red-600'}`}>R$ {balanceGeneral.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p>
+                </div>
             </div>
-            <div className="text-center px-1 md:px-2 flex-1">
-               <p className="text-gray-500 text-[9px] md:text-base font-bold uppercase tracking-widest mb-0.5">Saídas</p>
-               <p className="text-sm md:text-3xl font-black text-brand-red truncate">R$ {totalOut.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
-            </div>
-            <div className="text-center px-1 md:px-2 flex-1">
-               <p className="text-gray-500 text-[9px] md:text-base font-bold uppercase tracking-widest mb-0.5">Saldo</p>
-               <p className={`text-base md:text-3xl font-black ${balance >= 0 ? 'text-brand-black' : 'text-brand-red'} truncate`}>R$ {balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
-            </div>
-          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 md:gap-6">
+      {/* LINHA 2: DÍZIMOS, MISSÕES, OFERTAS */}
+      {/* Alterado para 2 colunas em telas médias/laptop para ficarem mais largos, e 3 apenas em XL */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
         
-        {/* CARD DÍZIMOS REFORMULADO */}
-        <div onClick={() => navigate('/financeiro')} className="bg-white rounded-xl shadow-sm p-4 cursor-pointer transition-all active:scale-95 col-span-2 md:col-span-1 border border-gray-100 hover:shadow-md flex flex-col justify-between">
-          <div>
-            <div className="flex items-center mb-4">
-               <Coins className="mr-2 text-brand-yellow" size={20}/>
-               <h3 className="text-lg font-bold text-gray-800">Dízimos</h3>
+        {/* CARD DÍZIMOS */}
+        <div onClick={() => navigate('/financeiro')} className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 flex flex-col justify-between cursor-pointer hover:shadow-md h-96">
+            <div>
+                <div className="flex items-center mb-2">
+                    <Coins size={18} className="text-brand-yellow mr-2"/>
+                    <h3 className="font-bold text-gray-800 text-lg">Dízimos</h3>
+                </div>
+                <p className="text-xs text-gray-400 mb-4">Total Arrecadado</p>
+                <p className="text-right text-3xl font-black text-green-600">R$ {tithesTotal.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p>
             </div>
             
-            <div className="flex justify-between items-end mb-6">
-               <span className="text-gray-500 font-medium text-sm">Total</span>
-               <span className="text-2xl font-black text-green-600">R$ {tithesTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3 mt-auto">
-             <div className="bg-green-50 rounded-lg p-3 text-center border border-green-100">
-                <p className="text-xl font-black text-green-700">{activeTithersCount}</p>
-                <p className="text-[9px] font-bold text-green-600 uppercase leading-tight mt-1">Dizimistas Ativos</p>
-             </div>
-             <div className="bg-orange-50 rounded-lg p-3 text-center border border-orange-100">
-                <p className="text-xl font-black text-brand-orange">{totalRegisteredTithers}</p>
-                <p className="text-[9px] font-bold text-orange-600 uppercase leading-tight mt-1">Total Cadastrados</p>
-             </div>
-          </div>
-        </div>
-
-        {/* CARD MISSÕES REFORMULADO */}
-        <div onClick={() => navigate('/financeiro')} className="bg-white rounded-xl shadow-sm p-4 cursor-pointer transition-all active:scale-95 border border-gray-100 hover:shadow-md flex flex-col justify-between">
-          <div className="flex justify-between items-center mb-4">
-              <div className="flex items-center">
-                  <HeartHandshake className="mr-2 text-brand-red" size={20}/> 
-                  <h3 className="text-lg font-bold text-gray-800">Missões</h3>
-              </div>
-              <span className={`text-[10px] md:text-xs px-2 py-1 rounded font-bold ${missionsBalance >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                  Saldo: R$ {missionsBalance.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}
-              </span>
-          </div>
-
-          <div className="h-32 flex items-center justify-center relative mb-2">
-            {missionsIn > 0 || missionsOut > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                    <Pie data={pieDataMissions} innerRadius={35} outerRadius={55} paddingAngle={5} dataKey="value">
-                    {pieDataMissions.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS_MISSIONS[index]} />)}
-                    </Pie>
-                    <Tooltip formatter={(value: number) => `R$ ${value.toLocaleString('pt-BR')}`}/>
-                </PieChart>
-                </ResponsiveContainer>
-            ) : (
-                <div className="flex flex-col items-center justify-center text-gray-300">
-                    <HeartHandshake size={32} className="mb-2 opacity-30"/>
-                    <p className="text-xs font-medium">Sem movimento</p>
+            <div className="grid grid-cols-2 gap-4 mt-4">
+                <div className="bg-green-50 p-4 rounded-lg text-center border border-green-100">
+                    <p className="text-2xl font-black text-green-700">{activeTithersCount}</p>
+                    <p className="text-[10px] font-bold text-green-600 uppercase">Dizimistas Ativos</p>
                 </div>
-            )}
-          </div>
-
-          <div className="flex justify-between items-center border-t pt-3 mt-auto">
-              <div className="text-center w-1/2 border-r">
-                  <p className="text-green-600 font-bold text-sm">R$ {missionsBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
-                  <p className="text-[10px] text-gray-400 uppercase">Saldo</p>
-              </div>
-              <div className="text-center w-1/2">
-                  <p className="text-red-600 font-bold text-sm">R$ {missionsOut.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
-                  <p className="text-[10px] text-gray-400 uppercase">Saídas</p>
-              </div>
-          </div>
+                <div className="bg-orange-50 p-4 rounded-lg text-center border border-orange-100">
+                    <p className="text-2xl font-black text-orange-700">{totalRegisteredTithers}</p>
+                    <p className="text-[10px] font-bold text-orange-600 uppercase">Total Cadastrados</p>
+                </div>
+            </div>
         </div>
 
-        {/* CARD OFERTAS (MANTIDO) */}
-        <div onClick={() => navigate('/financeiro')} className="bg-white rounded-xl shadow-sm p-3 md:p-6 cursor-pointer transition-all active:scale-95">
-           <h3 className="text-xs md:text-lg font-bold text-gray-700 mb-2 flex items-center"><Banknote className="mr-1 text-brand-orange" size={16}/> Ofertas Recentes</h3>
-           <div className="h-24 md:h-64">
-             {offerData.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={offerData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#6b7280', fontWeight: 'bold' }} interval={0} axisLine={false} tickLine={false}/>
-                    <YAxis tick={{ fontSize: 10, fill: '#6b7280' }} axisLine={false} tickLine={false} tickFormatter={(value) => `${value}R$`}/>
-                    <Tooltip cursor={{ fill: '#f3f4f6' }} formatter={(value: number) => [`R$ ${value.toFixed(2)}`, '']} labelStyle={{fontSize: '12px', fontWeight: 'bold'}} contentStyle={{fontSize: '12px', borderRadius: '8px'}}/>
-                    <Bar dataKey="valor" fill="#f97316" radius={[4, 4, 0, 0]} barSize={30} />
-                  </BarChart>
-                </ResponsiveContainer>
-             ) : <div className="h-full flex flex-col items-center justify-center text-gray-400"><Banknote size={24} className="mb-1 opacity-50"/><p className="text-[10px]">Sem dados.</p></div>}
-           </div>
+        {/* CARD MISSÕES */}
+        <div onClick={() => navigate('/missoes')} className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 flex flex-col cursor-pointer hover:shadow-md h-96 relative">
+            <div className="flex justify-between items-start mb-2">
+                <div className="flex items-center">
+                    <Globe size={18} className="text-red-500 mr-2"/>
+                    <h3 className="font-bold text-gray-800 text-lg">Missões</h3>
+                </div>
+                <span className="text-[10px] font-bold bg-green-100 text-green-700 px-3 py-1 rounded-full">Saldo: R$ {missionsBalance.toLocaleString('pt-BR')}</span>
+            </div>
+
+            <div className="flex-1 flex items-center justify-center relative my-2">
+                <div className="w-48 h-48">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                            <Pie
+                                data={missionsChartData}
+                                innerRadius={50}
+                                outerRadius={80}
+                                paddingAngle={5}
+                                dataKey="value"
+                                stroke="none"
+                            >
+                                {missionsChartData.map((entry, index) => (
+                                    <Cell key={`cell-${index}`} fill={entry.color} />
+                                ))}
+                            </Pie>
+                        </PieChart>
+                    </ResponsiveContainer>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 border-t pt-4">
+                <div className="text-center">
+                    <p className="text-lg font-bold text-green-600">R$ {missionsBalance.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p>
+                    <p className="text-[10px] text-gray-400 uppercase">Saldo Disponível</p>
+                </div>
+                <div className="text-center border-l">
+                    <p className="text-lg font-bold text-red-600">R$ {missionsOut.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p>
+                    <p className="text-[10px] text-gray-400 uppercase">Saídas do Mês</p>
+                </div>
+            </div>
         </div>
+
+        {/* CARD OFERTAS RECENTES */}
+        <div onClick={() => navigate('/financeiro')} className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 flex flex-col cursor-pointer hover:shadow-md h-96">
+            <div className="flex items-center mb-6">
+                <Banknote size={18} className="text-brand-orange mr-2"/>
+                <h3 className="font-bold text-gray-800 text-lg">Ofertas Recentes</h3>
+            </div>
+            
+            <div className="flex-1 w-full">
+                {offersData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={offersData} margin={{top: 10, right: 0, left: -25, bottom: 0}}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6"/>
+                            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 10, fill: '#9ca3af'}} />
+                            <YAxis axisLine={false} tickLine={false} tick={{fontSize: 10, fill: '#9ca3af'}} tickFormatter={(v) => `${v}`} />
+                            <Tooltip cursor={{fill: 'transparent'}} contentStyle={{fontSize: '12px', borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'}} formatter={(val: number) => [`R$ ${val}`, '']}/>
+                            <Bar dataKey="valor" fill="#f97316" radius={[4, 4, 0, 0]} barSize={24} />
+                        </BarChart>
+                    </ResponsiveContainer>
+                ) : (
+                    <div className="h-full flex flex-col items-center justify-center text-gray-300">
+                        <Banknote size={40} className="mb-3 opacity-30"/>
+                        <p className="text-sm">Sem ofertas recentes</p>
+                    </div>
+                )}
+            </div>
+        </div>
+
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm p-3 md:p-6">
-        <h3 className="text-sm md:text-lg font-bold text-gray-700 mb-2 md:mb-6">Fluxo de Caixa Mensal</h3>
-        <div className="h-40 md:h-80">
+      {/* LINHA 3: FLUXO DE CAIXA MENSAL */}
+      <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+        <h3 className="font-bold text-gray-700 mb-6">Fluxo de Caixa Mensal</h3>
+        <div className="h-72 w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={dailyFlowData} margin={{top: 5, right: 0, left: -20, bottom: 0}}>
+            <AreaChart data={dailyFlowData} margin={{top: 10, right: 10, left: 0, bottom: 0}}>
               <defs>
-                <linearGradient id="colorIn" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#16a34a" stopOpacity={0.8}/><stop offset="95%" stopColor="#16a34a" stopOpacity={0}/>
+                <linearGradient id="colorEntradas" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#10b981" stopOpacity={0.8}/>
+                  <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
                 </linearGradient>
-                <linearGradient id="colorOut" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#dc2626" stopOpacity={0.8}/><stop offset="95%" stopColor="#dc2626" stopOpacity={0}/>
+                <linearGradient id="colorSaidas" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#ef4444" stopOpacity={0.8}/>
+                  <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
                 </linearGradient>
               </defs>
-              <XAxis dataKey="day" tick={{fontSize: 9}} interval={4} />
-              <YAxis tickFormatter={(value) => `${value}`} tick={{fontSize: 9}} width={25} />
-              <CartesianGrid strokeDasharray="3 3" />
-              <Tooltip formatter={(value: number) => `R$ ${value.toFixed(2)}`} />
-              <Legend verticalAlign="top" iconSize={10} wrapperStyle={{fontSize: '10px'}}/>
-              <Area type="monotone" dataKey="entradas" stroke="#16a34a" fillOpacity={1} fill="url(#colorIn)" strokeWidth={3}/>
-              <Area type="monotone" dataKey="saidas" stroke="#dc2626" fillOpacity={1} fill="url(#colorOut)" strokeWidth={3}/>
+              <XAxis dataKey="day" tick={{fontSize: 10, fill: '#9ca3af'}} axisLine={false} tickLine={false} />
+              <YAxis tickFormatter={(value) => ``} width={10} axisLine={false} tickLine={false} />
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+              <Tooltip contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'}} />
+              <Legend iconType="circle" iconSize={8} verticalAlign="top" align="center" wrapperStyle={{fontSize: '10px', top: -20}}/>
+              <Area type="monotone" dataKey="entradas" stroke="#10b981" strokeWidth={2} fillOpacity={1} fill="url(#colorEntradas)" name="entradas" />
+              <Area type="monotone" dataKey="saidas" stroke="#ef4444" strokeWidth={2} fillOpacity={1} fill="url(#colorSaidas)" name="saidas" />
             </AreaChart>
           </ResponsiveContainer>
         </div>

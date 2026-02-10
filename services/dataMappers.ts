@@ -1,5 +1,5 @@
 
-import { Church, User, Member, Transaction, Campaign, Event, Minute, FixedExpense } from '../types';
+import { Church, User, Member, Transaction, Campaign, Event, Minute, FixedExpense, LetterHistory, CarnetTemplate, LetterTemplate } from '../types';
 
 export const toAppChurch = (data: any): Church => ({
   id: data.id,
@@ -33,11 +33,15 @@ export const toAppMember = (data: any): Member => ({
   birthDate: data.birth_date || '', 
   memberNumber: data.member_number,
   isTither: data.is_tither,
+  isYouth: data.is_youth, 
+  isChild: data.is_child, // NOVO
+  isLady: data.is_lady,   // NOVO
   baptismDate: data.baptism_date || '', 
   photo: data.photo_url, 
   email: data.email, 
   phone: data.phone, 
   maritalStatus: data.marital_status, 
+  status: data.status || 'ATIVO',
   address: {
     street: data.address?.street || '',
     number: data.address?.number || '',
@@ -63,7 +67,7 @@ export const toAppTransaction = (data: any): Transaction => ({
   attachmentUrl: data.attachment_url,
   isFixed: data.is_fixed,
   fixedExpenseId: data.fixed_expense_id,
-  status: data.status || 'PAGO', // Default para PAGO se nulo (retrocompatibilidade)
+  status: data.status || 'PAGO', 
   createdAt: data.created_at
 });
 
@@ -122,3 +126,34 @@ export const toAppMinute = (data: any): Minute => {
     fileUrls: urls
   };
 };
+
+export const toAppLetterHistory = (data: any): LetterHistory => ({
+  id: data.id,
+  churchId: data.church_id,
+  memberId: data.member_id,
+  letterType: data.letter_type,
+  issuedAt: data.issued_at,
+  issuedByUserId: data.issued_by_user_id,
+  memberDataSnapshot: data.member_data_snapshot || {}
+});
+
+export const toAppCarnetTemplate = (data: any): CarnetTemplate => ({
+  id: data.id,
+  churchId: data.church_id,
+  name: data.name,
+  backgroundUrl: data.background_url,
+  backgroundStyle: data.background_style || { mode: 'cover', opacity: 0.5 },
+  layoutJson: data.layout_json || [],
+  isDefault: data.is_default,
+  createdAt: data.created_at
+});
+
+export const toAppLetterTemplate = (data: any): LetterTemplate => ({
+  id: data.id,
+  churchId: data.church_id,
+  name: data.name,
+  type: data.type,
+  backgroundUrl: data.background_url,
+  layoutJson: data.layout_json || [],
+  createdAt: data.created_at
+});

@@ -1,5 +1,4 @@
 
-// ... (imports remain the same)
 import React, { useState, useRef, useEffect } from 'react';
 import { useApp } from '../context';
 import { TransactionCategory, Transaction, FixedExpense } from '../types';
@@ -22,7 +21,8 @@ export const Finance: React.FC = () => {
   // Filter States for LIST view
   const [filterMonth, setFilterMonth] = useState(new Date().getMonth() + 1);
   const [filterYear, setFilterYear] = useState(new Date().getFullYear());
-  const [filterType, setFilterType] = useState<'TODOS' | 'DIZIMO' | 'MISSOES' | 'OFERTA' | 'SAIDA' | 'OUTROS' | 'PENDENTE'>('TODOS');
+  // Removed 'PENDENTE' from type
+  const [filterType, setFilterType] = useState<'TODOS' | 'DIZIMO' | 'OFERTA' | 'SAIDA' | 'OUTROS'>('TODOS');
   const [showFilters, setShowFilters] = useState(false);
 
   // Editing State
@@ -71,17 +71,23 @@ export const Finance: React.FC = () => {
 
   const filteredMembers = members.filter(m => m.churchId === viewId && m.name.toLowerCase().includes(searchTerm.toLowerCase()));
   
+  const excludedCategories = ['MISSOES', 'JOVENS', 'CRIANCAS', 'SENHORAS'];
+
   const churchTransactions = transactions
     .filter(t => t.churchId === viewId)
-    .filter(t => !t.campaignId) 
+    .filter(t => !t.campaignId)
+    // FILTRO GLOBAL: Remove Pendentes, Carnês e Transações de Departamentos
+    .filter(t => t.status !== 'PENDENTE')
+    .filter(t => !t.description.includes('CARNÊ'))
+    .filter(t => !excludedCategories.includes(t.category))
     .filter(t => {
         const tDate = new Date(t.date + 'T12:00:00');
         const matchesDate = (tDate.getMonth() + 1) === filterMonth && tDate.getFullYear() === filterYear;
         let matchesCategory = true;
+        
         if (filterType !== 'TODOS') {
-            if (filterType === 'PENDENTE') matchesCategory = t.status === 'PENDENTE';
-            else if (filterType === 'SAIDA') matchesCategory = t.type === 'SAIDA' && t.status !== 'PENDENTE';
-            else matchesCategory = t.category === filterType && t.type === 'ENTRADA' && t.status !== 'PENDENTE';
+            if (filterType === 'SAIDA') matchesCategory = t.type === 'SAIDA';
+            else matchesCategory = t.category === filterType && t.type === 'ENTRADA';
         }
         return matchesDate && matchesCategory;
     })
@@ -99,7 +105,7 @@ export const Finance: React.FC = () => {
   const handleMemberSelect = (member: typeof members[0]) => {
     setSelectedMemberId(member.id);
     setSearchTerm(member.name);
-    const prefix = category === 'DIZIMO' ? 'Dízimo' : 'Missões';
+    const prefix = category === 'DIZIMO' ? 'Dízimo' : 'Oferta';
     setDescription(`${prefix} - ${member.name}`.toUpperCase());
   };
 
@@ -112,20 +118,8 @@ export const Finance: React.FC = () => {
       setAmount(t.amount.toString());
       setDate(t.date);
       setCategory(t.category);
-      
-      if (t.type === 'SAIDA' && t.category === 'MISSOES') {
-          const parts = t.description.split(' - ');
-          if (parts.length > 1) {
-              setMissionRecipient(parts[0]);
-              setDescription(parts.slice(1).join(' - '));
-          } else {
-              setMissionRecipient(t.description);
-              setDescription('');
-          }
-      } else {
-          setDescription(t.description);
-          setMissionRecipient('');
-      }
+      setDescription(t.description);
+      setMissionRecipient(''); // Não usado aqui
 
       if (t.memberId) {
           setSelectedMemberId(t.memberId);
@@ -135,15 +129,6 @@ export const Finance: React.FC = () => {
       
       setSelectedFile(null);
       setIsRecurring(false); 
-  };
-
-  const handleConfirmPayment = (t: Transaction) => {
-      showConfirm(
-          'Confirmar Pagamento',
-          `Deseja confirmar o pagamento de "${t.description}"?\nIsso lançará o valor como saída realizada no caixa.`,
-          () => confirmTransactionPayment(t.id),
-          'success'
-      );
   };
 
   const handleCancelForm = () => {
@@ -159,13 +144,8 @@ export const Finance: React.FC = () => {
     e.preventDefault();
     if (!user || !canEdit || !viewId) return;
 
-    if (activeTab === 'ENTRADA' && (category === 'DIZIMO' || category === 'MISSOES') && !selectedMemberId) {
-        showAlert('Atenção', 'Selecione um membro.', 'warning');
-        return;
-    }
-
-    if (activeTab === 'SAIDA' && category === 'MISSOES' && !missionRecipient) {
-        showAlert('Atenção', 'Informe o Destino/Missionário.', 'warning');
+    if (activeTab === 'ENTRADA' && category === 'DIZIMO' && !selectedMemberId) {
+        showAlert('Atenção', 'Selecione um membro para lançar o Dízimo.', 'warning');
         return;
     }
 
@@ -189,11 +169,7 @@ export const Finance: React.FC = () => {
     let finalCategory = category;
     if (activeTab === 'SAIDA' && !category) finalCategory = 'DESPESA_VARIAVEL';
 
-    let finalDescription = description;
-    if (activeTab === 'SAIDA' && category === 'MISSOES') {
-        finalDescription = `${missionRecipient} - ${description || 'OFERTA'}`;
-    }
-    finalDescription = (finalDescription || (activeTab === 'ENTRADA' ? category : 'Saída')).toUpperCase();
+    let finalDescription = (description || (activeTab === 'ENTRADA' ? category : 'Saída')).toUpperCase();
 
     let generatedFixedId: string | undefined = undefined;
 
@@ -225,7 +201,7 @@ export const Finance: React.FC = () => {
       date: date,
       description: finalDescription,
       responsibleUserId: user.id, 
-      memberId: (activeTab === 'ENTRADA' && (category === 'DIZIMO' || category === 'MISSOES')) ? selectedMemberId : undefined,
+      memberId: (activeTab === 'ENTRADA' && category === 'DIZIMO') ? selectedMemberId : undefined,
       attachmentUrl: attachmentUrl,
       isFixed: isRecurring, 
       fixedExpenseId: generatedFixedId,
@@ -249,8 +225,6 @@ export const Finance: React.FC = () => {
   };
 
   const formatCategoryName = (cat: string, type: string) => {
-      if (type === 'SAIDA' && cat === 'MISSOES') return 'SAÍDA MISSÕES';
-      if (type === 'SAIDA') return 'SAÍDA';
       return cat;
   };
 
@@ -267,7 +241,7 @@ export const Finance: React.FC = () => {
             <div>
               <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1">Tipo de Entrada</label>
               <div className="flex gap-2 overflow-x-auto pb-1">
-                {[ { val: 'DIZIMO', label: 'DÍZIMO' }, { val: 'MISSOES', label: 'MISSÕES' }, { val: 'OFERTA', label: 'OFERTA' } ].map((item) => (
+                {[ { val: 'DIZIMO', label: 'DÍZIMO' }, { val: 'OFERTA', label: 'OFERTA' }, { val: 'OUTROS', label: 'OUTROS' } ].map((item) => (
                   <button type="button" key={item.val} onClick={() => { setCategory(item.val as TransactionCategory); if (!editingTransactionId) clearMemberSelection(); }} className={`flex-1 min-w-[80px] px-2 py-2 rounded-lg border font-bold text-xs transition-colors ${category === item.val ? 'bg-brand-orange text-white border-brand-orange' : 'border-gray-300 text-gray-700'}`}>{item.label}</button>
                 ))}
               </div>
@@ -276,55 +250,28 @@ export const Finance: React.FC = () => {
              <div>
                 <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1">Categoria da Saída</label>
                 <div className="flex gap-2 mb-3">
-                    {['DESPESA_VARIAVEL', 'MISSOES'].map(cat => (
-                        <button type="button" key={cat} onClick={() => { setCategory(cat as TransactionCategory); setDescription(''); setMissionRecipient(''); }} className={`flex-1 py-2 px-1 rounded border text-[10px] font-bold ${category === cat ? 'bg-brand-red text-white' : 'bg-white text-gray-600'}`}>
-                            {cat === 'DESPESA_VARIAVEL' ? 'ADM GERAL' : cat}
+                    {['DESPESA_VARIAVEL'].map(cat => (
+                        <button type="button" key={cat} onClick={() => { setCategory(cat as TransactionCategory); setDescription(''); }} className={`flex-1 py-2 px-1 rounded border text-[10px] font-bold ${category === cat ? 'bg-brand-red text-white' : 'bg-white text-gray-600'}`}>
+                            ADM GERAL / DESPESA
                         </button>
                     ))}
                 </div>
                
-               {category === 'MISSOES' ? (
-                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                       <div>
-                           <label className="block text-xs md:text-sm font-medium text-gray-700">Destino / Missionário</label>
-                           <input 
-                               type="text" 
-                               required 
-                               placeholder="EX: MISSIONÁRIO JOÃO" 
-                               className="mt-1 w-full p-2 border rounded-lg uppercase text-sm" 
-                               value={missionRecipient} 
-                               onChange={e => setMissionRecipient(e.target.value.toUpperCase())} 
-                           />
-                       </div>
-                       <div>
-                           <label className="block text-xs md:text-sm font-medium text-gray-700">Descrição / Motivo</label>
-                           <input 
-                               type="text" 
-                               required 
-                               placeholder="EX: OFERTA DE AMOR" 
-                               className="mt-1 w-full p-2 border rounded-lg uppercase text-sm" 
-                               value={description} 
-                               onChange={e => setDescription(e.target.value.toUpperCase())} 
-                           />
-                       </div>
-                   </div>
-               ) : (
-                   <div>
-                       <label className="block text-xs md:text-sm font-medium text-gray-700">Descrição</label>
-                       <input 
-                           type="text" 
-                           required 
-                           placeholder="EX: CONTA DE LUZ" 
-                           className="mt-1 w-full p-2 border rounded-lg uppercase text-sm" 
-                           value={description} 
-                           onChange={e => setDescription(e.target.value.toUpperCase())} 
-                       />
-                   </div>
-               )}
+               <div>
+                   <label className="block text-xs md:text-sm font-medium text-gray-700">Descrição</label>
+                   <input 
+                       type="text" 
+                       required 
+                       placeholder="EX: CONTA DE LUZ" 
+                       className="mt-1 w-full p-2 border rounded-lg uppercase text-sm" 
+                       value={description} 
+                       onChange={e => setDescription(e.target.value.toUpperCase())} 
+                   />
+               </div>
              </div>
           )}
 
-          {activeTab === 'ENTRADA' && (category === 'DIZIMO' || category === 'MISSOES') && (
+          {activeTab === 'ENTRADA' && category === 'DIZIMO' && (
             <div className="bg-orange-50 p-2 rounded-lg border border-orange-100">
               <label className="block text-xs font-bold text-gray-800 mb-1">Buscar Membro</label>
               <div className="relative">
@@ -398,7 +345,8 @@ export const Finance: React.FC = () => {
           </div>
           {showFilters && (
              <div className="w-full flex gap-2 overflow-x-auto pb-1 mt-1 border-t pt-2">
-                 {[{ id: 'TODOS', label: 'Tudo' }, { id: 'DIZIMO', label: 'Dízimo' }, { id: 'MISSOES', label: 'Missões' }, { id: 'OFERTA', label: 'Oferta' }, { id: 'SAIDA', label: 'Saída' }, { id: 'PENDENTE', label: 'Pendentes' }].map(f => (<button key={f.id} onClick={() => { setFilterType(f.id as any); setShowFilters(false); }} className={`px-2 py-1 rounded text-[10px] font-bold border whitespace-nowrap ${filterType === f.id ? 'bg-brand-orange text-white' : 'bg-white'}`}>{f.label}</button>))}
+                 {/* Removed 'PENDENTE' button */}
+                 {[{ id: 'TODOS', label: 'Tudo' }, { id: 'DIZIMO', label: 'Dízimo' }, { id: 'OFERTA', label: 'Oferta' }, { id: 'SAIDA', label: 'Saída' }, { id: 'OUTROS', label: 'Outros' }].map(f => (<button key={f.id} onClick={() => { setFilterType(f.id as any); setShowFilters(false); }} className={`px-2 py-1 rounded text-[10px] font-bold border whitespace-nowrap ${filterType === f.id ? 'bg-brand-orange text-white' : 'bg-white'}`}>{f.label}</button>))}
              </div>
           )}
       </div>
@@ -411,19 +359,17 @@ export const Finance: React.FC = () => {
               {churchTransactions.map(t => {
                 const [year, month, day] = t.date.split('-').map(Number);
                 const displayDate = new Date(year, month - 1, day).toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'});
-                const isPending = t.status === 'PENDENTE';
                 
                 return (
-                <tr key={t.id} className={`hover:bg-gray-50 ${isPending ? 'bg-orange-50/50' : ''}`}>
+                <tr key={t.id} className="hover:bg-gray-50">
                   <td className="px-2 py-2 text-[10px] text-gray-600 whitespace-nowrap">{displayDate}</td>
                   <td className="px-2 py-2 text-[10px] font-medium text-gray-900 truncate max-w-[100px] md:max-w-none uppercase">
                     {t.isFixed && <span className="mr-1 text-[8px] bg-blue-100 text-blue-700 px-1 rounded font-bold" title="Gasto Fixo">FIXO</span>}
-                    {isPending && <span className="mr-1 text-[8px] bg-orange-200 text-orange-800 px-1 rounded font-bold" title="Pagamento Pendente">PEND</span>}
                     {t.description}
                     <div className="md:hidden text-[9px] text-gray-400">{formatCategoryName(t.category, t.type)}</div>
                   </td>
                   <td className="hidden md:table-cell px-2 py-2 text-xs"><span className={`px-1 rounded text-[10px] font-bold ${t.type === 'ENTRADA' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{formatCategoryName(t.category, t.type)}</span></td>
-                  <td className={`px-2 py-2 text-[10px] font-bold text-right whitespace-nowrap ${t.type === 'ENTRADA' ? 'text-green-600' : (isPending ? 'text-orange-500' : 'text-brand-red')}`}>{t.type === 'ENTRADA' ? '+' : '-'} {t.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
+                  <td className={`px-2 py-2 text-[10px] font-bold text-right whitespace-nowrap ${t.type === 'ENTRADA' ? 'text-green-600' : 'text-brand-red'}`}>{t.type === 'ENTRADA' ? '+' : '-'} {t.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
                   <td className="px-1 py-2 text-right whitespace-nowrap">
                       {canEdit && (
                           <div className="flex justify-end gap-2">
