@@ -511,6 +511,9 @@ export const YouthPanel: React.FC = () => {
       const dailyData = Array.from({ length: daysInMonth }, (_, i) => ({ day: i + 1, entradas: 0, saidas: 0 }));
       monthlyTransactions.forEach(t => { const dayIndex = new Date(t.date + 'T12:00:00').getDate() - 1; if (dayIndex >= 0) { if (t.type === 'ENTRADA') dailyData[dayIndex].entradas += t.amount; else dailyData[dayIndex].saidas += t.amount; } });
 
+      // CÁLCULO TOTAL DE JOVENS
+      const totalYouths = members.filter(m => m.churchId === currentChurch?.id && m.isYouth).length;
+
       return (
       <div className="space-y-6">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
@@ -524,11 +527,45 @@ export const YouthPanel: React.FC = () => {
                   <select value={dashYear} onChange={(e) => setDashYear(parseInt(e.target.value))} className="bg-transparent text-sm font-bold text-gray-700 p-1 outline-none cursor-pointer pl-2"><option value={2023}>2023</option><option value={2024}>2024</option><option value={2025}>2025</option><option value={2026}>2026</option></select>
               </div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-              <div className="bg-white p-6 rounded-xl shadow border-l-4 border-green-500"><p className="text-xs font-bold text-gray-500 uppercase">ENTRADAS</p><p className="text-2xl font-black text-green-600 mt-1">{formatCurrency(monthlyIn)}</p></div>
-              <div className="bg-white p-6 rounded-xl shadow border-l-4 border-red-500"><p className="text-xs font-bold text-gray-500 uppercase">SAÍDAS</p><p className="text-2xl font-black text-red-600 mt-1">{formatCurrency(monthlyOut)}</p></div>
-              <div className="bg-white p-6 rounded-xl shadow border-l-4 border-orange-500"><p className="text-xs font-bold text-gray-500 uppercase">SALDO</p><p className="text-2xl font-black text-gray-900 mt-1">{formatCurrency(cumulativeBalance)}</p></div>
+
+          <div className="grid grid-cols-12 gap-6">
+              
+              {/* Card Total Jovens */}
+              <div className="col-span-12 md:col-span-4 bg-white rounded-xl shadow-sm border-l-4 border-brand-black p-6 flex items-center justify-between relative overflow-hidden">
+                  <div className="z-10">
+                      <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Total de Jovens</p>
+                      <p className="text-4xl font-extrabold text-gray-800 mt-2">{totalYouths}</p>
+                  </div>
+                  <div className="bg-gray-100 p-3 rounded-full text-gray-700 z-10">
+                      <Users size={28}/>
+                  </div>
+                  {/* Decorative background element */}
+                  <div className="absolute -right-4 -bottom-4 text-gray-50 opacity-20 transform rotate-12">
+                      <Users size={100}/>
+                  </div>
+              </div>
+
+              {/* Card Financeiro Agrupado (Entradas | Saídas | Saldo) */}
+              <div className="col-span-12 md:col-span-8 bg-white rounded-xl shadow-sm border-l-4 border-orange-500 p-6 flex flex-col justify-center relative overflow-hidden">
+                  <div className="grid grid-cols-3 gap-4 divide-x divide-gray-100 z-10">
+                      <div className="text-center px-2 md:px-4">
+                          <p className="text-[10px] md:text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Entradas</p>
+                          <p className="text-lg md:text-2xl font-black text-green-600">{formatCurrency(monthlyIn)}</p>
+                      </div>
+                      <div className="text-center px-2 md:px-4">
+                          <p className="text-[10px] md:text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Saídas</p>
+                          <p className="text-lg md:text-2xl font-black text-red-600">{formatCurrency(monthlyOut)}</p>
+                      </div>
+                      <div className="text-center px-2 md:px-4">
+                          <p className="text-[10px] md:text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Saldo</p>
+                          <p className={`text-lg md:text-2xl font-black ${cumulativeBalance >= 0 ? 'text-gray-800' : 'text-red-600'}`}>
+                              {formatCurrency(cumulativeBalance)}
+                          </p>
+                      </div>
+                  </div>
+              </div>
           </div>
+
           <div className="bg-white p-6 rounded-xl shadow border border-gray-200"><h3 className="font-bold text-gray-700 mb-4 flex items-center"><Globe className="mr-2 text-teal-600"/> Fluxo de Caixa Mensal ({new Date(0, dashMonth-1).toLocaleString('pt-BR', {month: 'long'}).toUpperCase()} / {dashYear})</h3><div className="h-64 w-full"><ResponsiveContainer width="100%" height="100%"><AreaChart data={dailyData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}><defs><linearGradient id="colorEntradas" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#10b981" stopOpacity={0.8}/><stop offset="95%" stopColor="#10b981" stopOpacity={0}/></linearGradient><linearGradient id="colorSaidas" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#ef4444" stopOpacity={0.8}/><stop offset="95%" stopColor="#ef4444" stopOpacity={0}/></linearGradient></defs><XAxis dataKey="day" /><YAxis tickFormatter={(value) => `R$${value}`}/><CartesianGrid strokeDasharray="3 3" vertical={false} /><Tooltip formatter={(value: number) => `R$ ${value.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`} /><Area type="monotone" dataKey="entradas" stroke="#10b981" fillOpacity={1} fill="url(#colorEntradas)" name="Entradas" /><Area type="monotone" dataKey="saidas" stroke="#ef4444" fillOpacity={1} fill="url(#colorSaidas)" name="Saídas" /></AreaChart></ResponsiveContainer></div></div>
       </div>
       );

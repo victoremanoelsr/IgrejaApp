@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../context';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -111,11 +110,6 @@ export const ChildrenPanel: React.FC = () => {
     };
   }, [wrapperRef]);
 
-  const yearlyTransactions = transactions.filter(t => t.churchId === currentChurch?.id && t.category === 'CRIANCAS' && new Date(t.date).getFullYear() === dashYear);
-  const totalRaised = yearlyTransactions.filter(t => t.type === 'ENTRADA' && t.status === 'PAGO').reduce((acc, t) => acc + t.amount, 0);
-  const totalSpent = yearlyTransactions.filter(t => t.type === 'SAIDA' && t.status === 'PAGO').reduce((acc, t) => acc + t.amount, 0);
-  const balance = totalRaised - totalSpent;
-
   // History List
   const historyTransactions = transactions.filter(t => {
       if (t.churchId !== currentChurch?.id) return false;
@@ -222,22 +216,47 @@ export const ChildrenPanel: React.FC = () => {
   const renderDashboard = () => {
       const daysInMonth = new Date(dashYear, dashMonth, 0).getDate();
 
+      // 1. Cálculos Mensais (Apenas o mês selecionado)
+      const monthlyTransactions = transactions.filter(t => {
+          if (t.churchId !== currentChurch?.id) return false;
+          if (t.category !== 'CRIANCAS') return false;
+          if (t.status !== 'PAGO') return false;
+          const tDate = new Date(t.date + 'T12:00:00');
+          return (tDate.getMonth() + 1) === dashMonth && tDate.getFullYear() === dashYear;
+      });
+
+      const monthlyIn = monthlyTransactions.filter(t => t.type === 'ENTRADA').reduce((acc, t) => acc + t.amount, 0);
+      const monthlyOut = monthlyTransactions.filter(t => t.type === 'SAIDA').reduce((acc, t) => acc + t.amount, 0);
+
+      // 2. Cálculo Cumulativo (Saldo acumulado até o final do mês selecionado)
+      const lastDayOfSelectedMonth = new Date(dashYear, dashMonth, 0).toISOString().split('T')[0];
+      const cumulativeTransactions = transactions.filter(t => {
+          if (t.churchId !== currentChurch?.id) return false;
+          if (t.category !== 'CRIANCAS') return false;
+          if (t.status !== 'PAGO') return false;
+          return t.date <= lastDayOfSelectedMonth;
+      });
+
+      const totalInAllTime = cumulativeTransactions.filter(t => t.type === 'ENTRADA').reduce((acc, t) => acc + t.amount, 0);
+      const totalOutAllTime = cumulativeTransactions.filter(t => t.type === 'SAIDA').reduce((acc, t) => acc + t.amount, 0);
+      const currentBalance = totalInAllTime - totalOutAllTime;
+
+      // CÁLCULO TOTAL DE CRIANÇAS
+      const totalChildren = members.filter(m => m.churchId === currentChurch?.id && m.isChild).length;
+
+      // Dados do Gráfico
       const dailyData = Array.from({ length: daysInMonth }, (_, i) => ({
           day: i + 1,
           entradas: 0,
           saidas: 0
       }));
 
-      transactions.forEach(t => {
-          if (t.churchId === currentChurch?.id && t.category === 'CRIANCAS' && t.status === 'PAGO') {
-              const tDate = new Date(t.date + 'T12:00:00');
-              if ((tDate.getMonth() + 1) === dashMonth && tDate.getFullYear() === dashYear) {
-                  const dayIndex = tDate.getDate() - 1;
-                  if (dayIndex >= 0 && dayIndex < daysInMonth) {
-                      if (t.type === 'ENTRADA') dailyData[dayIndex].entradas += t.amount;
-                      else dailyData[dayIndex].saidas += t.amount;
-                  }
-              }
+      monthlyTransactions.forEach(t => {
+          const tDate = new Date(t.date + 'T12:00:00');
+          const dayIndex = tDate.getDate() - 1;
+          if (dayIndex >= 0 && dayIndex < daysInMonth) {
+              if (t.type === 'ENTRADA') dailyData[dayIndex].entradas += t.amount;
+              else dailyData[dayIndex].saidas += t.amount;
           }
       });
 
@@ -256,18 +275,41 @@ export const ChildrenPanel: React.FC = () => {
               </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-white p-6 rounded-xl shadow border-l-4 border-green-500">
-                  <p className="text-xs text-gray-500 font-bold uppercase">Entradas ({dashYear})</p>
-                  <p className="text-2xl font-black text-green-600">R$ {totalRaised.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p>
+          <div className="grid grid-cols-12 gap-6">
+              
+              {/* Card Total Crianças */}
+              <div className="col-span-12 md:col-span-4 bg-white rounded-xl shadow-sm border-l-4 border-brand-black p-6 flex items-center justify-between relative overflow-hidden">
+                  <div className="z-10">
+                      <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Total de Crianças</p>
+                      <p className="text-4xl font-extrabold text-gray-800 mt-2">{totalChildren}</p>
+                  </div>
+                  <div className="bg-gray-100 p-3 rounded-full text-gray-700 z-10">
+                      <Baby size={28} className="text-blue-600"/>
+                  </div>
+                  {/* Decorative background element */}
+                  <div className="absolute -right-4 -bottom-4 text-gray-50 opacity-20 transform rotate-12">
+                      <Baby size={100}/>
+                  </div>
               </div>
-              <div className="bg-white p-6 rounded-xl shadow border-l-4 border-red-500">
-                  <p className="text-xs text-gray-500 font-bold uppercase">Saídas ({dashYear})</p>
-                  <p className="text-2xl font-black text-red-600">R$ {totalSpent.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p>
-              </div>
-              <div className="bg-white p-6 rounded-xl shadow border-l-4 border-blue-500">
-                  <p className="text-xs text-gray-500 font-bold uppercase">Saldo Atual</p>
-                  <p className="text-2xl font-black text-gray-800">R$ {balance.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p>
+
+              {/* Card Financeiro Agrupado (Entradas | Saídas | Saldo) */}
+              <div className="col-span-12 md:col-span-8 bg-white rounded-xl shadow-sm border-l-4 border-blue-500 p-6 flex flex-col justify-center relative overflow-hidden">
+                  <div className="grid grid-cols-3 gap-4 divide-x divide-gray-100 z-10">
+                      <div className="text-center px-2 md:px-4">
+                          <p className="text-[10px] md:text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Entradas</p>
+                          <p className="text-lg md:text-2xl font-black text-green-600">{formatCurrency(monthlyIn)}</p>
+                      </div>
+                      <div className="text-center px-2 md:px-4">
+                          <p className="text-[10px] md:text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Saídas</p>
+                          <p className="text-lg md:text-2xl font-black text-red-600">{formatCurrency(monthlyOut)}</p>
+                      </div>
+                      <div className="text-center px-2 md:px-4">
+                          <p className="text-[10px] md:text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Saldo</p>
+                          <p className={`text-lg md:text-2xl font-black ${currentBalance >= 0 ? 'text-gray-800' : 'text-red-600'}`}>
+                              {formatCurrency(currentBalance)}
+                          </p>
+                      </div>
+                  </div>
               </div>
           </div>
 
