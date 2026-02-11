@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../context';
 import { Settings as SettingsIcon, Save, Building, Camera, Upload, AlertTriangle, CheckCircle, Info } from 'lucide-react';
@@ -69,7 +68,7 @@ export const Settings: React.FC = () => {
             if (!res.success) {
                 showAlert('Erro', `Erro ao salvar logo no banco de dados: ${res.error}`, 'danger');
             } else {
-                showAlert('Sucesso', 'Logo atualizada com sucesso!', 'success');
+                showAlert('Sucesso', 'Logo atualizada com sucesso! O ícone do App será atualizado na próxima inicialização.', 'success');
             }
         } else {
             showAlert('Erro', "Erro ao enviar a logo.", 'danger');
@@ -131,7 +130,7 @@ export const Settings: React.FC = () => {
                    
                    <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity">
                       <Camera size={24} className="mb-1"/>
-                      <span className="text-[10px] font-bold uppercase">Alterar Logo</span>
+                      <span className="text-[10px] font-bold uppercase">Alterar</span>
                    </div>
                 </div>
                 
@@ -144,8 +143,9 @@ export const Settings: React.FC = () => {
                 />
                 
                 <button type="button" onClick={() => fileInputRef.current?.click()} className="mt-3 text-brand-orange text-sm font-bold hover:underline flex items-center">
-                    {isUploading ? 'Enviando...' : (logoUrl ? 'Trocar Logo' : 'Adicionar Logo')}
+                    {isUploading ? 'Enviando...' : (logoUrl ? 'Trocar Logo / Ícone do App' : 'Adicionar Logo / Ícone')}
                 </button>
+                <p className="text-xs text-gray-400 mt-1">Essa imagem será usada como Ícone ao adicionar à tela de início.</p>
              </div>
 
              <div>

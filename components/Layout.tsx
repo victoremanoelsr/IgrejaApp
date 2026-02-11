@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../context';
 import { 
   LayoutDashboard, 
@@ -75,6 +74,36 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isDesktopHovered, setIsDesktopHovered] = useState(false);
   const [showChurchSelector, setShowChurchSelector] = useState(false);
+
+  // --- DINAMIC APP ICON LOGIC ---
+  // Atualiza o ícone do navegador e do "Adicionar à Tela de Início" (iOS) 
+  // com a logo da igreja atual, se existir.
+  useEffect(() => {
+    if (currentChurch?.logoUrl) {
+      // Atualiza Apple Touch Icon (iOS Home Screen)
+      let appleIcon = document.querySelector('link[rel="apple-touch-icon"]') as HTMLLinkElement;
+      if (appleIcon) {
+        appleIcon.href = currentChurch.logoUrl;
+      } else {
+        // Se não existir, cria (fallback)
+        appleIcon = document.createElement('link');
+        appleIcon.rel = 'apple-touch-icon';
+        appleIcon.href = currentChurch.logoUrl;
+        document.head.appendChild(appleIcon);
+      }
+
+      // Atualiza Favicon (Navegador e Android em alguns casos)
+      let favicon = document.querySelector('link[rel="icon"]') as HTMLLinkElement;
+      if (!favicon) {
+         favicon = document.querySelector('link[rel="shortcut icon"]') as HTMLLinkElement;
+      }
+      
+      if (favicon) {
+        favicon.href = currentChurch.logoUrl;
+      }
+    }
+  }, [currentChurch]);
+  // -----------------------------
   
   if (!user) return <>{children}</>;
 
