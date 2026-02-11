@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context';
 import { FileText, Download, TrendingUp, TrendingDown, DollarSign, Calendar, PieChart, Search, Filter, Info, ChevronDown } from 'lucide-react';
@@ -83,27 +82,14 @@ export const Reports: React.FC = () => {
       return tDate >= rangeStart && tDate <= rangeEnd;
   }).sort((a,b) => a.date.localeCompare(b.date));
 
-  // 3. Filter Transactions for CUMULATIVE BALANCE (Saldo até o final do período)
-  const cumulativeTransactions = transactions.filter(t => {
-      if (t.churchId !== viewId) return false;
-      if (t.campaignId) return false;
-      if (excludedCategories.includes(t.category)) return false;
-      if (t.status !== 'PAGO') return false;
-      
-      const tDate = t.date;
-      return tDate <= rangeEnd; // All transactions up to the end date
-  });
-
   // --- SUMMARIES ---
   
   // Period Flow
   const totalInPeriod = periodTransactions.filter(t => t.type === 'ENTRADA').reduce((acc, t) => acc + t.amount, 0);
   const totalOutPeriod = periodTransactions.filter(t => t.type === 'SAIDA').reduce((acc, t) => acc + t.amount, 0);
 
-  // Cumulative Balance
-  const totalInAllTime = cumulativeTransactions.filter(t => t.type === 'ENTRADA').reduce((acc, t) => acc + t.amount, 0);
-  const totalOutAllTime = cumulativeTransactions.filter(t => t.type === 'SAIDA').reduce((acc, t) => acc + t.amount, 0);
-  const finalBalance = totalInAllTime - totalOutAllTime;
+  // Balance (Calculado apenas sobre o período, conforme solicitado: Entradas - Saídas)
+  const finalBalance = totalInPeriod - totalOutPeriod;
 
   // Detailed Lists
   const inflowsList = periodTransactions.filter(t => t.type === 'ENTRADA');
@@ -139,7 +125,7 @@ export const Reports: React.FC = () => {
     // Summary Table
     autoTable(doc, {
         startY: finalY,
-        head: [['ENTRADAS (Período)', 'SAÍDAS (Período)', 'SALDO FINAL (Acumulado)']],
+        head: [['ENTRADAS (Período)', 'SAÍDAS (Período)', 'SALDO (Período)']],
         body: [[
             `R$ ${totalInPeriod.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`,
             `R$ ${totalOutPeriod.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`,
@@ -417,7 +403,7 @@ export const Reports: React.FC = () => {
           
           {/* Footer Final Balance (Keep always visible below) */}
           <div className="mx-6 mb-6 p-5 border rounded-xl bg-gray-50 flex justify-between items-center shadow-sm">
-              <span className="text-xl font-black text-brand-black uppercase tracking-tight">SALDO</span>
+              <span className="text-xl font-black text-brand-black uppercase tracking-tight">SALDO DO PERÍODO</span>
               <span className={`text-3xl font-black ${finalBalance >= 0 ? 'text-brand-black' : 'text-red-600'}`}>
                   R$ {finalBalance.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
               </span>

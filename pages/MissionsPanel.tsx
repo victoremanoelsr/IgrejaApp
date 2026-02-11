@@ -315,10 +315,17 @@ export const MissionsPanel: React.FC = () => {
   const handleDeleteElement = (id: string) => { setLayoutElements(prev => prev.filter(el => el.id !== id)); setSelectedElementId(null); };
   
   const analyzeLayoutWithGemini = async (file: File) => {
+      // SECURITY CHECK: API KEY
+      const apiKey = process.env.API_KEY;
+      if (!apiKey) {
+          showFeedback("IA não configurada (API Key ausente). Edição manual.", "info");
+          return;
+      }
+
       try {
           setIsAnalyzing(true);
           const base64Image = await fileToBase64(file);
-          const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+          const ai = new GoogleGenAI({ apiKey });
           
           const prompt = `
             Você é um especialista em UI/UX e extração de dados de formulários.

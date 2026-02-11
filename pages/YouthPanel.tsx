@@ -314,10 +314,17 @@ export const YouthPanel: React.FC = () => {
   const handleBackgroundUpload = async (e: React.ChangeEvent<HTMLInputElement>) => { if (e.target.files && e.target.files[0]) { setIsSavingSettings(true); const file = e.target.files[0]; const url = await uploadBookletBackground(file); if (url) { setBackgroundUrl(url); showFeedback("Imagem carregada!"); analyzeLayoutWithGemini(file); } else { showFeedback("Erro no upload.", "error"); } setIsSavingSettings(false); if (bgInputRef.current) bgInputRef.current.value = ''; } };
   
   const analyzeLayoutWithGemini = async (file: File) => {
+      // SECURITY CHECK: API KEY
+      const apiKey = process.env.API_KEY;
+      if (!apiKey) {
+          showFeedback("IA não configurada (API Key ausente). Edição manual.", "info");
+          return;
+      }
+
       try {
           setIsAnalyzing(true);
           const base64Image = await fileToBase64(file);
-          const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+          const ai = new GoogleGenAI({ apiKey });
           const prompt = `Você é um especialista em UI/UX e extração de dados de formulários. Analise a imagem deste carnê de pagamento. Sua tarefa é encontrar as coordenadas (x, y) do ESPAÇO VAZIO DE PREENCHIMENTO para cada campo. NÃO retorne a posição do rótulo. Campos: 1. Nome (tag: "{{nome_membro}}") 2. Valor (tag: "{{valor}}") 3. Mês (tag: "{{mes_extenso}}") 4. Ano (tag: "{{ano}}") 5. Parcela (tag: "{{n_parcela}}") Retorne um JSON com coordenadas normalizadas (0-1000): { "fields": [ { "tag": "{{nome_membro}}", "x": 100, "y": 200, "estimated_font_size": 12 } ] }`;
           const response = await ai.models.generateContent({
               model: 'gemini-2.0-flash',
