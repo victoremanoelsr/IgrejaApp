@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useApp } from '../context';
 import { useNavigate } from 'react-router-dom';
@@ -14,7 +13,7 @@ import {
 } from 'lucide-react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
-  PieChart, Pie, Cell, AreaChart, Area, Legend 
+  PieChart, Pie, Cell, LineChart, Line, Legend 
 } from 'recharts';
 
 export const Dashboard: React.FC = () => {
@@ -90,14 +89,19 @@ export const Dashboard: React.FC = () => {
   );
   const missionsIn = missionsTransactions.filter(t => t.type === 'ENTRADA').reduce((acc, t) => acc + t.amount, 0);
   const missionsOut = missionsTransactions.filter(t => t.type === 'SAIDA').reduce((acc, t) => acc + t.amount, 0);
+  
+  // Saldo de Missões geralmente é cumulativo, mas aqui estamos mostrando o fluxo do mês para coerência com o gráfico de pizza.
+  // Se quiser saldo total, precisaria remover o filtro de data para o saldo.
+  // O PieChart geralmente mostra Entradas vs Saídas do mês.
+  // Vamos manter o cálculo do mês para as barras inferiores e o saldo.
   const missionsBalance = missionsIn - missionsOut;
 
   const missionsChartData = [
-      { name: 'Saldo', value: missionsBalance > 0 ? missionsBalance : 0, color: '#10b981' }, // green-500
+      { name: 'Entradas', value: missionsIn > 0 ? missionsIn : 0, color: '#10b981' }, // green-500
       { name: 'Saídas', value: missionsOut, color: '#ef4444' } // red-500
   ];
   // Se não houver dados, para não quebrar o gráfico
-  if (missionsBalance <= 0 && missionsOut === 0) {
+  if (missionsIn === 0 && missionsOut === 0) {
       missionsChartData.push({ name: 'Vazio', value: 1, color: '#e5e7eb' });
   }
 
@@ -219,7 +223,7 @@ export const Dashboard: React.FC = () => {
             <div className="grid grid-cols-2 gap-4 mt-4">
                 <div className="bg-green-50 p-4 rounded-lg text-center border border-green-100">
                     <p className="text-2xl font-black text-green-700">{activeTithersCount}</p>
-                    <p className="text-[10px] font-bold text-green-600 uppercase">Dizimistas Ativos</p>
+                    <p className="text-[10px] font-bold text-green-600 uppercase">Dizimista Ativos</p>
                 </div>
                 <div className="bg-orange-50 p-4 rounded-lg text-center border border-orange-100">
                     <p className="text-2xl font-black text-orange-700">{totalRegisteredTithers}</p>
@@ -235,7 +239,9 @@ export const Dashboard: React.FC = () => {
                     <Globe size={18} className="text-red-500 mr-2"/>
                     <h3 className="font-bold text-gray-800 text-lg">Missões</h3>
                 </div>
-                <span className="text-[10px] font-bold bg-green-100 text-green-700 px-3 py-1 rounded-full">Saldo: R$ {missionsBalance.toLocaleString('pt-BR')}</span>
+                <span className="text-xs md:text-sm font-bold bg-green-100 text-green-700 px-3 py-1 rounded-full border border-green-200">
+                    Saldo: R$ {missionsBalance.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
+                </span>
             </div>
 
             <div className="flex-1 flex items-center justify-center relative my-2">
@@ -261,8 +267,8 @@ export const Dashboard: React.FC = () => {
 
             <div className="grid grid-cols-2 gap-4 border-t pt-4">
                 <div className="text-center">
-                    <p className="text-lg font-bold text-green-600">R$ {missionsBalance.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p>
-                    <p className="text-[10px] text-gray-400 uppercase">Saldo Disponível</p>
+                    <p className="text-lg font-bold text-green-600">R$ {missionsIn.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p>
+                    <p className="text-[10px] text-gray-400 uppercase">Entradas do Mês</p>
                 </div>
                 <div className="text-center border-l">
                     <p className="text-lg font-bold text-red-600">R$ {missionsOut.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p>
@@ -281,10 +287,15 @@ export const Dashboard: React.FC = () => {
             <div className="flex-1 w-full">
                 {offersData.length > 0 ? (
                     <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={offersData} margin={{top: 10, right: 0, left: -25, bottom: 0}}>
+                        <BarChart data={offersData} margin={{top: 10, right: 0, left: 0, bottom: 0}}>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6"/>
                             <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 10, fill: '#9ca3af'}} />
-                            <YAxis axisLine={false} tickLine={false} tick={{fontSize: 10, fill: '#9ca3af'}} tickFormatter={(v) => `${v}`} />
+                            <YAxis 
+                                axisLine={false} 
+                                tickLine={false} 
+                                tick={{fontSize: 10, fill: '#9ca3af'}} 
+                                tickFormatter={(v) => `R$ ${v}`} 
+                            />
                             <Tooltip cursor={{fill: 'transparent'}} contentStyle={{fontSize: '12px', borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'}} formatter={(val: number) => [`R$ ${val}`, '']}/>
                             <Bar dataKey="valor" fill="#f97316" radius={[4, 4, 0, 0]} barSize={24} />
                         </BarChart>
@@ -302,28 +313,51 @@ export const Dashboard: React.FC = () => {
 
       {/* LINHA 3: FLUXO DE CAIXA MENSAL */}
       <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-        <h3 className="font-bold text-gray-700 mb-6">Fluxo de Caixa Mensal</h3>
-        <div className="h-72 w-full">
+        <div className="flex items-center gap-2 mb-6">
+            <Globe className="text-teal-600" size={20}/>
+            <h3 className="font-bold text-gray-700">Fluxo de Caixa Mensal ({new Date(0, selectedMonth - 1).toLocaleString('pt-BR', {month: 'long'}).toUpperCase()} / {selectedYear})</h3>
+        </div>
+        <div className="h-80 w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={dailyFlowData} margin={{top: 10, right: 10, left: 0, bottom: 0}}>
-              <defs>
-                <linearGradient id="colorEntradas" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#10b981" stopOpacity={0.8}/>
-                  <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-                </linearGradient>
-                <linearGradient id="colorSaidas" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#ef4444" stopOpacity={0.8}/>
-                  <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
-                </linearGradient>
-              </defs>
-              <XAxis dataKey="day" tick={{fontSize: 10, fill: '#9ca3af'}} axisLine={false} tickLine={false} />
-              <YAxis tickFormatter={(value) => ``} width={10} axisLine={false} tickLine={false} />
+            <LineChart data={dailyFlowData} margin={{top: 20, right: 20, left: 0, bottom: 0}}>
+              <XAxis 
+                dataKey="day" 
+                tick={{fontSize: 12, fill: '#9ca3af'}} 
+                axisLine={false} 
+                tickLine={false} 
+                dy={10}
+              />
+              <YAxis 
+                tickFormatter={(value) => `R$${value}`} 
+                axisLine={false} 
+                tickLine={false}
+                tick={{fontSize: 12, fill: '#9ca3af'}}
+              />
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
-              <Tooltip contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'}} />
-              <Legend iconType="circle" iconSize={8} verticalAlign="top" align="center" wrapperStyle={{fontSize: '10px', top: -20}}/>
-              <Area type="monotone" dataKey="entradas" stroke="#10b981" strokeWidth={2} fillOpacity={1} fill="url(#colorEntradas)" name="entradas" />
-              <Area type="monotone" dataKey="saidas" stroke="#ef4444" strokeWidth={2} fillOpacity={1} fill="url(#colorSaidas)" name="saidas" />
-            </AreaChart>
+              <Tooltip 
+                contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'}} 
+                formatter={(value: number) => [`R$ ${value.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`, '']}
+              />
+              <Legend iconType="circle" iconSize={8} verticalAlign="top" align="left" wrapperStyle={{fontSize: '12px', top: -20, left: 0}}/>
+              <Line 
+                type="monotone" 
+                dataKey="entradas" 
+                stroke="#10b981" 
+                strokeWidth={3} 
+                dot={false}
+                activeDot={{r: 6, strokeWidth: 0}}
+                name="Entradas" 
+              />
+              <Line 
+                type="monotone" 
+                dataKey="saidas" 
+                stroke="#ef4444" 
+                strokeWidth={3} 
+                dot={false}
+                activeDot={{r: 6, strokeWidth: 0}}
+                name="Saídas" 
+              />
+            </LineChart>
           </ResponsiveContainer>
         </div>
       </div>

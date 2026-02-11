@@ -273,7 +273,6 @@ export const MissionsPanel: React.FC = () => {
   const handleNewTemplate = () => { setEditingTemplateId(null); setTemplateName(''); setBackgroundUrl(undefined); setLayoutElements([]); setBgStyle({ mode: 'fill', opacity: 1.0 }); };
   const handleEditTemplate = (t: CarnetTemplate) => { setEditingTemplateId(t.id); setTemplateName(t.name); setBackgroundUrl(t.backgroundUrl); setLayoutElements(t.layoutJson || REQUIRED_FIELDS); setBgStyle(t.backgroundStyle || { mode: 'fill', opacity: 1.0 }); window.scrollTo({top: 0, behavior: 'smooth'}); };
   
-  // FIX: Added 'category' field to newT and updateCarnetTemplate
   const handleSaveTemplate = async (asNew: boolean) => { 
       if(!currentChurch) return; 
       if(!templateName.trim()) { showFeedback('Digite um nome.', 'error'); return; } 
@@ -308,7 +307,6 @@ export const MissionsPanel: React.FC = () => {
 
   const handleDeleteTemplate = async (id: string) => { setConfirmModal({ isOpen: true, title: 'Excluir', message: 'Confirma exclusão?', variant: 'danger', onConfirm: async () => { await deleteCarnetTemplate(id); await loadTemplates(); if(editingTemplateId === id) handleNewTemplate(); showFeedback('Excluído.'); setConfirmModal(prev => ({...prev, isOpen: false})); }}); };
   
-  // FIX: Added 'category' argument to setDefaultTemplate
   const handleSetDefault = async (id: string) => { if(!currentChurch) return; await setDefaultTemplate(id, currentChurch.id, 'MISSOES'); await loadTemplates(); showFeedback('Padrão definido.'); };
   
   const handleAddTag = (tag: string, x: number = 50, y: number = 50) => { if (layoutElements.some(el => el.content === tag)) { setLayoutElements(prev => prev.map(el => el.content === tag ? { ...el, x, y } : el)); return; } const newEl: LayoutElement = { id: `field_${Date.now()}_${Math.random()}`, type: 'tag', content: tag, x: x, y: y, style: { fontSize: 12, color: '#000000', fontWeight: 'bold', textAlign: 'left' } }; setLayoutElements(prev => [...prev, newEl]); if (x === 50 && y === 50) setSelectedElementId(newEl.id); };
@@ -668,12 +666,10 @@ export const MissionsPanel: React.FC = () => {
       showFeedback("Carnê gerado e lançamentos criados!"); 
   };
 
-  // --- REPRINT FULL CARNET (12 MONTHS) LOGIC ---
   const handleReprintCarnet = async (t: Transaction) => {
       const member = members.find(m => m.id === t.memberId);
       if (!member) { showFeedback('Membro não encontrado', 'error'); return; }
 
-      // Use selected template OR default OR first available
       const templateToUse = templates.find(temp => temp.id === selectedGenTemplateId) || templates.find(temp => temp.isDefault) || templates[0];
       if (!templateToUse) { showFeedback('Selecione um modelo de impressão acima ou cadastre um modelo.', 'error'); return; }
 
@@ -788,15 +784,6 @@ export const MissionsPanel: React.FC = () => {
       showFeedback('Carnê completo baixado!');
   };
 
-  const renderTeamModal = () => (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
-        <div className="relative w-full max-w-3xl">
-            <button onClick={() => setShowTeamModal(false)} className="absolute -top-10 right-0 text-white hover:text-gray-200 transition-colors"><X size={32} /></button>
-            {renderTeamTab()}
-        </div>
-    </div>
-  );
-
   // AUTOCOMPLETE LOGIC FOR TEAM MEMBER
   const memberSuggestions = members.filter(m => {
     if (m.churchId !== currentChurch?.id) return false;
@@ -815,6 +802,220 @@ export const MissionsPanel: React.FC = () => {
       username: suggestedUser
     }));
     setShowSuggestions(false);
+  };
+
+  const renderVisualEditor = () => (
+    <div className="space-y-6 animate-fade-in">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-white p-4 rounded-xl shadow border gap-4">
+            <div className="flex-1 w-full md:w-auto"><input type="text" className="w-full p-2 border rounded font-bold text-sm bg-gray-50 focus:bg-white transition-colors" placeholder="Nome do Modelo" value={templateName} onChange={e => setTemplateName(e.target.value)} /></div>
+            <div className="flex items-center gap-2 w-full md:w-auto justify-end"><button type="button" onClick={() => bgInputRef.current?.click()} className="px-6 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 flex items-center shadow-md">{isSavingSettings || isAnalyzing ? <Loader size={16} className="mr-2 animate-spin"/> : <Upload size={16} className="mr-2"/>} {isAnalyzing ? 'Analisando...' : '1. Carregar Arte'}</button><input type="file" ref={bgInputRef} className="hidden" accept="image/*" onChange={handleBackgroundUpload} /><div className="h-8 w-px bg-gray-300 mx-2"></div><button type="button" onClick={handleTestPrint} className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-bold hover:bg-gray-50 flex items-center"><Printer size={16} className="mr-2"/> Testar</button><div className="flex flex-col"><button type="button" disabled={isSavingSettings} onClick={() => handleSaveTemplate(false)} className="px-4 py-1 bg-green-600 text-white rounded-t-lg text-xs font-bold hover:bg-green-700 flex items-center justify-center"><Save size={12} className="mr-1"/> Salvar</button><button type="button" disabled={isSavingSettings} onClick={() => handleSaveTemplate(true)} className="px-4 py-1 bg-green-700 text-white rounded-b-lg text-[10px] font-bold hover:bg-green-800 flex items-center justify-center border-t border-green-600"><Copy size={10} className="mr-1"/> Novo</button></div><button type="button" onClick={handleNewTemplate} className="p-2 text-gray-400 hover:text-red-500" title="Limpar"><RefreshCw size={18}/></button></div>
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div className="lg:col-span-2 bg-white p-4 rounded-xl shadow border h-fit"><h4 className="text-xs font-bold text-gray-500 uppercase mb-3 flex items-center"><Type size={14} className="mr-1"/> Campos</h4><div className="space-y-2">{['{{nome_membro}}', '{{valor}}', '{{mes_extenso}}', '{{ano}}', '{{n_parcela}}'].map(tag => {const isActive = layoutElements.some(el => el.content === tag);return (<button key={tag} onClick={() => handleAddTag(tag)} className={`w-full text-left px-3 py-2 rounded-lg text-xs font-bold border transition-all flex items-center ${isActive ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-white hover:bg-gray-50 text-gray-700 border-gray-300 shadow-sm'}`}>{isActive ? <CheckCircle size={12} className="mr-2"/> : <PlusCircle size={12} className="mr-2"/>}{tag.replace(/{{|}}/g, '').replace('_', ' ').toUpperCase()}</button>);})}</div></div>
+            <div className="lg:col-span-10 relative">{/* Canvas */}{selectedElementId && (<div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-40 bg-brand-black text-white px-4 py-2 rounded-full shadow-2xl flex items-center gap-4 animate-fade-in-up"><span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Ajustes:</span><div className="flex items-center gap-2"><Type size={14}/><input type="range" min="6" max="36" value={layoutElements.find(e => e.id === selectedElementId)?.style.fontSize || 12} onChange={(e) => updateSelectedStyle('fontSize', parseInt(e.target.value))} className="w-20 h-1 bg-gray-600 rounded-lg appearance-none cursor-pointer accent-brand-orange"/><span className="text-xs font-mono w-6 text-right">{layoutElements.find(e => e.id === selectedElementId)?.style.fontSize}px</span></div><div className="w-px h-4 bg-gray-600"></div><div className="flex items-center gap-2"><div className="w-4 h-4 rounded-full border border-white" style={{ backgroundColor: layoutElements.find(e => e.id === selectedElementId)?.style.color }}></div><input type="color" className="w-6 h-6 p-0 border-0 rounded bg-transparent cursor-pointer" value={layoutElements.find(e => e.id === selectedElementId)?.style.color} onChange={(e) => updateSelectedStyle('color', e.target.value)} /></div><div className="w-px h-4 bg-gray-600"></div><button onClick={() => handleDeleteElement(selectedElementId)} className="text-red-400 hover:text-red-300 transition-colors"><Trash2 size={16}/></button><button onClick={() => setSelectedElementId(null)} className="ml-2 text-gray-500 hover:text-white"><X size={16}/></button></div>)}<div className="relative overflow-hidden border-2 border-dashed border-gray-300 bg-gray-100 rounded-lg mx-auto shadow-inner transition-all select-none" style={{ width: '100%', maxWidth: '794px', aspectRatio: '210/70' }} onClick={() => setSelectedElementId(null)}>{backgroundUrl ? (<><img src={backgroundUrl} className={`absolute inset-0 w-full h-full pointer-events-none transition-opacity duration-500 ${isAnalyzing ? 'opacity-50' : 'opacity-100'}`} style={{ objectFit: 'fill' }} />{isAnalyzing && (<div className="absolute inset-0 flex flex-col items-center justify-center z-10 animate-pulse"><Sparkles size={48} className="text-blue-500 mb-2"/><p className="text-blue-600 font-bold bg-white/80 px-4 py-1 rounded-full shadow">IA Analisando Layout...</p></div>)}</>) : (<div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400 pointer-events-none"><ImageIcon size={48} className="mb-2 opacity-20"/><p className="text-sm font-bold">Área de Impressão (210mm x 70mm)</p><p className="text-xs">Carregue a arte para começar</p></div>)}{layoutElements.map(el => (<DraggableLabel key={el.id} el={el} isSelected={selectedElementId === el.id} onSelect={setSelectedElementId} onDragStop={handleDragStop} />))}</div></div>
+        </div>
+        <div className="bg-white p-6 rounded-xl shadow border mt-8"><h3 className="font-bold text-gray-700 mb-4 flex items-center text-lg"><Grid size={20} className="mr-2"/> Meus Modelos Salvos</h3><div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">{templates.map(t => (<div key={t.id} className={`border rounded-lg p-3 flex flex-col gap-3 hover:shadow-md transition-all ${editingTemplateId === t.id ? 'ring-2 ring-teal-500 bg-teal-50' : 'bg-white'}`}><div className="h-16 bg-gray-200 rounded overflow-hidden relative">{t.backgroundUrl ? (<img src={t.backgroundUrl} className="w-full h-full object-cover opacity-80" />) : (<div className="w-full h-full flex items-center justify-center text-gray-400"><ImageIcon size={24}/></div>)}{t.isDefault && <span className="absolute top-2 left-2 bg-green-500 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow">PADRÃO</span>}</div><div><h4 className="font-bold text-sm text-gray-800 truncate" title={t.name}>{t.name}</h4><p className="text-[10px] text-gray-500">Criado em: {new Date(t.createdAt || '').toLocaleDateString('pt-BR')}</p></div><div className="flex gap-2 mt-auto pt-2 border-t"><button type="button" onClick={() => handleEditTemplate(t)} className="flex-1 py-1.5 bg-white border text-gray-600 rounded text-xs font-bold hover:bg-gray-50 flex justify-center items-center"><Edit2 size={12} className="mr-1"/> Editar</button><button type="button" onClick={() => handleDeleteTemplate(t.id)} className="p-1.5 text-gray-400 hover:text-red-500 rounded"><Trash2 size={14}/></button>{!t.isDefault && (<button type="button" onClick={() => handleSetDefault(t.id)} className="p-1.5 text-gray-400 hover:text-green-600 rounded" title="Definir como Padrão"><CheckSquare size={14}/></button>)}</div></div>))}{templates.length === 0 && (<div className="col-span-full py-8 text-center text-gray-400 border border-dashed rounded-lg"><p>Nenhum modelo salvo.</p></div>)}</div></div></div>
+  );
+
+  const renderDashboard = () => {
+      const daysInMonth = new Date(dashYear, dashMonth, 0).getDate();
+      const monthlyTransactions = transactions.filter(t => {
+          if (t.churchId !== currentChurch?.id) return false;
+          if (t.category !== 'MISSOES') return false;
+          if (t.status !== 'PAGO') return false;
+          if (t.description.includes('CARNÊ')) return false;
+          const tDate = new Date(t.date + 'T12:00:00');
+          return (tDate.getMonth() + 1) === dashMonth && tDate.getFullYear() === dashYear;
+      });
+      const monthlyIn = monthlyTransactions.filter(t => t.type === 'ENTRADA').reduce((acc, t) => acc + t.amount, 0);
+      const monthlyOut = monthlyTransactions.filter(t => t.type === 'SAIDA').reduce((acc, t) => acc + t.amount, 0);
+      const lastDayOfSelectedMonth = new Date(dashYear, dashMonth, 0).toISOString().split('T')[0];
+      const cumulativeTransactions = transactions.filter(t => {
+          if (t.churchId !== currentChurch?.id) return false;
+          if (t.category !== 'MISSOES') return false;
+          if (t.status !== 'PAGO') return false;
+          if (t.description.includes('CARNÊ')) return false;
+          return t.date <= lastDayOfSelectedMonth;
+      });
+      const totalInAllTime = cumulativeTransactions.filter(t => t.type === 'ENTRADA').reduce((acc, t) => acc + t.amount, 0);
+      const totalOutAllTime = cumulativeTransactions.filter(t => t.type === 'SAIDA').reduce((acc, t) => acc + t.amount, 0);
+      const currentBalance = totalInAllTime - totalOutAllTime;
+      const dailyData = Array.from({ length: daysInMonth }, (_, i) => ({ day: i + 1, entradas: 0, saidas: 0 }));
+      monthlyTransactions.forEach(t => {
+          const tDate = new Date(t.date + 'T12:00:00');
+          const dayIndex = tDate.getDate() - 1;
+          if (dayIndex >= 0 && dayIndex < daysInMonth) {
+              if (t.type === 'ENTRADA') dailyData[dayIndex].entradas += t.amount;
+              else dailyData[dayIndex].saidas += t.amount;
+          }
+      });
+
+      return (
+          <div className="pb-12 w-full animate-fade-in relative">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                  <div>
+                      <h2 className="text-lg font-bold text-gray-700">Visão Geral</h2>
+                      {canManageTeam && <div className="mt-1"><button onClick={() => { setShowTeamModal(true); setTeamFormMode('LIST'); }} className="text-xs font-bold text-teal-600 hover:text-teal-800 flex items-center" title="Editar Equipe"><Edit2 size={12} className="mr-1"/> Gerenciar Equipe de Missões</button></div>}
+                  </div>
+                  <div className="flex items-center bg-white rounded-lg shadow-sm border border-gray-200 p-1">
+                      <div className="px-2 text-gray-400"><Calendar size={16}/></div>
+                      <select value={dashMonth} onChange={(e) => setDashMonth(parseInt(e.target.value))} className="bg-transparent text-sm font-bold text-gray-700 p-1 outline-none cursor-pointer border-r border-gray-200">{Array.from({length: 12}, (_, i) => (<option key={i} value={i+1}>{new Date(0, i).toLocaleString('pt-BR', {month: 'long'}).toUpperCase()}</option>))}</select>
+                      <select value={dashYear} onChange={(e) => setDashYear(parseInt(e.target.value))} className="bg-transparent text-sm font-bold text-gray-700 p-1 outline-none cursor-pointer pl-2"><option value={2023}>2023</option><option value={2024}>2024</option><option value={2025}>2025</option><option value={2026}>2026</option></select>
+                  </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                  <div className="bg-white p-6 rounded-xl shadow border-l-4 border-green-500"><p className="text-xs text-gray-500 font-bold uppercase">ENTRADAS</p><p className="text-2xl font-black text-green-600">{formatCurrency(monthlyIn)}</p></div>
+                  <div className="bg-white p-6 rounded-xl shadow border-l-4 border-red-500"><p className="text-xs text-gray-500 font-bold uppercase">SAÍDAS</p><p className="text-2xl font-black text-red-600">{formatCurrency(monthlyOut)}</p></div>
+                  <div className="bg-white p-6 rounded-xl shadow border-l-4 border-gray-800"><p className="text-xs text-gray-500 font-bold uppercase">SALDO</p><p className="text-2xl font-black text-gray-800">{formatCurrency(currentBalance)}</p></div>
+              </div>
+              <div className="bg-white p-6 rounded-xl shadow border border-gray-200">
+                  <h3 className="font-bold text-gray-700 mb-4 flex items-center"><Globe className="mr-2 text-teal-600"/> Fluxo de Caixa Mensal ({new Date(0, dashMonth-1).toLocaleString('pt-BR', {month: 'long'}).toUpperCase()} / {dashYear})</h3>
+                  <div className="h-64 w-full"><ResponsiveContainer width="100%" height="100%"><AreaChart data={dailyData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}><defs><linearGradient id="colorEntradas" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#10b981" stopOpacity={0.8}/><stop offset="95%" stopColor="#10b981" stopOpacity={0}/></linearGradient><linearGradient id="colorSaidas" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#ef4444" stopOpacity={0.8}/><stop offset="95%" stopColor="#ef4444" stopOpacity={0}/></linearGradient></defs><XAxis dataKey="day" /><YAxis tickFormatter={(value) => `R$${value}`}/><CartesianGrid strokeDasharray="3 3" vertical={false} /><Tooltip formatter={(value: number) => `R$ ${value.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`} /><Area type="monotone" dataKey="entradas" stroke="#10b981" fillOpacity={1} fill="url(#colorEntradas)" name="Entradas" /><Area type="monotone" dataKey="saidas" stroke="#ef4444" fillOpacity={1} fill="url(#colorSaidas)" name="Saídas" /></AreaChart></ResponsiveContainer></div>
+              </div>
+          </div>
+      );
+  };
+
+  const renderSelectionView = () => (
+    <div className="flex flex-col items-center justify-center h-[60vh] space-y-6 animate-fade-in">
+        <div className="bg-teal-100 p-6 rounded-full">
+            <Globe size={64} className="text-teal-600"/>
+        </div>
+        <div className="text-center space-y-2">
+            <h1 className="text-3xl font-bold text-gray-800">Departamento de Missões</h1>
+            <p className="text-gray-500 max-w-md">Gestão completa de ofertas missionárias, geração de carnês e relatórios financeiros.</p>
+        </div>
+        <button 
+            onClick={() => setViewMode('DASHBOARD')}
+            className="bg-teal-600 text-white px-8 py-3 rounded-xl font-bold text-lg shadow-lg hover:bg-teal-700 transition-all transform hover:scale-105 flex items-center"
+        >
+            <LayoutDashboard className="mr-2"/> Acessar Painel
+        </button>
+    </div>
+  );
+
+  const renderReports = () => {
+      const filteredReportTransactions = transactions.filter(t => {
+          if (t.churchId !== currentChurch?.id) return false;
+          if (t.category !== 'MISSOES') return false;
+          if (t.status !== 'PAGO') return false; 
+          if (reportFilterType === 'MONTH') {
+              const tDate = new Date(t.date + 'T12:00:00');
+              return (tDate.getMonth() + 1) === repMonth && tDate.getFullYear() === repYear;
+          } else {
+              return t.date >= appliedRepStart && t.date <= appliedRepEnd;
+          }
+      });
+      const totalIn = filteredReportTransactions.filter(t => t.type === 'ENTRADA').reduce((acc, t) => acc + t.amount, 0);
+      const totalOut = filteredReportTransactions.filter(t => t.type === 'SAIDA').reduce((acc, t) => acc + t.amount, 0);
+      const repBalance = totalIn - totalOut;
+      const inflows = filteredReportTransactions.filter(t => t.type === 'ENTRADA');
+      const outflows = filteredReportTransactions.filter(t => t.type === 'SAIDA');
+      
+      const applyDateFilter = () => { setAppliedRepStart(repStartDate); setAppliedRepEnd(repEndDate); };
+      
+      const generatePDFReport = () => {
+        const doc = new jsPDF();
+        const periodText = reportFilterType === 'MONTH' ? `${repMonth.toString().padStart(2, '0')}/${repYear}` : `${new Date(appliedRepStart).toLocaleDateString()} a ${new Date(appliedRepEnd).toLocaleDateString()}`;
+        doc.setFontSize(18); doc.text("Relatório de Missões", 14, 20); doc.setFontSize(10); doc.text(`Período: ${periodText}`, 14, 26); doc.text(`Unidade: ${currentChurch?.name}`, 14, 32);
+        
+        if (reportViewMode === 'SUMMARY') {
+            autoTable(doc, { startY: 40, head: [['Tipo', 'Valor']], body: [['Entradas (Ofertas/Carnês)', totalIn.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})], ['Saídas', totalOut.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})], ['Saldo Final', repBalance.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})]] });
+        } else {
+             autoTable(doc, { 
+                 startY: 40, 
+                 head: [['Data', 'Descrição', 'Tipo', 'Valor']], 
+                 body: filteredReportTransactions.map(t => {
+                     const m = members.find(mem => mem.id === t.memberId);
+                     const desc = m ? `${t.description} - ${m.name}` : t.description;
+                     return [
+                         new Date(t.date).toLocaleDateString('pt-BR'), 
+                         desc, 
+                         t.type, 
+                         t.amount.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})
+                     ];
+                 }) 
+             });
+             const finalY = (doc as any).lastAutoTable.finalY + 10;
+             doc.text(`Total Entradas: ${totalIn.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}`, 14, finalY); doc.text(`Total Saídas: ${totalOut.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}`, 14, finalY + 6); doc.text(`Saldo: ${repBalance.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}`, 14, finalY + 12);
+        }
+        doc.save(`Relatorio_Missoes_${periodText.replace(/\//g, '-')}.pdf`);
+      };
+
+      return (
+          <div className="space-y-6">
+              <div className="bg-white p-6 rounded-xl shadow-md flex flex-col gap-6 border border-gray-100">
+                  <div className="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-4">
+                      <div><h2 className="text-2xl font-bold text-gray-800 flex items-center"><FileText className="mr-2 text-brand-orange"/> Relatórios</h2><p className="text-gray-500 text-sm">Unidade: <span className="font-semibold">{currentChurch?.name}</span></p></div>
+                      <div className="flex bg-gray-100 p-1 rounded-lg"><button onClick={() => setReportViewMode('DETAILED')} className={`px-4 py-2 rounded-md text-sm font-bold transition-all flex items-center ${reportViewMode === 'DETAILED' ? 'bg-white text-brand-black shadow-sm' : 'text-gray-500 hover:text-gray-800'}`}><FileText size={16} className="mr-2"/> Detalhado</button><button onClick={() => setReportViewMode('SUMMARY')} className={`px-4 py-2 rounded-md text-sm font-bold transition-all flex items-center ${reportViewMode === 'SUMMARY' ? 'bg-white text-brand-black shadow-sm' : 'text-gray-500 hover:text-gray-800'}`}><PieChart size={16} className="mr-2"/> Resumido</button></div>
+                  </div>
+                  <div className="flex flex-col md:flex-row gap-3 w-full border-t pt-4">
+                    <div className="flex bg-gray-100 p-1 rounded-lg shrink-0 w-fit h-fit"><button onClick={() => setReportFilterType('MONTH')} className={`px-3 py-1.5 rounded-md text-sm font-bold transition-all ${reportFilterType === 'MONTH' ? 'bg-white text-brand-black shadow-sm' : 'text-gray-500 hover:text-gray-800'}`}>Mensal</button><button onClick={() => setReportFilterType('PERIOD')} className={`px-3 py-1.5 rounded-md text-sm font-bold transition-all ${reportFilterType === 'PERIOD' ? 'bg-white text-brand-black shadow-sm' : 'text-gray-500 hover:text-gray-800'}`}>Por Período</button></div>
+                    <div className="flex flex-1 gap-2 items-center flex-wrap md:flex-nowrap">
+                       {reportFilterType === 'MONTH' ? (<><select value={repMonth} onChange={e => setRepMonth(parseInt(e.target.value))} className="p-2 border rounded-lg bg-gray-50 focus:ring-brand-orange text-sm font-medium w-full md:w-auto h-[42px]">{Array.from({length: 12}, (_, i) => (<option key={i+1} value={i+1}>{new Date(0, i).toLocaleString('pt-BR', { month: 'long' }).toUpperCase()}</option>))}</select><select value={repYear} onChange={e => setRepYear(parseInt(e.target.value))} className="p-2 border rounded-lg bg-gray-50 focus:ring-brand-orange text-sm font-medium w-full md:w-auto h-[42px]"><option value={2023}>2023</option><option value={2024}>2024</option><option value={2025}>2025</option><option value={2026}>2026</option></select></>) : (<div className="flex items-center gap-2 w-full flex-wrap md:flex-nowrap"><div className="relative w-full md:w-auto flex-1"><span className="absolute left-2 top-0.5 text-[9px] text-gray-500 font-bold uppercase">De</span><input type="date" className="w-full pt-4 pb-1 px-2 border rounded-lg text-xs font-bold focus:ring-brand-orange h-[42px]" value={repStartDate} onChange={e => setRepStartDate(e.target.value)}/></div><div className="relative w-full md:w-auto flex-1"><span className="absolute left-2 top-0.5 text-[9px] text-gray-500 font-bold uppercase">Até</span><input type="date" className="w-full pt-4 pb-1 px-2 border rounded-lg text-xs font-bold focus:ring-brand-orange h-[42px]" value={repEndDate} onChange={e => setRepEndDate(e.target.value)}/></div><button onClick={applyDateFilter} className="bg-brand-orange text-white px-4 h-[42px] rounded-lg font-bold text-sm hover:bg-brand-red flex items-center shadow-lg w-full md:w-auto justify-center"><Search size={16} className="mr-1"/> Pesquisar</button></div>)}
+                       <button onClick={generatePDFReport} className="w-full md:w-auto ml-auto bg-brand-black text-white px-6 h-[42px] rounded-lg font-bold text-sm hover:bg-gray-800 flex items-center justify-center shadow-lg transition-transform hover:scale-105"><Download size={16} className="mr-2"/> Baixar PDF</button>
+                    </div>
+                  </div>
+              </div>
+              <div className="border-t-4 border-brand-orange rounded-t-xl bg-white shadow-lg p-6">
+                  {reportViewMode === 'DETAILED' ? (
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                          <div>
+                              <div className="flex items-center mb-4 text-green-700 font-bold border-b pb-2 border-green-100"><TrendingUp className="mr-2"/> Entradas Detalhadas</div>
+                              <div className="space-y-4">
+                                  <div className="border rounded-lg overflow-hidden">
+                                      <div className="bg-green-50 p-3 flex justify-between items-center border-b border-green-100"><span className="font-bold text-green-800 text-sm">Entradas</span><span className="text-xs font-bold text-green-600">Total: {formatCurrency(totalIn)}</span></div>
+                                      <div className="bg-white">
+                                          <table className="w-full text-left">
+                                              <thead className="bg-gray-50 text-[10px] uppercase text-gray-500 font-bold"><tr><th className="p-2 w-20">Data</th><th className="p-2">Descrição</th><th className="p-2 text-right w-24">Valor</th></tr></thead>
+                                              <tbody className="divide-y divide-gray-100">
+                                                  {inflows.map(t => {
+                                                      const member = members.find(m => m.id === t.memberId);
+                                                      return (
+                                                      <tr key={t.id} className="text-xs hover:bg-gray-50">
+                                                          <td className="p-2 text-gray-500">{new Date(t.date).toLocaleDateString('pt-BR')}</td>
+                                                          <td className="p-2 font-medium text-gray-800 uppercase text-xs">
+                                                              {member ? `${t.description} - ${member.name}` : t.description}
+                                                          </td>
+                                                          <td className="p-2 text-right font-bold text-green-600">{formatCurrency(t.amount)}</td>
+                                                      </tr>
+                                                  )})}
+                                                  {inflows.length === 0 && <tr><td colSpan={3} className="p-4 text-center text-gray-400 text-xs">Nenhum registro.</td></tr>}
+                                              </tbody>
+                                          </table>
+                                      </div>
+                                  </div>
+                              </div>
+                          </div>
+                          <div>
+                              <div className="flex items-center mb-4 text-red-700 font-bold border-b pb-2 border-red-100"><TrendingDown className="mr-2"/> Saídas Detalhadas</div>
+                              <div className="space-y-4">
+                                  <div className="border rounded-lg overflow-hidden">
+                                      <div className="bg-red-50 p-3 flex justify-between items-center border-b border-red-100"><span className="font-bold text-red-800 text-sm">Saídas</span><span className="text-xs font-bold text-red-600">Total: {formatCurrency(totalOut)}</span></div>
+                                      <div className="bg-white">
+                                          <table className="w-full text-left">
+                                              <thead className="bg-gray-50 text-[10px] uppercase text-gray-500 font-bold"><tr><th className="p-2 w-20">Data</th><th className="p-2">Descrição</th><th className="p-2 text-right w-24">Valor</th></tr></thead>
+                                              <tbody className="divide-y divide-gray-100">
+                                                  {outflows.map(t => (
+                                                      <tr key={t.id} className="text-xs hover:bg-gray-50">
+                                                          <td className="p-2 text-gray-500">{new Date(t.date).toLocaleDateString('pt-BR')}</td>
+                                                          <td className="p-2 font-medium text-gray-800">{t.description}</td>
+                                                          <td className="p-2 text-right font-bold text-red-600">{formatCurrency(t.amount)}</td>
+                                                      </tr>
+                                                  ))}
+                                                  {outflows.length === 0 && <tr><td colSpan={3} className="p-4 text-center text-gray-400 text-xs">Nenhum registro.</td></tr>}
+                                              </tbody>
+                                          </table>
+                                      </div>
+                                  </div>
+                              </div>
+                          </div>
+                      </div>
+                  ) : (<div className="grid grid-cols-1 md:grid-cols-3 gap-6"><div className="bg-green-50 p-6 rounded-lg border border-green-100"><p className="text-xs font-bold text-green-700 uppercase mb-2">Total de Entradas</p><p className="text-3xl font-black text-green-600">{formatCurrency(totalIn)}</p></div><div className="bg-red-50 p-6 rounded-lg border border-red-100"><p className="text-xs font-bold text-red-700 uppercase mb-2">Total de Saídas</p><p className="text-3xl font-black text-red-600">{formatCurrency(totalOut)}</p></div><div className="bg-gray-50 p-6 rounded-lg border border-gray-200"><p className="text-xs font-bold text-gray-600 uppercase mb-2">Saldo Final</p><p className={`text-3xl font-black ${repBalance >= 0 ? 'text-gray-800' : 'text-red-600'}`}>{formatCurrency(repBalance)}</p></div></div>)}
+                  {reportViewMode === 'DETAILED' && (<div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-8"><div className="bg-green-100 p-4 rounded-lg flex justify-between items-center border border-green-200"><span className="font-bold text-green-800 text-sm uppercase">Total Entradas</span><span className="font-black text-green-900 text-lg">{formatCurrency(totalIn)}</span></div><div className="bg-red-100 p-4 rounded-lg flex justify-between items-center border border-red-200"><span className="font-bold text-red-800 text-sm uppercase">Total Saídas</span><span className="font-black text-red-900 text-lg">{formatCurrency(totalOut)}</span></div></div>)}
+              </div>
+          </div>
+      );
   };
 
   const renderTeamTab = () => (
@@ -936,227 +1137,6 @@ export const MissionsPanel: React.FC = () => {
           )}
       </div>
   );
-  
-  const renderVisualEditor = () => (
-    <div className="space-y-6 animate-fade-in">
-        {/* Editor UI kept same */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-white p-4 rounded-xl shadow border gap-4">
-            <div className="flex-1 w-full md:w-auto"><input type="text" className="w-full p-2 border rounded font-bold text-sm bg-gray-50 focus:bg-white transition-colors" placeholder="Nome do Modelo" value={templateName} onChange={e => setTemplateName(e.target.value)} /></div>
-            <div className="flex items-center gap-2 w-full md:w-auto justify-end"><button type="button" onClick={() => bgInputRef.current?.click()} className="px-6 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 flex items-center shadow-md">{isSavingSettings || isAnalyzing ? <Loader size={16} className="mr-2 animate-spin"/> : <Upload size={16} className="mr-2"/>} {isAnalyzing ? 'Analisando...' : '1. Carregar Arte'}</button><input type="file" ref={bgInputRef} className="hidden" accept="image/*" onChange={handleBackgroundUpload} /><div className="h-8 w-px bg-gray-300 mx-2"></div><button type="button" onClick={handleTestPrint} className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-bold hover:bg-gray-50 flex items-center"><Printer size={16} className="mr-2"/> Testar</button><div className="flex flex-col"><button type="button" disabled={isSavingSettings} onClick={() => handleSaveTemplate(false)} className="px-4 py-1 bg-green-600 text-white rounded-t-lg text-xs font-bold hover:bg-green-700 flex items-center justify-center"><Save size={12} className="mr-1"/> Salvar</button><button type="button" disabled={isSavingSettings} onClick={() => handleSaveTemplate(true)} className="px-4 py-1 bg-green-700 text-white rounded-b-lg text-[10px] font-bold hover:bg-green-800 flex items-center justify-center border-t border-green-600"><Copy size={10} className="mr-1"/> Novo</button></div><button type="button" onClick={handleNewTemplate} className="p-2 text-gray-400 hover:text-red-500" title="Limpar"><RefreshCw size={18}/></button></div>
-        </div>
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            <div className="lg:col-span-2 bg-white p-4 rounded-xl shadow border h-fit"><h4 className="text-xs font-bold text-gray-500 uppercase mb-3 flex items-center"><Type size={14} className="mr-1"/> Campos</h4><div className="space-y-2">{['{{nome_membro}}', '{{valor}}', '{{mes_extenso}}', '{{ano}}', '{{n_parcela}}'].map(tag => {const isActive = layoutElements.some(el => el.content === tag);return (<button key={tag} onClick={() => handleAddTag(tag)} className={`w-full text-left px-3 py-2 rounded-lg text-xs font-bold border transition-all flex items-center ${isActive ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-white hover:bg-gray-50 text-gray-700 border-gray-300 shadow-sm'}`}>{isActive ? <CheckCircle size={12} className="mr-2"/> : <PlusCircle size={12} className="mr-2"/>}{tag.replace(/{{|}}/g, '').replace('_', ' ').toUpperCase()}</button>);})}</div></div>
-            <div className="lg:col-span-10 relative">{/* Canvas */}{selectedElementId && (<div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-40 bg-brand-black text-white px-4 py-2 rounded-full shadow-2xl flex items-center gap-4 animate-fade-in-up"><span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Ajustes:</span><div className="flex items-center gap-2"><Type size={14}/><input type="range" min="6" max="36" value={layoutElements.find(e => e.id === selectedElementId)?.style.fontSize || 12} onChange={(e) => updateSelectedStyle('fontSize', parseInt(e.target.value))} className="w-20 h-1 bg-gray-600 rounded-lg appearance-none cursor-pointer accent-brand-orange"/><span className="text-xs font-mono w-6 text-right">{layoutElements.find(e => e.id === selectedElementId)?.style.fontSize}px</span></div><div className="w-px h-4 bg-gray-600"></div><div className="flex items-center gap-2"><div className="w-4 h-4 rounded-full border border-white" style={{ backgroundColor: layoutElements.find(e => e.id === selectedElementId)?.style.color }}></div><input type="color" className="w-6 h-6 p-0 border-0 rounded bg-transparent cursor-pointer" value={layoutElements.find(e => e.id === selectedElementId)?.style.color} onChange={(e) => updateSelectedStyle('color', e.target.value)} /></div><div className="w-px h-4 bg-gray-600"></div><button onClick={() => handleDeleteElement(selectedElementId)} className="text-red-400 hover:text-red-300 transition-colors"><Trash2 size={16}/></button><button onClick={() => setSelectedElementId(null)} className="ml-2 text-gray-500 hover:text-white"><X size={16}/></button></div>)}<div className="relative overflow-hidden border-2 border-dashed border-gray-300 bg-gray-100 rounded-lg mx-auto shadow-inner transition-all select-none" style={{ width: '100%', maxWidth: '794px', aspectRatio: '210/70' }} onClick={() => setSelectedElementId(null)}>{backgroundUrl ? (<><img src={backgroundUrl} className={`absolute inset-0 w-full h-full pointer-events-none transition-opacity duration-500 ${isAnalyzing ? 'opacity-50' : 'opacity-100'}`} style={{ objectFit: 'fill' }} />{isAnalyzing && (<div className="absolute inset-0 flex flex-col items-center justify-center z-10 animate-pulse"><Sparkles size={48} className="text-blue-500 mb-2"/><p className="text-blue-600 font-bold bg-white/80 px-4 py-1 rounded-full shadow">IA Analisando Layout...</p></div>)}</>) : (<div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400 pointer-events-none"><ImageIcon size={48} className="mb-2 opacity-20"/><p className="text-sm font-bold">Área de Impressão (210mm x 70mm)</p><p className="text-xs">Carregue a arte para começar</p></div>)}{layoutElements.map(el => (<DraggableLabel key={el.id} el={el} isSelected={selectedElementId === el.id} onSelect={setSelectedElementId} onDragStop={handleDragStop} />))}</div></div>
-        </div>
-        <div className="bg-white p-6 rounded-xl shadow border mt-8"><h3 className="font-bold text-gray-700 mb-4 flex items-center text-lg"><Grid size={20} className="mr-2"/> Meus Modelos Salvos</h3><div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">{templates.map(t => (<div key={t.id} className={`border rounded-lg p-3 flex flex-col gap-3 hover:shadow-md transition-all ${editingTemplateId === t.id ? 'ring-2 ring-teal-500 bg-teal-50' : 'bg-white'}`}><div className="h-16 bg-gray-200 rounded overflow-hidden relative">{t.backgroundUrl ? (<img src={t.backgroundUrl} className="w-full h-full object-cover opacity-80" />) : (<div className="w-full h-full flex items-center justify-center text-gray-400"><ImageIcon size={24}/></div>)}{t.isDefault && <span className="absolute top-2 left-2 bg-green-500 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow">PADRÃO</span>}</div><div><h4 className="font-bold text-sm text-gray-800 truncate" title={t.name}>{t.name}</h4><p className="text-[10px] text-gray-500">Criado em: {new Date(t.createdAt || '').toLocaleDateString('pt-BR')}</p></div><div className="flex gap-2 mt-auto pt-2 border-t"><button type="button" onClick={() => handleEditTemplate(t)} className="flex-1 py-1.5 bg-white border text-gray-600 rounded text-xs font-bold hover:bg-gray-50 flex justify-center items-center"><Edit2 size={12} className="mr-1"/> Editar</button><button type="button" onClick={() => handleDeleteTemplate(t.id)} className="p-1.5 text-gray-400 hover:text-red-500 rounded"><Trash2 size={14}/></button>{!t.isDefault && (<button type="button" onClick={() => handleSetDefault(t.id)} className="p-1.5 text-gray-400 hover:text-green-600 rounded" title="Definir como Padrão"><CheckSquare size={14}/></button>)}</div></div>))}{templates.length === 0 && (<div className="col-span-full py-8 text-center text-gray-400 border border-dashed rounded-lg"><p>Nenhum modelo salvo.</p></div>)}</div></div>
-    </div>
-  );
-
-  const renderDashboard = () => {
-      // ... (Dashboard logic kept as is) ...
-      const daysInMonth = new Date(dashYear, dashMonth, 0).getDate();
-      const monthlyTransactions = transactions.filter(t => {
-          if (t.churchId !== currentChurch?.id) return false;
-          if (t.category !== 'MISSOES') return false;
-          if (t.status !== 'PAGO') return false;
-          if (t.description.includes('CARNÊ')) return false;
-          const tDate = new Date(t.date + 'T12:00:00');
-          return (tDate.getMonth() + 1) === dashMonth && tDate.getFullYear() === dashYear;
-      });
-      const monthlyIn = monthlyTransactions.filter(t => t.type === 'ENTRADA').reduce((acc, t) => acc + t.amount, 0);
-      const monthlyOut = monthlyTransactions.filter(t => t.type === 'SAIDA').reduce((acc, t) => acc + t.amount, 0);
-      const lastDayOfSelectedMonth = new Date(dashYear, dashMonth, 0).toISOString().split('T')[0];
-      const cumulativeTransactions = transactions.filter(t => {
-          if (t.churchId !== currentChurch?.id) return false;
-          if (t.category !== 'MISSOES') return false;
-          if (t.status !== 'PAGO') return false;
-          if (t.description.includes('CARNÊ')) return false;
-          return t.date <= lastDayOfSelectedMonth;
-      });
-      const totalInAllTime = cumulativeTransactions.filter(t => t.type === 'ENTRADA').reduce((acc, t) => acc + t.amount, 0);
-      const totalOutAllTime = cumulativeTransactions.filter(t => t.type === 'SAIDA').reduce((acc, t) => acc + t.amount, 0);
-      const currentBalance = totalInAllTime - totalOutAllTime;
-      const dailyData = Array.from({ length: daysInMonth }, (_, i) => ({ day: i + 1, entradas: 0, saidas: 0 }));
-      monthlyTransactions.forEach(t => {
-          const tDate = new Date(t.date + 'T12:00:00');
-          const dayIndex = tDate.getDate() - 1;
-          if (dayIndex >= 0 && dayIndex < daysInMonth) {
-              if (t.type === 'ENTRADA') dailyData[dayIndex].entradas += t.amount;
-              else dailyData[dayIndex].saidas += t.amount;
-          }
-      });
-
-      return (
-          <div className="pb-12 w-full animate-fade-in relative">
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-                  <div>
-                      <h2 className="text-lg font-bold text-gray-700">Visão Geral</h2>
-                      {canManageTeam && <div className="mt-1"><button onClick={() => { setShowTeamModal(true); setTeamFormMode('LIST'); }} className="text-xs font-bold text-teal-600 hover:text-teal-800 flex items-center" title="Editar Equipe"><Edit2 size={12} className="mr-1"/> Gerenciar Equipe de Missões</button></div>}
-                  </div>
-                  <div className="flex items-center bg-white rounded-lg shadow-sm border border-gray-200 p-1">
-                      <div className="px-2 text-gray-400"><Calendar size={16}/></div>
-                      <select value={dashMonth} onChange={(e) => setDashMonth(parseInt(e.target.value))} className="bg-transparent text-sm font-bold text-gray-700 p-1 outline-none cursor-pointer border-r border-gray-200">{Array.from({length: 12}, (_, i) => (<option key={i} value={i+1}>{new Date(0, i).toLocaleString('pt-BR', {month: 'long'}).toUpperCase()}</option>))}</select>
-                      <select value={dashYear} onChange={(e) => setDashYear(parseInt(e.target.value))} className="bg-transparent text-sm font-bold text-gray-700 p-1 outline-none cursor-pointer pl-2"><option value={2023}>2023</option><option value={2024}>2024</option><option value={2025}>2025</option><option value={2026}>2026</option></select>
-                  </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                  <div className="bg-white p-6 rounded-xl shadow border-l-4 border-green-500"><p className="text-xs text-gray-500 font-bold uppercase">ENTRADAS</p><p className="text-2xl font-black text-green-600">{formatCurrency(monthlyIn)}</p></div>
-                  <div className="bg-white p-6 rounded-xl shadow border-l-4 border-red-500"><p className="text-xs text-gray-500 font-bold uppercase">SAÍDAS</p><p className="text-2xl font-black text-red-600">{formatCurrency(monthlyOut)}</p></div>
-                  <div className="bg-white p-6 rounded-xl shadow border-l-4 border-gray-800"><p className="text-xs text-gray-500 font-bold uppercase">SALDO</p><p className="text-2xl font-black text-gray-800">{formatCurrency(currentBalance)}</p></div>
-              </div>
-              <div className="bg-white p-6 rounded-xl shadow border border-gray-200">
-                  <h3 className="font-bold text-gray-700 mb-4 flex items-center"><Globe className="mr-2 text-teal-600"/> Fluxo de Caixa Mensal ({new Date(0, dashMonth-1).toLocaleString('pt-BR', {month: 'long'}).toUpperCase()} / {dashYear})</h3>
-                  <div className="h-64 w-full"><ResponsiveContainer width="100%" height="100%"><AreaChart data={dailyData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}><defs><linearGradient id="colorEntradas" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#10b981" stopOpacity={0.8}/><stop offset="95%" stopColor="#10b981" stopOpacity={0}/></linearGradient><linearGradient id="colorSaidas" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#ef4444" stopOpacity={0.8}/><stop offset="95%" stopColor="#ef4444" stopOpacity={0}/></linearGradient></defs><XAxis dataKey="day" /><YAxis tickFormatter={(value) => `R$${value}`}/><CartesianGrid strokeDasharray="3 3" vertical={false} /><Tooltip formatter={(value: number) => `R$ ${value.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`} /><Area type="monotone" dataKey="entradas" stroke="#10b981" fillOpacity={1} fill="url(#colorEntradas)" name="Entradas" /><Area type="monotone" dataKey="saidas" stroke="#ef4444" fillOpacity={1} fill="url(#colorSaidas)" name="Saídas" /></AreaChart></ResponsiveContainer></div>
-              </div>
-          </div>
-      );
-  };
-
-  const renderSelectionView = () => (
-    <div className="flex flex-col items-center justify-center h-[60vh] space-y-6 animate-fade-in">
-        <div className="bg-teal-100 p-6 rounded-full">
-            <Globe size={64} className="text-teal-600"/>
-        </div>
-        <div className="text-center space-y-2">
-            <h1 className="text-3xl font-bold text-gray-800">Departamento de Missões</h1>
-            <p className="text-gray-500 max-w-md">Gestão completa de ofertas missionárias, geração de carnês e relatórios financeiros.</p>
-        </div>
-        <button 
-            onClick={() => setViewMode('DASHBOARD')}
-            className="bg-teal-600 text-white px-8 py-3 rounded-xl font-bold text-lg shadow-lg hover:bg-teal-700 transition-all transform hover:scale-105 flex items-center"
-        >
-            <LayoutDashboard className="mr-2"/> Acessar Painel
-        </button>
-    </div>
-  );
-
-  const renderReports = () => {
-      // ... (Reports logic remains similar to previous, referencing renderReports) ...
-      // Keeping it brief for the file replacement context
-      const filteredReportTransactions = transactions.filter(t => {
-          if (t.churchId !== currentChurch?.id) return false;
-          if (t.category !== 'MISSOES') return false;
-          if (t.status !== 'PAGO') return false; 
-          if (reportFilterType === 'MONTH') {
-              const tDate = new Date(t.date + 'T12:00:00');
-              return (tDate.getMonth() + 1) === repMonth && tDate.getFullYear() === repYear;
-          } else {
-              return t.date >= appliedRepStart && t.date <= appliedRepEnd;
-          }
-      });
-      const totalIn = filteredReportTransactions.filter(t => t.type === 'ENTRADA').reduce((acc, t) => acc + t.amount, 0);
-      const totalOut = filteredReportTransactions.filter(t => t.type === 'SAIDA').reduce((acc, t) => acc + t.amount, 0);
-      const repBalance = totalIn - totalOut;
-      const inflows = filteredReportTransactions.filter(t => t.type === 'ENTRADA');
-      const outflows = filteredReportTransactions.filter(t => t.type === 'SAIDA');
-      const applyDateFilter = () => { setAppliedRepStart(repStartDate); setAppliedRepEnd(repEndDate); };
-      
-      const generatePDFReport = () => {
-        const doc = new jsPDF();
-        const periodText = reportFilterType === 'MONTH' ? `${repMonth.toString().padStart(2, '0')}/${repYear}` : `${new Date(appliedRepStart).toLocaleDateString()} a ${new Date(appliedRepEnd).toLocaleDateString()}`;
-        doc.setFontSize(18); doc.text("Relatório de Missões", 14, 20); doc.setFontSize(10); doc.text(`Período: ${periodText}`, 14, 26); doc.text(`Unidade: ${currentChurch?.name}`, 14, 32);
-        
-        if (reportViewMode === 'SUMMARY') {
-            autoTable(doc, { startY: 40, head: [['Tipo', 'Valor']], body: [['Entradas (Ofertas/Carnês)', totalIn.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})], ['Saídas', totalOut.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})], ['Saldo Final', repBalance.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})]] });
-        } else {
-             // CORRECTION: Map member name if available
-             autoTable(doc, { 
-                 startY: 40, 
-                 head: [['Data', 'Descrição', 'Tipo', 'Valor']], 
-                 body: filteredReportTransactions.map(t => {
-                     const m = members.find(mem => mem.id === t.memberId);
-                     // AJUSTE: DESCRIÇÃO - NOME
-                     const desc = m ? `${t.description} - ${m.name}` : t.description;
-                     return [
-                         new Date(t.date).toLocaleDateString('pt-BR'), 
-                         desc, 
-                         t.type, 
-                         t.amount.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})
-                     ];
-                 }) 
-             });
-             const finalY = (doc as any).lastAutoTable.finalY + 10;
-             doc.text(`Total Entradas: ${totalIn.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}`, 14, finalY); doc.text(`Total Saídas: ${totalOut.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}`, 14, finalY + 6); doc.text(`Saldo: ${repBalance.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}`, 14, finalY + 12);
-        }
-        doc.save(`Relatorio_Missoes_${periodText.replace(/\//g, '-')}.pdf`);
-      };
-
-      return (
-          <div className="space-y-6">
-              <div className="bg-white p-6 rounded-xl shadow-md flex flex-col gap-6 border border-gray-100">
-                  <div className="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-4">
-                      <div><h2 className="text-2xl font-bold text-gray-800 flex items-center"><FileText className="mr-2 text-brand-orange"/> Relatórios</h2><p className="text-gray-500 text-sm">Unidade: <span className="font-semibold">{currentChurch?.name}</span></p></div>
-                      <div className="flex bg-gray-100 p-1 rounded-lg"><button onClick={() => setReportViewMode('DETAILED')} className={`px-4 py-2 rounded-md text-sm font-bold transition-all flex items-center ${reportViewMode === 'DETAILED' ? 'bg-white text-brand-black shadow-sm' : 'text-gray-500 hover:text-gray-800'}`}><FileText size={16} className="mr-2"/> Detalhado</button><button onClick={() => setReportViewMode('SUMMARY')} className={`px-4 py-2 rounded-md text-sm font-bold transition-all flex items-center ${reportViewMode === 'SUMMARY' ? 'bg-white text-brand-black shadow-sm' : 'text-gray-500 hover:text-gray-800'}`}><PieChart size={16} className="mr-2"/> Resumido</button></div>
-                  </div>
-                  <div className="flex flex-col md:flex-row gap-3 w-full border-t pt-4">
-                    <div className="flex bg-gray-100 p-1 rounded-lg shrink-0 w-fit h-fit"><button onClick={() => setReportFilterType('MONTH')} className={`px-3 py-1.5 rounded-md text-sm font-bold transition-all ${reportFilterType === 'MONTH' ? 'bg-white text-brand-black shadow-sm' : 'text-gray-500 hover:text-gray-800'}`}>Mensal</button><button onClick={() => setReportFilterType('PERIOD')} className={`px-3 py-1.5 rounded-md text-sm font-bold transition-all ${reportFilterType === 'PERIOD' ? 'bg-white text-brand-black shadow-sm' : 'text-gray-500 hover:text-gray-800'}`}>Por Período</button></div>
-                    <div className="flex flex-1 gap-2 items-center flex-wrap md:flex-nowrap">
-                       {reportFilterType === 'MONTH' ? (<><select value={repMonth} onChange={e => setRepMonth(parseInt(e.target.value))} className="p-2 border rounded-lg bg-gray-50 focus:ring-brand-orange text-sm font-medium w-full md:w-auto h-[42px]">{Array.from({length: 12}, (_, i) => (<option key={i+1} value={i+1}>{new Date(0, i).toLocaleString('pt-BR', { month: 'long' }).toUpperCase()}</option>))}</select><select value={repYear} onChange={e => setRepYear(parseInt(e.target.value))} className="p-2 border rounded-lg bg-gray-50 focus:ring-brand-orange text-sm font-medium w-full md:w-auto h-[42px]"><option value={2023}>2023</option><option value={2024}>2024</option><option value={2025}>2025</option><option value={2026}>2026</option></select></>) : (<div className="flex items-center gap-2 w-full flex-wrap md:flex-nowrap"><div className="relative w-full md:w-auto flex-1"><span className="absolute left-2 top-0.5 text-[9px] text-gray-500 font-bold uppercase">De</span><input type="date" className="w-full pt-4 pb-1 px-2 border rounded-lg text-xs font-bold focus:ring-brand-orange h-[42px]" value={repStartDate} onChange={e => setRepStartDate(e.target.value)}/></div><div className="relative w-full md:w-auto flex-1"><span className="absolute left-2 top-0.5 text-[9px] text-gray-500 font-bold uppercase">Até</span><input type="date" className="w-full pt-4 pb-1 px-2 border rounded-lg text-xs font-bold focus:ring-brand-orange h-[42px]" value={repEndDate} onChange={e => setRepEndDate(e.target.value)}/></div><button onClick={applyDateFilter} className="bg-brand-orange text-white px-4 h-[42px] rounded-lg font-bold text-sm hover:bg-brand-red flex items-center shadow-lg w-full md:w-auto justify-center"><Search size={16} className="mr-1"/> Pesquisar</button></div>)}
-                       <button onClick={generatePDFReport} className="w-full md:w-auto ml-auto bg-brand-black text-white px-6 h-[42px] rounded-lg font-bold text-sm hover:bg-gray-800 flex items-center justify-center shadow-lg transition-transform hover:scale-105"><Download size={16} className="mr-2"/> Baixar PDF</button>
-                    </div>
-                  </div>
-              </div>
-              <div className="border-t-4 border-brand-orange rounded-t-xl bg-white shadow-lg p-6">
-                  {reportViewMode === 'DETAILED' ? (
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                          <div>
-                              <div className="flex items-center mb-4 text-green-700 font-bold border-b pb-2 border-green-100"><TrendingUp className="mr-2"/> Entradas Detalhadas</div>
-                              <div className="space-y-4">
-                                  <div className="border rounded-lg overflow-hidden">
-                                      <div className="bg-green-50 p-3 flex justify-between items-center border-b border-green-100"><span className="font-bold text-green-800 text-sm">Entradas</span><span className="text-xs font-bold text-green-600">Total: {formatCurrency(totalIn)}</span></div>
-                                      <div className="bg-white">
-                                          <table className="w-full text-left">
-                                              <thead className="bg-gray-50 text-[10px] uppercase text-gray-500 font-bold"><tr><th className="p-2 w-20">Data</th><th className="p-2">Descrição</th><th className="p-2 text-right w-24">Valor</th></tr></thead>
-                                              <tbody className="divide-y divide-gray-100">
-                                                  {inflows.map(t => {
-                                                      // CORRECTION: Look up member name
-                                                      const member = members.find(m => m.id === t.memberId);
-                                                      return (
-                                                      <tr key={t.id} className="text-xs hover:bg-gray-50">
-                                                          <td className="p-2 text-gray-500">{new Date(t.date).toLocaleDateString('pt-BR')}</td>
-                                                          <td className="p-2 font-medium text-gray-800 uppercase text-xs">
-                                                              {member ? `${t.description} - ${member.name}` : t.description}
-                                                          </td>
-                                                          <td className="p-2 text-right font-bold text-green-600">{formatCurrency(t.amount)}</td>
-                                                      </tr>
-                                                  )})}
-                                                  {inflows.length === 0 && <tr><td colSpan={3} className="p-4 text-center text-gray-400 text-xs">Nenhum registro.</td></tr>}
-                                              </tbody>
-                                          </table>
-                                      </div>
-                                  </div>
-                              </div>
-                          </div>
-                          <div>
-                              <div className="flex items-center mb-4 text-red-700 font-bold border-b pb-2 border-red-100"><TrendingDown className="mr-2"/> Saídas Detalhadas</div>
-                              <div className="space-y-4">
-                                  <div className="border rounded-lg overflow-hidden">
-                                      <div className="bg-red-50 p-3 flex justify-between items-center border-b border-red-100"><span className="font-bold text-red-800 text-sm">Saídas</span><span className="text-xs font-bold text-red-600">Total: {formatCurrency(totalOut)}</span></div>
-                                      <div className="bg-white">
-                                          <table className="w-full text-left">
-                                              <thead className="bg-gray-50 text-[10px] uppercase text-gray-500 font-bold"><tr><th className="p-2 w-20">Data</th><th className="p-2">Descrição</th><th className="p-2 text-right w-24">Valor</th></tr></thead>
-                                              <tbody className="divide-y divide-gray-100">
-                                                  {outflows.map(t => (
-                                                      <tr key={t.id} className="text-xs hover:bg-gray-50">
-                                                          <td className="p-2 text-gray-500">{new Date(t.date).toLocaleDateString('pt-BR')}</td>
-                                                          <td className="p-2 font-medium text-gray-800">{t.description}</td>
-                                                          <td className="p-2 text-right font-bold text-red-600">{formatCurrency(t.amount)}</td>
-                                                      </tr>
-                                                  ))}
-                                                  {outflows.length === 0 && <tr><td colSpan={3} className="p-4 text-center text-gray-400 text-xs">Nenhum registro.</td></tr>}
-                                              </tbody>
-                                          </table>
-                                      </div>
-                                  </div>
-                              </div>
-                          </div>
-                      </div>
-                  ) : (<div className="grid grid-cols-1 md:grid-cols-3 gap-6"><div className="bg-green-50 p-6 rounded-lg border border-green-100"><p className="text-xs font-bold text-green-700 uppercase mb-2">Total de Entradas</p><p className="text-3xl font-black text-green-600">{formatCurrency(totalIn)}</p></div><div className="bg-red-50 p-6 rounded-lg border border-red-100"><p className="text-xs font-bold text-red-700 uppercase mb-2">Total de Saídas</p><p className="text-3xl font-black text-red-600">{formatCurrency(totalOut)}</p></div><div className="bg-gray-50 p-6 rounded-lg border border-gray-200"><p className="text-xs font-bold text-gray-600 uppercase mb-2">Saldo Final</p><p className={`text-3xl font-black ${repBalance >= 0 ? 'text-gray-800' : 'text-red-600'}`}>{formatCurrency(repBalance)}</p></div></div>)}
-                  {reportViewMode === 'DETAILED' && (<div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-8"><div className="bg-green-100 p-4 rounded-lg flex justify-between items-center border border-green-200"><span className="font-bold text-green-800 text-sm uppercase">Total Entradas</span><span className="font-black text-green-900 text-lg">{formatCurrency(totalIn)}</span></div><div className="bg-red-100 p-4 rounded-lg flex justify-between items-center border border-red-200"><span className="font-bold text-red-800 text-sm uppercase">Total Saídas</span><span className="font-black text-red-900 text-lg">{formatCurrency(totalOut)}</span></div></div>)}
-              </div>
-          </div>
-      );
-  };
 
   const renderTransactionTab = () => {
     // FILTRAR TRANSAÇÕES PARA REMOVER CARNÊS DA LISTA DE EXTRATO
@@ -1210,11 +1190,25 @@ export const MissionsPanel: React.FC = () => {
                {generalTransactionsList.length === 0 && <tr><td colSpan={5} className="p-4 text-center text-gray-400 text-xs">Sem lançamentos neste período.</td></tr>}</tbody></table></div></div>
            </div>
        )}
-       {subTab === 'ENTRADA' && (<div className="bg-white rounded-xl shadow-md p-3 md:p-8 animate-fade-in-down"><h2 className="text-lg md:text-2xl font-bold mb-4 flex items-center">Nova Receita</h2><form onSubmit={handleTransactionSubmit} className="space-y-4"><div><label className="block text-xs md:text-sm font-medium text-gray-700 mb-1">Tipo de Entrada</label><div className="flex gap-2"><button type="button" className="flex-1 py-2 px-1 rounded border text-[10px] md:text-xs font-bold bg-brand-orange text-white border-brand-orange">OFERTA MISSÕES</button></div></div><div className="bg-orange-50 p-2 rounded-lg border border-orange-100"><label className="block text-xs font-bold text-gray-800 mb-1">Buscar Membro (Opcional)</label><div className="relative"><input type="text" placeholder="NOME..." className="w-full p-2 pl-8 border rounded-lg uppercase text-sm bg-white focus:ring-2 focus:ring-brand-orange outline-none" value={searchTerm} onChange={e => { setSearchTerm(e.target.value.toUpperCase()); if(selectedMemberId) setSelectedMemberId(''); }} /><Search className="absolute left-2 top-2.5 text-gray-400" size={16}/>{searchTerm && <button type="button" onClick={() => {setSearchTerm(''); setSelectedMemberId('');}} className="absolute right-2 top-2.5 text-gray-400"><X size={16} /></button>}</div>{searchTerm && !selectedMemberId && (<div className="mt-1 max-h-40 overflow-y-auto bg-white border rounded shadow-lg z-10">{filteredMembersForTransaction.map(m => (<div key={m.id} onClick={() => handleMemberSelectForTransaction(m)} className="p-2 hover:bg-orange-100 cursor-pointer border-b text-xs"><span className="font-bold">{m.name}</span></div>))}</div>)}{selectedMemberId && (<div className="mt-1 text-green-700 text-xs font-bold flex items-center bg-green-50 p-1 rounded"><CheckCircle size={14} className="mr-2"/> {searchTerm}</div>)}</div><div className="grid grid-cols-2 gap-3"><div><label className="block text-xs md:text-sm font-medium text-gray-700">Valor (R$)</label><input type="number" step="0.01" required className="mt-1 w-full p-2 border rounded-lg font-bold" value={amount} onChange={e => setAmount(e.target.value)} /></div><div><label className="block text-xs md:text-sm font-medium text-gray-700">Data</label><input type="date" required className="mt-1 w-full p-2 border rounded-lg" value={date} onChange={e => setDate(e.target.value)} /></div></div><div><label className="block text-xs md:text-sm font-medium text-gray-700">Comprovante</label><div className="mt-1 relative"><input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*,.pdf" className="hidden" id="entry-file-upload"/><label htmlFor="entry-file-upload" className={`flex items-center justify-center w-full p-3 border-2 border-dashed rounded-lg cursor-pointer ${selectedFile ? 'bg-orange-50 border-brand-orange' : 'border-gray-300'}`}>{selectedFile ? <span className="text-xs font-bold text-brand-orange truncate">{selectedFile.name}</span> : <span className="text-xs text-gray-500 flex items-center"><Upload size={14} className="mr-1"/> Anexar Arquivo</span>}</label></div></div><div className="flex gap-2 pt-2"><button type="button" onClick={handleCancelForm} className="flex-1 text-gray-500 font-bold py-2 border rounded-lg text-xs hover:bg-gray-50">Cancelar</button><button type="submit" disabled={isSubmitting} className="flex-[2] py-2 rounded-lg font-bold text-white flex justify-center items-center text-sm bg-green-600 hover:bg-green-700 shadow-md">{isSubmitting ? <Loader className="animate-spin" size={16}/> : 'Salvar'}</button></div></form></div>)}
+       {subTab === 'ENTRADA' && (<div className="bg-white rounded-xl shadow-md p-3 md:p-8 animate-fade-in-down"><h2 className="text-lg md:text-2xl font-bold mb-4 flex items-center">Nova Receita</h2><form onSubmit={handleTransactionSubmit} className="space-y-4"><div><label className="block text-xs md:text-sm font-medium text-gray-700 mb-1">Tipo de Entrada</label><div className="flex gap-2"><button type="button" className="flex-1 py-2 px-1 rounded border text-[10px] md:text-xs font-bold bg-green-600 text-white border-green-600">ENTRADA</button></div></div><div className="bg-orange-50 p-2 rounded-lg border border-orange-100"><label className="block text-xs font-bold text-gray-800 mb-1">Buscar Membro (Opcional)</label><div className="relative"><input type="text" placeholder="NOME..." className="w-full p-2 pl-8 border rounded-lg uppercase text-sm bg-white focus:ring-2 focus:ring-brand-orange outline-none" value={searchTerm} onChange={e => { setSearchTerm(e.target.value.toUpperCase()); if(selectedMemberId) setSelectedMemberId(''); }} /><Search className="absolute left-2 top-2.5 text-gray-400" size={16}/>{searchTerm && <button type="button" onClick={() => {setSearchTerm(''); setSelectedMemberId('');}} className="absolute right-2 top-2.5 text-gray-400"><X size={16} /></button>}</div>{searchTerm && !selectedMemberId && (<div className="mt-1 max-h-40 overflow-y-auto bg-white border rounded shadow-lg z-10">{filteredMembersForTransaction.map(m => (<div key={m.id} onClick={() => handleMemberSelectForTransaction(m)} className="p-2 hover:bg-orange-100 cursor-pointer border-b text-xs"><span className="font-bold">{m.name}</span></div>))}</div>)}{selectedMemberId && (<div className="mt-1 text-green-700 text-xs font-bold flex items-center bg-green-50 p-1 rounded"><CheckCircle size={14} className="mr-2"/> {searchTerm}</div>)}</div><div className="grid grid-cols-2 gap-3"><div><label className="block text-xs md:text-sm font-medium text-gray-700">Valor (R$)</label><input type="number" step="0.01" required className="mt-1 w-full p-2 border rounded-lg font-bold" value={amount} onChange={e => setAmount(e.target.value)} /></div><div><label className="block text-xs md:text-sm font-medium text-gray-700">Data</label><input type="date" required className="mt-1 w-full p-2 border rounded-lg" value={date} onChange={e => setDate(e.target.value)} /></div></div><div><label className="block text-xs md:text-sm font-medium text-gray-700">Comprovante</label><div className="mt-1 relative"><input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*,.pdf" className="hidden" id="entry-file-upload"/><label htmlFor="entry-file-upload" className={`flex items-center justify-center w-full p-3 border-2 border-dashed rounded-lg cursor-pointer ${selectedFile ? 'bg-orange-50 border-brand-orange' : 'border-gray-300'}`}>{selectedFile ? <span className="text-xs font-bold text-brand-orange truncate">{selectedFile.name}</span> : <span className="text-xs text-gray-500 flex items-center"><Upload size={14} className="mr-1"/> Anexar Arquivo</span>}</label></div></div><div className="flex gap-2 pt-2"><button type="button" onClick={handleCancelForm} className="flex-1 text-gray-500 font-bold py-2 border rounded-lg text-xs hover:bg-gray-50">Cancelar</button><button type="submit" disabled={isSubmitting} className="flex-[2] py-2 rounded-lg font-bold text-white flex justify-center items-center text-sm bg-green-600 hover:bg-green-700 shadow-md">{isSubmitting ? <Loader className="animate-spin" size={16}/> : 'Salvar'}</button></div></form></div>)}
        {subTab === 'SAIDA' && (<div className="bg-white rounded-xl shadow-md p-3 md:p-8 animate-fade-in-down"><h2 className="text-lg md:text-2xl font-bold mb-4 flex items-center">Nova Despesa</h2><form onSubmit={handleTransactionSubmit} className="space-y-4"><div><label className="block text-xs md:text-sm font-medium text-gray-700 mb-1">Categoria da Saída</label><div className="w-full bg-brand-red text-white py-2 px-3 rounded text-xs font-bold text-center uppercase tracking-wider">DEPARTAMENTO DE MISSÕES</div></div><div><label className="block text-xs md:text-sm font-medium text-gray-700">Descrição / Motivo</label><input type="text" required placeholder="EX: AJUDA DE CUSTO MISSIONÁRIO" className="mt-1 w-full p-2 border rounded-lg uppercase text-sm focus:ring-brand-red focus:border-brand-red outline-none" value={desc} onChange={e => setDesc(e.target.value.toUpperCase())} /></div><div className="grid grid-cols-2 gap-3"><div><label className="block text-xs md:text-sm font-medium text-gray-700">Valor (R$)</label><input type="number" step="0.01" required className="mt-1 w-full p-2 border rounded-lg font-bold" value={amount} onChange={e => setAmount(e.target.value)} /></div><div><label className="block text-xs md:text-sm font-medium text-gray-700">Data</label><input type="date" required className="mt-1 w-full p-2 border rounded-lg" value={date} onChange={e => setDate(e.target.value)} /></div></div><div className="flex items-center p-3 bg-blue-50 border border-blue-200 rounded-lg"><div className="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in"><input type="checkbox" name="toggle" id="recurring-toggle" className="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer transition-all duration-300" style={{ right: isRecurring ? '0' : '50%', borderColor: isRecurring ? '#3b82f6' : '#9ca3af' }} checked={isRecurring} onChange={e => setIsRecurring(e.target.checked)} /><label htmlFor="recurring-toggle" className={`toggle-label block overflow-hidden h-5 rounded-full cursor-pointer ${isRecurring ? 'bg-blue-500' : 'bg-gray-300'}`}></label></div><label htmlFor="recurring-toggle" className="text-xs font-bold text-gray-700 cursor-pointer flex items-center">Marcar como Gasto Fixo</label></div><div><label className="block text-xs md:text-sm font-medium text-gray-700">Comprovante</label><div className="mt-1 relative"><input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*,.pdf" className="hidden" id="exit-file-upload"/><label htmlFor="exit-file-upload" className={`flex items-center justify-center w-full p-3 border-2 border-dashed rounded-lg cursor-pointer ${selectedFile ? 'bg-orange-50 border-brand-orange' : 'border-gray-300'}`}>{selectedFile ? <span className="text-xs font-bold text-brand-orange truncate">{selectedFile.name}</span> : <span className="text-xs text-gray-500 flex items-center"><Upload size={14} className="mr-1"/> Anexar Arquivo</span>}</label></div></div><div className="flex gap-2 pt-2"><button type="button" onClick={handleCancelForm} className="flex-1 text-gray-500 font-bold py-2 border rounded-lg text-xs hover:bg-gray-50">Cancelar</button><button type="submit" disabled={isSubmitting} className="flex-[2] py-2 rounded-lg font-bold text-white flex justify-center items-center text-sm bg-brand-red hover:bg-red-700 shadow-md">{isSubmitting ? <Loader className="animate-spin" size={16}/> : 'Salvar'}</button></div></form></div>)}
     </div>
   );
   };
+
+  const renderTeamModal = () => (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
+        <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+             <button 
+                onClick={() => setShowTeamModal(false)} 
+                className="absolute top-4 right-4 z-50 bg-white rounded-full p-2 shadow-md hover:bg-gray-100 transition-colors"
+            >
+                <X size={20} className="text-gray-600"/>
+            </button>
+            {renderTeamTab()}
+        </div>
+    </div>
+  );
 
   return (
     <>

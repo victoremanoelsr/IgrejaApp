@@ -175,7 +175,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       { label: 'Relatórios', icon: FileText, path: '/jovens', state: { activeTab: 'RELATORIOS', entered: true }, roles: ['ALL'] },
       { label: 'Carnês', icon: BookOpen, path: '/jovens', state: { activeTab: 'CARNES', entered: true }, roles: ['ALL'] },
       { label: 'Config. Modelo', icon: Settings, path: '/jovens', state: { activeTab: 'CONFIG_MODELO', entered: true }, roles: ['ALL'] },
-      { label: 'União de Jovens', icon: UsersIcon, path: '/jovens', state: { activeTab: 'MEMBROS', entered: true }, roles: ['ALL'] },
+      { label: 'Membros', icon: UsersIcon, path: '/jovens', state: { activeTab: 'MEMBROS', entered: true }, roles: ['ALL'] },
       { label: 'Equipe', icon: Users, path: '/jovens', state: { activeTab: 'EQUIPE', entered: true }, roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'LIDER_JOVENS'] }
   ];
 
