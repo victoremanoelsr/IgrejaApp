@@ -95,6 +95,8 @@ export const Letters: React.FC = () => {
     const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
     const [templateName, setTemplateName] = useState('');
     const [templateType, setTemplateType] = useState<'RECOMENDACAO' | 'MUDANCA' | 'GENERICO'>('RECOMENDACAO');
+    const [recommendationText, setRecommendationText] = useState('');
+    const [changeText, setChangeText] = useState('');
     const [layoutElements, setLayoutElements] = useState<LayoutElement[]>(DEFAULT_TAGS);
     const [backgroundUrl, setBackgroundUrl] = useState<string | undefined>(undefined);
     const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
@@ -162,6 +164,10 @@ export const Letters: React.FC = () => {
 
             template.layoutJson.forEach(el => {
                 let text = el.content;
+                
+                // Se for um campo de texto fixo (type: 'text'), usamos o conteúdo dele
+                // Mas aqui a lógica original parece tratar tudo como tag se tiver {{}}
+                
                 text = text.replace('{{nome_membro}}', selectedMember.name);
                 text = text.replace('{{cpf}}', selectedMember.cpf);
                 text = text.replace('{{cargo}}', roleOrFunction);
@@ -170,6 +176,12 @@ export const Letters: React.FC = () => {
                 text = text.replace('{{data_atual}}', today.toLocaleDateString('pt-BR'));
                 text = text.replace('{{cidade_igreja}}', fullDate);
                 text = text.replace('{{estado_civil}}', selectedMember.maritalStatus || '');
+                
+                // NOVO: Tags para o texto cadastrado
+                const cadastrado = letterType === 'RECOMENDACAO' ? template.recommendationText : template.changeText;
+                if (cadastrado) {
+                    text = text.replace('{{texto_cadastrado}}', cadastrado);
+                }
 
                 doc.setTextColor(el.style.color);
                 doc.setFontSize(el.style.fontSize);
@@ -261,6 +273,8 @@ export const Letters: React.FC = () => {
         setEditingTemplateId(null);
         setTemplateName('');
         setBackgroundUrl(undefined);
+        setRecommendationText('');
+        setChangeText('');
         setLayoutElements(DEFAULT_TAGS);
     };
 
@@ -269,6 +283,8 @@ export const Letters: React.FC = () => {
         setTemplateName(t.name);
         setTemplateType(t.type);
         setBackgroundUrl(t.backgroundUrl);
+        setRecommendationText(t.recommendationText || '');
+        setChangeText(t.changeText || '');
         setLayoutElements(t.layoutJson || DEFAULT_TAGS);
     };
 
@@ -284,6 +300,8 @@ export const Letters: React.FC = () => {
             name: templateName,
             type: templateType,
             backgroundUrl,
+            recommendationText,
+            changeText,
             layoutJson: layoutElements
         };
 
@@ -374,10 +392,33 @@ export const Letters: React.FC = () => {
                     </div>
                 </div>
 
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label className="block text-xs font-bold text-gray-500 mb-1">Texto de Recomendação</label>
+                        <textarea 
+                            rows={3}
+                            className="w-full p-2 border rounded text-sm" 
+                            value={recommendationText} 
+                            onChange={e => setRecommendationText(e.target.value)}
+                            placeholder="Texto base que será inserido na tag {{texto_cadastrado}}"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-bold text-gray-500 mb-1">Texto de Mudança</label>
+                        <textarea 
+                            rows={3}
+                            className="w-full p-2 border rounded text-sm" 
+                            value={changeText} 
+                            onChange={e => setChangeText(e.target.value)}
+                            placeholder="Texto base que será inserido na tag {{texto_cadastrado}}"
+                        />
+                    </div>
+                </div>
+
                 {/* TOOLBAR */}
                 <div className="flex flex-wrap gap-2 mb-4 bg-gray-50 p-2 rounded border">
                     <span className="text-xs font-bold text-gray-400 flex items-center mr-2">Adicionar Campos:</span>
-                    {['{{nome_membro}}', '{{cpf}}', '{{cargo}}', '{{data_batismo}}', '{{data_nascimento}}', '{{data_atual}}', '{{cidade_igreja}}', '{{estado_civil}}'].map(tag => (
+                    {['{{nome_membro}}', '{{cpf}}', '{{cargo}}', '{{data_batismo}}', '{{data_nascimento}}', '{{data_atual}}', '{{cidade_igreja}}', '{{estado_civil}}', '{{texto_cadastrado}}'].map(tag => (
                         <button key={tag} onClick={() => handleAddField(tag)} className="bg-white border px-2 py-1 rounded text-xs hover:bg-blue-50 text-blue-700 font-bold shadow-sm">
                             {tag.replace(/{{|}}/g, '')}
                         </button>

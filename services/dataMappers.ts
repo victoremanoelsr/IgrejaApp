@@ -155,6 +155,8 @@ export const toAppLetterTemplate = (data: any): LetterTemplate => ({
   name: data.name,
   type: data.type,
   backgroundUrl: data.background_url,
+  recommendationText: data.recommendation_text,
+  changeText: data.change_text,
   layoutJson: data.layout_json || [],
   createdAt: data.created_at
 });

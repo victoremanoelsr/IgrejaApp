@@ -655,6 +655,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           name: t.name,
           type: t.type,
           background_url: t.backgroundUrl,
+          recommendation_text: t.recommendationText,
+          change_text: t.changeText,
           layout_json: t.layoutJson
       };
       const { data, error } = await supabase.from('letter_templates').insert([payload]).select();
@@ -667,6 +669,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if(t.name) payload.name = t.name;
       if(t.type) payload.type = t.type;
       if(t.backgroundUrl !== undefined) payload.background_url = t.backgroundUrl;
+      if(t.recommendationText !== undefined) payload.recommendation_text = t.recommendationText;
+      if(t.changeText !== undefined) payload.change_text = t.changeText;
       if(t.layoutJson) payload.layout_json = t.layoutJson;
 
       const { error } = await supabase.from('letter_templates').update(payload).eq('id', id);
