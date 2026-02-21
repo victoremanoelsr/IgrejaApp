@@ -144,6 +144,8 @@ export interface LetterTemplate {
   name: string;
   type: 'RECOMENDACAO' | 'MUDANCA' | 'GENERICO';
   backgroundUrl?: string;
+  recommendationText?: string; // Texto base para recomendação
+  changeText?: string;         // Texto base para mudança
   layoutJson: LayoutElement[];
   createdAt?: string;
 }
