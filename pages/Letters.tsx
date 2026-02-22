@@ -355,6 +355,7 @@ export const Letters: React.FC = () => {
     const wrapperRef = useRef<HTMLDivElement>(null);
     const activeMembers = members.filter(m => m.churchId === currentChurch?.id && (m.status || 'ATIVO') === 'ATIVO');
     const memberSuggestions = searchTerm.length < 2 ? [] : activeMembers.filter(m => m.name.toLowerCase().includes(searchTerm.toLowerCase()) || m.cpf.includes(searchTerm));
+    const filteredTemplates = templates.filter(t => t.churchId === currentChurch?.id && (t.type === letterType || t.type === 'GENERICO'));
 
     // --- RENDERERS ---
 
@@ -440,20 +441,28 @@ export const Letters: React.FC = () => {
                 </div>
             </div>
 
-            {/* LISTA DE MODELOS */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {templates.map(t => (
-                    <div key={t.id} className={`p-4 border rounded-lg bg-white shadow-sm flex flex-col ${editingTemplateId === t.id ? 'ring-2 ring-blue-500' : ''}`}>
-                        <div className="flex justify-between items-start mb-2">
-                            <h4 className="font-bold text-gray-800">{t.name}</h4>
-                            <span className="text-[10px] bg-gray-100 px-2 py-0.5 rounded">{t.type}</span>
+            {/* LISTA DE MODELOS - HISTÓRICO */}
+            <div className="bg-white p-6 rounded-xl shadow border">
+                <h3 className="font-bold text-gray-700 mb-4 flex items-center"><History className="mr-2"/> Histórico de Modelos de Cartas</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {templates.filter(t => t.churchId === currentChurch?.id).map(t => (
+                        <div key={t.id} className={`p-4 border rounded-lg bg-white shadow-sm flex flex-col hover:border-blue-300 transition-colors ${editingTemplateId === t.id ? 'ring-2 ring-blue-500' : ''}`}>
+                            <div className="flex justify-between items-start mb-2">
+                                <h4 className="font-bold text-gray-800 truncate pr-2">{t.name}</h4>
+                                <span className="text-[10px] bg-gray-100 px-2 py-0.5 rounded whitespace-nowrap">{t.type}</span>
+                            </div>
+                            <div className="mt-auto flex gap-2 pt-2">
+                                <button onClick={() => handleEditTemplate(t)} className="flex-1 py-1.5 bg-gray-50 border rounded text-xs font-bold hover:bg-blue-50 hover:text-blue-600 transition-colors">Editar Modelo</button>
+                                <button onClick={() => handleDeleteTemplateHandler(t.id)} className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"><Trash2 size={14}/></button>
+                            </div>
                         </div>
-                        <div className="mt-auto flex gap-2 pt-2">
-                            <button onClick={() => handleEditTemplate(t)} className="flex-1 py-1 bg-gray-50 border rounded text-xs font-bold hover:bg-white">Editar</button>
-                            <button onClick={() => handleDeleteTemplateHandler(t.id)} className="p-1 text-red-400 hover:text-red-600"><Trash2 size={14}/></button>
+                    ))}
+                    {templates.filter(t => t.churchId === currentChurch?.id).length === 0 && (
+                        <div className="col-span-full py-8 text-center text-gray-400 border-2 border-dashed rounded-lg">
+                            Nenhum modelo personalizado encontrado para esta igreja.
                         </div>
-                    </div>
-                ))}
+                    )}
+                </div>
             </div>
         </div>
     );
@@ -530,10 +539,13 @@ export const Letters: React.FC = () => {
                                             onChange={e => setSelectedTemplateId(e.target.value)}
                                         >
                                             <option value="">Padrão (Apenas Texto)</option>
-                                            {templates.filter(t => t.type === letterType || t.type === 'GENERICO').map(t => (
+                                            {filteredTemplates.map(t => (
                                                 <option key={t.id} value={t.id}>{t.name}</option>
                                             ))}
                                         </select>
+                                        {filteredTemplates.length === 0 && (
+                                            <p className="text-[10px] text-orange-600 mt-1 font-medium italic">Nenhum modelo personalizado para este tipo.</p>
+                                        )}
                                     </div>
                                     {letterType === 'MUDANCA' && (
                                         <div className="md:col-span-2 flex items-center p-2 border rounded-lg bg-white cursor-pointer hover:bg-yellow-50">
