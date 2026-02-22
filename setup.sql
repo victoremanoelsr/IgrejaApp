@@ -79,9 +79,19 @@ BEGIN
         name TEXT NOT NULL,
         type TEXT NOT NULL, -- RECOMENDACAO, MUDANCA, GENERICO
         background_url TEXT,
+        recommendation_text TEXT,
+        change_text TEXT,
         layout_json JSONB,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
     );
+
+    -- Garantir que colunas novas existam se a tabela já existir
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='letter_templates' AND column_name='recommendation_text') THEN
+        ALTER TABLE letter_templates ADD COLUMN recommendation_text TEXT;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='letter_templates' AND column_name='change_text') THEN
+        ALTER TABLE letter_templates ADD COLUMN change_text TEXT;
+    END IF;
 
     ALTER TABLE letter_templates ENABLE ROW LEVEL SECURITY;
 

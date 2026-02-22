@@ -305,15 +305,20 @@ export const Letters: React.FC = () => {
             layoutJson: layoutElements
         };
 
+        let res;
         if (editingTemplateId) {
-            await updateLetterTemplate(editingTemplateId, payload);
+            res = await updateLetterTemplate(editingTemplateId, payload);
         } else {
-            await addLetterTemplate(payload);
+            res = await addLetterTemplate(payload);
         }
         
-        await loadTemplates();
+        if (res && !res.success) {
+            showAlert("Erro ao Salvar", `Ocorreu um erro no banco de dados: ${res.error}. \n\nCertifique-se de que as colunas 'recommendation_text' e 'change_text' existem na tabela 'letter_templates'.`, "danger");
+        } else {
+            await loadTemplates();
+            showAlert("Sucesso", "Modelo salvo com sucesso!", "success");
+        }
         setIsSavingTemplate(false);
-        showAlert("Sucesso", "Modelo salvo!", "success");
     };
 
     const handleDeleteTemplateHandler = (id: string) => {
