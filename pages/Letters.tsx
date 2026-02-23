@@ -343,14 +343,22 @@ export const Letters: React.FC = () => {
     const handleAddField = (tag: string) => {
         const newEl: LayoutElement = {
             id: `tag_${Date.now()}`,
-            type: 'tag',
+            type: tag === '{{texto_cadastrado}}' ? 'text' : 'tag',
             content: tag,
             x: 50,
             y: 50,
-            style: { fontSize: 12, color: '#000000', fontWeight: 'bold', textAlign: 'left' }
+            style: { fontSize: 12, color: '#000000', fontWeight: 'normal', textAlign: 'left' }
         };
         setLayoutElements(prev => [...prev, newEl]);
         setSelectedElementId(newEl.id);
+    };
+
+    const updateElementStyle = (id: string, style: Partial<LayoutElement['style']>) => {
+        setLayoutElements(prev => prev.map(el => el.id === id ? { ...el, style: { ...el.style, ...style } } : el));
+    };
+
+    const updateElementContent = (id: string, content: string) => {
+        setLayoutElements(prev => prev.map(el => el.id === id ? { ...el, content } : el));
     };
 
     const handleDragStop = (id: string, data: DraggableData) => {
@@ -363,6 +371,8 @@ export const Letters: React.FC = () => {
     const filteredTemplates = templates.filter(t => t.churchId === currentChurch?.id && (t.type === letterType || t.type === 'GENERICO'));
 
     // --- RENDERERS ---
+
+    const selectedElement = layoutElements.find(el => el.id === selectedElementId);
 
     const renderEditor = () => (
         <div className="space-y-6 animate-fade-in">
@@ -422,13 +432,50 @@ export const Letters: React.FC = () => {
                 </div>
 
                 {/* TOOLBAR */}
-                <div className="flex flex-wrap gap-2 mb-4 bg-gray-50 p-2 rounded border">
-                    <span className="text-xs font-bold text-gray-400 flex items-center mr-2">Adicionar Campos:</span>
+                <div className="flex flex-wrap gap-2 mb-4 bg-gray-50 p-2 rounded border items-center">
+                    <span className="text-xs font-bold text-gray-400 flex items-center mr-2">Inserir Campos:</span>
                     {['{{nome_membro}}', '{{cpf}}', '{{cargo}}', '{{data_batismo}}', '{{data_nascimento}}', '{{data_atual}}', '{{cidade_igreja}}', '{{estado_civil}}', '{{texto_cadastrado}}'].map(tag => (
                         <button key={tag} onClick={() => handleAddField(tag)} className="bg-white border px-2 py-1 rounded text-xs hover:bg-blue-50 text-blue-700 font-bold shadow-sm">
                             {tag.replace(/{{|}}/g, '')}
                         </button>
                     ))}
+                    
+                    {selectedElement && (
+                        <div className="flex items-center gap-2 ml-4 border-l pl-4">
+                            <span className="text-[10px] font-bold text-gray-400 uppercase">Formatar:</span>
+                            <select 
+                                className="text-xs p-1 border rounded"
+                                value={selectedElement.style.fontSize}
+                                onChange={e => updateElementStyle(selectedElement.id, { fontSize: parseInt(e.target.value) })}
+                            >
+                                {[8,9,10,11,12,14,16,18,20,24,28,32].map(s => <option key={s} value={s}>{s}px</option>)}
+                            </select>
+                            <button 
+                                onClick={() => updateElementStyle(selectedElement.id, { fontWeight: selectedElement.style.fontWeight === 'bold' ? 'normal' : 'bold' })}
+                                className={`p-1 border rounded text-xs font-bold w-7 h-7 flex items-center justify-center ${selectedElement.style.fontWeight === 'bold' ? 'bg-blue-600 text-white' : 'bg-white'}`}
+                            >
+                                B
+                            </button>
+                            <div className="flex border rounded overflow-hidden">
+                                {(['left', 'center', 'right'] as const).map(align => (
+                                    <button 
+                                        key={align}
+                                        onClick={() => updateElementStyle(selectedElement.id, { textAlign: align })}
+                                        className={`p-1 text-xs w-7 h-7 flex items-center justify-center ${selectedElement.style.textAlign === align ? 'bg-blue-600 text-white' : 'bg-white border-r last:border-0'}`}
+                                    >
+                                        {align[0].toUpperCase()}
+                                    </button>
+                                ))}
+                            </div>
+                            <input 
+                                type="color" 
+                                className="w-7 h-7 p-0 border-0 rounded cursor-pointer"
+                                value={selectedElement.style.color}
+                                onChange={e => updateElementStyle(selectedElement.id, { color: e.target.value })}
+                            />
+                        </div>
+                    )}
+
                     {selectedElementId && (
                         <button onClick={() => { setLayoutElements(prev => prev.filter(e => e.id !== selectedElementId)); setSelectedElementId(null); }} className="ml-auto text-red-500 hover:bg-red-50 p-1 rounded">
                             <Trash2 size={16}/>
@@ -436,11 +483,57 @@ export const Letters: React.FC = () => {
                     )}
                 </div>
 
+                {selectedElement && selectedElement.type === 'text' && (
+                    <div className="mb-4 p-3 bg-blue-50 border border-blue-100 rounded-lg">
+                        <label className="block text-xs font-bold text-blue-700 mb-1 uppercase">Editar Conteúdo do Texto:</label>
+                        <div className="flex gap-2">
+                            <textarea 
+                                className="flex-1 p-2 border rounded-lg text-sm"
+                                rows={2}
+                                value={selectedElement.content}
+                                onChange={e => updateElementContent(selectedElement.id, e.target.value)}
+                            />
+                            <div className="w-48 space-y-1">
+                                <p className="text-[10px] font-bold text-blue-600 uppercase">Inserir Tag no Texto:</p>
+                                <div className="grid grid-cols-2 gap-1">
+                                    {['{{nome_membro}}', '{{cpf}}', '{{cargo}}', '{{data_atual}}'].map(tag => (
+                                        <button 
+                                            key={tag}
+                                            onClick={() => updateElementContent(selectedElement.id, selectedElement.content + ' ' + tag)}
+                                            className="text-[9px] bg-white border border-blue-200 py-1 rounded hover:bg-blue-100 transition-colors"
+                                        >
+                                            {tag.replace(/{{|}}/g, '')}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 {/* CANVAS */}
                 <div className="relative border bg-gray-200 overflow-hidden mx-auto shadow-2xl" style={{ width: EDITOR_WIDTH, height: EDITOR_HEIGHT }}>
                     {backgroundUrl && <img src={backgroundUrl} className="absolute inset-0 w-full h-full object-cover pointer-events-none opacity-80" />}
                     {layoutElements.map(el => (
-                        <DraggableLabel key={el.id} el={el} isSelected={selectedElementId === el.id} onSelect={setSelectedElementId} onDragStop={handleDragStop} />
+                        <div key={el.id}>
+                            <DraggableLabel el={el} isSelected={selectedElementId === el.id} onSelect={setSelectedElementId} onDragStop={handleDragStop} />
+                            <div 
+                                className="absolute pointer-events-none whitespace-pre-wrap"
+                                style={{
+                                    left: el.x,
+                                    top: el.y,
+                                    fontSize: `${el.style.fontSize}px`,
+                                    color: el.style.color,
+                                    fontWeight: el.style.fontWeight,
+                                    textAlign: el.style.textAlign,
+                                    width: 'auto',
+                                    maxWidth: EDITOR_WIDTH - el.x - 20,
+                                    lineHeight: '1.2'
+                                }}
+                            >
+                                {el.content === '{{texto_cadastrado}}' ? (recommendationText || 'Seu texto aparecerá aqui...') : (el.type === 'text' ? el.content : '')}
+                            </div>
+                        </div>
                     ))}
                     <div className="absolute bottom-2 right-2 text-[10px] text-gray-400 bg-white/80 px-1 rounded pointer-events-none">A4 Preview</div>
                 </div>
