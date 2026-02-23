@@ -37,10 +37,12 @@ const DraggableLabel: React.FC<DraggableLabelProps> = ({ el, isSelected, onSelec
       '{{data_nascimento}}': 'Data Nasc.',
       '{{data_atual}}': 'Data de Hoje',
       '{{cidade_igreja}}': 'Cidade/Data',
-      '{{estado_civil}}': 'Est. Civil'
+      '{{estado_civil}}': 'Est. Civil',
+      '{{texto_cadastrado}}': 'Texto da Carta'
   };
 
   const getIcon = (content: string) => {
+      if (content === '{{texto_cadastrado}}') return <FileSignature size={12} className="mr-1"/>;
       if (content.includes('nome') || content.includes('cpf')) return <UserIcon size={12} className="mr-1"/>;
       if (content.includes('data')) return <Calendar size={12} className="mr-1"/>;
       if (content.includes('cargo')) return <Briefcase size={12} className="mr-1"/>;
@@ -115,14 +117,54 @@ export const Letters: React.FC = () => {
         setModalState({ isOpen: true, title, message, variant, showCancel: true, onConfirm: () => { onConfirm(); setModalState(prev => ({ ...prev, isOpen: false })); } });
     };
 
+    const [lettersHistoryList, setLettersHistoryList] = useState<LetterHistory[]>([]);
+
+    const loadHistory = async () => {
+        if (!currentChurch) return;
+        const { data } = await supabase.from('letter_history').select('*').eq('church_id', currentChurch.id).order('issued_at', { ascending: false });
+        if (data) setLettersHistoryList(data.map(toAppLetterHistory));
+    };
+
     useEffect(() => {
-        if (currentChurch) loadTemplates();
+        if (currentChurch) {
+            loadTemplates();
+            loadHistory();
+        }
     }, [currentChurch]);
 
     const loadTemplates = async () => {
         if (!currentChurch) return;
         const data = await getLetterTemplates(currentChurch.id);
         setTemplates(data);
+    };
+
+    const deleteLetterHistoryItem = async (id: string) => {
+        showConfirm("Excluir Registro", "Tem certeza que deseja excluir este registro do histórico?", async () => {
+            const { error } = await supabase.from('letter_history').delete().eq('id', id);
+            if (!error) {
+                setLettersHistoryList(prev => prev.filter(h => h.id !== id));
+                showAlert("Sucesso", "Registro excluído!", "success");
+            } else {
+                showAlert("Erro", "Falha ao excluir registro.", "danger");
+            }
+        }, "danger");
+    };
+
+    const handleRedownload = (h: LetterHistory) => {
+        setSelectedMember({
+            id: h.memberId,
+            name: h.memberDataSnapshot.name,
+            cpf: h.memberDataSnapshot.cpf,
+            birthDate: h.memberDataSnapshot.birthDate || '',
+            baptismDate: h.memberDataSnapshot.baptismDate,
+            churchId: h.churchId,
+            isTither: false,
+            address: { street: '', number: '', neighborhood: '', city: '', state: '', zipCode: '' }
+        } as Member);
+        setRoleOrFunction(h.memberDataSnapshot.roleOrFunction);
+        setLetterType(h.letterType);
+        setActiveTab('EMISSAO');
+        showAlert("Pronto", "Dados carregados! Selecione o modelo e clique em Gerar PDF.", "info");
     };
 
     // --- LOGICA DE GERAÇÃO (PDF) ---
@@ -132,9 +174,8 @@ export const Letters: React.FC = () => {
         const doc = new jsPDF('p', 'mm', 'a4');
         const template = templates.find(t => t.id === selectedTemplateId);
 
-        // SE TIVER MODELO VISUAL SELECIONADO
         if (template) {
-            // 1. Background Image (Papel Timbrado)
+            // 1. Background Image
             if (template.backgroundUrl) {
                 try {
                     const imgProps = await new Promise<{data: string, w: number, h: number}>((resolve, reject) => {
@@ -145,10 +186,14 @@ export const Letters: React.FC = () => {
                             const canvas = document.createElement('canvas');
                             canvas.width = img.naturalWidth;
                             canvas.height = img.naturalHeight;
-                            canvas.getContext('2d')?.drawImage(img, 0, 0);
-                            resolve({ data: canvas.toDataURL('image/jpeg'), w: img.naturalWidth, h: img.naturalHeight });
+                            const ctx = canvas.getContext('2d');
+                            if (ctx) ctx.drawImage(img, 0, 0);
+                            resolve({ data: canvas.toDataURL('image/jpeg', 1.0), w: img.naturalWidth, h: img.naturalHeight });
                         };
-                        img.onerror = reject;
+                        img.onerror = (err) => {
+                            console.error("Image load error:", err);
+                            reject(err);
+                        };
                     });
                     doc.addImage(imgProps.data, 'JPEG', 0, 0, 210, 297);
                 } catch (e) {
@@ -158,15 +203,12 @@ export const Letters: React.FC = () => {
             }
 
             // 2. Overlay Data
-            const scale = 210 / EDITOR_WIDTH;
+            const mmPerPx = 210 / EDITOR_WIDTH;
             const today = new Date();
             const fullDate = `${currentChurch.address.split(',')[1]?.trim() || currentChurch.name}, ${today.getDate()} de ${today.toLocaleString('pt-BR', { month: 'long' })} de ${today.getFullYear()}`;
 
             template.layoutJson.forEach(el => {
                 let text = el.content;
-                
-                // Se for um campo de texto fixo (type: 'text'), usamos o conteúdo dele
-                // Mas aqui a lógica original parece tratar tudo como tag se tiver {{}}
                 
                 text = text.replace('{{nome_membro}}', selectedMember.name);
                 text = text.replace('{{cpf}}', selectedMember.cpf);
@@ -177,9 +219,10 @@ export const Letters: React.FC = () => {
                 text = text.replace('{{cidade_igreja}}', fullDate);
                 text = text.replace('{{estado_civil}}', selectedMember.maritalStatus || '');
                 
-                // NOVO: Tags para o texto cadastrado
                 const cadastrado = letterType === 'RECOMENDACAO' ? template.recommendationText : template.changeText;
-                if (cadastrado) {
+                if (el.content === '{{texto_cadastrado}}') {
+                    text = cadastrado || '';
+                } else if (cadastrado) {
                     text = text.replace('{{texto_cadastrado}}', cadastrado);
                 }
 
@@ -187,15 +230,17 @@ export const Letters: React.FC = () => {
                 doc.setFontSize(el.style.fontSize);
                 doc.setFont("helvetica", el.style.fontWeight === 'bold' ? 'bold' : 'normal');
                 
-                const x = el.x * scale;
-                const y = el.y * scale;
+                const x = el.x * mmPerPx;
+                const y = (el.y * mmPerPx) + (el.style.fontSize * 0.35); // Adjust for baseline
+
+                const maxWidthMm = (EDITOR_WIDTH - el.x - 20) * mmPerPx;
 
                 if (el.style.textAlign === 'center') {
-                    doc.text(text, x, y + (el.style.fontSize * 0.35), { align: 'center' });
+                    doc.text(text, x, y, { align: 'center', maxWidth: maxWidthMm });
                 } else if (el.style.textAlign === 'right') {
-                    doc.text(text, x, y + (el.style.fontSize * 0.35), { align: 'right' });
+                    doc.text(text, x, y, { align: 'right', maxWidth: maxWidthMm });
                 } else {
-                    doc.text(text, x, y + (el.style.fontSize * 0.35));
+                    doc.text(text, x, y, { maxWidth: maxWidthMm });
                 }
             });
 
@@ -243,7 +288,7 @@ export const Letters: React.FC = () => {
 
         // Save History
         if (user) {
-            await addLetterHistory({
+            const historyItem: Omit<LetterHistory, 'id'> = {
                 churchId: selectedMember.churchId,
                 memberId: selectedMember.id,
                 letterType: letterType,
@@ -256,7 +301,15 @@ export const Letters: React.FC = () => {
                     roleOrFunction: roleOrFunction,
                     cpf: selectedMember.cpf
                 }
-            } as LetterHistory);
+            };
+            
+            const { data: savedData, error: saveError } = await supabase.from('letter_history').insert([historyItem]).select();
+            
+            if (saveError) {
+                console.error("Erro ao salvar histórico:", saveError);
+            } else if (savedData) {
+                setLettersHistoryList(prev => [toAppLetterHistory(savedData[0]), ...prev]);
+            }
 
             if (letterType === 'MUDANCA' && disableMember) {
                 await updateMember(selectedMember.id, { ...selectedMember, status: 'TRANSFERIDO' });
@@ -276,6 +329,7 @@ export const Letters: React.FC = () => {
         setRecommendationText('');
         setChangeText('');
         setLayoutElements(DEFAULT_TAGS);
+        setSelectedElementId(null);
     };
 
     const handleEditTemplate = (t: LetterTemplate) => {
@@ -286,6 +340,8 @@ export const Letters: React.FC = () => {
         setRecommendationText(t.recommendationText || '');
         setChangeText(t.changeText || '');
         setLayoutElements(t.layoutJson || DEFAULT_TAGS);
+        setSelectedElementId(null);
+        setActiveTab('MODELOS');
     };
 
     const handleSaveTemplate = async () => {
