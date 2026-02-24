@@ -230,7 +230,9 @@ export const Letters: React.FC = () => {
                 doc.setFontSize(el.style.fontSize);
                 doc.setFont("helvetica", el.style.fontWeight === 'bold' ? 'bold' : 'normal');
                 
-                const x = el.x * mmPerPx;
+                const x = el.style.textAlign === 'center' ? (el.x + (el.width || 0) / 2) * mmPerPx : 
+                          el.style.textAlign === 'right' ? (el.x + (el.width || 0)) * mmPerPx : 
+                          el.x * mmPerPx;
                 const y = (el.y * mmPerPx) + (el.style.fontSize * 0.35); // Adjust for baseline
 
                 const maxWidthMm = el.width ? (el.width * mmPerPx) : ((EDITOR_WIDTH - el.x - 20) * mmPerPx);
@@ -240,7 +242,7 @@ export const Letters: React.FC = () => {
                 } else if (el.style.textAlign === 'right') {
                     doc.text(text, x, y, { align: 'right', maxWidth: maxWidthMm });
                 } else {
-                    doc.text(text, x, y, { maxWidth: maxWidthMm });
+                    doc.text(text, x, y, { align: 'left', maxWidth: maxWidthMm });
                 }
             });
 
@@ -588,7 +590,7 @@ export const Letters: React.FC = () => {
                         <div key={el.id}>
                             <DraggableLabel el={el} isSelected={selectedElementId === el.id} onSelect={setSelectedElementId} onDragStop={handleDragStop} />
                             <div 
-                                className="absolute pointer-events-none whitespace-pre-wrap"
+                                className="absolute pointer-events-none whitespace-pre-wrap border border-dashed border-gray-300"
                                 style={{
                                     left: el.x,
                                     top: el.y,
@@ -598,7 +600,8 @@ export const Letters: React.FC = () => {
                                     textAlign: el.style.textAlign,
                                     width: el.width ? `${el.width}px` : 'auto',
                                     maxWidth: el.width ? `${el.width}px` : (EDITOR_WIDTH - el.x - 20),
-                                    lineHeight: '1.2'
+                                    lineHeight: '1.2',
+                                    padding: '2px'
                                 }}
                             >
                                 {el.content === '{{texto_cadastrado}}' ? (recommendationText || 'Seu texto aparecerá aqui...') : (el.type === 'text' ? el.content : '')}
