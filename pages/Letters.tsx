@@ -14,9 +14,9 @@ const A4_HEIGHT_MM = 297;
 const EDITOR_HEIGHT = (EDITOR_WIDTH * A4_HEIGHT_MM) / A4_WIDTH_MM;
 
 const DEFAULT_TAGS: LayoutElement[] = [
-    { id: 'tag_nome', type: 'tag', content: '{{nome_membro}}', x: 50, y: 100, style: { fontSize: 12, color: '#000000', fontWeight: 'bold', textAlign: 'left' } },
-    { id: 'tag_cargo', type: 'tag', content: '{{cargo}}', x: 50, y: 120, style: { fontSize: 12, color: '#000000', fontWeight: 'normal', textAlign: 'left' } },
-    { id: 'tag_data', type: 'tag', content: '{{data_atual}}', x: 100, y: 200, style: { fontSize: 12, color: '#000000', fontWeight: 'normal', textAlign: 'center' } },
+    { id: 'tag_nome', type: 'tag', content: '{{nome_membro}}', x: 50, y: 100, width: 150, style: { fontSize: 12, color: '#000000', fontWeight: 'bold', textAlign: 'left' } },
+    { id: 'tag_cargo', type: 'tag', content: '{{cargo}}', x: 50, y: 120, width: 150, style: { fontSize: 12, color: '#000000', fontWeight: 'normal', textAlign: 'left' } },
+    { id: 'tag_data', type: 'tag', content: '{{data_atual}}', x: 100, y: 200, width: 300, style: { fontSize: 12, color: '#000000', fontWeight: 'normal', textAlign: 'center' } },
 ];
 
 interface DraggableLabelProps {
@@ -233,7 +233,7 @@ export const Letters: React.FC = () => {
                 const x = el.x * mmPerPx;
                 const y = (el.y * mmPerPx) + (el.style.fontSize * 0.35); // Adjust for baseline
 
-                const maxWidthMm = (EDITOR_WIDTH - el.x - 20) * mmPerPx;
+                const maxWidthMm = el.width ? (el.width * mmPerPx) : ((EDITOR_WIDTH - el.x - 20) * mmPerPx);
 
                 if (el.style.textAlign === 'center') {
                     doc.text(text, x, y, { align: 'center', maxWidth: maxWidthMm });
@@ -403,10 +403,15 @@ export const Letters: React.FC = () => {
             content: tag,
             x: 50,
             y: 50,
+            width: tag === '{{texto_cadastrado}}' ? 400 : 150,
             style: { fontSize: 12, color: '#000000', fontWeight: 'normal', textAlign: 'left' }
         };
         setLayoutElements(prev => [...prev, newEl]);
         setSelectedElementId(newEl.id);
+    };
+
+    const updateElementWidth = (id: string, width: number) => {
+        setLayoutElements(prev => prev.map(el => el.id === id ? { ...el, width } : el));
     };
 
     const updateElementStyle = (id: string, style: Partial<LayoutElement['style']>) => {
@@ -499,6 +504,15 @@ export const Letters: React.FC = () => {
                     {selectedElement && (
                         <div className="flex items-center gap-2 ml-4 border-l pl-4">
                             <span className="text-[10px] font-bold text-gray-400 uppercase">Formatar:</span>
+                            <div className="flex items-center gap-1">
+                                <span className="text-[10px] text-gray-400">Largura:</span>
+                                <input 
+                                    type="number" 
+                                    className="text-xs p-1 border rounded w-16"
+                                    value={selectedElement.width || 0}
+                                    onChange={e => updateElementWidth(selectedElement.id, parseInt(e.target.value))}
+                                />
+                            </div>
                             <select 
                                 className="text-xs p-1 border rounded"
                                 value={selectedElement.style.fontSize}
@@ -582,8 +596,8 @@ export const Letters: React.FC = () => {
                                     color: el.style.color,
                                     fontWeight: el.style.fontWeight,
                                     textAlign: el.style.textAlign,
-                                    width: 'auto',
-                                    maxWidth: EDITOR_WIDTH - el.x - 20,
+                                    width: el.width ? `${el.width}px` : 'auto',
+                                    maxWidth: el.width ? `${el.width}px` : (EDITOR_WIDTH - el.x - 20),
                                     lineHeight: '1.2'
                                 }}
                             >

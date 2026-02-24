@@ -98,8 +98,8 @@ export interface LayoutElement {
   content: string; // Text content, Image URL, or Tag Key (e.g., {{name}})
   x: number;
   y: number;
-  width?: number; // For images
-  height?: number;
+  width?: number; // For images and text boxes
+  height?: number; // For images and text boxes
   style: {
     fontSize: number;
     color: string;
