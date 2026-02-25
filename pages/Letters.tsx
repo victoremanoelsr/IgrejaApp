@@ -611,9 +611,10 @@ export const Letters: React.FC = () => {
                                     fontWeight: el.style.fontWeight,
                                     textAlign: el.style.textAlign,
                                     width: el.width ? `${el.width}px` : 'auto',
-                                    maxWidth: el.width ? `${el.width}px` : (EDITOR_WIDTH - el.x - 20),
+                                    maxWidth: el.width ? `${el.width}px` : (EDITOR_WIDTH - el.x),
                                     lineHeight: '1.2',
-                                    padding: '2px'
+                                    padding: '2px',
+                                    overflow: 'hidden'
                                 }}
                             >
                                 {el.content === '{{texto_cadastrado}}' ? (recommendationText || 'Seu texto aparecerá aqui...') : (el.type === 'text' ? el.content : '')}
