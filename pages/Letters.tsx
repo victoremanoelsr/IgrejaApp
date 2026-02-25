@@ -311,13 +311,17 @@ export const Letters: React.FC = () => {
                 console.error("Erro ao salvar histórico:", saveError);
             } else if (savedData) {
                 setLettersHistoryList(prev => [toAppLetterHistory(savedData[0]), ...prev]);
+                // Também atualiza o contexto global se necessário
+                if (typeof addLetterHistory === 'function') {
+                    addLetterHistory(toAppLetterHistory(savedData[0]));
+                }
             }
 
             if (letterType === 'MUDANCA' && disableMember) {
                 await updateMember(selectedMember.id, { ...selectedMember, status: 'TRANSFERIDO' });
             }
         }
-        
+
         showAlert("Sucesso", "Carta gerada e registrada!", "success");
         setSelectedMember(null);
         setSearchTerm('');
@@ -403,10 +407,10 @@ export const Letters: React.FC = () => {
             id: `tag_${Date.now()}`,
             type: tag === '{{texto_cadastrado}}' ? 'text' : 'tag',
             content: tag,
-            x: 50,
+            x: tag === '{{texto_cadastrado}}' ? (EDITOR_WIDTH - 480) / 2 : 50,
             y: 50,
-            width: tag === '{{texto_cadastrado}}' ? 400 : 150,
-            style: { fontSize: 12, color: '#000000', fontWeight: 'normal', textAlign: 'left' }
+            width: tag === '{{texto_cadastrado}}' ? 480 : 150,
+            style: { fontSize: 12, color: '#000000', fontWeight: 'normal', textAlign: tag === '{{texto_cadastrado}}' ? 'center' : 'left' }
         };
         setLayoutElements(prev => [...prev, newEl]);
         setSelectedElementId(newEl.id);
