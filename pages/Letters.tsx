@@ -403,14 +403,22 @@ export const Letters: React.FC = () => {
     };
 
     const handleAddField = (tag: string) => {
+        const marginPx = 2 * (EDITOR_WIDTH / A4_WIDTH_MM); // 2cm em pixels (aprox 56px)
+        const contentWidth = EDITOR_WIDTH - (2 * marginPx);
+        
         const newEl: LayoutElement = {
             id: `tag_${Date.now()}`,
             type: tag === '{{texto_cadastrado}}' ? 'text' : 'tag',
             content: tag,
-            x: tag === '{{texto_cadastrado}}' ? (EDITOR_WIDTH - 480) / 2 : 50,
-            y: 50,
-            width: tag === '{{texto_cadastrado}}' ? 480 : 150,
-            style: { fontSize: 12, color: '#000000', fontWeight: 'normal', textAlign: tag === '{{texto_cadastrado}}' ? 'center' : 'left' }
+            x: tag === '{{texto_cadastrado}}' ? marginPx : 50,
+            y: tag === '{{texto_cadastrado}}' ? (EDITOR_HEIGHT / 2) - 50 : 50,
+            width: tag === '{{texto_cadastrado}}' ? contentWidth : 150,
+            style: { 
+                fontSize: 12, 
+                color: '#000000', 
+                fontWeight: 'normal', 
+                textAlign: tag === '{{texto_cadastrado}}' ? 'center' : 'left' 
+            }
         };
         setLayoutElements(prev => [...prev, newEl]);
         setSelectedElementId(newEl.id);
