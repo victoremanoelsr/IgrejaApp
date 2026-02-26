@@ -241,13 +241,8 @@ export const Letters: React.FC = () => {
                     maxWidthMm = availableWidthMm;
                     finalX = marginMm; // Começa sempre na margem de 2cm
                     
-                    // Se o alinhamento for centralizado, o ponto X de referência do jsPDF
-                    // para 'center' deve ser o meio da área disponível
-                    if (el.style.textAlign === 'center') {
-                        finalX = 105; // Centro exato da folha A4 (210/2)
-                    } else if (el.style.textAlign === 'right') {
-                        finalX = 210 - marginMm; // Fim da margem direita
-                    }
+                    // Sobrescrever estilo para formalidade profissional
+                    el.style.textAlign = 'justify'; 
                 } else {
                     maxWidthMm = el.width ? (el.width * mmPerPx) : (210 - (el.x * mmPerPx) - marginMm);
                     finalX = el.style.textAlign === 'center' ? (el.x + (el.width || 0) / 2) * mmPerPx : 
@@ -259,6 +254,8 @@ export const Letters: React.FC = () => {
                     doc.text(text, finalX, y, { align: 'center', maxWidth: maxWidthMm });
                 } else if (el.style.textAlign === 'right') {
                     doc.text(text, finalX, y, { align: 'right', maxWidth: maxWidthMm });
+                } else if (el.style.textAlign === 'justify') {
+                    doc.text(text, finalX, y, { align: 'justify', maxWidth: maxWidthMm });
                 } else {
                     doc.text(text, finalX, y, { align: 'left', maxWidth: maxWidthMm });
                 }
@@ -622,14 +619,14 @@ export const Letters: React.FC = () => {
                             <div 
                                 className="absolute pointer-events-none whitespace-pre-wrap border border-dashed border-gray-300"
                                 style={{
-                                    left: el.x,
+                                    left: el.content === '{{texto_cadastrado}}' ? '20mm' : `${el.x}px`,
                                     top: el.y,
                                     fontSize: `${el.style.fontSize}px`,
                                     color: el.style.color,
                                     fontWeight: el.style.fontWeight,
-                                    textAlign: el.style.textAlign,
-                                    width: el.width ? `${el.width}px` : 'auto',
-                                    maxWidth: el.width ? `${el.width}px` : (EDITOR_WIDTH - el.x),
+                                    textAlign: el.content === '{{texto_cadastrado}}' ? 'justify' : el.style.textAlign,
+                                    width: el.content === '{{texto_cadastrado}}' ? 'calc(100% - 40mm)' : (el.width ? `${el.width}px` : 'auto'),
+                                    maxWidth: el.content === '{{texto_cadastrado}}' ? 'calc(100% - 40mm)' : (el.width ? `${el.width}px` : (EDITOR_WIDTH - el.x)),
                                     lineHeight: '1.2',
                                     padding: '2px',
                                     overflow: 'hidden'
