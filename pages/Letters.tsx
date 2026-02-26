@@ -233,16 +233,26 @@ export const Letters: React.FC = () => {
                 const x = el.style.textAlign === 'center' ? (el.x + (el.width || 0) / 2) * mmPerPx : 
                           el.style.textAlign === 'right' ? (el.x + (el.width || 0)) * mmPerPx : 
                           el.x * mmPerPx;
-                const y = (el.y * mmPerPx) + (el.style.fontSize * 0.35); // Adjust for baseline
+                const y = (el.y * mmPerPx) + (el.style.fontSize * 0.35);
 
-                const maxWidthMm = el.width ? (el.width * mmPerPx) : ((EDITOR_WIDTH - el.x - 20) * mmPerPx);
+                // Forçar margens de 2cm (20mm) se for o texto cadastrado ou se ultrapassar
+                const marginMm = 20; 
+                const availableWidthMm = 210 - (marginMm * 2);
+                const maxWidthMm = el.content === '{{texto_cadastrado}}' 
+                    ? availableWidthMm 
+                    : (el.width ? (el.width * mmPerPx) : (210 - (el.x * mmPerPx) - marginMm));
+
+                // Garantir que o X respeite a margem esquerda se for o texto principal
+                const finalX = el.content === '{{texto_cadastrado}}' && el.style.textAlign === 'left' 
+                    ? Math.max(x, marginMm) 
+                    : x;
 
                 if (el.style.textAlign === 'center') {
-                    doc.text(text, x, y, { align: 'center', maxWidth: maxWidthMm });
+                    doc.text(text, finalX, y, { align: 'center', maxWidth: maxWidthMm });
                 } else if (el.style.textAlign === 'right') {
-                    doc.text(text, x, y, { align: 'right', maxWidth: maxWidthMm });
+                    doc.text(text, finalX, y, { align: 'right', maxWidth: maxWidthMm });
                 } else {
-                    doc.text(text, x, y, { align: 'left', maxWidth: maxWidthMm });
+                    doc.text(text, finalX, y, { align: 'left', maxWidth: maxWidthMm });
                 }
             });
 
