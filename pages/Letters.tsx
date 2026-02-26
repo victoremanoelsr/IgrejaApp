@@ -230,22 +230,30 @@ export const Letters: React.FC = () => {
                 doc.setFontSize(el.style.fontSize);
                 doc.setFont("helvetica", el.style.fontWeight === 'bold' ? 'bold' : 'normal');
                 
-                const x = el.style.textAlign === 'center' ? (el.x + (el.width || 0) / 2) * mmPerPx : 
-                          el.style.textAlign === 'right' ? (el.x + (el.width || 0)) * mmPerPx : 
-                          el.x * mmPerPx;
-                const y = (el.y * mmPerPx) + (el.style.fontSize * 0.35);
-
-                // Forçar margens de 2cm (20mm) se for o texto cadastrado ou se ultrapassar
+                // Forçar margens de 2cm (20mm) se for o texto cadastrado
                 const marginMm = 20; 
                 const availableWidthMm = 210 - (marginMm * 2);
-                const maxWidthMm = el.content === '{{texto_cadastrado}}' 
-                    ? availableWidthMm 
-                    : (el.width ? (el.width * mmPerPx) : (210 - (el.x * mmPerPx) - marginMm));
+                
+                let maxWidthMm;
+                let finalX;
 
-                // Garantir que o X respeite a margem esquerda se for o texto principal
-                const finalX = el.content === '{{texto_cadastrado}}' && el.style.textAlign === 'left' 
-                    ? Math.max(x, marginMm) 
-                    : x;
+                if (el.content === '{{texto_cadastrado}}') {
+                    maxWidthMm = availableWidthMm;
+                    finalX = marginMm; // Começa sempre na margem de 2cm
+                    
+                    // Se o alinhamento for centralizado, o ponto X de referência do jsPDF
+                    // para 'center' deve ser o meio da área disponível
+                    if (el.style.textAlign === 'center') {
+                        finalX = 105; // Centro exato da folha A4 (210/2)
+                    } else if (el.style.textAlign === 'right') {
+                        finalX = 210 - marginMm; // Fim da margem direita
+                    }
+                } else {
+                    maxWidthMm = el.width ? (el.width * mmPerPx) : (210 - (el.x * mmPerPx) - marginMm);
+                    finalX = el.style.textAlign === 'center' ? (el.x + (el.width || 0) / 2) * mmPerPx : 
+                             el.style.textAlign === 'right' ? (el.x + (el.width || 0)) * mmPerPx : 
+                             el.x * mmPerPx;
+                }
 
                 if (el.style.textAlign === 'center') {
                     doc.text(text, finalX, y, { align: 'center', maxWidth: maxWidthMm });
