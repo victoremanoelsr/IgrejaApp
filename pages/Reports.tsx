@@ -403,7 +403,7 @@ export const Reports: React.FC = () => {
           
           {/* Footer Final Balance (Keep always visible below) */}
           <div className="mx-6 mb-6 p-5 border rounded-xl bg-gray-50 flex justify-between items-center shadow-sm">
-              <span className="text-xl font-black text-brand-black uppercase tracking-tight">SALDO DO PERÍODO</span>
+              <span className="text-xl font-black text-brand-black uppercase tracking-tight">SALDO</span>
               <span className={`text-3xl font-black ${finalBalance >= 0 ? 'text-brand-black' : 'text-red-600'}`}>
                   R$ {finalBalance.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
               </span>

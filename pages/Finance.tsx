@@ -327,8 +327,8 @@ export const Finance: React.FC = () => {
           </div>
 
           <div className="flex gap-2 pt-2">
-             <button type="button" onClick={handleCancelForm} disabled={isSubmitting} className="flex-1 text-gray-500 font-bold py-2 border rounded-lg text-xs">Cancelar</button>
-             <button type="submit" disabled={isSubmitting} className={`flex-[2] py-2 rounded-lg font-bold text-white flex justify-center items-center text-sm ${activeTab === 'ENTRADA' ? 'bg-green-600' : 'bg-brand-red'}`}>{isSubmitting ? <Loader className="animate-spin" size={16}/> : 'Salvar'}</button>
+             <button type="button" onClick={handleCancelForm} disabled={isSubmitting} className="flex-1 text-gray-500 font-bold py-2 border rounded-lg text-sm uppercase">Cancelar</button>
+             <button type="submit" disabled={isSubmitting} className={`flex-1 py-2 rounded-lg font-bold text-white flex justify-center items-center text-sm uppercase ${activeTab === 'ENTRADA' ? 'bg-green-600' : 'bg-brand-red'}`}>{isSubmitting ? <Loader className="animate-spin" size={16}/> : 'Salvar'}</button>
           </div>
        </form>
     </div>
@@ -374,7 +374,12 @@ export const Finance: React.FC = () => {
                       {canEdit && (
                           <div className="flex justify-end gap-2">
                               {/* Removed confirmation button as requested */}
-                              <button onClick={() => handleEditTransaction(t)} className="text-gray-400 hover:text-brand-orange"><Edit2 size={14}/></button>
+                              {t.attachmentUrl && (
+                                    <a href={t.attachmentUrl} target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-blue-600" title="Ver Comprovante">
+                                        <Paperclip size={14}/>
+                                    </a>
+                                )}
+                                <button onClick={() => handleEditTransaction(t)} className="text-gray-400 hover:text-brand-orange"><Edit2 size={14}/></button>
                               <button onClick={() => showConfirm('Excluir', 'Apagar registro?', () => deleteTransaction(t.id), 'danger')} className="text-gray-400 hover:text-red-600"><Trash2 size={14}/></button>
                           </div>
                       )}

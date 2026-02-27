@@ -280,7 +280,7 @@ export const LadiesPanel: React.FC = () => {
               {/* Card Total Senhoras */}
               <div className="col-span-12 md:col-span-4 bg-white rounded-xl shadow-sm border-l-4 border-brand-black p-6 flex items-center justify-between relative overflow-hidden">
                   <div className="z-10">
-                      <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Total de Irmãs</p>
+                      <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Total de Senhoras</p>
                       <p className="text-4xl font-extrabold text-gray-800 mt-2">{totalLadies}</p>
                   </div>
                   <div className="bg-gray-100 p-3 rounded-full text-gray-700 z-10">

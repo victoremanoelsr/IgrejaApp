@@ -143,9 +143,9 @@ export const Settings: React.FC = () => {
                 />
                 
                 <button type="button" onClick={() => fileInputRef.current?.click()} className="mt-3 text-brand-orange text-sm font-bold hover:underline flex items-center">
-                    {isUploading ? 'Enviando...' : (logoUrl ? 'Trocar Logo / Ícone do App' : 'Adicionar Logo / Ícone')}
+                    {isUploading ? 'Enviando...' : (logoUrl ? 'Alterar Logo' : 'Adicionar Logo / Ícone')}
                 </button>
-                <p className="text-xs text-gray-400 mt-1">Essa imagem será usada como Ícone ao adicionar à tela de início.</p>
+                <p className="text-xs text-gray-400 mt-1"></p>
              </div>
 
              <div>
