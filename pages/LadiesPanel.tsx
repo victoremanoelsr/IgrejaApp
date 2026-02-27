@@ -135,7 +135,7 @@ export const LadiesPanel: React.FC = () => {
       setIsSubmitting(true);
       
       let finalDesc = desc.toUpperCase();
-      if (transType === 'ENTRADA' && !finalDesc) finalDesc = `OFERTA SENHORAS`;
+      if (transType === 'ENTRADA' && !finalDesc) finalDesc = `ENTRADA`;
 
       let attUrl = undefined;
       if (selectedFile) attUrl = await uploadTransactionFile(selectedFile);
@@ -405,7 +405,7 @@ export const LadiesPanel: React.FC = () => {
           <div className="flex justify-between items-center mb-6">
               <h3 className="font-bold text-gray-700 flex items-center text-lg"><Users size={24} className="mr-2 text-pink-600"/> Equipe de Senhoras</h3>
               {teamFormMode === 'LIST' && (
-                  <button onClick={() => { setEditingUserId(null); setTeamFormData({ name: '', username: '', password: '', role: 'LIDER_SENHORAS', cpf: '' }); setTeamFormMode('EDIT'); }} className="bg-pink-600 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center shadow hover:bg-pink-700 transition-colors">
+                  <button onClick={() => { setEditingUserId(null); setTeamFormData({ name: '', username: '', password: '', role: 'LIDER_SENHORAS', cpf: '' }); setTeamFormMode('EDIT'); }} className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center shadow hover:bg-pink-700 transition-colors">
                       <PlusCircle size={16} className="mr-2"/> Adicionar
                   </button>
               )}
@@ -728,11 +728,11 @@ export const LadiesPanel: React.FC = () => {
                         <div className="bg-white rounded-xl shadow-md p-3 md:p-8 animate-fade-in-down">
                             <h2 className="text-lg md:text-2xl font-bold mb-4 flex items-center">Nova Receita</h2>
                             <form onSubmit={handleTransactionSubmit} className="space-y-4">
-                                <div><label className="block text-xs md:text-sm font-medium text-gray-700 mb-1">Tipo de Entrada</label><div className="flex gap-2"><button type="button" className="flex-1 py-2 px-1 rounded border text-[10px] md:text-xs font-bold bg-pink-600 text-white border-pink-600">OFERTA SENHORAS</button></div></div>
+                                <div><label className="block text-xs md:text-sm font-medium text-gray-700 mb-1">Tipo de Entrada</label><div className="flex gap-2"><button type="button" className="flex-1 py-2 px-1 rounded border text-[10px] md:text-xs font-bold bg-green-600 text-white border-green-600">ENTRADA</button></div></div>
                                 <div><label className="block text-xs md:text-sm font-medium text-gray-700">Descrição (Opcional)</label><input type="text" placeholder="EX: CONTRIBUIÇÃO FESTIVIDADE" className="mt-1 w-full p-2 border rounded-lg uppercase text-sm focus:ring-brand-orange outline-none" value={desc} onChange={e => setDesc(e.target.value.toUpperCase())} /></div>
                                 <div className="grid grid-cols-2 gap-3"><div><label className="block text-xs md:text-sm font-medium text-gray-700">Valor (R$)</label><input type="number" step="0.01" required className="mt-1 w-full p-2 border rounded-lg font-bold" value={amount} onChange={e => setAmount(e.target.value)} /></div><div><label className="block text-xs md:text-sm font-medium text-gray-700">Data</label><input type="date" required className="mt-1 w-full p-2 border rounded-lg" value={date} onChange={e => setDate(e.target.value)} /></div></div>
                                 <div><label className="block text-xs md:text-sm font-medium text-gray-700">Comprovante</label><div className="mt-1 relative"><input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*,.pdf" className="hidden" id="entry-file-upload"/><label htmlFor="entry-file-upload" className={`flex items-center justify-center w-full p-3 border-2 border-dashed rounded-lg cursor-pointer ${selectedFile ? 'bg-orange-50 border-brand-orange' : 'border-gray-300'}`}>{selectedFile ? <span className="text-xs font-bold text-brand-orange truncate">{selectedFile.name}</span> : <span className="text-xs text-gray-500 flex items-center"><Upload size={14} className="mr-1"/> Anexar Arquivo</span>}</label></div></div>
-                                <div className="flex gap-2 pt-2"><button type="button" onClick={handleCancelForm} className="flex-1 text-gray-500 font-bold py-2 border rounded-lg text-xs hover:bg-gray-50">Cancelar</button><button type="submit" disabled={isSubmitting} className="flex-[2] py-2 rounded-lg font-bold text-white flex justify-center items-center text-sm bg-green-600 hover:bg-green-700 shadow-md">{isSubmitting ? <Loader className="animate-spin" size={16}/> : 'Salvar'}</button></div>
+                                <div className="flex gap-2 pt-2"><button type="button" onClick={handleCancelForm} className="flex-1 text-gray-500 font-bold py-2 border rounded-lg text-xs hover:bg-gray-50">Cancelar</button><button type="submit" disabled={isSubmitting} className="flex-1 py-2 rounded-lg font-bold text-white flex justify-center items-center text-sm bg-green-600 hover:bg-green-700 shadow-md">{isSubmitting ? <Loader className="animate-spin" size={16}/> : 'Salvar'}</button></div>
                             </form>
                         </div>
                     )}
@@ -742,7 +742,7 @@ export const LadiesPanel: React.FC = () => {
                         <div className="bg-white rounded-xl shadow-md p-3 md:p-8 animate-fade-in-down">
                             <h2 className="text-lg md:text-2xl font-bold mb-4 flex items-center">Nova Despesa</h2>
                             <form onSubmit={handleTransactionSubmit} className="space-y-4">
-                                <div><label className="block text-xs md:text-sm font-medium text-gray-700 mb-1">Categoria da Saída</label><div className="w-full bg-brand-red text-white py-2 px-3 rounded text-xs font-bold text-center uppercase tracking-wider">CAIXA SENHORAS</div></div>
+                                <div><label className="block text-xs md:text-sm font-medium text-gray-700 mb-1">Categoria da Saída</label><div className="w-full bg-brand-red text-white py-2 px-3 rounded text-xs font-bold text-center uppercase tracking-wider">SAÍDA</div></div>
                                 <div><label className="block text-xs md:text-sm font-medium text-gray-700">Descrição / Motivo</label><input type="text" required placeholder="EX: LEMBRANCINHAS" className="mt-1 w-full p-2 border rounded-lg uppercase text-sm focus:ring-brand-red focus:border-brand-red outline-none" value={desc} onChange={e => setDesc(e.target.value.toUpperCase())} /></div>
                                 <div className="grid grid-cols-2 gap-3"><div><label className="block text-xs md:text-sm font-medium text-gray-700">Valor (R$)</label><input type="number" step="0.01" required className="mt-1 w-full p-2 border rounded-lg font-bold" value={amount} onChange={e => setAmount(e.target.value)} /></div><div><label className="block text-xs md:text-sm font-medium text-gray-700">Data</label><input type="date" required className="mt-1 w-full p-2 border rounded-lg" value={date} onChange={e => setDate(e.target.value)} /></div></div>
                                 
@@ -755,7 +755,7 @@ export const LadiesPanel: React.FC = () => {
                                 </div>
 
                                 <div><label className="block text-xs md:text-sm font-medium text-gray-700">Comprovante</label><div className="mt-1 relative"><input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*,.pdf" className="hidden" id="exit-file-upload"/><label htmlFor="exit-file-upload" className={`flex items-center justify-center w-full p-3 border-2 border-dashed rounded-lg cursor-pointer ${selectedFile ? 'bg-orange-50 border-brand-orange' : 'border-gray-300'}`}>{selectedFile ? <span className="text-xs font-bold text-brand-orange truncate">{selectedFile.name}</span> : <span className="text-xs text-gray-500 flex items-center"><Upload size={14} className="mr-1"/> Anexar Arquivo</span>}</label></div></div>
-                                <div className="flex gap-2 pt-2"><button type="button" onClick={handleCancelForm} className="flex-1 text-gray-500 font-bold py-2 border rounded-lg text-xs hover:bg-gray-50">Cancelar</button><button type="submit" disabled={isSubmitting} className="flex-[2] py-2 rounded-lg font-bold text-white flex justify-center items-center text-sm bg-brand-red hover:bg-red-700 shadow-md">{isSubmitting ? <Loader className="animate-spin" size={16}/> : 'Salvar'}</button></div>
+                                <div className="flex gap-2 pt-2"><button type="button" onClick={handleCancelForm} className="flex-1 text-gray-500 font-bold py-2 border rounded-lg text-xs hover:bg-gray-50">Cancelar</button><button type="submit" disabled={isSubmitting} className="flex-1 py-2 rounded-lg font-bold text-white flex justify-center items-center text-sm bg-brand-red hover:bg-red-700 shadow-md">{isSubmitting ? <Loader className="animate-spin" size={16}/> : 'Salvar'}</button></div>
                             </form>
                         </div>
                     )}
