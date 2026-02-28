@@ -382,18 +382,26 @@ export const ChildrenPanel: React.FC = () => {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {childMembers.map(m => (
-                      <div key={m.id} className="p-3 border rounded-lg flex items-center gap-3 bg-gray-50">
-                          <div className="h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold text-xs">
-                              {m.name.charAt(0)}
-                          </div>
-                          <div className="flex-1 overflow-hidden">
-                              <p className="text-sm font-bold text-gray-800 truncate">{m.name}</p>
-                              <p className="text-[10px] text-gray-500">Nasc: {m.birthDate ? new Date(m.birthDate).toLocaleDateString('pt-BR') : '-'}</p>
-                          </div>
-                          <button onClick={() => toggleChildMember(m)} className="text-gray-400 hover:text-red-500"><X size={16}/></button>
-                      </div>
-                  ))}
+                  {childMembers.map((m, index) => (
+                        <div key={m.id} className={`p-3 flex items-center justify-between hover:bg-gray-50 transition-colors ${index !== 0 ? 'border-t border-gray-100' : ''}`}>
+                            <div className="flex items-center gap-3">
+                                <div className="h-10 w-10 bg-gray-100 rounded-full flex items-center justify-center text-gray-600 font-bold text-xs overflow-hidden shrink-0">
+                                    {m.photoUrl ? <img src={m.photoUrl} className="w-full h-full object-cover" /> : m.name.charAt(0)}
+                                </div>
+                                <div className="min-w-0">
+                                    <p className="text-sm font-bold text-gray-800 uppercase truncate">{m.name}</p>
+                                    <div className="flex flex-wrap items-center gap-2 mt-0.5">
+                                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tight shrink-0">CPF: {m.cpf}</p>
+                                        {m.isTither && <span className="bg-green-100 text-green-700 text-[9px] px-1.5 py-0.5 rounded font-bold uppercase shrink-0">Dizimista</span>}
+                                        <span className="bg-blue-100 text-blue-700 text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-tight shrink-0">Infantil</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                                <button onClick={() => toggleChildMember(m)} className="p-2 text-gray-300 hover:text-red-500 transition-colors" title="Remover"><Trash2 size={16}/></button>
+                            </div>
+                        </div>
+                    ))}
                   {childMembers.length === 0 && <p className="col-span-full text-center text-gray-400 py-4">Nenhuma criança cadastrada.</p>}
               </div>
           </div>
