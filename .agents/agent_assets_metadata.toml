@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "uwvpdqBKzuwq244N4eD0o"
+uri = "file://igrejaapp-dist.tar.gz"
+type = "unspecified"
+title = "IgrejaApp - Sistema Compilado (dist)"
