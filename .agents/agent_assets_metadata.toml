@@ -12,3 +12,9 @@ id = "PbmRKuEeQMUG_qKiud2Sz"
 uri = "file://igrejaapp-dist.zip"
 type = "unspecified"
 title = "IgrejaApp - Completo com todas as mudanças"
+
+[[outputs]]
+id = "lQoARfih1i4m3TYZuFPU-"
+uri = "file://igrejaapp-codigo-completo.zip"
+type = "unspecified"
+title = "IgrejaApp - Código Fonte Completo (todas as mudanças)"
