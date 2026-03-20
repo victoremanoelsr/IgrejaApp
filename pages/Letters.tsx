@@ -116,10 +116,21 @@ export const Letters: React.FC = () => {
         if (currentChurch) loadTemplates();
     }, [currentChurch]);
 
+    useEffect(() => {
+        if (templates.length > 0) {
+            const match = templates.find(t => t.type === letterType || t.type === 'GENERICO');
+            if (match) setSelectedTemplateId(match.id);
+        }
+    }, [letterType, templates]);
+
     const loadTemplates = async () => {
         if (!currentChurch) return;
         const data = await getLetterTemplates(currentChurch.id);
         setTemplates(data);
+        if (data.length > 0) {
+            const match = data.find(t => t.type === letterType || t.type === 'GENERICO');
+            if (match) setSelectedTemplateId(match.id);
+        }
     };
 
     // --- HELPER: JUSTIFICAÇÃO INTELIGENTE ---
@@ -148,7 +159,8 @@ export const Letters: React.FC = () => {
     const generatePDF = async () => {
         if (!currentChurch || !selectedMember) return;
         const doc = new jsPDF('p', 'mm', 'a4');
-        const template = templates.find(t => t.id === selectedTemplateId);
+        const currentFiltered = templates.filter(t => t.churchId === currentChurch.id && (t.type === letterType || t.type === 'GENERICO'));
+        const template = templates.find(t => t.id === selectedTemplateId) || (currentFiltered.length > 0 ? currentFiltered[0] : undefined);
 
         if (template) {
             if (template.backgroundUrl) {
