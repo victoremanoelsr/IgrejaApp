@@ -104,7 +104,7 @@ export interface LayoutElement {
     fontSize: number;
     color: string;
     fontWeight: string; // 'normal' | 'bold'
-    textAlign: 'left' | 'center' | 'right';
+    textAlign: 'left' | 'center' | 'right' | 'justify';
     fontFamily?: string;
   };
 }

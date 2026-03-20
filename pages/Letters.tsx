@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useApp } from '../context';
 import { Member, LetterHistory, LetterTemplate, LayoutElement } from '../types';
-import { Mail, Search, X, Download, User, Check, History, Eye, FileSignature, AlertTriangle, CheckCircle, Info, Settings, Move, Image as ImageIcon, Save, Trash2, PlusCircle, Type, User as UserIcon, Calendar, Briefcase, MapPin } from 'lucide-react';
+import { Mail, Search, X, Download, User, Check, History, Eye, FileSignature, AlertTriangle, CheckCircle, Info, Settings, Move, Image as ImageIcon, Save, Trash2, PlusCircle, Type, User as UserIcon, Calendar, Briefcase, MapPin, AlignLeft, AlignCenter, AlignRight, AlignJustify } from 'lucide-react';
 import jsPDF from 'jspdf';
 import Draggable, { DraggableData } from 'react-draggable';
 
@@ -453,14 +453,19 @@ export const Letters: React.FC = () => {
                             title="Negrito"
                         >B</button>
                         <div className="flex border rounded overflow-hidden">
-                            {(['left', 'center', 'right'] as const).map(align => (
+                            {([
+                                { value: 'left', icon: <AlignLeft size={14}/>, title: 'Esquerda' },
+                                { value: 'center', icon: <AlignCenter size={14}/>, title: 'Centralizado' },
+                                { value: 'right', icon: <AlignRight size={14}/>, title: 'Direita' },
+                                { value: 'justify', icon: <AlignJustify size={14}/>, title: 'Justificado' },
+                            ] as const).map(({ value, icon, title }) => (
                                 <button
-                                    key={align}
-                                    onClick={() => updateElementStyle(selectedElement.id, { textAlign: align })}
-                                    className={`p-1 text-xs w-7 h-7 flex items-center justify-center ${selectedElement.style.textAlign === align ? 'bg-blue-600 text-white' : 'bg-white border-r last:border-0'}`}
-                                    title={align}
+                                    key={value}
+                                    onClick={() => updateElementStyle(selectedElement.id, { textAlign: value })}
+                                    className={`p-1 w-7 h-7 flex items-center justify-center border-r last:border-0 ${selectedElement.style.textAlign === value ? 'bg-blue-600 text-white' : 'bg-white hover:bg-gray-50'}`}
+                                    title={title}
                                 >
-                                    {align === 'left' ? 'E' : align === 'center' ? 'C' : 'D'}
+                                    {icon}
                                 </button>
                             ))}
                         </div>
