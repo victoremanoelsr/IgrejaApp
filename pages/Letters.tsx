@@ -605,13 +605,15 @@ export const Letters: React.FC = () => {
                                             value={selectedTemplateId}
                                             onChange={e => setSelectedTemplateId(e.target.value)}
                                         >
-                                            <option value="">Padrão (Apenas Texto)</option>
+                                            {filteredTemplates.length === 0 && (
+                                                <option value="">Nenhum modelo cadastrado</option>
+                                            )}
                                             {filteredTemplates.map(t => (
                                                 <option key={t.id} value={t.id}>{t.name}</option>
                                             ))}
                                         </select>
                                         {filteredTemplates.length === 0 && (
-                                            <p className="text-[10px] text-orange-600 mt-1 font-medium italic">Nenhum modelo para este tipo.</p>
+                                            <p className="text-[10px] text-orange-600 mt-1 font-medium italic">Cadastre um modelo em "Modelos / Timbrado".</p>
                                         )}
                                     </div>
                                     {letterType === 'MUDANCA' && (
@@ -643,7 +645,7 @@ export const Letters: React.FC = () => {
                         <thead className="bg-gray-50 text-gray-500 font-bold uppercase text-xs sticky top-0">
                             <tr>
                                 <th className="px-4 py-2 text-left">Membro</th>
-                                <th className="px-4 py-2 text-left">Modelo Utilizado</th>
+                                <th className="px-4 py-2 text-left">Tipo de Carta</th>
                                 <th className="px-4 py-2 text-left">Data de Geração</th>
                                 <th className="px-4 py-2 text-right">Ações</th>
                             </tr>
@@ -655,11 +657,12 @@ export const Letters: React.FC = () => {
                                 .map(h => (
                                 <tr key={h.id} className="hover:bg-gray-50">
                                     <td className="px-4 py-2 font-medium">
-                                        {h.memberName}
-                                        <div className="text-[10px] text-gray-500">Emitido para {h.letterType}</div>
+                                        {h.memberName || h.memberDataSnapshot?.name || '-'}
                                     </td>
                                     <td className="px-4 py-2 text-sm">
-                                        <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs border">{h.templateName || 'Padrão (Texto)'}</span>
+                                        <span className={`px-2 py-1 rounded text-xs border font-bold ${h.letterType === 'RECOMENDACAO' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-orange-50 text-orange-700 border-orange-200'}`}>
+                                            {h.letterType === 'RECOMENDACAO' ? 'Recomendação' : 'Mudança'}
+                                        </span>
                                     </td>
                                     <td className="px-4 py-2 text-gray-600 text-sm">
                                         {new Date(h.generatedAt || h.issuedAt).toLocaleString('pt-BR')}
