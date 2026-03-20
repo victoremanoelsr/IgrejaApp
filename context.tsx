@@ -72,6 +72,7 @@ interface AppContextType {
   uploadMinuteFile: (file: File) => Promise<string | null>;
   
   addLetterHistory: (h: LetterHistory) => Promise<void>;
+  deleteLetterHistory: (id: string) => Promise<void>;
   
   // Legacy single setting
   getBookletSettings: (churchId: string) => Promise<BookletSettings | null>;
@@ -596,6 +597,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if(data) setLettersHistory([...lettersHistory, toAppLetterHistory(data[0])]);
   };
 
+  const deleteLetterHistory = async (id: string) => {
+      await supabase.from('letter_history').delete().eq('id', id);
+      setLettersHistory(lettersHistory.filter(h => h.id !== id));
+  };
+
   // --- CARNET TEMPLATE CRUD ---
   const getCarnetTemplates = async (churchId: string) => {
       const { data, error } = await supabase.from('mission_carnet_templates').select('*').eq('church_id', churchId).order('created_at', { ascending: false });
@@ -704,7 +710,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     addCampaign, updateCampaign, deleteCampaign,
     addEvent, updateEvent, deleteEvent, uploadEventImage,
     addMinute, updateMinute, deleteMinute, uploadMinuteFile,
-    addLetterHistory, getBookletSettings, saveBookletSettings, uploadBookletBackground,
+    addLetterHistory, deleteLetterHistory, getBookletSettings, saveBookletSettings, uploadBookletBackground,
     // New Exports
     getCarnetTemplates, addCarnetTemplate, updateCarnetTemplate, deleteCarnetTemplate, setDefaultTemplate,
     getLetterTemplates, addLetterTemplate, updateLetterTemplate, deleteLetterTemplate

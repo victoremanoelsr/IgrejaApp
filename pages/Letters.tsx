@@ -14,9 +14,9 @@ const A4_HEIGHT_MM = 297;
 const EDITOR_HEIGHT = (EDITOR_WIDTH * A4_HEIGHT_MM) / A4_WIDTH_MM;
 
 const DEFAULT_TAGS: LayoutElement[] = [
-    { id: 'tag_nome', type: 'tag', content: '{{nome_membro}}', x: 50, y: 100, width: 150, style: { fontSize: 12, color: '#000000', fontWeight: 'bold', textAlign: 'left' } },
-    { id: 'tag_cargo', type: 'tag', content: '{{cargo}}', x: 50, y: 120, width: 150, style: { fontSize: 12, color: '#000000', fontWeight: 'normal', textAlign: 'left' } },
-    { id: 'tag_data', type: 'tag', content: '{{data_atual}}', x: 100, y: 200, width: 300, style: { fontSize: 12, color: '#000000', fontWeight: 'normal', textAlign: 'center' } },
+    { id: 'tag_nome', type: 'tag', content: '{{nome_membro}}', x: 50, y: 100, style: { fontSize: 12, color: '#000000', fontWeight: 'bold', textAlign: 'left' } },
+    { id: 'tag_cargo', type: 'tag', content: '{{cargo}}', x: 50, y: 120, style: { fontSize: 12, color: '#000000', fontWeight: 'normal', textAlign: 'left' } },
+    { id: 'tag_data', type: 'tag', content: '{{data_atual}}', x: 100, y: 200, style: { fontSize: 12, color: '#000000', fontWeight: 'normal', textAlign: 'center' } },
 ];
 
 interface DraggableLabelProps {
@@ -42,7 +42,6 @@ const DraggableLabel: React.FC<DraggableLabelProps> = ({ el, isSelected, onSelec
   };
 
   const getIcon = (content: string) => {
-      if (content === '{{texto_cadastrado}}') return <FileSignature size={12} className="mr-1"/>;
       if (content.includes('nome') || content.includes('cpf')) return <UserIcon size={12} className="mr-1"/>;
       if (content.includes('data')) return <Calendar size={12} className="mr-1"/>;
       if (content.includes('cargo')) return <Briefcase size={12} className="mr-1"/>;
@@ -80,7 +79,7 @@ const DraggableLabel: React.FC<DraggableLabelProps> = ({ el, isSelected, onSelec
 };
 
 export const Letters: React.FC = () => {
-    const { user, currentChurch, members, lettersHistory, addLetterHistory, updateMember, getLetterTemplates, addLetterTemplate, updateLetterTemplate, deleteLetterTemplate, uploadBookletBackground } = useApp();
+    const { user, currentChurch, members, lettersHistory, addLetterHistory, deleteLetterHistory, updateMember, getLetterTemplates, addLetterTemplate, updateLetterTemplate, deleteLetterTemplate, uploadBookletBackground } = useApp();
     
     const [activeTab, setActiveTab] = useState<'EMISSAO' | 'MODELOS'>('EMISSAO');
 
@@ -97,8 +96,8 @@ export const Letters: React.FC = () => {
     const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
     const [templateName, setTemplateName] = useState('');
     const [templateType, setTemplateType] = useState<'RECOMENDACAO' | 'MUDANCA' | 'GENERICO'>('RECOMENDACAO');
-    const [recommendationText, setRecommendationText] = useState('');
-    const [changeText, setChangeText] = useState('');
+    const [templateRecommendationText, setTemplateRecommendationText] = useState('');
+    const [templateChangeText, setTemplateChangeText] = useState('');
     const [layoutElements, setLayoutElements] = useState<LayoutElement[]>(DEFAULT_TAGS);
     const [backgroundUrl, setBackgroundUrl] = useState<string | undefined>(undefined);
     const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
@@ -117,19 +116,8 @@ export const Letters: React.FC = () => {
         setModalState({ isOpen: true, title, message, variant, showCancel: true, onConfirm: () => { onConfirm(); setModalState(prev => ({ ...prev, isOpen: false })); } });
     };
 
-    const [lettersHistoryList, setLettersHistoryList] = useState<LetterHistory[]>([]);
-
-    const loadHistory = async () => {
-        if (!currentChurch) return;
-        const { data } = await supabase.from('letter_history').select('*').eq('church_id', currentChurch.id).order('issued_at', { ascending: false });
-        if (data) setLettersHistoryList(data.map(toAppLetterHistory));
-    };
-
     useEffect(() => {
-        if (currentChurch) {
-            loadTemplates();
-            loadHistory();
-        }
+        if (currentChurch) loadTemplates();
     }, [currentChurch]);
 
     const loadTemplates = async () => {
@@ -138,33 +126,30 @@ export const Letters: React.FC = () => {
         setTemplates(data);
     };
 
-    const deleteLetterHistoryItem = async (id: string) => {
-        showConfirm("Excluir Registro", "Tem certeza que deseja excluir este registro do histórico?", async () => {
-            const { error } = await supabase.from('letter_history').delete().eq('id', id);
-            if (!error) {
-                setLettersHistoryList(prev => prev.filter(h => h.id !== id));
-                showAlert("Sucesso", "Registro excluído!", "success");
-            } else {
-                showAlert("Erro", "Falha ao excluir registro.", "danger");
+    // --- HELPER: JUSTIFICAÇÃO INTELIGENTE ---
+    const renderJustifiedText = (doc: jsPDF, text: string, x: number, y: number, maxWidth: number, lineHeight?: number) => {
+        const lh = lineHeight || doc.getLineHeight() / doc.internal.scaleFactor;
+        const paragraphs = text.split('\n');
+        let cursorY = y;
+        paragraphs.forEach((para) => {
+            if (para.trim() === '') {
+                cursorY += lh;
+                return;
             }
-        }, "danger");
-    };
-
-    const handleRedownload = (h: LetterHistory) => {
-        setSelectedMember({
-            id: h.memberId,
-            name: h.memberDataSnapshot.name,
-            cpf: h.memberDataSnapshot.cpf,
-            birthDate: h.memberDataSnapshot.birthDate || '',
-            baptismDate: h.memberDataSnapshot.baptismDate,
-            churchId: h.churchId,
-            isTither: false,
-            address: { street: '', number: '', neighborhood: '', city: '', state: '', zipCode: '' }
-        } as Member);
-        setRoleOrFunction(h.memberDataSnapshot.roleOrFunction);
-        setLetterType(h.letterType);
-        setActiveTab('EMISSAO');
-        showAlert("Pronto", "Dados carregados! Selecione o modelo e clique em Gerar PDF.", "info");
+            const lines: string[] = doc.splitTextToSize(para, maxWidth);
+            lines.forEach((line, lIdx) => {
+                const isLastLine = lIdx === lines.length - 1;
+                const lineWidth = doc.getTextWidth(line);
+                const isTooShort = lineWidth < maxWidth * 0.85;
+                if (isLastLine || isTooShort) {
+                    doc.text(line, x, cursorY);
+                } else {
+                    doc.text(line, x, cursorY, { align: 'justify', maxWidth });
+                }
+                cursorY += lh;
+            });
+        });
+        return cursorY;
     };
 
     // --- LOGICA DE GERAÇÃO (PDF) ---
@@ -174,8 +159,9 @@ export const Letters: React.FC = () => {
         const doc = new jsPDF('p', 'mm', 'a4');
         const template = templates.find(t => t.id === selectedTemplateId);
 
+        // SE TIVER MODELO VISUAL SELECIONADO
         if (template) {
-            // 1. Background Image
+            // 1. Background Image (Papel Timbrado)
             if (template.backgroundUrl) {
                 try {
                     const imgProps = await new Promise<{data: string, w: number, h: number}>((resolve, reject) => {
@@ -186,14 +172,10 @@ export const Letters: React.FC = () => {
                             const canvas = document.createElement('canvas');
                             canvas.width = img.naturalWidth;
                             canvas.height = img.naturalHeight;
-                            const ctx = canvas.getContext('2d');
-                            if (ctx) ctx.drawImage(img, 0, 0);
-                            resolve({ data: canvas.toDataURL('image/jpeg', 1.0), w: img.naturalWidth, h: img.naturalHeight });
+                            canvas.getContext('2d')?.drawImage(img, 0, 0);
+                            resolve({ data: canvas.toDataURL('image/jpeg'), w: img.naturalWidth, h: img.naturalHeight });
                         };
-                        img.onerror = (err) => {
-                            console.error("Image load error:", err);
-                            reject(err);
-                        };
+                        img.onerror = reject;
                     });
                     doc.addImage(imgProps.data, 'JPEG', 0, 0, 210, 297);
                 } catch (e) {
@@ -203,61 +185,56 @@ export const Letters: React.FC = () => {
             }
 
             // 2. Overlay Data
-            const mmPerPx = 210 / EDITOR_WIDTH;
+            const scale = 210 / EDITOR_WIDTH;
             const today = new Date();
             const fullDate = `${currentChurch.address.split(',')[1]?.trim() || currentChurch.name}, ${today.getDate()} de ${today.toLocaleString('pt-BR', { month: 'long' })} de ${today.getFullYear()}`;
 
-            template.layoutJson.forEach(el => {
-                let text = el.content;
-                
-                text = text.replace('{{nome_membro}}', selectedMember.name);
-                text = text.replace('{{cpf}}', selectedMember.cpf);
-                text = text.replace('{{cargo}}', roleOrFunction);
-                text = text.replace('{{data_batismo}}', selectedMember.baptismDate ? new Date(selectedMember.baptismDate).toLocaleDateString('pt-BR') : '-');
-                text = text.replace('{{data_nascimento}}', new Date(selectedMember.birthDate).toLocaleDateString('pt-BR'));
-                text = text.replace('{{data_atual}}', today.toLocaleDateString('pt-BR'));
-                text = text.replace('{{cidade_igreja}}', fullDate);
-                text = text.replace('{{estado_civil}}', selectedMember.maritalStatus || '');
-                
-                const cadastrado = letterType === 'RECOMENDACAO' ? template.recommendationText : template.changeText;
+            const elementsToRender = template.layoutJson || DEFAULT_TAGS;
+            elementsToRender.forEach(el => {
                 if (el.content === '{{texto_cadastrado}}') {
-                    text = cadastrado || '';
-                } else if (cadastrado) {
-                    text = text.replace('{{texto_cadastrado}}', cadastrado);
-                }
+                    const textContent = letterType === 'RECOMENDACAO' ? (template.recommendationText || '') : (template.changeText || '');
+                    if (textContent.trim()) {
+                        doc.setTextColor(el.style.color);
+                        doc.setFontSize(el.style.fontSize);
+                        doc.setFont("helvetica", el.style.fontWeight === 'bold' ? 'bold' : 'normal');
 
-                doc.setTextColor(el.style.color);
-                doc.setFontSize(el.style.fontSize);
-                doc.setFont("helvetica", el.style.fontWeight === 'bold' ? 'bold' : 'normal');
-                
-                // Forçar margens de 2cm (20mm) se for o texto cadastrado
-                const marginMm = 20; 
-                const availableWidthMm = 210 - (marginMm * 2);
-                
-                let maxWidthMm;
-                let finalX;
+                        let processedText = textContent;
+                        processedText = processedText.replace(/{{nome_membro}}/g, selectedMember.name);
+                        processedText = processedText.replace(/{{cpf}}/g, selectedMember.cpf);
+                        processedText = processedText.replace(/{{cargo}}/g, roleOrFunction);
+                        processedText = processedText.replace(/{{data_batismo}}/g, selectedMember.baptismDate ? new Date(selectedMember.baptismDate).toLocaleDateString('pt-BR') : '-');
+                        processedText = processedText.replace(/{{data_nascimento}}/g, new Date(selectedMember.birthDate).toLocaleDateString('pt-BR'));
+                        processedText = processedText.replace(/{{data_atual}}/g, today.toLocaleDateString('pt-BR'));
+                        processedText = processedText.replace(/{{cidade_igreja}}/g, fullDate);
+                        processedText = processedText.replace(/{{estado_civil}}/g, selectedMember.maritalStatus || '');
 
-                if (el.content === '{{texto_cadastrado}}') {
-                    maxWidthMm = availableWidthMm;
-                    finalX = marginMm; // Começa sempre na margem de 2cm
+                        renderJustifiedText(doc, processedText, 20, (el.y * scale) + (el.style.fontSize * 0.35), 170);
+                    }
+                } else {
+                    let text = el.content;
+                    text = text.replace('{{nome_membro}}', selectedMember.name);
+                    text = text.replace('{{cpf}}', selectedMember.cpf);
+                    text = text.replace('{{cargo}}', roleOrFunction);
+                    text = text.replace('{{data_batismo}}', selectedMember.baptismDate ? new Date(selectedMember.baptismDate).toLocaleDateString('pt-BR') : '-');
+                    text = text.replace('{{data_nascimento}}', new Date(selectedMember.birthDate).toLocaleDateString('pt-BR'));
+                    text = text.replace('{{data_atual}}', today.toLocaleDateString('pt-BR'));
+                    text = text.replace('{{cidade_igreja}}', fullDate);
+                    text = text.replace('{{estado_civil}}', selectedMember.maritalStatus || '');
+
+                    doc.setTextColor(el.style.color);
+                    doc.setFontSize(el.style.fontSize);
+                    doc.setFont("helvetica", el.style.fontWeight === 'bold' ? 'bold' : 'normal');
                     
-                    // Sobrescrever estilo para formalidade profissional
-                    el.style.textAlign = 'justify'; 
-                } else {
-                    maxWidthMm = el.width ? (el.width * mmPerPx) : (210 - (el.x * mmPerPx) - marginMm);
-                    finalX = el.style.textAlign === 'center' ? (el.x + (el.width || 0) / 2) * mmPerPx : 
-                             el.style.textAlign === 'right' ? (el.x + (el.width || 0)) * mmPerPx : 
-                             el.x * mmPerPx;
-                }
+                    const x = el.x * scale;
+                    const y = el.y * scale;
 
-                if (el.style.textAlign === 'center') {
-                    doc.text(text, finalX, y, { align: 'center', maxWidth: maxWidthMm });
-                } else if (el.style.textAlign === 'right') {
-                    doc.text(text, finalX, y, { align: 'right', maxWidth: maxWidthMm });
-                } else if (el.style.textAlign === 'justify') {
-                    doc.text(text, finalX, y, { align: 'justify', maxWidth: maxWidthMm });
-                } else {
-                    doc.text(text, finalX, y, { align: 'left', maxWidth: maxWidthMm });
+                    if (el.style.textAlign === 'center') {
+                        doc.text(text, x, y + (el.style.fontSize * 0.35), { align: 'center' });
+                    } else if (el.style.textAlign === 'right') {
+                        doc.text(text, x, y + (el.style.fontSize * 0.35), { align: 'right' });
+                    } else {
+                        doc.text(text, x, y + (el.style.fontSize * 0.35));
+                    }
                 }
             });
 
@@ -290,8 +267,7 @@ export const Letters: React.FC = () => {
             
             doc.setFontSize(12);
             doc.setFont(undefined, 'normal');
-            const splitText = doc.splitTextToSize(content, 170);
-            doc.text(splitText, 20, 90);
+            renderJustifiedText(doc, content, 20, 90, 170);
 
             doc.text(`${currentChurch.address.split(',')[1]?.trim() || 'Local'}, ${formattedDate}.`, 105, 180, { align: 'center' });
             
@@ -305,11 +281,14 @@ export const Letters: React.FC = () => {
 
         // Save History
         if (user) {
-            const historyItem: Omit<LetterHistory, 'id'> = {
+            await addLetterHistory({
                 churchId: selectedMember.churchId,
                 memberId: selectedMember.id,
+                memberName: selectedMember.name,
+                templateName: template ? template.name : 'Padrão (Texto)',
                 letterType: letterType,
                 issuedAt: new Date().toISOString(),
+                generatedAt: new Date().toISOString(),
                 issuedByUserId: user.id,
                 memberDataSnapshot: {
                     name: selectedMember.name,
@@ -318,25 +297,13 @@ export const Letters: React.FC = () => {
                     roleOrFunction: roleOrFunction,
                     cpf: selectedMember.cpf
                 }
-            };
-            
-            const { data: savedData, error: saveError } = await supabase.from('letter_history').insert([historyItem]).select();
-            
-            if (saveError) {
-                console.error("Erro ao salvar histórico:", saveError);
-            } else if (savedData) {
-                setLettersHistoryList(prev => [toAppLetterHistory(savedData[0]), ...prev]);
-                // Também atualiza o contexto global se necessário
-                if (typeof addLetterHistory === 'function') {
-                    addLetterHistory(toAppLetterHistory(savedData[0]));
-                }
-            }
+            } as LetterHistory);
 
             if (letterType === 'MUDANCA' && disableMember) {
                 await updateMember(selectedMember.id, { ...selectedMember, status: 'TRANSFERIDO' });
             }
         }
-
+        
         showAlert("Sucesso", "Carta gerada e registrada!", "success");
         setSelectedMember(null);
         setSearchTerm('');
@@ -347,22 +314,19 @@ export const Letters: React.FC = () => {
         setEditingTemplateId(null);
         setTemplateName('');
         setBackgroundUrl(undefined);
-        setRecommendationText('');
-        setChangeText('');
         setLayoutElements(DEFAULT_TAGS);
-        setSelectedElementId(null);
+        setTemplateRecommendationText('');
+        setTemplateChangeText('');
     };
 
     const handleEditTemplate = (t: LetterTemplate) => {
         setEditingTemplateId(t.id);
         setTemplateName(t.name);
         setTemplateType(t.type);
+        setTemplateRecommendationText(t.recommendationText || '');
+        setTemplateChangeText(t.changeText || '');
         setBackgroundUrl(t.backgroundUrl);
-        setRecommendationText(t.recommendationText || '');
-        setChangeText(t.changeText || '');
         setLayoutElements(t.layoutJson || DEFAULT_TAGS);
-        setSelectedElementId(null);
-        setActiveTab('MODELOS');
     };
 
     const handleSaveTemplate = async () => {
@@ -377,25 +341,20 @@ export const Letters: React.FC = () => {
             name: templateName,
             type: templateType,
             backgroundUrl,
-            recommendationText,
-            changeText,
-            layoutJson: layoutElements
+            layoutJson: layoutElements,
+            recommendationText: templateRecommendationText,
+            changeText: templateChangeText
         };
 
-        let res;
         if (editingTemplateId) {
-            res = await updateLetterTemplate(editingTemplateId, payload);
+            await updateLetterTemplate(editingTemplateId, payload);
         } else {
-            res = await addLetterTemplate(payload);
+            await addLetterTemplate(payload);
         }
         
-        if (res && !res.success) {
-            showAlert("Erro ao Salvar", `Ocorreu um erro no banco de dados: ${res.error}. \n\nCertifique-se de que as colunas 'recommendation_text' e 'change_text' existem na tabela 'letter_templates'.`, "danger");
-        } else {
-            await loadTemplates();
-            showAlert("Sucesso", "Modelo salvo com sucesso!", "success");
-        }
+        await loadTemplates();
         setIsSavingTemplate(false);
+        showAlert("Sucesso", "Modelo salvo!", "success");
     };
 
     const handleDeleteTemplateHandler = (id: string) => {
@@ -418,37 +377,16 @@ export const Letters: React.FC = () => {
     };
 
     const handleAddField = (tag: string) => {
-        const marginPx = 2 * (EDITOR_WIDTH / A4_WIDTH_MM); // 2cm em pixels (aprox 56px)
-        const contentWidth = EDITOR_WIDTH - (2 * marginPx);
-        
         const newEl: LayoutElement = {
             id: `tag_${Date.now()}`,
-            type: tag === '{{texto_cadastrado}}' ? 'text' : 'tag',
+            type: 'tag',
             content: tag,
-            x: tag === '{{texto_cadastrado}}' ? marginPx : 50,
-            y: tag === '{{texto_cadastrado}}' ? (EDITOR_HEIGHT / 2) - 50 : 50,
-            width: tag === '{{texto_cadastrado}}' ? contentWidth : 150,
-            style: { 
-                fontSize: 12, 
-                color: '#000000', 
-                fontWeight: 'normal', 
-                textAlign: tag === '{{texto_cadastrado}}' ? 'center' : 'left' 
-            }
+            x: 50,
+            y: 50,
+            style: { fontSize: 12, color: '#000000', fontWeight: 'bold', textAlign: 'left' }
         };
         setLayoutElements(prev => [...prev, newEl]);
         setSelectedElementId(newEl.id);
-    };
-
-    const updateElementWidth = (id: string, width: number) => {
-        setLayoutElements(prev => prev.map(el => el.id === id ? { ...el, width } : el));
-    };
-
-    const updateElementStyle = (id: string, style: Partial<LayoutElement['style']>) => {
-        setLayoutElements(prev => prev.map(el => el.id === id ? { ...el, style: { ...el.style, ...style } } : el));
-    };
-
-    const updateElementContent = (id: string, content: string) => {
-        setLayoutElements(prev => prev.map(el => el.id === id ? { ...el, content } : el));
     };
 
     const handleDragStop = (id: string, data: DraggableData) => {
@@ -458,11 +396,8 @@ export const Letters: React.FC = () => {
     const wrapperRef = useRef<HTMLDivElement>(null);
     const activeMembers = members.filter(m => m.churchId === currentChurch?.id && (m.status || 'ATIVO') === 'ATIVO');
     const memberSuggestions = searchTerm.length < 2 ? [] : activeMembers.filter(m => m.name.toLowerCase().includes(searchTerm.toLowerCase()) || m.cpf.includes(searchTerm));
-    const filteredTemplates = templates.filter(t => t.churchId === currentChurch?.id && (t.type === letterType || t.type === 'GENERICO'));
 
     // --- RENDERERS ---
-
-    const selectedElement = layoutElements.find(el => el.id === selectedElementId);
 
     const renderEditor = () => (
         <div className="space-y-6 animate-fade-in">
@@ -498,83 +433,14 @@ export const Letters: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                    <div>
-                        <label className="block text-xs font-bold text-gray-500 mb-1">Texto de Recomendação</label>
-                        <textarea 
-                            rows={3}
-                            className="w-full p-2 border rounded text-sm" 
-                            value={recommendationText} 
-                            onChange={e => setRecommendationText(e.target.value)}
-                            placeholder="Texto base que será inserido na tag {{texto_cadastrado}}"
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-xs font-bold text-gray-500 mb-1">Texto de Mudança</label>
-                        <textarea 
-                            rows={3}
-                            className="w-full p-2 border rounded text-sm" 
-                            value={changeText} 
-                            onChange={e => setChangeText(e.target.value)}
-                            placeholder="Texto base que será inserido na tag {{texto_cadastrado}}"
-                        />
-                    </div>
-                </div>
-
                 {/* TOOLBAR */}
-                <div className="flex flex-wrap gap-2 mb-4 bg-gray-50 p-2 rounded border items-center">
-                    <span className="text-xs font-bold text-gray-400 flex items-center mr-2">Inserir Campos:</span>
+                <div className="flex flex-wrap gap-2 mb-4 bg-gray-50 p-2 rounded border">
+                    <span className="text-xs font-bold text-gray-400 flex items-center mr-2">Adicionar Campos:</span>
                     {['{{nome_membro}}', '{{cpf}}', '{{cargo}}', '{{data_batismo}}', '{{data_nascimento}}', '{{data_atual}}', '{{cidade_igreja}}', '{{estado_civil}}', '{{texto_cadastrado}}'].map(tag => (
-                        <button key={tag} onClick={() => handleAddField(tag)} className="bg-white border px-2 py-1 rounded text-xs hover:bg-blue-50 text-blue-700 font-bold shadow-sm">
+                        <button key={tag} onClick={() => handleAddField(tag)} className={`bg-white border px-2 py-1 rounded text-xs font-bold shadow-sm ${tag === '{{texto_cadastrado}}' ? 'border-orange-300 text-orange-600 hover:bg-orange-50' : 'hover:bg-blue-50 text-blue-700'}`}>
                             {tag.replace(/{{|}}/g, '')}
                         </button>
                     ))}
-                    
-                    {selectedElement && (
-                        <div className="flex items-center gap-2 ml-4 border-l pl-4">
-                            <span className="text-[10px] font-bold text-gray-400 uppercase">Formatar:</span>
-                            <div className="flex items-center gap-1">
-                                <span className="text-[10px] text-gray-400">Largura:</span>
-                                <input 
-                                    type="number" 
-                                    className="text-xs p-1 border rounded w-16"
-                                    value={selectedElement.width || 0}
-                                    onChange={e => updateElementWidth(selectedElement.id, parseInt(e.target.value))}
-                                />
-                            </div>
-                            <select 
-                                className="text-xs p-1 border rounded"
-                                value={selectedElement.style.fontSize}
-                                onChange={e => updateElementStyle(selectedElement.id, { fontSize: parseInt(e.target.value) })}
-                            >
-                                {[8,9,10,11,12,14,16,18,20,24,28,32].map(s => <option key={s} value={s}>{s}px</option>)}
-                            </select>
-                            <button 
-                                onClick={() => updateElementStyle(selectedElement.id, { fontWeight: selectedElement.style.fontWeight === 'bold' ? 'normal' : 'bold' })}
-                                className={`p-1 border rounded text-xs font-bold w-7 h-7 flex items-center justify-center ${selectedElement.style.fontWeight === 'bold' ? 'bg-blue-600 text-white' : 'bg-white'}`}
-                            >
-                                B
-                            </button>
-                            <div className="flex border rounded overflow-hidden">
-                                {(['left', 'center', 'right'] as const).map(align => (
-                                    <button 
-                                        key={align}
-                                        onClick={() => updateElementStyle(selectedElement.id, { textAlign: align })}
-                                        className={`p-1 text-xs w-7 h-7 flex items-center justify-center ${selectedElement.style.textAlign === align ? 'bg-blue-600 text-white' : 'bg-white border-r last:border-0'}`}
-                                    >
-                                        {align[0].toUpperCase()}
-                                    </button>
-                                ))}
-                            </div>
-                            <input 
-                                type="color" 
-                                className="w-7 h-7 p-0 border-0 rounded cursor-pointer"
-                                value={selectedElement.style.color}
-                                onChange={e => updateElementStyle(selectedElement.id, { color: e.target.value })}
-                            />
-                        </div>
-                    )}
-
                     {selectedElementId && (
                         <button onClick={() => { setLayoutElements(prev => prev.filter(e => e.id !== selectedElementId)); setSelectedElementId(null); }} className="ml-auto text-red-500 hover:bg-red-50 p-1 rounded">
                             <Trash2 size={16}/>
@@ -582,86 +448,56 @@ export const Letters: React.FC = () => {
                     )}
                 </div>
 
-                {selectedElement && selectedElement.type === 'text' && (
-                    <div className="mb-4 p-3 bg-blue-50 border border-blue-100 rounded-lg">
-                        <label className="block text-xs font-bold text-blue-700 mb-1 uppercase">Editar Conteúdo do Texto:</label>
-                        <div className="flex gap-2">
-                            <textarea 
-                                className="flex-1 p-2 border rounded-lg text-sm"
-                                rows={2}
-                                value={selectedElement.content}
-                                onChange={e => updateElementContent(selectedElement.id, e.target.value)}
-                            />
-                            <div className="w-48 space-y-1">
-                                <p className="text-[10px] font-bold text-blue-600 uppercase">Inserir Tag no Texto:</p>
-                                <div className="grid grid-cols-2 gap-1">
-                                    {['{{nome_membro}}', '{{cpf}}', '{{cargo}}', '{{data_atual}}'].map(tag => (
-                                        <button 
-                                            key={tag}
-                                            onClick={() => updateElementContent(selectedElement.id, selectedElement.content + ' ' + tag)}
-                                            className="text-[9px] bg-white border border-blue-200 py-1 rounded hover:bg-blue-100 transition-colors"
-                                        >
-                                            {tag.replace(/{{|}}/g, '')}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                )}
-
                 {/* CANVAS */}
                 <div className="relative border bg-gray-200 overflow-hidden mx-auto shadow-2xl" style={{ width: EDITOR_WIDTH, height: EDITOR_HEIGHT }}>
                     {backgroundUrl && <img src={backgroundUrl} className="absolute inset-0 w-full h-full object-cover pointer-events-none opacity-80" />}
                     {layoutElements.map(el => (
-                        <div key={el.id}>
-                            <DraggableLabel el={el} isSelected={selectedElementId === el.id} onSelect={setSelectedElementId} onDragStop={handleDragStop} />
-                            <div 
-                                className="absolute pointer-events-none whitespace-pre-wrap border border-dashed border-gray-300"
-                                style={{
-                                    left: el.content === '{{texto_cadastrado}}' ? '20mm' : `${el.x}px`,
-                                    top: el.y,
-                                    fontSize: `${el.style.fontSize}px`,
-                                    color: el.style.color,
-                                    fontWeight: el.style.fontWeight,
-                                    textAlign: el.content === '{{texto_cadastrado}}' ? 'justify' : el.style.textAlign,
-                                    width: el.content === '{{texto_cadastrado}}' ? 'calc(100% - 40mm)' : (el.width ? `${el.width}px` : 'auto'),
-                                    maxWidth: el.content === '{{texto_cadastrado}}' ? 'calc(100% - 40mm)' : (el.width ? `${el.width}px` : (EDITOR_WIDTH - el.x)),
-                                    lineHeight: '1.2',
-                                    padding: '2px',
-                                    overflow: 'hidden'
-                                }}
-                            >
-                                {el.content === '{{texto_cadastrado}}' ? (recommendationText || 'Seu texto aparecerá aqui...') : (el.type === 'text' ? el.content : '')}
-                            </div>
-                        </div>
+                        <DraggableLabel key={el.id} el={el} isSelected={selectedElementId === el.id} onSelect={setSelectedElementId} onDragStop={handleDragStop} />
                     ))}
                     <div className="absolute bottom-2 right-2 text-[10px] text-gray-400 bg-white/80 px-1 rounded pointer-events-none">A4 Preview</div>
                 </div>
+
+                {/* TEXT SETTINGS */}
+                <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6 bg-gray-50 p-4 border rounded-lg">
+                    <div className="md:col-span-2 mb-2">
+                        <h4 className="font-bold text-gray-700 flex items-center"><Type size={18} className="mr-2"/> Textos do Modelo</h4>
+                        <p className="text-xs text-gray-500">Este texto aparecerá onde a tag <b>{'{{texto_cadastrado}}'}</b> for posicionada. As margens fixas de 2cm e o alinhamento justificado ao meio serão aplicados gerando textos automáticos com base no formato selecionado na emissão.</p>
+                    </div>
+                    <div>
+                        <label className="block text-xs font-bold text-gray-600 mb-2">Para Cartas de Recomendação</label>
+                        <textarea 
+                            className="w-full h-40 p-3 border rounded text-sm resize-y" 
+                            placeholder="A Igreja Evangélica Assembleia de Deus..."
+                            value={templateRecommendationText}
+                            onChange={e => setTemplateRecommendationText(e.target.value)}
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-bold text-gray-600 mb-2">Para Cartas de Mudança</label>
+                        <textarea 
+                            className="w-full h-40 p-3 border rounded text-sm resize-y" 
+                            placeholder="A Igreja Evangélica Assembleia de Deus concede a presente carta de mudança..."
+                            value={templateChangeText}
+                            onChange={e => setTemplateChangeText(e.target.value)}
+                        />
+                    </div>
+                </div>
             </div>
 
-            {/* LISTA DE MODELOS - HISTÓRICO */}
-            <div className="bg-white p-6 rounded-xl shadow border">
-                <h3 className="font-bold text-gray-700 mb-4 flex items-center"><History className="mr-2"/> Histórico de Modelos de Cartas</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {templates.filter(t => t.churchId === currentChurch?.id).map(t => (
-                        <div key={t.id} className={`p-4 border rounded-lg bg-white shadow-sm flex flex-col hover:border-blue-300 transition-colors ${editingTemplateId === t.id ? 'ring-2 ring-blue-500' : ''}`}>
-                            <div className="flex justify-between items-start mb-2">
-                                <h4 className="font-bold text-gray-800 truncate pr-2">{t.name}</h4>
-                                <span className="text-[10px] bg-gray-100 px-2 py-0.5 rounded whitespace-nowrap">{t.type}</span>
-                            </div>
-                            <div className="mt-auto flex gap-2 pt-2">
-                                <button onClick={() => handleEditTemplate(t)} className="flex-1 py-1.5 bg-gray-50 border rounded text-xs font-bold hover:bg-blue-50 hover:text-blue-600 transition-colors">Editar Modelo</button>
-                                <button onClick={() => handleDeleteTemplateHandler(t.id)} className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"><Trash2 size={14}/></button>
-                            </div>
+            {/* LISTA DE MODELOS */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {templates.map(t => (
+                    <div key={t.id} className={`p-4 border rounded-lg bg-white shadow-sm flex flex-col ${editingTemplateId === t.id ? 'ring-2 ring-blue-500' : ''}`}>
+                        <div className="flex justify-between items-start mb-2">
+                            <h4 className="font-bold text-gray-800">{t.name}</h4>
+                            <span className="text-[10px] bg-gray-100 px-2 py-0.5 rounded">{t.type}</span>
                         </div>
-                    ))}
-                    {templates.filter(t => t.churchId === currentChurch?.id).length === 0 && (
-                        <div className="col-span-full py-8 text-center text-gray-400 border-2 border-dashed rounded-lg">
-                            Nenhum modelo personalizado encontrado para esta igreja.
+                        <div className="mt-auto flex gap-2 pt-2">
+                            <button onClick={() => handleEditTemplate(t)} className="flex-1 py-1 bg-gray-50 border rounded text-xs font-bold hover:bg-white">Editar</button>
+                            <button onClick={() => handleDeleteTemplateHandler(t.id)} className="p-1 text-red-400 hover:text-red-600"><Trash2 size={14}/></button>
                         </div>
-                    )}
-                </div>
+                    </div>
+                ))}
             </div>
         </div>
     );
@@ -738,13 +574,10 @@ export const Letters: React.FC = () => {
                                             onChange={e => setSelectedTemplateId(e.target.value)}
                                         >
                                             <option value="">Padrão (Apenas Texto)</option>
-                                            {filteredTemplates.map(t => (
+                                            {templates.filter(t => t.churchId === currentChurch?.id).filter(t => t.type === letterType || t.type === 'GENERICO').map(t => (
                                                 <option key={t.id} value={t.id}>{t.name}</option>
                                             ))}
                                         </select>
-                                        {filteredTemplates.length === 0 && (
-                                            <p className="text-[10px] text-orange-600 mt-1 font-medium italic">Nenhum modelo personalizado para este tipo.</p>
-                                        )}
                                     </div>
                                     {letterType === 'MUDANCA' && (
                                         <div className="md:col-span-2 flex items-center p-2 border rounded-lg bg-white cursor-pointer hover:bg-yellow-50">
@@ -775,21 +608,26 @@ export const Letters: React.FC = () => {
                         <thead className="bg-gray-50 text-gray-500 font-bold uppercase text-xs sticky top-0">
                             <tr>
                                 <th className="px-4 py-2 text-left">Membro</th>
-                                <th className="px-4 py-2 text-left">Tipo</th>
-                                <th className="px-4 py-2 text-left">Data de Emissão</th>
+                                <th className="px-4 py-2 text-left">Modelo Utilizado</th>
+                                <th className="px-4 py-2 text-left">Data de Geração</th>
                                 <th className="px-4 py-2 text-right">Ações</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y">
-                            {lettersHistory.filter(h => h.churchId === currentChurch?.id).sort((a,b) => new Date(b.issuedAt).getTime() - new Date(a.issuedAt).getTime()).map(h => (
+                            {lettersHistory.filter(h => h.churchId === currentChurch?.id).sort((a,b) => new Date(b.generatedAt || b.issuedAt).getTime() - new Date(a.generatedAt || a.issuedAt).getTime()).map(h => (
                                 <tr key={h.id} className="hover:bg-gray-50">
-                                    <td className="px-4 py-2 font-medium">{h.memberDataSnapshot.name}</td>
-                                    <td className="px-4 py-2">
-                                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${h.letterType === 'MUDANCA' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>
-                                            {h.letterType}
+                                    <td className="px-4 py-2 font-medium">
+                                        {h.memberName}
+                                        <div className="text-[10px] text-gray-500">Emitido para {h.letterType}</div>
+                                    </td>
+                                    <td className="px-4 py-2 text-sm">
+                                        <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs border">
+                                            {h.templateName || 'Padrão (Texto)'}
                                         </span>
                                     </td>
-                                    <td className="px-4 py-2 text-gray-600">{new Date(h.issuedAt).toLocaleDateString('pt-BR')}</td>
+                                    <td className="px-4 py-2 text-gray-600 text-sm">
+                                        {new Date(h.generatedAt || h.issuedAt).toLocaleString('pt-BR')}
+                                    </td>
                                     <td className="px-4 py-2 text-right">
                                         <button 
                                             onClick={() => {
@@ -808,6 +646,13 @@ export const Letters: React.FC = () => {
                                             title="Carregar dados para reimpressão"
                                         >
                                             <Eye size={16} className="mr-1"/> Reemitir
+                                        </button>
+                                        <button 
+                                            onClick={() => showConfirm("Excluir Registro", "Tem certeza que deseja excluir este registro do histórico?", async () => { await deleteLetterHistory(h.id); }, "danger")}
+                                            className="text-gray-400 hover:text-red-500 p-1"
+                                            title="Excluir registro"
+                                        >
+                                            <Trash2 size={16}/>
                                         </button>
                                     </td>
                                 </tr>
