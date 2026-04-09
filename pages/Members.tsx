@@ -5,8 +5,9 @@ import { Member } from '../types';
 import { 
   Search, Plus, Trash2, Edit2, User, Save, X, Phone, Mail, ZoomIn, 
   CheckCircle, Camera, Loader, MapPin, Calendar, Hash, Flag, Lock, Key, Info,
-  Users, Baby, Heart, Zap
+  Users, Baby, Heart, Zap, MessageCircle
 } from 'lucide-react';
+import { sendWhatsApp, welcomeMessage } from '../utils/whatsapp';
 
 export const Members: React.FC = () => {
   const { members, churches, user, addMember, updateMember, deleteMember, uploadMemberPhoto, currentChurch, updateUserCredentials } = useApp();
@@ -206,7 +207,17 @@ export const Members: React.FC = () => {
                  <div className="bg-gray-50 p-2 rounded border border-gray-100">
                     <p className="text-[10px] uppercase font-bold text-gray-400 mb-1 tracking-wider">Contato</p>
                     <div className="grid grid-cols-1 gap-1">
-                        <p className="flex items-center text-gray-700 font-medium"><Phone size={12} className="mr-2 text-blue-500"/> {viewingMember.phone || '-'}</p>
+                        <div className="flex items-center justify-between">
+                          <p className="flex items-center text-gray-700 font-medium"><Phone size={12} className="mr-2 text-blue-500"/> {viewingMember.phone || '-'}</p>
+                          {viewingMember.phone && (
+                            <button
+                              onClick={() => sendWhatsApp(viewingMember.phone!, welcomeMessage(viewingMember.name, currentChurch?.name || 'nossa igreja'))}
+                              className="flex items-center gap-1 text-[10px] bg-green-500 text-white px-2 py-1 rounded-lg font-bold hover:bg-green-600 transition"
+                            >
+                              <MessageCircle size={10}/> Boas-vindas
+                            </button>
+                          )}
+                        </div>
                         {viewingMember.email && <p className="flex items-center text-gray-700 font-medium truncate"><Mail size={12} className="mr-2 text-gray-500"/> {viewingMember.email}</p>}
                     </div>
                  </div>
@@ -279,12 +290,20 @@ export const Members: React.FC = () => {
                     </div>
                   </div>
                 </td>
-                <td className="px-2 py-2 whitespace-nowrap text-right text-sm font-medium w-16">
+                <td className="px-2 py-2 whitespace-nowrap text-right text-sm font-medium w-24">
                   <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                      {member.phone && (
+                        <button
+                          title="Enviar Boas-vindas via WhatsApp"
+                          onClick={() => sendWhatsApp(member.phone!, welcomeMessage(member.name, currentChurch?.name || 'nossa igreja'))}
+                          className="text-green-400 hover:text-green-600 p-1.5 rounded-full hover:bg-green-50 transition-colors"
+                        >
+                          <MessageCircle size={15}/>
+                        </button>
+                      )}
                       {canEdit || member.id === user?.id ? (
                         <>
                             <button onClick={() => handleEdit(member)} className="text-gray-400 hover:text-brand-orange p-1.5 rounded-full hover:bg-orange-50 transition-colors"><Edit2 size={16}/></button>
-                            {/* Somente tesoureiro deleta, exceto o próprio usuário não pode se deletar aqui */}
                             {canEdit && <button onClick={() => handleConfirmDelete(member)} className="text-gray-400 hover:text-red-600 p-1.5 rounded-full hover:bg-red-50 transition-colors"><Trash2 size={16}/></button>}
                         </>
                       ) : (

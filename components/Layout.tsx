@@ -34,6 +34,7 @@ import {
 } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Church } from '../types';
+import { NotificationCenter } from './NotificationCenter';
 
 interface ChurchOptionProps {
   church: Church;
@@ -361,6 +362,9 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       </aside>
 
       <main className="flex-1 flex flex-col overflow-hidden bg-gray-50 dark:bg-gray-900 relative">
+        <div className="fixed top-2 right-3 z-40">
+          <NotificationCenter />
+        </div>
         {isGhostMode && (
           <div className="bg-brand-yellow text-brand-black px-4 py-2 text-xs md:text-base flex justify-between items-center shadow-md z-10 pl-14 md:pl-6">
             <div className="flex items-center font-bold">

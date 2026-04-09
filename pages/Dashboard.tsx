@@ -9,8 +9,11 @@ import {
   Calendar,
   Wallet,
   Globe,
-  TrendingDown
+  TrendingDown,
+  MessageCircle,
+  Gift
 } from 'lucide-react';
+import { sendWhatsApp, birthdayMessage } from '../utils/whatsapp';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   PieChart, Pie, Cell, LineChart, Line, Legend 
@@ -310,6 +313,54 @@ export const Dashboard: React.FC = () => {
         </div>
 
       </div>
+
+      {/* LINHA 2.5: ANIVERSARIANTES DO MÊS */}
+      {(() => {
+        const birthdayMembers = churchMembers.filter(m => {
+          if (!m.birthDate) return false;
+          const month = parseInt(m.birthDate.split('-')[1]);
+          return month === selectedMonth;
+        }).sort((a, b) => {
+          const dayA = parseInt(a.birthDate.split('-')[2]);
+          const dayB = parseInt(b.birthDate.split('-')[2]);
+          return dayA - dayB;
+        });
+        if (birthdayMembers.length === 0) return null;
+        return (
+          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+            <div className="flex items-center gap-2 mb-4">
+              <Gift size={18} className="text-pink-500" />
+              <h3 className="font-bold text-gray-800 text-lg">Aniversariantes do Mês</h3>
+              <span className="ml-auto bg-pink-100 text-pink-700 text-xs font-bold px-2 py-0.5 rounded-full">{birthdayMembers.length}</span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {birthdayMembers.map(m => {
+                const day = m.birthDate.split('-')[2];
+                return (
+                  <div key={m.id} className="flex items-center gap-3 bg-pink-50 border border-pink-100 rounded-xl px-3 py-2">
+                    <div className="w-9 h-9 rounded-full bg-pink-200 overflow-hidden shrink-0 border-2 border-pink-300">
+                      {m.photo ? <img src={m.photo} alt={m.name} className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center text-pink-600 font-bold text-xs">{m.name.charAt(0)}</div>}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold text-gray-800 truncate">{m.name}</p>
+                      <p className="text-[10px] text-pink-500 font-medium">Dia {day} 🎂</p>
+                    </div>
+                    {m.phone && (
+                      <button
+                        onClick={() => sendWhatsApp(m.phone!, birthdayMessage(m.name))}
+                        title="Enviar Parabéns via WhatsApp"
+                        className="p-1.5 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors shrink-0"
+                      >
+                        <MessageCircle size={13}/>
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* LINHA 3: FLUXO DE CAIXA MENSAL */}
       <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">

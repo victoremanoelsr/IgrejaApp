@@ -6,14 +6,15 @@ import {
   PlusCircle, MinusCircle, Search, CheckCircle, ShieldAlert, X, 
   Paperclip, ExternalLink, Trash2, Upload, Loader, Filter, 
   Calendar, Edit2, AlertTriangle, Info, ChevronDown, ChevronUp, Globe,
-  Receipt, PlayCircle, Save, RefreshCw, Clock
+  Receipt, PlayCircle, Save, RefreshCw, Clock, MessageCircle
 } from 'lucide-react';
+import { sendWhatsApp, treasuryMessage } from '../utils/whatsapp';
 
 export const Finance: React.FC = () => {
   const { 
     addTransaction, updateTransaction, deleteTransaction, uploadTransactionFile, confirmTransactionPayment,
     addFixedExpense, generateMonthlyFixedExpenses,
-    members, user, transactions, currentChurch, updateMember, fixedExpenses
+    members, users, user, transactions, currentChurch, updateMember, fixedExpenses
   } = useApp();
   
   const [activeTab, setActiveTab] = useState<'ENTRADA' | 'SAIDA' | 'LISTA'>('LISTA');
@@ -230,6 +231,10 @@ export const Finance: React.FC = () => {
 
   if (!viewId) return <div>...</div>;
 
+  const tesoureiroUser = users.find(u => u.churchId === viewId && u.role === 'TESOUREIRO');
+  const tesoureiroMember = tesoureiroUser ? members.find(m => m.id === tesoureiroUser.id) : null;
+  const tesoureiroPhone = tesoureiroMember?.phone;
+
   const renderTransactionForm = () => (
     <div className="bg-white rounded-xl shadow-md p-3 md:p-8 animate-fade-in-down">
        <div className="mb-4 border-b pb-2 flex justify-between items-center">
@@ -371,18 +376,28 @@ export const Finance: React.FC = () => {
                   <td className="hidden md:table-cell px-2 py-2 text-xs"><span className={`px-1 rounded text-[10px] font-bold ${t.type === 'ENTRADA' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{formatCategoryName(t.category, t.type)}</span></td>
                   <td className={`px-2 py-2 text-[10px] font-bold text-right whitespace-nowrap ${t.type === 'ENTRADA' ? 'text-green-600' : 'text-brand-red'}`}>{t.type === 'ENTRADA' ? '+' : '-'} {t.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
                   <td className="px-1 py-2 text-right whitespace-nowrap">
-                      {canEdit && (
-                          <div className="flex justify-end gap-2">
-                              {/* Removed confirmation button as requested */}
+                      <div className="flex justify-end gap-2 items-center">
+                          {tesoureiroPhone && (
+                            <button
+                              title="Avisar Tesouraria via WhatsApp"
+                              onClick={() => sendWhatsApp(tesoureiroPhone, treasuryMessage(t.description, t.amount, t.type, t.date))}
+                              className="text-green-400 hover:text-green-600 transition-colors"
+                            >
+                              <MessageCircle size={13}/>
+                            </button>
+                          )}
+                          {canEdit && (
+                            <>
                               {t.attachmentUrl && (
-                                    <a href={t.attachmentUrl} target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-blue-600" title="Ver Comprovante">
-                                        <Paperclip size={14}/>
-                                    </a>
-                                )}
-                                <button onClick={() => handleEditTransaction(t)} className="text-gray-400 hover:text-brand-orange"><Edit2 size={14}/></button>
+                                <a href={t.attachmentUrl} target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-blue-600" title="Ver Comprovante">
+                                  <Paperclip size={14}/>
+                                </a>
+                              )}
+                              <button onClick={() => handleEditTransaction(t)} className="text-gray-400 hover:text-brand-orange"><Edit2 size={14}/></button>
                               <button onClick={() => showConfirm('Excluir', 'Apagar registro?', () => deleteTransaction(t.id), 'danger')} className="text-gray-400 hover:text-red-600"><Trash2 size={14}/></button>
-                          </div>
-                      )}
+                            </>
+                          )}
+                      </div>
                   </td>
                 </tr>
               )})}
