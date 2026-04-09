@@ -1,0 +1,37 @@
+Para que essas duas funcionalidades rodem perfeitamente no seu sistema (Vercel + Replit + Supabase), o prompt precisa cobrir tanto a parte visual quanto a configuração técnica de segundo plano (Service Workers para o PWA).
+
+Aqui está o prompt completo e profissional para você enviar à sua IA:
+
+🚀 PROMPT: Implementação de Comunicação (Push PWA & WhatsApp)
+"Vamos adicionar uma camada de comunicação inteligente ao sistema, focando em Notificações Push (PWA) e Atalhos para WhatsApp.
+
+1. Integração com WhatsApp (Ações Rápidas)
+Implemente uma função utilitária global sendWhatsApp(phone, message) que limpe o número de telefone (removendo caracteres especiais) e abra o link https://wa.me/55... em uma nova aba.
+
+Na Lista de Membros: Adicionar um botão de 'Boas-vindas' que abra o WhatsApp com uma mensagem personalizada: "Olá [Nome], seja muito bem-vindo à [Nome da Igreja]! É uma alegria ter você conosco."
+
+No Dashboard (Aniversariantes): Botão 'Enviar Parabéns' com uma mensagem bíblica e o nome do aniversariante.
+
+No Financeiro: Adicionar um botão 'Avisar Tesouraria' em novos lançamentos, enviando os detalhes da transação para o responsável.
+
+2. Central de Notificações PWA (Push API)
+Utilize as capacidades de Progressive Web App para permitir notificações nativas no dispositivo:
+
+Configuração Técnica: - Atualize o service-worker.js para escutar eventos de push.
+
+Crie uma tabela no Supabase chamada user_push_subscriptions para salvar o endpoint e as chaves de cada dispositivo que aceitar as notificações.
+
+No AuthContext, adicione uma função para solicitar permissão de notificação ao usuário (Notification.requestPermission()).
+
+Lógica de Envio:
+
+Crie um componente de 'Central de Notificações' onde o administrador possa redigir uma mensagem curta e disparar para todos os dispositivos cadastrados.
+
+Configure lembretes automáticos para Reuniões e Eventos cadastrados no calendário do sistema.
+
+3. Interface e UX
+Adicione um ícone de 'Sino' no cabeçalho do sistema. Se as notificações estiverem desativadas no navegador, mostre um aviso discreto sugerindo a ativação.
+
+No perfil do usuário, adicione um 'switch' (ligar/desligar) para que ele escolha se deseja receber notificações push.
+
+Certifique-se de que os botões de WhatsApp sejam ícones verdes reconhecíveis e os de Push sigam a identidade visual do app."
