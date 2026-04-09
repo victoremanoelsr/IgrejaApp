@@ -195,3 +195,30 @@ export interface LetterHistory {
     cpf: string;
   };
 }
+
+export type SpaceCategory = 'Templo' | 'Residência' | 'Social' | 'Administrativo';
+export type AssetCategory = 'Som' | 'Mobiliário' | 'Eletro' | 'Veículo' | 'Ferramentas' | 'Outros';
+export type AssetStatus = 'Bom' | 'Manutenção' | 'Inativo';
+
+export interface PhysicalSpace {
+  id: string;
+  churchId: string;
+  name: string;
+  category: SpaceCategory;
+  areaSqm?: number;
+  capacity?: number;
+  details?: Record<string, string>;
+  imageUrl?: string;
+  createdAt?: string;
+}
+
+export interface Asset {
+  id: string;
+  spaceId: string;
+  name: string;
+  quantity: number;
+  category: AssetCategory;
+  status: AssetStatus;
+  imageUrl?: string;
+  createdAt?: string;
+}

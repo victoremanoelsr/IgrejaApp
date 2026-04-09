@@ -29,7 +29,8 @@ import {
   Zap,
   Baby,
   Heart,
-  Layout as LayoutIcon
+  Layout as LayoutIcon,
+  Building2
 } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Church } from '../types';
@@ -155,6 +156,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     { label: 'Cartas', icon: Mail, path: '/cartas', roles: ['ALL'] },
     { label: 'Atas', icon: FileText, path: '/atas', roles: ['ALL'] },
     { label: 'Eventos', icon: Calendar, path: '/eventos', roles: ['ALL'] },
+    { label: 'Infraestrutura', icon: Building2, path: '/infraestrutura', roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'DIRIGENTE', 'TESOUREIRO', 'SECRETARIO'] },
     { label: 'Relatórios', icon: FileText, path: '/relatorios', roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'DIRIGENTE', 'TESOUREIRO', 'SECRETARIO'] },
     { label: 'Usuários', icon: ShieldCheck, path: '/usuarios', roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'DIRIGENTE'] },
     { label: 'Configurações', icon: Settings, path: '/configuracoes', roles: ['SUPER_ADM', 'PRESIDENTE', 'DIRIGENTE'] },

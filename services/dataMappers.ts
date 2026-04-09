@@ -1,5 +1,5 @@
 
-import { Church, User, Member, Transaction, Campaign, Event, Minute, FixedExpense, LetterHistory, CarnetTemplate, LetterTemplate } from '../types';
+import { Church, User, Member, Transaction, Campaign, Event, Minute, FixedExpense, LetterHistory, CarnetTemplate, LetterTemplate, PhysicalSpace, Asset } from '../types';
 
 export const toAppChurch = (data: any): Church => ({
   id: data.id,
@@ -158,5 +158,28 @@ export const toAppLetterTemplate = (data: any): LetterTemplate => ({
   recommendationText: data.recommendation_text,
   changeText: data.change_text,
   layoutJson: data.layout_json || [],
+  createdAt: data.created_at
+});
+
+export const toAppPhysicalSpace = (data: any): PhysicalSpace => ({
+  id: data.id,
+  churchId: data.church_id,
+  name: data.name,
+  category: data.category,
+  areaSqm: data.area_sqm ? parseFloat(data.area_sqm) : undefined,
+  capacity: data.capacity ?? undefined,
+  details: data.details || {},
+  imageUrl: data.image_url,
+  createdAt: data.created_at
+});
+
+export const toAppAsset = (data: any): Asset => ({
+  id: data.id,
+  spaceId: data.space_id,
+  name: data.name,
+  quantity: data.quantity ?? 1,
+  category: data.category,
+  status: data.status || 'Bom',
+  imageUrl: data.image_url,
   createdAt: data.created_at
 });

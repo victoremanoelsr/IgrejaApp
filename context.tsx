@@ -3,11 +3,13 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from './services/supabaseClient';
 import { 
   User, Church, Member, Transaction, Campaign, Event, Minute, 
-  FixedExpense, LetterHistory, BookletSettings, CarnetTemplate, LetterTemplate 
+  FixedExpense, LetterHistory, BookletSettings, CarnetTemplate, LetterTemplate,
+  PhysicalSpace, Asset
 } from './types';
 import { 
   toAppUser, toAppChurch, toAppMember, toAppTransaction, 
-  toAppCampaign, toAppEvent, toAppMinute, toAppFixedExpense, toAppLetterHistory, toAppCarnetTemplate, toAppLetterTemplate 
+  toAppCampaign, toAppEvent, toAppMinute, toAppFixedExpense, toAppLetterHistory, toAppCarnetTemplate, toAppLetterTemplate,
+  toAppPhysicalSpace, toAppAsset
 } from './services/dataMappers';
 
 interface AppContextType {
@@ -92,6 +94,18 @@ interface AppContextType {
   deleteLetterTemplate: (id: string) => Promise<void>;
   
   uploadBookletBackground: (file: File) => Promise<string | null>;
+
+  // Infrastructure / Inventory
+  physicalSpaces: PhysicalSpace[];
+  assets: Asset[];
+  addPhysicalSpace: (s: PhysicalSpace) => Promise<{success: boolean, error?: string}>;
+  updatePhysicalSpace: (id: string, s: Partial<PhysicalSpace>) => Promise<{success: boolean, error?: string}>;
+  deletePhysicalSpace: (id: string) => Promise<void>;
+  uploadSpacePhoto: (file: File) => Promise<string | null>;
+  addAsset: (a: Asset) => Promise<{success: boolean, error?: string}>;
+  updateAsset: (id: string, a: Partial<Asset>) => Promise<{success: boolean, error?: string}>;
+  deleteAsset: (id: string) => Promise<void>;
+  uploadAssetPhoto: (file: File) => Promise<string | null>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -137,6 +151,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [fixedExpenses, setFixedExpenses] = useState<FixedExpense[]>([]);
   const [lettersHistory, setLettersHistory] = useState<LetterHistory[]>([]);
   const [currentChurch, setCurrentChurch] = useState<Church | null>(null);
+  const [physicalSpaces, setPhysicalSpaces] = useState<PhysicalSpace[]>([]);
+  const [assets, setAssets] = useState<Asset[]>([]);
 
   // Initial Load
   useEffect(() => {
@@ -170,6 +186,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const { data: letData } = await supabase.from('letter_history').select('*');
     if(letData) setLettersHistory(letData.map(toAppLetterHistory));
+
+    const { data: spacesData } = await supabase.from('physical_spaces').select('*').order('created_at', { ascending: true });
+    if(spacesData) setPhysicalSpaces(spacesData.map(toAppPhysicalSpace));
+
+    const { data: assetsData } = await supabase.from('assets').select('*').order('created_at', { ascending: true });
+    if(assetsData) setAssets(assetsData.map(toAppAsset));
   };
 
   const login = async (u: string, p: string) => {
@@ -699,6 +721,94 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return uploadFileToSupabase(file, 'images'); 
   };
 
+  // --- INFRASTRUCTURE / INVENTORY CRUD ---
+  const addPhysicalSpace = async (s: PhysicalSpace) => {
+    const payload: any = {
+      church_id: s.churchId,
+      name: s.name,
+      category: s.category,
+      area_sqm: s.areaSqm ?? null,
+      capacity: s.capacity ?? null,
+      details: s.details ?? {},
+      image_url: s.imageUrl ?? null
+    };
+    if (s.id && s.id.trim() !== '') payload.id = s.id;
+    const { data, error } = await supabase.from('physical_spaces').insert([payload]).select();
+    if (!error && data) {
+      setPhysicalSpaces(prev => [...prev, toAppPhysicalSpace(data[0])]);
+      return { success: true };
+    }
+    return { success: false, error: error?.message };
+  };
+
+  const updatePhysicalSpace = async (id: string, s: Partial<PhysicalSpace>) => {
+    const payload: any = {};
+    if (s.name !== undefined) payload.name = s.name;
+    if (s.category !== undefined) payload.category = s.category;
+    if (s.areaSqm !== undefined) payload.area_sqm = s.areaSqm;
+    if (s.capacity !== undefined) payload.capacity = s.capacity;
+    if (s.details !== undefined) payload.details = s.details;
+    if (s.imageUrl !== undefined) payload.image_url = s.imageUrl;
+    const { error } = await supabase.from('physical_spaces').update(payload).eq('id', id);
+    if (!error) {
+      setPhysicalSpaces(prev => prev.map(sp => sp.id === id ? { ...sp, ...s } : sp));
+      return { success: true };
+    }
+    return { success: false, error: error?.message };
+  };
+
+  const deletePhysicalSpace = async (id: string) => {
+    await supabase.from('physical_spaces').delete().eq('id', id);
+    setPhysicalSpaces(prev => prev.filter(sp => sp.id !== id));
+    setAssets(prev => prev.filter(a => a.spaceId !== id));
+  };
+
+  const uploadSpacePhoto = async (file: File) => {
+    return uploadFileToSupabase(file, 'assets-photos');
+  };
+
+  const addAsset = async (a: Asset) => {
+    const payload: any = {
+      space_id: a.spaceId,
+      name: a.name,
+      quantity: a.quantity,
+      category: a.category,
+      status: a.status,
+      image_url: a.imageUrl ?? null
+    };
+    if (a.id && a.id.trim() !== '') payload.id = a.id;
+    const { data, error } = await supabase.from('assets').insert([payload]).select();
+    if (!error && data) {
+      setAssets(prev => [...prev, toAppAsset(data[0])]);
+      return { success: true };
+    }
+    return { success: false, error: error?.message };
+  };
+
+  const updateAsset = async (id: string, a: Partial<Asset>) => {
+    const payload: any = {};
+    if (a.name !== undefined) payload.name = a.name;
+    if (a.quantity !== undefined) payload.quantity = a.quantity;
+    if (a.category !== undefined) payload.category = a.category;
+    if (a.status !== undefined) payload.status = a.status;
+    if (a.imageUrl !== undefined) payload.image_url = a.imageUrl;
+    const { error } = await supabase.from('assets').update(payload).eq('id', id);
+    if (!error) {
+      setAssets(prev => prev.map(as => as.id === id ? { ...as, ...a } : as));
+      return { success: true };
+    }
+    return { success: false, error: error?.message };
+  };
+
+  const deleteAsset = async (id: string) => {
+    await supabase.from('assets').delete().eq('id', id);
+    setAssets(prev => prev.filter(a => a.id !== id));
+  };
+
+  const uploadAssetPhoto = async (file: File) => {
+    return uploadFileToSupabase(file, 'assets-photos');
+  };
+
   const value = {
     user, users, churches, members, transactions, campaigns, events, minutes, fixedExpenses, lettersHistory, availableChurches, currentChurch,
     login, logout, recoverAccount, updateUserCredentials, selectChurch, exitAdminView,
@@ -713,7 +823,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     addLetterHistory, deleteLetterHistory, getBookletSettings, saveBookletSettings, uploadBookletBackground,
     // New Exports
     getCarnetTemplates, addCarnetTemplate, updateCarnetTemplate, deleteCarnetTemplate, setDefaultTemplate,
-    getLetterTemplates, addLetterTemplate, updateLetterTemplate, deleteLetterTemplate
+    getLetterTemplates, addLetterTemplate, updateLetterTemplate, deleteLetterTemplate,
+    // Infrastructure
+    physicalSpaces, assets,
+    addPhysicalSpace, updatePhysicalSpace, deletePhysicalSpace, uploadSpacePhoto,
+    addAsset, updateAsset, deleteAsset, uploadAssetPhoto
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

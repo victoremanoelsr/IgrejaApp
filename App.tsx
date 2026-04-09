@@ -21,6 +21,7 @@ import { ChildrenPanel } from './pages/ChildrenPanel';
 import { LadiesPanel } from './pages/LadiesPanel';
 import { Departments } from './pages/Departments';
 import { Letters } from './pages/Letters';
+import { Infrastructure } from './pages/Infrastructure';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles?: string[] }> = ({ children, allowedRoles }) => {
   const { user } = useApp();
@@ -80,6 +81,7 @@ const AppRoutes = () => {
       <Route path="/configuracoes" element={<ProtectedRoute allowedRoles={['SUPER_ADM', 'PRESIDENTE', 'DIRIGENTE']}><Settings /></ProtectedRoute>} />
       <Route path="/usuarios" element={<ProtectedRoute allowedRoles={['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'DIRIGENTE']}><Users /></ProtectedRoute>} />
       <Route path="/congregacoes" element={<ProtectedRoute allowedRoles={['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE']}><Congregations /></ProtectedRoute>} />
+      <Route path="/infraestrutura" element={<ProtectedRoute allowedRoles={['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'DIRIGENTE', 'TESOUREIRO', 'SECRETARIO']}><Infrastructure /></ProtectedRoute>} />
     </Routes>
   );
 };
