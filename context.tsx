@@ -190,7 +190,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const { data: spacesData } = await supabase.from('physical_spaces').select('*').order('created_at', { ascending: true });
     if(spacesData) setPhysicalSpaces(spacesData.map(toAppPhysicalSpace));
 
-    const { data: assetsData } = await supabase.from('assets').select('*').order('created_at', { ascending: true });
+    const { data: assetsData } = await supabase.from('inventory_assets').select('*').order('created_at', { ascending: true });
     if(assetsData) setAssets(assetsData.map(toAppAsset));
   };
 
@@ -777,7 +777,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       image_url: a.imageUrl ?? null
     };
     if (a.id && a.id.trim() !== '') payload.id = a.id;
-    const { data, error } = await supabase.from('assets').insert([payload]).select();
+    const { data, error } = await supabase.from('inventory_assets').insert([payload]).select();
     if (!error && data) {
       setAssets(prev => [...prev, toAppAsset(data[0])]);
       return { success: true };
@@ -792,7 +792,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (a.category !== undefined) payload.category = a.category;
     if (a.status !== undefined) payload.status = a.status;
     if (a.imageUrl !== undefined) payload.image_url = a.imageUrl;
-    const { error } = await supabase.from('assets').update(payload).eq('id', id);
+    const { error } = await supabase.from('inventory_assets').update(payload).eq('id', id);
     if (!error) {
       setAssets(prev => prev.map(as => as.id === id ? { ...as, ...a } : as));
       return { success: true };
@@ -801,7 +801,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const deleteAsset = async (id: string) => {
-    await supabase.from('assets').delete().eq('id', id);
+    await supabase.from('inventory_assets').delete().eq('id', id);
     setAssets(prev => prev.filter(a => a.id !== id));
   };
 

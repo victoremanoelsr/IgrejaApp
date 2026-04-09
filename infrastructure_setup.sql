@@ -16,8 +16,8 @@ CREATE TABLE IF NOT EXISTS physical_spaces (
   created_at   TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Tabela de Itens do Inventário
-CREATE TABLE IF NOT EXISTS assets (
+-- Tabela de Itens do Inventário (renomeada para evitar conflito)
+CREATE TABLE IF NOT EXISTS inventory_assets (
   id           UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   space_id     UUID NOT NULL REFERENCES physical_spaces(id) ON DELETE CASCADE,
   name         TEXT NOT NULL,
@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS assets (
 
 -- Índices para performance
 CREATE INDEX IF NOT EXISTS idx_physical_spaces_church_id ON physical_spaces(church_id);
-CREATE INDEX IF NOT EXISTS idx_assets_space_id ON assets(space_id);
+CREATE INDEX IF NOT EXISTS idx_inventory_assets_space_id ON inventory_assets(space_id);
 
 -- ============================================================
 -- STORAGE: Bucket para fotos dos ambientes e itens
@@ -38,7 +38,3 @@ CREATE INDEX IF NOT EXISTS idx_assets_space_id ON assets(space_id);
 -- Nome: assets-photos
 -- Public: SIM (para exibir fotos no app)
 -- ============================================================
--- Ou via SQL (requer extensão de storage habilitada):
--- INSERT INTO storage.buckets (id, name, public) 
--- VALUES ('assets-photos', 'assets-photos', true)
--- ON CONFLICT DO NOTHING;
