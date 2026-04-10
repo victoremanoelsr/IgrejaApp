@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { supabase } from './services/supabaseClient';
 import { 
   User, Church, Member, Transaction, Campaign, Event, Minute, 
@@ -11,6 +11,14 @@ import {
   toAppCampaign, toAppEvent, toAppMinute, toAppFixedExpense, toAppLetterHistory, toAppCarnetTemplate, toAppLetterTemplate,
   toAppPhysicalSpace, toAppAsset
 } from './services/dataMappers';
+import {
+  savePendingTransaction,
+  getPendingTransactions,
+  deletePendingTransaction,
+  getPendingCount,
+} from './utils/offlineDB';
+import type { ToastType } from './components/Toast';
+import { ToastContainer } from './components/Toast';
 
 interface AppContextType {
   user: User | null;
@@ -106,6 +114,9 @@ interface AppContextType {
   updateAsset: (id: string, a: Partial<Asset>) => Promise<{success: boolean, error?: string}>;
   deleteAsset: (id: string) => Promise<void>;
   uploadAssetPhoto: (file: File) => Promise<string | null>;
+  isOnline: boolean;
+  pendingOfflineCount: number;
+  syncOfflineTransactions: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -153,6 +164,40 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [currentChurch, setCurrentChurch] = useState<Church | null>(null);
   const [physicalSpaces, setPhysicalSpaces] = useState<PhysicalSpace[]>([]);
   const [assets, setAssets] = useState<Asset[]>([]);
+
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [pendingOfflineCount, setPendingOfflineCount] = useState(0);
+
+  interface ToastItem { id: string; message: string; type: ToastType; duration?: number; }
+  const [toasts, setToasts] = useState<ToastItem[]>([]);
+  const showToast = (message: string, type: ToastType, duration?: number) => {
+    const id = `${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+    setToasts(prev => [...prev.slice(-2), { id, message, type, duration }]);
+  };
+  const removeToast = (id: string) => setToasts(prev => prev.filter(t => t.id !== id));
+
+  const isSyncing = useRef(false);
+  const syncFnRef = useRef<() => Promise<void>>();
+
+  useEffect(() => {
+    getPendingCount().then(setPendingOfflineCount);
+  }, []);
+
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true);
+      syncFnRef.current?.();
+    };
+    const handleOffline = () => {
+      setIsOnline(false);
+    };
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   // Initial Load
   useEffect(() => {
@@ -325,6 +370,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const addTransaction = async (t: Transaction) => {
+    if (!navigator.onLine) {
+      const tempId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      await savePendingTransaction({
+        tempId,
+        transaction: t,
+        operationType: 'add',
+        createdAt: new Date().toISOString(),
+      });
+      const tempTransaction: Transaction = { ...t, id: tempId };
+      setTransactions(prev => [tempTransaction, ...prev]);
+      setPendingOfflineCount(c => c + 1);
+      showToast('Você está offline. O lançamento foi salvo no dispositivo e será sincronizado em breve.', 'offline', 7000);
+      return;
+    }
+
     const payload: any = {
         church_id: t.churchId,
         type: t.type,
@@ -346,8 +406,59 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     const { data } = await supabase.from('transactions').insert([payload]).select();
-    if(data) setTransactions([...transactions, toAppTransaction(data[0])]);
+    if(data) setTransactions(prev => [toAppTransaction(data[0]), ...prev]);
   };
+
+  const syncOfflineTransactions = async () => {
+    if (isSyncing.current) return;
+    const pending = await getPendingTransactions();
+    if (pending.length === 0) return;
+
+    isSyncing.current = true;
+    showToast(`Sincronizando ${pending.length} lançamento(s)...`, 'syncing');
+
+    let synced = 0;
+    for (const p of pending) {
+      try {
+        const t = p.transaction as Transaction;
+        const payload: any = {
+          church_id: t.churchId,
+          type: t.type,
+          category: t.category,
+          amount: t.amount,
+          date: t.date,
+          description: t.description,
+          member_id: t.memberId,
+          responsible_user_id: t.responsibleUserId,
+          campaign_id: t.campaignId,
+          attachment_url: t.attachmentUrl,
+          is_fixed: t.isFixed,
+          fixed_expense_id: t.fixedExpenseId,
+          status: t.status,
+        };
+        const { data } = await supabase.from('transactions').insert([payload]).select();
+        if (data) {
+          const realTx = toAppTransaction(data[0]);
+          setTransactions(prev => prev.map(tx => tx.id === p.tempId ? realTx : tx));
+          await deletePendingTransaction(p.tempId);
+          synced++;
+        }
+      } catch (err) {
+        console.error('Offline sync failed for', p.tempId, err);
+      }
+    }
+
+    const remaining = await getPendingCount();
+    setPendingOfflineCount(remaining);
+    isSyncing.current = false;
+
+    setToasts(prev => prev.filter(t => t.type !== 'syncing'));
+    if (synced > 0) {
+      showToast(`${synced} lançamento(s) sincronizados com sucesso!`, 'synced', 4000);
+    }
+  };
+
+  syncFnRef.current = syncOfflineTransactions;
 
   const updateTransaction = async (id: string, t: Transaction) => {
     await supabase.from('transactions').update({
@@ -827,10 +938,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // Infrastructure
     physicalSpaces, assets,
     addPhysicalSpace, updatePhysicalSpace, deletePhysicalSpace, uploadSpacePhoto,
-    addAsset, updateAsset, deleteAsset, uploadAssetPhoto
+    addAsset, updateAsset, deleteAsset, uploadAssetPhoto,
+    isOnline,
+    pendingOfflineCount,
+    syncOfflineTransactions,
   };
 
-  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
+  return (
+    <AppContext.Provider value={value}>
+      {children}
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
+    </AppContext.Provider>
+  );
 };
 
 export const useApp = () => {

@@ -32,7 +32,9 @@ import {
   Baby,
   Heart,
   Layout as LayoutIcon,
-  Building2
+  Building2,
+  Wifi,
+  WifiOff,
 } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Church } from '../types';
@@ -71,7 +73,7 @@ const ChurchOption: React.FC<ChurchOptionProps> = ({ church, isChild = false, cu
 );
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, logout, currentChurch, availableChurches, selectChurch, exitAdminView, members } = useApp();
+  const { user, logout, currentChurch, availableChurches, selectChurch, exitAdminView, members, isOnline, pendingOfflineCount } = useApp();
   const { t, i18n } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
@@ -86,6 +88,18 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     localStorage.setItem('i18n_language', code);
     setShowLangSelector(false);
   };
+
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (pendingOfflineCount > 0) {
+        e.preventDefault();
+        e.returnValue = `Você possui ${pendingOfflineCount} lançamento(s) offline ainda não sincronizados. Tem certeza que deseja sair?`;
+        return e.returnValue;
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [pendingOfflineCount]);
 
   // --- DINAMIC APP ICON LOGIC ---
   // Atualiza o ícone do navegador e do "Adicionar à Tela de Início" (iOS) 
@@ -134,7 +148,16 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   const isChildrenEntered = location.pathname.startsWith('/criancas') && !!locationState?.entered;
   const isLadiesEntered = location.pathname.startsWith('/senhoras') && !!locationState?.entered;
 
-  const handleLogout = () => { logout(); navigate('/'); };
+  const handleLogout = () => {
+    if (pendingOfflineCount > 0) {
+      const confirmed = window.confirm(
+        `Você possui ${pendingOfflineCount} lançamento(s) offline ainda não sincronizados. Se sair agora esses dados podem ser perdidos. Deseja continuar?`
+      );
+      if (!confirmed) return;
+    }
+    logout();
+    navigate('/');
+  };
   const handleReturnToAdminPanel = () => { exitAdminView(); navigate('/admin/dashboard'); };
   const handleChurchSelect = (churchId: string) => { selectChurch(churchId); setShowChurchSelector(false); };
 
@@ -331,15 +354,19 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                              {canSwitchChurch && <ChevronDown size={14} className={`text-gray-500 transition-transform duration-300 ${showChurchSelector ? 'rotate-180 text-brand-orange' : ''}`}/>}
                          </div>
                          <div className="flex items-center pt-2 border-t border-gray-700/50">
-                             <div className="relative mr-2"><div className="w-2.5 h-2.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)] animate-pulse"></div></div>
+                             <div className="relative mr-2">
+                               <div className={`w-2.5 h-2.5 rounded-full animate-pulse ${isOnline ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]' : 'bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.6)]'}`}></div>
+                             </div>
                              <p className="text-xs text-brand-orange font-medium truncate flex-1 capitalize">{user.role.replace('_', ' ').toLowerCase()}</p>
+                             {!isOnline && <WifiOff size={11} className="text-orange-400 shrink-0" title="Offline" />}
+                             {isOnline && pendingOfflineCount > 0 && <Wifi size={11} className="text-orange-400 shrink-0 animate-pulse" title="Sincronizando" />}
                          </div>
                     </button>
                 ) : (
                     <div className="flex justify-center">
                         <div className="w-10 h-10 rounded-full bg-gray-800 border-2 border-red-600 flex items-center justify-center text-white font-bold text-sm shadow-lg relative cursor-default overflow-hidden" title={user.name}>
                             {userPhotoUrl ? <img src={userPhotoUrl} alt={user.name} className="w-full h-full object-cover" /> : user.name.charAt(0)}
-                            <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-gray-900 rounded-full z-10"></div>
+                            <div className={`absolute bottom-0 right-0 w-3 h-3 border-2 border-gray-900 rounded-full z-10 ${isOnline ? 'bg-green-500' : 'bg-orange-500'}`}></div>
                         </div>
                     </div>
                 )}

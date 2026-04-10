@@ -8,7 +8,7 @@ import {
   PlusCircle, MinusCircle, Search, CheckCircle, ShieldAlert, X, 
   Paperclip, ExternalLink, Trash2, Upload, Loader, Filter, 
   Calendar, Edit2, AlertTriangle, Info, ChevronDown, ChevronUp, Globe,
-  Receipt, PlayCircle, Save, RefreshCw, Clock, MessageCircle
+  Receipt, PlayCircle, Save, RefreshCw, Clock, MessageCircle, CloudOff
 } from 'lucide-react';
 import { sendWhatsApp, treasuryMessage } from '../utils/whatsapp';
 
@@ -16,7 +16,8 @@ export const Finance: React.FC = () => {
   const { 
     addTransaction, updateTransaction, deleteTransaction, uploadTransactionFile, confirmTransactionPayment,
     addFixedExpense, generateMonthlyFixedExpenses,
-    members, users, user, transactions, currentChurch, updateMember, fixedExpenses
+    members, users, user, transactions, currentChurch, updateMember, fixedExpenses,
+    pendingOfflineCount, isOnline, syncOfflineTransactions,
   } = useApp();
   const { t, i18n } = useTranslation();
   
@@ -414,6 +415,26 @@ export const Finance: React.FC = () => {
 
   return (
     <div className="w-full space-y-3 md:space-y-6">
+
+       {pendingOfflineCount > 0 && (
+         <div className="flex items-center justify-between bg-orange-50 border border-orange-200 rounded-xl px-4 py-3 animate-fade-in-down">
+           <div className="flex items-center gap-2">
+             <CloudOff size={16} className="text-orange-500 shrink-0" />
+             <span className="text-xs font-bold text-orange-700">
+               {pendingOfflineCount} lançamento(s) aguardando sincronização
+             </span>
+           </div>
+           {isOnline && (
+             <button
+               onClick={syncOfflineTransactions}
+               className="flex items-center gap-1 text-xs font-bold text-white bg-orange-500 hover:bg-orange-600 px-3 py-1.5 rounded-lg transition-colors"
+             >
+               <RefreshCw size={12} /> Sincronizar agora
+             </button>
+           )}
+         </div>
+       )}
+
        {!editingTransactionId && (
            <div className="flex flex-col md:flex-row gap-2 mb-2 md:mb-8">
              <div className="flex-1 flex gap-2">

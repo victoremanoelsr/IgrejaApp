@@ -52,7 +52,30 @@ IgrejaApp is a church management system (Portuguese: "Gestão Eclesiástica") bu
 - Language selector (flag dropdown) in sidebar footer
 - Translated pages: Dashboard, Members, Finance, Infrastructure, Departments, Layout/nav
 
+## Offline-First Finance (PWA Resilience)
+Added complete offline resilience for the Finance (Tithes & Offerings) module:
+
+- **`utils/offlineDB.ts`**: IndexedDB utility — save, retrieve, count, delete pending transactions
+- **`components/Toast.tsx`**: Toast notification system (offline/syncing/synced states) with auto-dismiss
+- **`context.tsx`** additions:
+  - `isOnline` — tracks `navigator.onLine` via window events
+  - `pendingOfflineCount` — count of transactions stored in IndexedDB
+  - `syncOfflineTransactions()` — syncs pending records to Supabase when back online; replaces temp IDs with real ones
+  - Modified `addTransaction()` to detect offline state, save to IndexedDB with unique temp ID, and show a toast
+  - `beforeunload` warning in Layout prevents accidental close/logout with unsynced data
+- **`pages/Finance.tsx`**: Pending badge shows "[X] lançamentos aguardando sincronização" with "Sincronizar agora" button
+- **`components/Layout.tsx`**:
+  - Dynamic green/orange status dot in sidebar user profile (green = online, orange = offline/syncing)
+  - `WifiOff` icon shown when offline
+  - Logout confirmation dialog if pending transactions exist
+  - `beforeunload` warning if there are unsynced records
+- **`vite.config.ts`**: Updated Workbox config with:
+  - `StaleWhileRevalidate` for app navigation and static assets
+  - `NetworkFirst` for Supabase REST API (GET data loads)
+  - `CacheFirst` for Supabase Storage files (images/documents)
+
 ## Recent Changes
+- 2026-04-10: Offline resilience system for Finance module (IndexedDB queue + auto-sync + UX indicators)
 - 2026-04-10: Full i18n system added (pt-BR, en-US, es-ES)
   - All UI text in Dashboard, Members, Finance, Infrastructure, Departments translated
   - Locale-aware currency and date formatting throughout
