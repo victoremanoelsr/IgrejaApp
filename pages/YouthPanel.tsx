@@ -19,6 +19,7 @@ import autoTable from 'jspdf-autotable';
 import Draggable, { DraggableData } from 'react-draggable';
 import { GoogleGenAI, Type as GenAIType } from "@google/genai";
 import { CarnetEditor } from '../components/CarnetEditor';
+import { loadImageForPDF, renderElementsToPDF } from '../utils/pdfImageLoader';
 
 // --- CONFIGURAÇÕES DE DIMENSÃO (BASE 96 DPI) ---
 const EDITOR_WIDTH = 794; 
