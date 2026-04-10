@@ -1,5 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
+import { formatCurrency, getMonthName } from '../i18n';
 import { useApp } from '../context';
 import { TransactionCategory, Transaction, FixedExpense } from '../types';
 import { 
@@ -16,6 +18,7 @@ export const Finance: React.FC = () => {
     addFixedExpense, generateMonthlyFixedExpenses,
     members, users, user, transactions, currentChurch, updateMember, fixedExpenses
   } = useApp();
+  const { t, i18n } = useTranslation();
   
   const [activeTab, setActiveTab] = useState<'ENTRADA' | 'SAIDA' | 'LISTA'>('LISTA');
   
@@ -253,7 +256,7 @@ export const Finance: React.FC = () => {
             </div>
           ) : (
              <div>
-                <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1">Categoria da Saída</label>
+                <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1">{t('finance.category')}</label>
                 <div className="flex gap-2 mb-3">
                     {['DESPESA_VARIAVEL'].map(cat => (
                         <button type="button" key={cat} onClick={() => { setCategory(cat as TransactionCategory); setDescription(''); }} className={`flex-1 py-2 px-1 rounded border text-[10px] font-bold ${category === cat ? 'bg-brand-red text-white' : 'bg-white text-gray-600'}`}>
@@ -296,7 +299,7 @@ export const Finance: React.FC = () => {
           {activeTab === 'ENTRADA' && category === 'OFERTA' && (<div><label className="block text-xs md:text-sm font-medium text-gray-700">Descrição</label><input type="text" required placeholder="EX: CULTO DOMINGO" className="mt-1 w-full p-2 border rounded-lg uppercase text-sm" value={description} onChange={e => setDescription(e.target.value.toUpperCase())} /></div>)}
 
           <div className="grid grid-cols-2 gap-3">
-            <div><label className="block text-xs md:text-sm font-medium text-gray-700">Valor (R$)</label><input type="number" step="0.01" required className="mt-1 w-full p-2 border rounded-lg font-bold" value={amount} onChange={e => setAmount(e.target.value)} /></div>
+            <div><label className="block text-xs md:text-sm font-medium text-gray-700">{t('finance.amount')}</label><input type="number" step="0.01" required className="mt-1 w-full p-2 border rounded-lg font-bold" value={amount} onChange={e => setAmount(e.target.value)} /></div>
             <div><label className="block text-xs md:text-sm font-medium text-gray-700">Data</label><input type="date" required className="mt-1 w-full p-2 border rounded-lg" value={date} onChange={e => setDate(e.target.value)} /></div>
           </div>
 
@@ -322,7 +325,7 @@ export const Finance: React.FC = () => {
           )}
 
           <div>
-            <label className="block text-xs md:text-sm font-medium text-gray-700">Comprovante</label>
+            <label className="block text-xs md:text-sm font-medium text-gray-700">{t('finance.attachment')}</label>
             <div className="mt-1 relative">
                 <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*,.pdf" className="hidden" id="transaction-file-upload"/>
                 <label htmlFor="transaction-file-upload" className={`flex items-center justify-center w-full p-3 border-2 border-dashed rounded-lg cursor-pointer ${selectedFile ? 'bg-orange-50 border-brand-orange' : 'border-gray-300'}`}>
@@ -332,8 +335,8 @@ export const Finance: React.FC = () => {
           </div>
 
           <div className="flex gap-2 pt-2">
-             <button type="button" onClick={handleCancelForm} disabled={isSubmitting} className="flex-1 text-gray-500 font-bold py-2 border rounded-lg text-sm uppercase">Cancelar</button>
-             <button type="submit" disabled={isSubmitting} className={`flex-1 py-2 rounded-lg font-bold text-white flex justify-center items-center text-sm uppercase ${activeTab === 'ENTRADA' ? 'bg-green-600' : 'bg-brand-red'}`}>{isSubmitting ? <Loader className="animate-spin" size={16}/> : 'Salvar'}</button>
+             <button type="button" onClick={handleCancelForm} disabled={isSubmitting} className="flex-1 text-gray-500 font-bold py-2 border rounded-lg text-sm uppercase">{t('common.cancel')}</button>
+             <button type="submit" disabled={isSubmitting} className={`flex-1 py-2 rounded-lg font-bold text-white flex justify-center items-center text-sm uppercase ${activeTab === 'ENTRADA' ? 'bg-green-600' : 'bg-brand-red'}`}>{isSubmitting ? <Loader className="animate-spin" size={16}/> : t('common.save')}</button>
           </div>
        </form>
     </div>
@@ -345,7 +348,7 @@ export const Finance: React.FC = () => {
       <div className="bg-white p-2 rounded-lg shadow-sm border border-gray-100 flex flex-wrap gap-2 items-center justify-between">
           <button onClick={() => setShowFilters(!showFilters)} className={`flex items-center space-x-1 px-3 py-1.5 rounded-lg text-xs font-bold border ${showFilters || filterType !== 'TODOS' ? 'bg-brand-black text-white' : 'bg-gray-50 text-gray-600'}`}><Filter size={14} /> <span>{filterType === 'TODOS' ? 'Filtrar' : filterType}</span></button>
           <div className="flex items-center bg-gray-50 rounded border border-gray-200 p-0.5">
-              <select value={filterMonth} onChange={e => setFilterMonth(parseInt(e.target.value))} className="bg-transparent border-none text-xs font-bold text-gray-700 py-1 pl-1 pr-6 cursor-pointer">{Array.from({length: 12}, (_, i) => (<option key={i+1} value={i+1}>{new Date(0, i).toLocaleString('pt-BR', { month: 'short' }).toUpperCase()}</option>))}</select>
+              <select value={filterMonth} onChange={e => setFilterMonth(parseInt(e.target.value))} className="bg-transparent border-none text-xs font-bold text-gray-700 py-1 pl-1 pr-6 cursor-pointer">{Array.from({length: 12}, (_, i) => (<option key={i+1} value={i+1}>{getMonthName(i, i18n.language).substring(0, 3)}</option>))}</select>
               <select value={filterYear} onChange={e => setFilterYear(parseInt(e.target.value))} className="bg-transparent border-none text-xs font-bold text-gray-700 py-1 pl-1 pr-6 cursor-pointer"><option value={2024}>2024</option><option value={2025}>2025</option><option value={2026}>2026</option></select>
           </div>
           {showFilters && (
@@ -361,26 +364,26 @@ export const Finance: React.FC = () => {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50"><tr><th className="px-2 py-2 text-left text-[9px] font-bold text-gray-500 uppercase">Data</th><th className="px-2 py-2 text-left text-[9px] font-bold text-gray-500 uppercase">Desc</th><th className="hidden md:table-cell px-2 py-2 text-left text-[9px] font-bold text-gray-500 uppercase">Cat</th><th className="px-2 py-2 text-right text-[9px] font-bold text-gray-500 uppercase">Valor</th><th className="px-1 py-2 text-right text-[9px] font-bold text-gray-500 uppercase">.</th></tr></thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {churchTransactions.map(t => {
-                const [year, month, day] = t.date.split('-').map(Number);
-                const displayDate = new Date(year, month - 1, day).toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'});
+              {churchTransactions.map(txn => {
+                const [year, month, day] = txn.date.split('-').map(Number);
+                const displayDate = new Date(year, month - 1, day).toLocaleDateString(i18n.language, {day: '2-digit', month: '2-digit'});
                 
                 return (
-                <tr key={t.id} className="hover:bg-gray-50">
+                <tr key={txn.id} className="hover:bg-gray-50">
                   <td className="px-2 py-2 text-[10px] text-gray-600 whitespace-nowrap">{displayDate}</td>
                   <td className="px-2 py-2 text-[10px] font-medium text-gray-900 truncate max-w-[100px] md:max-w-none uppercase">
-                    {t.isFixed && <span className="mr-1 text-[8px] bg-blue-100 text-blue-700 px-1 rounded font-bold" title="Gasto Fixo">FIXO</span>}
-                    {t.description}
-                    <div className="md:hidden text-[9px] text-gray-400">{formatCategoryName(t.category, t.type)}</div>
+                    {txn.isFixed && <span className="mr-1 text-[8px] bg-blue-100 text-blue-700 px-1 rounded font-bold" title="Gasto Fixo">FIXO</span>}
+                    {txn.description}
+                    <div className="md:hidden text-[9px] text-gray-400">{formatCategoryName(txn.category, txn.type)}</div>
                   </td>
-                  <td className="hidden md:table-cell px-2 py-2 text-xs"><span className={`px-1 rounded text-[10px] font-bold ${t.type === 'ENTRADA' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{formatCategoryName(t.category, t.type)}</span></td>
-                  <td className={`px-2 py-2 text-[10px] font-bold text-right whitespace-nowrap ${t.type === 'ENTRADA' ? 'text-green-600' : 'text-brand-red'}`}>{t.type === 'ENTRADA' ? '+' : '-'} {t.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
+                  <td className="hidden md:table-cell px-2 py-2 text-xs"><span className={`px-1 rounded text-[10px] font-bold ${txn.type === 'ENTRADA' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{formatCategoryName(txn.category, txn.type)}</span></td>
+                  <td className={`px-2 py-2 text-[10px] font-bold text-right whitespace-nowrap ${txn.type === 'ENTRADA' ? 'text-green-600' : 'text-brand-red'}`}>{txn.type === 'ENTRADA' ? '+' : '-'} {formatCurrency(txn.amount, i18n.language)}</td>
                   <td className="px-1 py-2 text-right whitespace-nowrap">
                       <div className="flex justify-end gap-2 items-center">
                           {tesoureiroPhone && (
                             <button
                               title="Avisar Tesouraria via WhatsApp"
-                              onClick={() => sendWhatsApp(tesoureiroPhone, treasuryMessage(t.description, t.amount, t.type, t.date))}
+                              onClick={() => sendWhatsApp(tesoureiroPhone, treasuryMessage(txn.description, txn.amount, txn.type, txn.date))}
                               className="text-green-400 hover:text-green-600 transition-colors"
                             >
                               <MessageCircle size={13}/>
@@ -388,13 +391,13 @@ export const Finance: React.FC = () => {
                           )}
                           {canEdit && (
                             <>
-                              {t.attachmentUrl && (
-                                <a href={t.attachmentUrl} target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-blue-600" title="Ver Comprovante">
+                              {txn.attachmentUrl && (
+                                <a href={txn.attachmentUrl} target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-blue-600" title="Ver Comprovante">
                                   <Paperclip size={14}/>
                                 </a>
                               )}
-                              <button onClick={() => handleEditTransaction(t)} className="text-gray-400 hover:text-brand-orange"><Edit2 size={14}/></button>
-                              <button onClick={() => showConfirm('Excluir', 'Apagar registro?', () => deleteTransaction(t.id), 'danger')} className="text-gray-400 hover:text-red-600"><Trash2 size={14}/></button>
+                              <button onClick={() => handleEditTransaction(txn)} className="text-gray-400 hover:text-brand-orange"><Edit2 size={14}/></button>
+                              <button onClick={() => showConfirm('Excluir', 'Apagar registro?', () => deleteTransaction(txn.id), 'danger')} className="text-gray-400 hover:text-red-600"><Trash2 size={14}/></button>
                             </>
                           )}
                       </div>
@@ -414,12 +417,12 @@ export const Finance: React.FC = () => {
        {!editingTransactionId && (
            <div className="flex flex-col md:flex-row gap-2 mb-2 md:mb-8">
              <div className="flex-1 flex gap-2">
-                <button onClick={() => { handleCancelForm(); setActiveTab('LISTA'); }} className={`flex-1 py-2 md:py-4 rounded-lg font-bold text-xs md:text-base ${activeTab === 'LISTA' ? 'bg-brand-black text-white' : 'bg-white text-gray-500 border'}`}>Extrato</button>
+                <button onClick={() => { handleCancelForm(); setActiveTab('LISTA'); }} className={`flex-1 py-2 md:py-4 rounded-lg font-bold text-xs md:text-base ${activeTab === 'LISTA' ? 'bg-brand-black text-white' : 'bg-white text-gray-500 border'}`}>{t('finance.transactionList')}</button>
              </div>
              {canEdit && (
                <div className="flex gap-2 flex-1">
-                <button onClick={() => { setActiveTab('ENTRADA'); setEditingTransactionId(null); setCategory(''); clearMemberSelection(); setSelectedFile(null); }} className={`flex-1 py-2 md:py-4 rounded-lg flex justify-center items-center gap-1 font-bold text-xs md:text-base ${activeTab === 'ENTRADA' ? 'bg-green-600 text-white' : 'bg-white text-green-600 border border-green-200'}`}><PlusCircle size={14} /> Entrada</button>
-                <button onClick={() => { setActiveTab('SAIDA'); setEditingTransactionId(null); setCategory('DESPESA_VARIAVEL'); setDescription(''); setSelectedFile(null); setIsRecurring(false); setMissionRecipient(''); }} className={`flex-1 py-2 md:py-4 rounded-lg flex justify-center items-center gap-1 font-bold text-xs md:text-base ${activeTab === 'SAIDA' ? 'bg-brand-red text-white' : 'bg-white text-brand-red border border-red-200'}`}><MinusCircle size={14} /> Saída</button>
+                <button onClick={() => { setActiveTab('ENTRADA'); setEditingTransactionId(null); setCategory(''); clearMemberSelection(); setSelectedFile(null); }} className={`flex-1 py-2 md:py-4 rounded-lg flex justify-center items-center gap-1 font-bold text-xs md:text-base ${activeTab === 'ENTRADA' ? 'bg-green-600 text-white' : 'bg-white text-green-600 border border-green-200'}`}><PlusCircle size={14} /> {t('finance.income')}</button>
+                <button onClick={() => { setActiveTab('SAIDA'); setEditingTransactionId(null); setCategory('DESPESA_VARIAVEL'); setDescription(''); setSelectedFile(null); setIsRecurring(false); setMissionRecipient(''); }} className={`flex-1 py-2 md:py-4 rounded-lg flex justify-center items-center gap-1 font-bold text-xs md:text-base ${activeTab === 'SAIDA' ? 'bg-brand-red text-white' : 'bg-white text-brand-red border border-red-200'}`}><MinusCircle size={14} /> {t('finance.expense')}</button>
                </div>
              )}
            </div>
@@ -434,7 +437,7 @@ export const Finance: React.FC = () => {
              <h3 className="font-bold text-lg mb-2">{modalState.title}</h3>
              <p className="text-gray-600 text-sm mb-4">{modalState.message}</p>
              <div className="flex justify-end gap-2">
-                {modalState.showCancel && <button onClick={() => setModalState(prev => ({...prev, isOpen: false}))} className="px-3 py-1.5 border rounded text-xs">Cancelar</button>}
+                {modalState.showCancel && <button onClick={() => setModalState(prev => ({...prev, isOpen: false}))} className="px-3 py-1.5 border rounded text-xs">{t('common.cancel')}</button>}
                 <button onClick={() => { if (modalState.onConfirm) modalState.onConfirm(); else setModalState(prev => ({...prev, isOpen: false})); }} className={`px-4 py-1.5 rounded text-white text-xs font-bold ${modalState.variant === 'danger' ? 'bg-red-600' : (modalState.variant === 'success' ? 'bg-green-600' : 'bg-brand-black')}`}>OK</button>
              </div>
           </div>

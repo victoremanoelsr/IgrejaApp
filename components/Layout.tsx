@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
+import { SUPPORTED_LANGUAGES } from '../i18n';
 import { useApp } from '../context';
 import { 
   LayoutDashboard, 
@@ -70,12 +72,20 @@ const ChurchOption: React.FC<ChurchOptionProps> = ({ church, isChild = false, cu
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, logout, currentChurch, availableChurches, selectChurch, exitAdminView, members } = useApp();
+  const { t, i18n } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
   
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isDesktopHovered, setIsDesktopHovered] = useState(false);
   const [showChurchSelector, setShowChurchSelector] = useState(false);
+  const [showLangSelector, setShowLangSelector] = useState(false);
+
+  const handleLanguageChange = (code: string) => {
+    i18n.changeLanguage(code);
+    localStorage.setItem('i18n_language', code);
+    setShowLangSelector(false);
+  };
 
   // --- DINAMIC APP ICON LOGIC ---
   // Atualiza o ícone do navegador e do "Adicionar à Tela de Início" (iOS) 
@@ -147,59 +157,58 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   }
 
   const generalMenuItems: MenuItem[] = [
-    { label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard', roles: ['ALL'] },
-    { label: 'Congregações', icon: Network, path: '/congregacoes', roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE'] },
-    { label: 'Departamentos', icon: LayoutIcon, path: '/departamentos', roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE'] },
-    { label: 'Financeiro', icon: Wallet, path: '/financeiro', roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'DIRIGENTE', 'TESOUREIRO', 'SECRETARIO'] },
-    // Departamentos individuais removidos daqui, acessíveis via /departamentos
-    { label: 'Campanhas', icon: Megaphone, path: '/campanhas', roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'DIRIGENTE', 'TESOUREIRO', 'SECRETARIO'] },
-    { label: 'Membros', icon: UsersIcon, path: '/membros', roles: ['ALL'] },
-    { label: 'Cartas', icon: Mail, path: '/cartas', roles: ['ALL'] },
-    { label: 'Atas', icon: FileText, path: '/atas', roles: ['ALL'] },
-    { label: 'Eventos', icon: Calendar, path: '/eventos', roles: ['ALL'] },
-    { label: 'Infraestrutura', icon: Building2, path: '/infraestrutura', roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'DIRIGENTE', 'TESOUREIRO', 'SECRETARIO'] },
-    { label: 'Relatórios', icon: FileText, path: '/relatorios', roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'DIRIGENTE', 'TESOUREIRO', 'SECRETARIO'] },
-    { label: 'Usuários', icon: ShieldCheck, path: '/usuarios', roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'DIRIGENTE'] },
-    { label: 'Configurações', icon: Settings, path: '/configuracoes', roles: ['SUPER_ADM', 'PRESIDENTE', 'DIRIGENTE'] },
+    { label: t('nav.dashboard'), icon: LayoutDashboard, path: '/dashboard', roles: ['ALL'] },
+    { label: t('nav.congregations'), icon: Network, path: '/congregacoes', roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE'] },
+    { label: t('nav.departments'), icon: LayoutIcon, path: '/departamentos', roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE'] },
+    { label: t('nav.finance'), icon: Wallet, path: '/financeiro', roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'DIRIGENTE', 'TESOUREIRO', 'SECRETARIO'] },
+    { label: t('nav.campaigns'), icon: Megaphone, path: '/campanhas', roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'DIRIGENTE', 'TESOUREIRO', 'SECRETARIO'] },
+    { label: t('nav.members'), icon: UsersIcon, path: '/membros', roles: ['ALL'] },
+    { label: t('nav.letters'), icon: Mail, path: '/cartas', roles: ['ALL'] },
+    { label: t('nav.minutes'), icon: FileText, path: '/atas', roles: ['ALL'] },
+    { label: t('nav.events'), icon: Calendar, path: '/eventos', roles: ['ALL'] },
+    { label: t('nav.infrastructure'), icon: Building2, path: '/infraestrutura', roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'DIRIGENTE', 'TESOUREIRO', 'SECRETARIO'] },
+    { label: t('nav.reports'), icon: FileText, path: '/relatorios', roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'DIRIGENTE', 'TESOUREIRO', 'SECRETARIO'] },
+    { label: t('nav.users'), icon: ShieldCheck, path: '/usuarios', roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'DIRIGENTE'] },
+    { label: t('nav.settings'), icon: Settings, path: '/configuracoes', roles: ['SUPER_ADM', 'PRESIDENTE', 'DIRIGENTE'] },
   ];
 
   const missionsMenuItems: MenuItem[] = [
-      { label: 'Dashboard', icon: LayoutDashboard, path: '/missoes', state: { activeTab: 'DASHBOARD', entered: true }, roles: ['ALL'] },
-      { label: 'Lançamentos', icon: DollarSign, path: '/missoes', state: { activeTab: 'LANCAMENTOS', entered: true }, roles: ['ALL'] },
-      { label: 'Relatório Missões', icon: FileText, path: '/missoes', state: { activeTab: 'RELATORIOS', entered: true }, roles: ['ALL'] },
-      { label: 'Gerar Carnês', icon: BookOpen, path: '/missoes', state: { activeTab: 'CARNES', entered: true }, roles: ['ALL'] },
-      { label: 'Config. Modelo', icon: Settings, path: '/missoes', state: { activeTab: 'CONFIG_MODELO', entered: true }, roles: ['ALL'] },
-      { label: 'Equipe', icon: Users, path: '/missoes', state: { activeTab: 'EQUIPE', entered: true }, roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'PRESIDENTE_MISSOES', 'VICE_MISSOES'] }
+      { label: t('nav.dashboard'), icon: LayoutDashboard, path: '/missoes', state: { activeTab: 'DASHBOARD', entered: true }, roles: ['ALL'] },
+      { label: t('nav.launches'), icon: DollarSign, path: '/missoes', state: { activeTab: 'LANCAMENTOS', entered: true }, roles: ['ALL'] },
+      { label: t('nav.missionReports'), icon: FileText, path: '/missoes', state: { activeTab: 'RELATORIOS', entered: true }, roles: ['ALL'] },
+      { label: t('nav.generateBooklets'), icon: BookOpen, path: '/missoes', state: { activeTab: 'CARNES', entered: true }, roles: ['ALL'] },
+      { label: t('nav.configModel'), icon: Settings, path: '/missoes', state: { activeTab: 'CONFIG_MODELO', entered: true }, roles: ['ALL'] },
+      { label: t('nav.team'), icon: Users, path: '/missoes', state: { activeTab: 'EQUIPE', entered: true }, roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'PRESIDENTE_MISSOES', 'VICE_MISSOES'] }
   ];
 
   const youthMenuItems: MenuItem[] = [
-      { label: 'Dashboard', icon: LayoutDashboard, path: '/jovens', state: { activeTab: 'DASHBOARD', entered: true }, roles: ['ALL'] },
-      { label: 'Caixa Jovens', icon: DollarSign, path: '/jovens', state: { activeTab: 'CAIXA', entered: true }, roles: ['ALL'] },
-      { label: 'Relatórios', icon: FileText, path: '/jovens', state: { activeTab: 'RELATORIOS', entered: true }, roles: ['ALL'] },
-      { label: 'Carnês', icon: BookOpen, path: '/jovens', state: { activeTab: 'CARNES', entered: true }, roles: ['ALL'] },
-      { label: 'Config. Modelo', icon: Settings, path: '/jovens', state: { activeTab: 'CONFIG_MODELO', entered: true }, roles: ['ALL'] },
-      { label: 'Membros', icon: UsersIcon, path: '/jovens', state: { activeTab: 'MEMBROS', entered: true }, roles: ['ALL'] },
-      { label: 'Equipe', icon: Users, path: '/jovens', state: { activeTab: 'EQUIPE', entered: true }, roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'LIDER_JOVENS'] }
+      { label: t('nav.dashboard'), icon: LayoutDashboard, path: '/jovens', state: { activeTab: 'DASHBOARD', entered: true }, roles: ['ALL'] },
+      { label: t('nav.youthCash'), icon: DollarSign, path: '/jovens', state: { activeTab: 'CAIXA', entered: true }, roles: ['ALL'] },
+      { label: t('nav.reports'), icon: FileText, path: '/jovens', state: { activeTab: 'RELATORIOS', entered: true }, roles: ['ALL'] },
+      { label: t('nav.booklets'), icon: BookOpen, path: '/jovens', state: { activeTab: 'CARNES', entered: true }, roles: ['ALL'] },
+      { label: t('nav.configModel'), icon: Settings, path: '/jovens', state: { activeTab: 'CONFIG_MODELO', entered: true }, roles: ['ALL'] },
+      { label: t('nav.members'), icon: UsersIcon, path: '/jovens', state: { activeTab: 'MEMBROS', entered: true }, roles: ['ALL'] },
+      { label: t('nav.team'), icon: Users, path: '/jovens', state: { activeTab: 'EQUIPE', entered: true }, roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'LIDER_JOVENS'] }
   ];
 
   const childrenMenuItems: MenuItem[] = [
-      { label: 'Dashboard', icon: LayoutDashboard, path: '/criancas', state: { activeTab: 'DASHBOARD', entered: true }, roles: ['ALL'] },
-      { label: 'Caixa Infantil', icon: DollarSign, path: '/criancas', state: { activeTab: 'CAIXA', entered: true }, roles: ['ALL'] },
-      { label: 'Relatórios', icon: FileText, path: '/criancas', state: { activeTab: 'RELATORIOS', entered: true }, roles: ['ALL'] },
-      { label: 'Membros', icon: UsersIcon, path: '/criancas', state: { activeTab: 'MEMBROS', entered: true }, roles: ['ALL'] },
-      { label: 'Equipe', icon: Users, path: '/criancas', state: { activeTab: 'EQUIPE', entered: true }, roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'LIDER_CRIANCAS'] }
+      { label: t('nav.dashboard'), icon: LayoutDashboard, path: '/criancas', state: { activeTab: 'DASHBOARD', entered: true }, roles: ['ALL'] },
+      { label: t('nav.childrenCash'), icon: DollarSign, path: '/criancas', state: { activeTab: 'CAIXA', entered: true }, roles: ['ALL'] },
+      { label: t('nav.reports'), icon: FileText, path: '/criancas', state: { activeTab: 'RELATORIOS', entered: true }, roles: ['ALL'] },
+      { label: t('nav.members'), icon: UsersIcon, path: '/criancas', state: { activeTab: 'MEMBROS', entered: true }, roles: ['ALL'] },
+      { label: t('nav.team'), icon: Users, path: '/criancas', state: { activeTab: 'EQUIPE', entered: true }, roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'LIDER_CRIANCAS'] }
   ];
 
   const ladiesMenuItems: MenuItem[] = [
-      { label: 'Dashboard', icon: LayoutDashboard, path: '/senhoras', state: { activeTab: 'DASHBOARD', entered: true }, roles: ['ALL'] },
-      { label: 'Caixa Senhoras', icon: DollarSign, path: '/senhoras', state: { activeTab: 'CAIXA', entered: true }, roles: ['ALL'] },
-      { label: 'Relatórios', icon: FileText, path: '/senhoras', state: { activeTab: 'RELATORIOS', entered: true }, roles: ['ALL'] },
-      { label: 'Membros', icon: UsersIcon, path: '/senhoras', state: { activeTab: 'MEMBROS', entered: true }, roles: ['ALL'] },
-      { label: 'Equipe', icon: Users, path: '/senhoras', state: { activeTab: 'EQUIPE', entered: true }, roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'LIDER_SENHORAS'] }
+      { label: t('nav.dashboard'), icon: LayoutDashboard, path: '/senhoras', state: { activeTab: 'DASHBOARD', entered: true }, roles: ['ALL'] },
+      { label: t('nav.ladiesCash'), icon: DollarSign, path: '/senhoras', state: { activeTab: 'CAIXA', entered: true }, roles: ['ALL'] },
+      { label: t('nav.reports'), icon: FileText, path: '/senhoras', state: { activeTab: 'RELATORIOS', entered: true }, roles: ['ALL'] },
+      { label: t('nav.members'), icon: UsersIcon, path: '/senhoras', state: { activeTab: 'MEMBROS', entered: true }, roles: ['ALL'] },
+      { label: t('nav.team'), icon: Users, path: '/senhoras', state: { activeTab: 'EQUIPE', entered: true }, roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'LIDER_SENHORAS'] }
   ];
 
   const superAdminMenuItems: MenuItem[] = [
-    { label: 'Painel Master', icon: Building, path: '/admin/dashboard', roles: ['SUPER_ADM'] },
+    { label: t('nav.masterPanel'), icon: Building, path: '/admin/dashboard', roles: ['SUPER_ADM'] },
   ];
 
   // LOGICA DE FILTRAGEM
@@ -210,18 +219,17 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   else if (isYouthUser) itemsToRender = youthMenuItems;
   else if (isChildrenUser) itemsToRender = childrenMenuItems;
   else if (isLadiesUser) itemsToRender = ladiesMenuItems;
-  else if (isMissionsEntered) itemsToRender = [...missionsMenuItems, { label: 'Voltar ao Geral', icon: ArrowLeft, path: '/departamentos', roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE'] }, { label: 'Voltar ao Geral', icon: ArrowLeft, path: '/dashboard', roles: ['ALL'] }]; 
-  else if (isYouthEntered) itemsToRender = [...youthMenuItems, { label: 'Voltar ao Geral', icon: ArrowLeft, path: '/departamentos', roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE'] }, { label: 'Voltar ao Geral', icon: ArrowLeft, path: '/dashboard', roles: ['ALL'] }];
-  else if (isChildrenEntered) itemsToRender = [...childrenMenuItems, { label: 'Voltar ao Geral', icon: ArrowLeft, path: '/departamentos', roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE'] }, { label: 'Voltar ao Geral', icon: ArrowLeft, path: '/dashboard', roles: ['ALL'] }];
-  else if (isLadiesEntered) itemsToRender = [...ladiesMenuItems, { label: 'Voltar ao Geral', icon: ArrowLeft, path: '/departamentos', roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE'] }, { label: 'Voltar ao Geral', icon: ArrowLeft, path: '/dashboard', roles: ['ALL'] }];
+  else if (isMissionsEntered) itemsToRender = [...missionsMenuItems, { label: t('common.backToGeneral'), icon: ArrowLeft, path: '/departamentos', roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE'] }, { label: t('common.backToGeneral'), icon: ArrowLeft, path: '/dashboard', roles: ['ALL'] }]; 
+  else if (isYouthEntered) itemsToRender = [...youthMenuItems, { label: t('common.backToGeneral'), icon: ArrowLeft, path: '/departamentos', roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE'] }, { label: t('common.backToGeneral'), icon: ArrowLeft, path: '/dashboard', roles: ['ALL'] }];
+  else if (isChildrenEntered) itemsToRender = [...childrenMenuItems, { label: t('common.backToGeneral'), icon: ArrowLeft, path: '/departamentos', roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE'] }, { label: t('common.backToGeneral'), icon: ArrowLeft, path: '/dashboard', roles: ['ALL'] }];
+  else if (isLadiesEntered) itemsToRender = [...ladiesMenuItems, { label: t('common.backToGeneral'), icon: ArrowLeft, path: '/departamentos', roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE'] }, { label: t('common.backToGeneral'), icon: ArrowLeft, path: '/dashboard', roles: ['ALL'] }];
   else itemsToRender = generalMenuItems;
 
+  const backLabel = t('common.backToGeneral');
   const visibleMenuItems = itemsToRender.filter(item => {
-    if (item.label === 'Congregações' && currentChurch?.type !== 'SEDE') return false;
-    // Se o item for "Voltar ao Geral" com path /departamentos, só mostra se o usuário for líder
-    if (item.path === '/departamentos' && item.label.startsWith('Voltar') && !['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE'].includes(user.role)) return false;
-    // Se o item for "Voltar ao Geral" com path /dashboard, só mostra se NÃO for líder (para não duplicar botão voltar)
-    if (item.path === '/dashboard' && item.label.startsWith('Voltar') && ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE'].includes(user.role)) return false;
+    if (item.path === '/congregacoes' && currentChurch?.type !== 'SEDE') return false;
+    if (item.path === '/departamentos' && item.label === backLabel && !['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE'].includes(user.role)) return false;
+    if (item.path === '/dashboard' && item.label === backLabel && ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE'].includes(user.role)) return false;
 
     return item.roles.includes('ALL') || item.roles.includes(user.role);
   });
@@ -263,10 +271,10 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                     <div className="ml-3 overflow-hidden animate-fade-in">
                         <span className="block font-bold text-gray-100 text-sm truncate leading-tight" title={currentChurch.name}>{currentChurch.name}</span>
                         <span className="block text-[9px] text-gray-500 font-bold uppercase tracking-wider mt-0.5">
-                            {isYouthUser || isYouthEntered ? 'DEP. JOVENS' : 
-                             isMissionsUser || isMissionsEntered ? 'DEP. MISSÕES' :
-                             isChildrenUser || isChildrenEntered ? 'DEP. INFANTIL' :
-                             isLadiesUser || isLadiesEntered ? 'DEP. SENHORAS' :
+                            {isYouthUser || isYouthEntered ? t('nav.depYouth') : 
+                             isMissionsUser || isMissionsEntered ? t('nav.depMissions') :
+                             isChildrenUser || isChildrenEntered ? t('nav.depChildren') :
+                             isLadiesUser || isLadiesEntered ? t('nav.depLadies') :
                              currentChurch.type}
                         </span>
                     </div>
@@ -287,7 +295,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
               } else {
                   isActive = location.pathname === item.path;
               }
-              const isBackBtn = item.label.startsWith('Voltar');
+              const isBackBtn = item.icon === ArrowLeft;
               
               let activeClass = 'bg-gradient-to-r from-brand-orange to-red-600 text-white shadow-lg';
               if (isMissionsEntered || isMissionsUser) activeClass = 'bg-gradient-to-r from-teal-600 to-teal-800 text-white shadow-lg';
@@ -314,7 +322,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                 {isExpanded ? (
                     <button onClick={() => canSwitchChurch && setShowChurchSelector(!showChurchSelector)} className={`w-full text-left rounded-r-lg border-l-4 border-red-600 bg-gray-800/80 p-3 transition-all duration-200 group relative overflow-hidden ${canSwitchChurch ? 'hover:bg-gray-800 cursor-pointer' : 'cursor-default'}`}>
                          <div className="absolute top-0 right-0 -mt-2 -mr-2 w-16 h-16 bg-red-600/10 blur-xl rounded-full pointer-events-none"></div>
-                         <p className="text-[10px] text-gray-400 uppercase tracking-widest font-bold mb-1">{isSuperAdminGlobal ? 'MODO GLOBAL' : 'USUÁRIO'}</p>
+                         <p className="text-[10px] text-gray-400 uppercase tracking-widest font-bold mb-1">{isSuperAdminGlobal ? t('common.globalMode') : t('common.user')}</p>
                          <div className="flex justify-between items-center mb-2">
                              <div className="flex items-center">
                                  {userPhotoUrl && <img src={userPhotoUrl} alt="User" className="w-5 h-5 rounded-full mr-2 object-cover border border-gray-600"/>}
@@ -337,7 +345,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                 )}
                 {showChurchSelector && isExpanded && (
                     <div className="absolute bottom-full left-0 w-full mb-3 bg-[#1a1a1a] border border-gray-700 rounded-lg shadow-2xl overflow-hidden z-50 animate-fade-in-up">
-                        <div className="px-3 py-2 bg-black/40 border-b border-gray-700 text-[10px] text-gray-500 font-bold uppercase tracking-wider">Trocar Unidade</div>
+                        <div className="px-3 py-2 bg-black/40 border-b border-gray-700 text-[10px] text-gray-500 font-bold uppercase tracking-wider">{t('common.switchUnit')}</div>
                         <div className="max-h-60 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600">
                             {sedes.map(sede => (
                                 <React.Fragment key={sede.id}>
@@ -354,9 +362,41 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                     </div>
                 )}
             </div>
-            <button onClick={handleLogout} className={`flex items-center w-full mt-3 px-3 py-2 text-red-400 hover:text-white hover:bg-red-600/20 rounded-lg transition-all duration-200 group ${!isExpanded && 'justify-center px-0'}`} title={!isExpanded ? 'Sair do Sistema' : ''}>
+            {isExpanded && (
+              <div className="relative mt-3">
+                <button
+                  onClick={() => setShowLangSelector(!showLangSelector)}
+                  className="w-full flex items-center justify-between px-3 py-2 bg-gray-800/60 hover:bg-gray-700/60 text-gray-400 hover:text-white rounded-lg transition-all duration-200"
+                >
+                  <div className="flex items-center gap-2">
+                    <Globe size={16} className="text-gray-500"/>
+                    <span className="text-xs font-medium">
+                      {SUPPORTED_LANGUAGES.find(l => l.code === i18n.language)?.flag}{' '}
+                      {SUPPORTED_LANGUAGES.find(l => l.code === i18n.language)?.label || t('language.selector')}
+                    </span>
+                  </div>
+                  <ChevronDown size={12} className={`transition-transform duration-200 ${showLangSelector ? 'rotate-180' : ''}`}/>
+                </button>
+                {showLangSelector && (
+                  <div className="absolute bottom-full left-0 w-full mb-2 bg-[#1a1a1a] border border-gray-700 rounded-lg shadow-2xl overflow-hidden z-50">
+                    {SUPPORTED_LANGUAGES.map(lang => (
+                      <button
+                        key={lang.code}
+                        onClick={() => handleLanguageChange(lang.code)}
+                        className={`w-full text-left px-3 py-2.5 text-sm flex items-center gap-2 hover:bg-gray-700 transition-colors ${i18n.language === lang.code ? 'text-brand-orange bg-gray-800' : 'text-gray-300'}`}
+                      >
+                        <span className="text-base">{lang.flag}</span>
+                        <span className="font-medium">{lang.label}</span>
+                        {i18n.language === lang.code && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-brand-orange"/>}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+            <button onClick={handleLogout} className={`flex items-center w-full mt-3 px-3 py-2 text-red-400 hover:text-white hover:bg-red-600/20 rounded-lg transition-all duration-200 group ${!isExpanded && 'justify-center px-0'}`} title={!isExpanded ? t('common.logout') : ''}>
                 <LogOut size={20} className="shrink-0 group-hover:scale-110 transition-transform" />
-                <span className={`ml-3 text-sm font-medium whitespace-nowrap transition-all duration-200 ${isExpanded ? 'opacity-100' : 'opacity-0 w-0 hidden'}`}>Sair do Sistema</span>
+                <span className={`ml-3 text-sm font-medium whitespace-nowrap transition-all duration-200 ${isExpanded ? 'opacity-100' : 'opacity-0 w-0 hidden'}`}>{t('common.logout')}</span>
             </button>
         </div>
       </aside>
@@ -369,10 +409,10 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           <div className="bg-brand-yellow text-brand-black px-4 py-2 text-xs md:text-base flex justify-between items-center shadow-md z-10 pl-14 md:pl-6">
             <div className="flex items-center font-bold">
               <EyeOff className="mr-2" size={16}/>
-              <span className="hidden sm:inline">MODO SUPER VISÃO: Acessando {currentChurch?.name}</span>
-              <span className="sm:hidden">SUPER VISÃO: {currentChurch?.name}</span>
+              <span className="hidden sm:inline">{t('superAdmin.ghostMode')} {currentChurch?.name}</span>
+              <span className="sm:hidden">{t('superAdmin.ghostModeShort')}: {currentChurch?.name}</span>
             </div>
-            <button onClick={handleReturnToAdminPanel} className="bg-black text-white px-3 py-1 rounded text-xs hover:bg-gray-800 font-bold whitespace-nowrap">Sair</button>
+            <button onClick={handleReturnToAdminPanel} className="bg-black text-white px-3 py-1 rounded text-xs hover:bg-gray-800 font-bold whitespace-nowrap">{t('superAdmin.exit')}</button>
           </div>
         )}
         <div className="flex-1 overflow-y-auto overflow-x-hidden p-1 pt-16 sm:p-6 lg:p-8 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600">

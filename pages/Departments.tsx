@@ -2,6 +2,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context';
+import { useTranslation } from 'react-i18next';
 import { 
   Globe, 
   Zap, 
@@ -15,8 +16,8 @@ import {
 export const Departments: React.FC = () => {
   const { currentChurch, user } = useApp();
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
-  // Verificação de segurança adicional (embora a rota já seja protegida)
   const allowedRoles = ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE'];
   const hasAccess = user && allowedRoles.includes(user.role);
 
@@ -24,8 +25,8 @@ export const Departments: React.FC = () => {
     return (
       <div className="flex flex-col items-center justify-center h-[60vh] text-gray-500">
         <ShieldAlert size={64} className="text-red-400 mb-4"/>
-        <h2 className="text-2xl font-bold text-gray-800">Acesso Restrito</h2>
-        <p>Esta área é exclusiva para a Direção da Igreja.</p>
+        <h2 className="text-2xl font-bold text-gray-800">{t('departments.access')}</h2>
+        <p>{t('departments.accessDesc')}</p>
       </div>
     );
   }
@@ -33,8 +34,8 @@ export const Departments: React.FC = () => {
   const departments = [
     {
       id: 'missoes',
-      title: 'Missões',
-      description: 'Gestão de ofertas missionárias, carnês e relatórios de campo.',
+      title: t('departments.missions'),
+      description: t('departments.missionsDesc'),
       icon: Globe,
       path: '/missoes',
       color: 'bg-teal-600',
@@ -44,8 +45,8 @@ export const Departments: React.FC = () => {
     },
     {
       id: 'jovens',
-      title: 'Jovens',
-      description: 'Controle de caixa, eventos e membros da União de Jovens.',
+      title: t('departments.youth'),
+      description: t('departments.youthDesc'),
       icon: Zap,
       path: '/jovens',
       color: 'bg-orange-500',
@@ -55,8 +56,8 @@ export const Departments: React.FC = () => {
     },
     {
       id: 'senhoras',
-      title: 'Senhoras',
-      description: 'Administração do Círculo de Oração e eventos femininos.',
+      title: t('departments.ladies'),
+      description: t('departments.ladiesDesc'),
       icon: Heart,
       path: '/senhoras',
       color: 'bg-pink-500',
@@ -66,8 +67,8 @@ export const Departments: React.FC = () => {
     },
     {
       id: 'criancas',
-      title: 'Infantil',
-      description: 'Organização do departamento infantil e escola bíblica.',
+      title: t('departments.children'),
+      description: t('departments.childrenDesc'),
       icon: Baby,
       path: '/criancas',
       color: 'bg-blue-500',
@@ -82,10 +83,10 @@ export const Departments: React.FC = () => {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
         <div>
           <h1 className="text-3xl font-bold text-gray-800 flex items-center">
-            <Layout className="mr-3 text-brand-black" /> Central de Departamentos
+            <Layout className="mr-3 text-brand-black" /> {t('departments.title')}
           </h1>
           <p className="text-gray-500 mt-1">
-            Visão geral e acesso administrativo aos grupos da <strong>{currentChurch?.name}</strong>
+            {t('departments.subtitle')} <strong>{currentChurch?.name}</strong>
           </p>
         </div>
       </div>
@@ -117,7 +118,7 @@ export const Departments: React.FC = () => {
                 </p>
                 
                 <div className={`inline-flex items-center text-sm font-bold ${dept.textColor} group-hover:underline`}>
-                  Acessar Painel <ArrowRight size={16} className="ml-1" />
+                  {t('departments.enter')} <ArrowRight size={16} className="ml-1" />
                 </div>
               </div>
             </div>

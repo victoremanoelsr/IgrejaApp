@@ -1,5 +1,7 @@
 
 import React, { useState, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
+import { formatDate } from '../i18n';
 import { useApp } from '../context';
 import { Member } from '../types';
 import { 
@@ -11,6 +13,7 @@ import { sendWhatsApp, welcomeMessage } from '../utils/whatsapp';
 
 export const Members: React.FC = () => {
   const { members, churches, user, addMember, updateMember, deleteMember, uploadMemberPhoto, currentChurch, updateUserCredentials } = useApp();
+  const { t, i18n } = useTranslation();
   const [view, setView] = useState<'LIST' | 'FORM'>('LIST');
   const [searchTerm, setSearchTerm] = useState('');
   const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
@@ -169,7 +172,7 @@ export const Members: React.FC = () => {
 
   const renderDetailsModal = () => {
     if (!viewingMember) return null;
-    const formatDate = (d?: string) => d ? new Date(d).toLocaleDateString('pt-BR') : '-';
+    const formatDateLocal = (d?: string) => d ? formatDate(d, i18n.language) : '-';
     // Verifica se é o próprio usuário para permitir "Editar Perfil"
     const isSelf = viewingMember.id === user?.id;
     const canModify = canEdit || isSelf;
@@ -224,8 +227,8 @@ export const Members: React.FC = () => {
                  <div className="bg-gray-50 p-2 rounded border border-gray-100">
                     <p className="text-[10px] uppercase font-bold text-gray-400 mb-1 tracking-wider">Pessoal / Eclesiástico</p>
                     <div className="grid grid-cols-2 gap-2">
-                        <div><span className="text-[10px] text-gray-500 block">Nascimento</span> <span className="font-medium text-gray-800">{formatDate(viewingMember.birthDate)}</span></div>
-                        <div><span className="text-[10px] text-gray-500 block">Batismo</span> <span className="font-medium text-gray-800">{formatDate(viewingMember.baptismDate)}</span></div>
+                        <div><span className="text-[10px] text-gray-500 block">{t('members.birthDate')}</span> <span className="font-medium text-gray-800">{formatDateLocal(viewingMember.birthDate)}</span></div>
+                        <div><span className="text-[10px] text-gray-500 block">{t('members.baptismDate')}</span> <span className="font-medium text-gray-800">{formatDateLocal(viewingMember.baptismDate)}</span></div>
                         <div><span className="text-[10px] text-gray-500 block">Est. Civil</span> <span className="font-medium text-gray-800">{viewingMember.maritalStatus || '-'}</span></div>
                         {viewingMember.memberNumber && <div><span className="text-[10px] text-gray-500 block">Nº Membro</span> <span className="font-medium text-gray-800">{viewingMember.memberNumber}</span></div>}
                     </div>
@@ -249,19 +252,19 @@ export const Members: React.FC = () => {
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-xl md:text-2xl font-bold text-gray-800">Membros</h2>
+          <h2 className="text-xl md:text-2xl font-bold text-gray-800">{t('members.title')}</h2>
           <p className="text-xs text-gray-500">{currentChurch?.name}</p>
         </div>
         {canEdit && (
           <button onClick={() => { setEditingMemberId(null); setSelectedFile(null); setFormData({...initialFormState, churchId: viewId}); setView('FORM'); }} className="bg-brand-black text-white px-3 py-2 rounded-lg flex items-center hover:bg-gray-800 shadow-md transition-colors text-xs md:text-sm">
-            <Plus size={16} className="mr-1 md:mr-2"/> <span className="hidden md:inline">Novo Membro</span><span className="md:hidden">Novo</span>
+            <Plus size={16} className="mr-1 md:mr-2"/> <span className="hidden md:inline">{t('members.newMember')}</span><span className="md:hidden">{t('common.new')}</span>
           </button>
         )}
       </div>
 
       <div className="bg-white p-2 rounded-lg shadow-sm border flex items-center">
         <Search className="text-gray-400 mr-2" size={18} />
-        <input type="text" placeholder="BUSCAR POR NOME OU CPF..." className="flex-1 outline-none text-sm uppercase" value={searchTerm} onChange={e => setSearchTerm(e.target.value.toUpperCase())} />
+        <input type="text" placeholder={t('members.searchPlaceholder').toUpperCase()} className="flex-1 outline-none text-sm uppercase" value={searchTerm} onChange={e => setSearchTerm(e.target.value.toUpperCase())} />
       </div>
 
       <div className="bg-white rounded-lg shadow overflow-hidden border border-gray-100">
@@ -313,7 +316,7 @@ export const Members: React.FC = () => {
                 </td>
               </tr>
             ))}
-            {filteredMembers.length === 0 && <tr><td colSpan={2} className="px-4 py-8 text-center text-gray-500 text-xs">Nenhum membro encontrado.</td></tr>}
+            {filteredMembers.length === 0 && <tr><td colSpan={2} className="px-4 py-8 text-center text-gray-500 text-xs">{t('common.noData')}</td></tr>}
           </tbody>
         </table>
       </div>
@@ -324,7 +327,7 @@ export const Members: React.FC = () => {
              <h3 className="font-bold text-base mb-2">{modalState.title}</h3>
              <p className="text-xs text-gray-600 mb-4">{modalState.message}</p>
              <div className="flex justify-end gap-2">
-                {modalState.showCancel && <button onClick={() => setModalState(prev => ({...prev, isOpen: false}))} className="px-3 py-1.5 border rounded text-xs font-medium hover:bg-gray-50">Cancelar</button>}
+                {modalState.showCancel && <button onClick={() => setModalState(prev => ({...prev, isOpen: false}))} className="px-3 py-1.5 border rounded text-xs font-medium hover:bg-gray-50">{t('common.cancel')}</button>}
                 <button onClick={() => { if (modalState.onConfirm) modalState.onConfirm(); else setModalState(prev => ({...prev, isOpen: false})); }} className={`px-4 py-1.5 rounded text-white text-xs font-bold shadow ${modalState.variant === 'danger' ? 'bg-red-600 hover:bg-red-700' : 'bg-brand-black hover:bg-gray-800'}`}>OK</button>
              </div>
           </div>
@@ -341,7 +344,7 @@ export const Members: React.FC = () => {
       <div className="bg-brand-black p-4 flex justify-between items-center text-white">
         <h2 className="text-lg font-bold flex items-center">
             {editingMemberId ? <Edit2 className="mr-2" size={20}/> : <Plus className="mr-2" size={20}/>}
-            {editingMemberId ? (editingMemberId === user?.id ? 'Editar Meu Perfil' : 'Editar Membro') : 'Novo Cadastro'}
+            {editingMemberId ? (editingMemberId === user?.id ? t('members.viewProfile') : t('members.editMember')) : t('members.newMember')}
         </h2>
         <button onClick={handleCancel} className="hover:text-gray-300 transition-colors bg-white/10 p-1 rounded-full"><X size={20}/></button>
       </div>
@@ -558,9 +561,9 @@ export const Members: React.FC = () => {
         </div>
 
         <div className="flex justify-end gap-3 pt-4 border-t mt-4">
-           <button type="button" onClick={handleCancel} className="px-5 py-2.5 border border-gray-300 rounded-lg text-sm font-bold hover:bg-gray-50 text-gray-700 transition-colors">Cancelar</button>
+           <button type="button" onClick={handleCancel} className="px-5 py-2.5 border border-gray-300 rounded-lg text-sm font-bold hover:bg-gray-50 text-gray-700 transition-colors">{t('common.cancel')}</button>
            <button type="submit" disabled={isSaving} className="px-8 py-2.5 bg-brand-orange text-white rounded-lg text-sm font-bold flex items-center hover:bg-brand-red shadow-lg transition-all transform hover:scale-105">
-             {isSaving ? <Loader className="animate-spin mr-2" size={18}/> : <Save size={18} className="mr-2" />} Salvar
+             {isSaving ? <Loader className="animate-spin mr-2" size={18}/> : <Save size={18} className="mr-2" />} {t('common.save')}
            </button>
         </div>
       </form>

@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useApp } from '../context';
 import {
   Building2, Plus, Trash2, Edit2, X, Check, ChevronDown, Image,
@@ -70,6 +71,7 @@ export const Infrastructure: React.FC = () => {
     addPhysicalSpace, updatePhysicalSpace, deletePhysicalSpace, uploadSpacePhoto,
     addAsset, updateAsset, deleteAsset, uploadAssetPhoto,
   } = useApp();
+  const { t } = useTranslation();
 
   const [activeView, setActiveView] = useState<'spaces' | 'assets'>('spaces');
   const [filterChurchId, setFilterChurchId] = useState<string>('');
@@ -193,13 +195,13 @@ export const Infrastructure: React.FC = () => {
   };
 
   const handleDeleteSpace = async (id: string) => {
-    if (!window.confirm('Deletar este ambiente e todos os seus itens?')) return;
+    if (!window.confirm(t('infrastructure.confirmDeleteSpace'))) return;
     await deletePhysicalSpace(id);
     if (selectedSpaceId === id) setSelectedSpaceId(null);
   };
 
   const handleDeleteAsset = async (id: string) => {
-    if (!window.confirm('Deletar este item?')) return;
+    if (!window.confirm(t('infrastructure.confirmDeleteAsset'))) return;
     await deleteAsset(id);
   };
 
@@ -228,15 +230,15 @@ export const Infrastructure: React.FC = () => {
           <div>
             <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
               <Building2 size={26} className="text-orange-500" />
-              Infraestrutura e Inventário
+              {t('infrastructure.title')}
             </h1>
-            <p className="text-sm text-gray-500 mt-0.5">Gestão de imóveis, ambientes e itens físicos</p>
+            <p className="text-sm text-gray-500 mt-0.5">{t('infrastructure.spaces')}</p>
           </div>
           <button
             onClick={openAddSpace}
             className="flex items-center gap-2 bg-gradient-to-r from-orange-500 to-red-600 text-white px-4 py-2.5 rounded-xl font-semibold shadow-md hover:shadow-lg transition-all"
           >
-            <Plus size={18} /> Novo Ambiente
+            <Plus size={18} /> {t('infrastructure.newSpace')}
           </button>
         </div>
 
@@ -276,10 +278,9 @@ export const Infrastructure: React.FC = () => {
             <div className="w-20 h-20 rounded-full bg-orange-50 flex items-center justify-center mb-4">
               <Building2 size={36} className="text-orange-300" />
             </div>
-            <h3 className="text-lg font-semibold text-gray-600">Nenhum ambiente cadastrado</h3>
-            <p className="text-gray-400 mt-1 max-w-xs">Cadastre imóveis e ambientes da sua igreja para controlar o inventário físico.</p>
+            <h3 className="text-lg font-semibold text-gray-600">{t('common.noData')}</h3>
             <button onClick={openAddSpace} className="mt-6 flex items-center gap-2 bg-orange-500 text-white px-5 py-2.5 rounded-xl font-semibold hover:bg-orange-600 transition">
-              <Plus size={18} /> Cadastrar Primeiro Ambiente
+              <Plus size={18} /> {t('infrastructure.newSpace')}
             </button>
           </div>
         ) : (
@@ -396,7 +397,7 @@ export const Infrastructure: React.FC = () => {
               )}
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Nome do Ambiente *</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">{t('infrastructure.spaceName')}</label>
                 <input
                   value={spaceForm.name}
                   onChange={e => setSpaceForm(f => ({ ...f, name: e.target.value }))}
@@ -406,7 +407,7 @@ export const Infrastructure: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Categoria</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">{t('infrastructure.spaceCategory')}</label>
                 <div className="grid grid-cols-2 gap-2">
                   {SPACE_CATEGORIES.map(cat => (
                     <button
@@ -434,7 +435,7 @@ export const Infrastructure: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">Capacidade (pessoas)</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">{t('infrastructure.capacity')}</label>
                   <input
                     type="number"
                     min="0"
@@ -448,7 +449,7 @@ export const Infrastructure: React.FC = () => {
 
               {/* Details (for residences) */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Detalhes do Imóvel</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">{t('infrastructure.details')}</label>
                 <p className="text-xs text-gray-400 mb-2">Ex: Quartos → 3, Banheiros → 2, Garagem → Sim</p>
                 <div className="space-y-1.5 mb-2">
                   {Object.entries(spaceForm.details || {}).map(([k, v]) => (
@@ -510,13 +511,13 @@ export const Infrastructure: React.FC = () => {
               </div>
             </div>
             <div className="p-5 border-t flex justify-end gap-3">
-              <button onClick={() => setShowSpaceModal(false)} className="px-4 py-2.5 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50">Cancelar</button>
+              <button onClick={() => setShowSpaceModal(false)} className="px-4 py-2.5 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50">{t('common.cancel')}</button>
               <button
                 onClick={handleSaveSpace}
                 disabled={saving || !spaceForm.name.trim() || !spaceForm.churchId}
                 className="px-5 py-2.5 text-sm font-semibold bg-gradient-to-r from-orange-500 to-red-600 text-white rounded-xl shadow hover:shadow-md transition disabled:opacity-50"
               >
-                {saving ? 'Salvando...' : editingSpace ? 'Salvar Alterações' : 'Cadastrar Ambiente'}
+                {saving ? t('common.saving') : editingSpace ? t('common.save') : t('infrastructure.newSpace')}
               </button>
             </div>
           </div>
@@ -548,7 +549,7 @@ export const Infrastructure: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Nome do Item *</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">{t('infrastructure.assetName')}</label>
                 <input
                   value={assetForm.name}
                   onChange={e => setAssetForm(f => ({ ...f, name: e.target.value }))}
@@ -629,13 +630,13 @@ export const Infrastructure: React.FC = () => {
               </div>
             </div>
             <div className="p-5 border-t flex justify-end gap-3">
-              <button onClick={() => setShowAssetModal(false)} className="px-4 py-2.5 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50">Cancelar</button>
+              <button onClick={() => setShowAssetModal(false)} className="px-4 py-2.5 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50">{t('common.cancel')}</button>
               <button
                 onClick={handleSaveAsset}
                 disabled={saving || !assetForm.name.trim() || !assetForm.spaceId}
                 className="px-5 py-2.5 text-sm font-semibold bg-gradient-to-r from-orange-500 to-red-600 text-white rounded-xl shadow hover:shadow-md transition disabled:opacity-50"
               >
-                {saving ? 'Salvando...' : editingAsset ? 'Salvar Alterações' : 'Cadastrar Item'}
+                {saving ? t('common.saving') : editingAsset ? t('common.save') : t('infrastructure.newAsset')}
               </button>
             </div>
           </div>

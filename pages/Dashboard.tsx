@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useApp } from '../context';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import { formatCurrency, getMonthName } from '../i18n';
 import { 
   Users, 
   Coins, 
@@ -22,12 +24,11 @@ import {
 export const Dashboard: React.FC = () => {
   const { members, transactions, currentChurch, user } = useApp();
   const navigate = useNavigate();
+  const { t, i18n } = useTranslation();
 
-  // Estados para filtro de data (Padrão: Mês/Ano atual)
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 
-  // UX Check
   useEffect(() => {
     if (user?.role === 'SUPER_ADM' && !currentChurch) {
       navigate('/admin/dashboard');
@@ -39,26 +40,22 @@ export const Dashboard: React.FC = () => {
         <div className="flex h-full items-center justify-center text-gray-500">
             <div className="text-center">
                 <LayoutDashboard size={48} className="mx-auto mb-2 opacity-20"/>
-                <p>Selecione uma unidade no menu lateral.</p>
+                <p>{t('dashboard.selectUnit')}</p>
             </div>
         </div>
     );
   }
 
-  // 1. DATA FILTERING
   const viewId = currentChurch.id;
   const churchMembers = members.filter(m => m.churchId === viewId);
   
-  // Categorias que NÃO entram no financeiro GERAL do topo (Caixas separados)
   const excludedCategoriesFromGeneral = ['MISSOES', 'JOVENS', 'CRIANCAS', 'SENHORAS'];
 
-  // Helper para verificar data selecionada
   const matchesSelectedDate = (dateStr: string) => {
       const [y, m] = dateStr.split('-').map(Number);
       return m === selectedMonth && y === selectedYear;
   };
 
-  // --- CÁLCULOS GERAIS (Topo Direita) ---
   const generalTransactions = transactions.filter(t => 
       t.churchId === viewId && 
       !t.campaignId &&
@@ -71,7 +68,6 @@ export const Dashboard: React.FC = () => {
   const totalOutGeneral = generalTransactions.filter(t => t.type === 'SAIDA').reduce((acc, t) => acc + t.amount, 0);
   const balanceGeneral = totalInGeneral - totalOutGeneral;
 
-  // --- CÁLCULOS DÍZIMOS (Meio Esquerda) ---
   const tithesTransactions = transactions.filter(t => 
       t.churchId === viewId &&
       t.category === 'DIZIMO' &&
@@ -83,7 +79,6 @@ export const Dashboard: React.FC = () => {
   const activeTithersCount = new Set(tithesTransactions.filter(t => t.memberId).map(t => t.memberId)).size;
   const totalRegisteredTithers = churchMembers.filter(m => m.isTither).length;
 
-  // --- CÁLCULOS MISSÕES (Meio Centro) ---
   const missionsTransactions = transactions.filter(t => 
       t.churchId === viewId &&
       t.category === 'MISSOES' &&
@@ -92,24 +87,16 @@ export const Dashboard: React.FC = () => {
   );
   const missionsIn = missionsTransactions.filter(t => t.type === 'ENTRADA').reduce((acc, t) => acc + t.amount, 0);
   const missionsOut = missionsTransactions.filter(t => t.type === 'SAIDA').reduce((acc, t) => acc + t.amount, 0);
-  
-  // Saldo de Missões geralmente é cumulativo, mas aqui estamos mostrando o fluxo do mês para coerência com o gráfico de pizza.
-  // Se quiser saldo total, precisaria remover o filtro de data para o saldo.
-  // O PieChart geralmente mostra Entradas vs Saídas do mês.
-  // Vamos manter o cálculo do mês para as barras inferiores e o saldo.
   const missionsBalance = missionsIn - missionsOut;
 
   const missionsChartData = [
-      { name: 'Entradas', value: missionsIn > 0 ? missionsIn : 0, color: '#10b981' }, // green-500
-      { name: 'Saídas', value: missionsOut, color: '#ef4444' } // red-500
+      { name: t('common.income'), value: missionsIn > 0 ? missionsIn : 0, color: '#10b981' },
+      { name: t('common.expenses'), value: missionsOut, color: '#ef4444' }
   ];
-  // Se não houver dados, para não quebrar o gráfico
   if (missionsIn === 0 && missionsOut === 0) {
-      missionsChartData.push({ name: 'Vazio', value: 1, color: '#e5e7eb' });
+      missionsChartData.push({ name: t('dashboard.empty'), value: 1, color: '#e5e7eb' });
   }
 
-  // --- CÁLCULOS OFERTAS (Meio Direita) ---
-  // Pegamos as ofertas do mês para o gráfico
   const offersData = Object.entries(generalTransactions
     .filter(t => t.category === 'OFERTA' && t.type === 'ENTRADA')
     .reduce((acc: any, t) => {
@@ -122,9 +109,6 @@ export const Dashboard: React.FC = () => {
       valor: val
   }));
 
-  // --- CÁLCULOS FLUXO DE CAIXA MENSAL (Fundo) ---
-  // Considera TODAS as transações do mês para o fluxo global da igreja (incluindo departamentos se desejar, ou apenas geral. 
-  // O print sugere "Fluxo de Caixa Mensal", geralmente é o Geral. Vamos usar o generalTransactions.
   const daysInMonth = new Date(selectedYear, selectedMonth, 0).getDate();
   const dailyFlowData = Array.from({ length: daysInMonth }, (_, i) => ({ day: (i + 1).toString(), entradas: 0, saidas: 0 }));
   
@@ -136,12 +120,14 @@ export const Dashboard: React.FC = () => {
       }
   });
 
+  const lang = i18n.language;
+
   return (
     <div className="space-y-8 pb-20 font-sans">
       {/* HEADER */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-2">
         <div>
-           <h1 className="text-2xl font-bold text-gray-800">Painel Geral</h1>
+           <h1 className="text-2xl font-bold text-gray-800">{t('dashboard.title')}</h1>
            <div className="flex items-center gap-2 mt-1">
              <span className={`px-2 py-0.5 rounded text-[10px] font-bold text-white ${currentChurch.type === 'SEDE' ? 'bg-brand-red' : 'bg-blue-600'}`}>
                 {currentChurch.type}
@@ -150,7 +136,7 @@ export const Dashboard: React.FC = () => {
            </div>
         </div>
 
-        {/* SELETOR DE MÊS/ANO */}
+        {/* MONTH/YEAR SELECTOR */}
         <div className="flex items-center bg-white rounded-lg shadow-sm border border-gray-200 p-1">
             <div className="px-2 text-gray-400"><Calendar size={16}/></div>
             <select 
@@ -159,7 +145,7 @@ export const Dashboard: React.FC = () => {
                 className="bg-transparent text-sm font-bold text-gray-700 p-1 outline-none cursor-pointer border-r border-gray-200"
             >
                 {Array.from({length: 12}, (_, i) => (
-                    <option key={i} value={i+1}>{new Date(0, i).toLocaleString('pt-BR', {month: 'long'}).toUpperCase()}</option>
+                    <option key={i} value={i+1}>{getMonthName(i, lang)}</option>
                 ))}
             </select>
             <select 
@@ -175,13 +161,13 @@ export const Dashboard: React.FC = () => {
         </div>
       </div>
       
-      {/* LINHA 1: MEMBROS E FINANCEIRO GERAL */}
+      {/* ROW 1: MEMBERS AND GENERAL FINANCE */}
       <div className="grid grid-cols-12 gap-8">
         
-        {/* CARD MEMBROS (3 colunas em LG) */}
+        {/* MEMBERS CARD */}
         <div onClick={() => navigate('/membros')} className="col-span-12 lg:col-span-4 bg-white rounded-xl shadow-sm border-l-4 border-brand-black p-6 flex items-center justify-between cursor-pointer hover:shadow-md transition-all">
             <div>
-                <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Total de Membros</p>
+                <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">{t('dashboard.totalMembers')}</p>
                 <p className="text-4xl font-extrabold text-gray-800 mt-2">{churchMembers.length}</p>
             </div>
             <div className="bg-gray-100 p-3 rounded-full text-gray-700">
@@ -189,61 +175,60 @@ export const Dashboard: React.FC = () => {
             </div>
         </div>
 
-        {/* CARD FINANCEIRO GERAL (9 colunas em LG) */}
+        {/* GENERAL FINANCE CARD */}
         <div onClick={() => navigate('/financeiro')} className="col-span-12 lg:col-span-8 bg-white rounded-xl shadow-sm border-l-4 border-brand-orange p-6 flex flex-col justify-center cursor-pointer hover:shadow-md transition-all">
             <div className="grid grid-cols-3 gap-4 divide-x divide-gray-100">
                 <div className="text-center px-4">
-                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Entradas</p>
-                    <p className="text-2xl font-black text-green-600">R$ {totalInGeneral.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p>
+                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">{t('common.income')}</p>
+                    <p className="text-2xl font-black text-green-600">{formatCurrency(totalInGeneral, lang)}</p>
                 </div>
                 <div className="text-center px-4">
-                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Saídas</p>
-                    <p className="text-2xl font-black text-red-600">R$ {totalOutGeneral.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p>
+                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">{t('common.expenses')}</p>
+                    <p className="text-2xl font-black text-red-600">{formatCurrency(totalOutGeneral, lang)}</p>
                 </div>
                 <div className="text-center px-4">
-                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Saldo</p>
-                    <p className={`text-2xl font-black ${balanceGeneral >= 0 ? 'text-gray-800' : 'text-red-600'}`}>R$ {balanceGeneral.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p>
+                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">{t('common.balance')}</p>
+                    <p className={`text-2xl font-black ${balanceGeneral >= 0 ? 'text-gray-800' : 'text-red-600'}`}>{formatCurrency(balanceGeneral, lang)}</p>
                 </div>
             </div>
         </div>
       </div>
 
-      {/* LINHA 2: DÍZIMOS, MISSÕES, OFERTAS */}
-      {/* Alterado para 2 colunas em telas médias/laptop para ficarem mais largos, e 3 apenas em XL */}
+      {/* ROW 2: TITHES, MISSIONS, OFFERINGS */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
         
-        {/* CARD DÍZIMOS */}
+        {/* TITHES CARD */}
         <div onClick={() => navigate('/financeiro')} className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 flex flex-col justify-between cursor-pointer hover:shadow-md h-96">
             <div>
                 <div className="flex items-center mb-2">
                     <Coins size={18} className="text-brand-yellow mr-2"/>
-                    <h3 className="font-bold text-gray-800 text-lg">Dízimos</h3>
+                    <h3 className="font-bold text-gray-800 text-lg">{t('dashboard.tithes')}</h3>
                 </div>
-                <p className="text-xs text-gray-400 mb-4">Total Arrecadado</p>
-                <p className="text-right text-3xl font-black text-green-600">R$ {tithesTotal.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p>
+                <p className="text-xs text-gray-400 mb-4">{t('dashboard.totalCollected')}</p>
+                <p className="text-right text-3xl font-black text-green-600">{formatCurrency(tithesTotal, lang)}</p>
             </div>
             
             <div className="grid grid-cols-2 gap-4 mt-4">
                 <div className="bg-green-50 p-4 rounded-lg text-center border border-green-100">
                     <p className="text-2xl font-black text-green-700">{activeTithersCount}</p>
-                    <p className="text-[10px] font-bold text-green-600 uppercase">Dizimista Ativos</p>
+                    <p className="text-[10px] font-bold text-green-600 uppercase">{t('dashboard.activeTithers')}</p>
                 </div>
                 <div className="bg-orange-50 p-4 rounded-lg text-center border border-orange-100">
                     <p className="text-2xl font-black text-orange-700">{totalRegisteredTithers}</p>
-                    <p className="text-[10px] font-bold text-orange-600 uppercase">Total Cadastrados</p>
+                    <p className="text-[10px] font-bold text-orange-600 uppercase">{t('dashboard.totalRegistered')}</p>
                 </div>
             </div>
         </div>
 
-        {/* CARD MISSÕES */}
+        {/* MISSIONS CARD */}
         <div onClick={() => navigate('/missoes')} className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 flex flex-col cursor-pointer hover:shadow-md h-96 relative">
             <div className="flex justify-between items-start mb-2">
                 <div className="flex items-center">
                     <Globe size={18} className="text-red-500 mr-2"/>
-                    <h3 className="font-bold text-gray-800 text-lg">Missões</h3>
+                    <h3 className="font-bold text-gray-800 text-lg">{t('dashboard.missions')}</h3>
                 </div>
                 <span className="text-xs md:text-sm font-bold bg-green-100 text-green-700 px-3 py-1 rounded-full border border-green-200">
-                    Saldo: R$ {missionsBalance.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
+                    {t('common.balance')}: {formatCurrency(missionsBalance, lang)}
                 </span>
             </div>
 
@@ -270,21 +255,21 @@ export const Dashboard: React.FC = () => {
 
             <div className="grid grid-cols-2 gap-4 border-t pt-4">
                 <div className="text-center">
-                    <p className="text-lg font-bold text-green-600">R$ {missionsIn.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p>
-                    <p className="text-[10px] text-gray-400 uppercase">Entradas do Mês</p>
+                    <p className="text-lg font-bold text-green-600">{formatCurrency(missionsIn, lang)}</p>
+                    <p className="text-[10px] text-gray-400 uppercase">{t('dashboard.monthIncome')}</p>
                 </div>
                 <div className="text-center border-l">
-                    <p className="text-lg font-bold text-red-600">R$ {missionsOut.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p>
-                    <p className="text-[10px] text-gray-400 uppercase">Saídas do Mês</p>
+                    <p className="text-lg font-bold text-red-600">{formatCurrency(missionsOut, lang)}</p>
+                    <p className="text-[10px] text-gray-400 uppercase">{t('dashboard.monthExpenses')}</p>
                 </div>
             </div>
         </div>
 
-        {/* CARD OFERTAS RECENTES */}
+        {/* RECENT OFFERINGS CARD */}
         <div onClick={() => navigate('/financeiro')} className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 flex flex-col cursor-pointer hover:shadow-md h-96">
             <div className="flex items-center mb-6">
                 <Banknote size={18} className="text-brand-orange mr-2"/>
-                <h3 className="font-bold text-gray-800 text-lg">Ofertas Recentes</h3>
+                <h3 className="font-bold text-gray-800 text-lg">{t('dashboard.recentOfferings')}</h3>
             </div>
             
             <div className="flex-1 w-full">
@@ -297,16 +282,16 @@ export const Dashboard: React.FC = () => {
                                 axisLine={false} 
                                 tickLine={false} 
                                 tick={{fontSize: 10, fill: '#9ca3af'}} 
-                                tickFormatter={(v) => `R$ ${v}`} 
+                                tickFormatter={(v) => formatCurrency(v, lang)} 
                             />
-                            <Tooltip cursor={{fill: 'transparent'}} contentStyle={{fontSize: '12px', borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'}} formatter={(val: number) => [`R$ ${val}`, '']}/>
+                            <Tooltip cursor={{fill: 'transparent'}} contentStyle={{fontSize: '12px', borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'}} formatter={(val: number) => [formatCurrency(val, lang), '']}/>
                             <Bar dataKey="valor" fill="#f97316" radius={[4, 4, 0, 0]} barSize={24} />
                         </BarChart>
                     </ResponsiveContainer>
                 ) : (
                     <div className="h-full flex flex-col items-center justify-center text-gray-300">
                         <Banknote size={40} className="mb-3 opacity-30"/>
-                        <p className="text-sm">Sem ofertas recentes</p>
+                        <p className="text-sm">{t('dashboard.noRecentOfferings')}</p>
                     </div>
                 )}
             </div>
@@ -314,7 +299,7 @@ export const Dashboard: React.FC = () => {
 
       </div>
 
-      {/* LINHA 2.5: ANIVERSARIANTES DO MÊS */}
+      {/* BIRTHDAYS OF THE MONTH */}
       {(() => {
         const birthdayMembers = churchMembers.filter(m => {
           if (!m.birthDate) return false;
@@ -330,7 +315,7 @@ export const Dashboard: React.FC = () => {
           <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
             <div className="flex items-center gap-2 mb-4">
               <Gift size={18} className="text-pink-500" />
-              <h3 className="font-bold text-gray-800 text-lg">Aniversariantes do Mês</h3>
+              <h3 className="font-bold text-gray-800 text-lg">{t('dashboard.birthdaysOfMonth')}</h3>
               <span className="ml-auto bg-pink-100 text-pink-700 text-xs font-bold px-2 py-0.5 rounded-full">{birthdayMembers.length}</span>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -343,12 +328,12 @@ export const Dashboard: React.FC = () => {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-bold text-gray-800 truncate">{m.name}</p>
-                      <p className="text-[10px] text-pink-500 font-medium">Dia {day} 🎂</p>
+                      <p className="text-[10px] text-pink-500 font-medium">{t('dashboard.day')} {day} 🎂</p>
                     </div>
                     {m.phone && (
                       <button
                         onClick={() => sendWhatsApp(m.phone!, birthdayMessage(m.name))}
-                        title="Enviar Parabéns via WhatsApp"
+                        title={t('dashboard.sendCongratulations')}
                         className="p-1.5 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors shrink-0"
                       >
                         <MessageCircle size={13}/>
@@ -362,11 +347,11 @@ export const Dashboard: React.FC = () => {
         );
       })()}
 
-      {/* LINHA 3: FLUXO DE CAIXA MENSAL */}
+      {/* MONTHLY CASH FLOW */}
       <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
         <div className="flex items-center gap-2 mb-6">
             <Globe className="text-teal-600" size={20}/>
-            <h3 className="font-bold text-gray-700">Fluxo de Caixa Mensal ({new Date(0, selectedMonth - 1).toLocaleString('pt-BR', {month: 'long'}).toUpperCase()} / {selectedYear})</h3>
+            <h3 className="font-bold text-gray-700">{t('dashboard.monthlyFlow')} ({getMonthName(selectedMonth - 1, lang)} / {selectedYear})</h3>
         </div>
         <div className="h-80 w-full">
           <ResponsiveContainer width="100%" height="100%">
@@ -379,7 +364,7 @@ export const Dashboard: React.FC = () => {
                 dy={10}
               />
               <YAxis 
-                tickFormatter={(value) => `R$${value}`} 
+                tickFormatter={(value) => formatCurrency(value, lang)} 
                 axisLine={false} 
                 tickLine={false}
                 tick={{fontSize: 12, fill: '#9ca3af'}}
@@ -387,7 +372,7 @@ export const Dashboard: React.FC = () => {
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
               <Tooltip 
                 contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'}} 
-                formatter={(value: number) => [`R$ ${value.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`, '']}
+                formatter={(value: number) => [formatCurrency(value, lang), '']}
               />
               <Legend iconType="circle" iconSize={8} verticalAlign="top" align="left" wrapperStyle={{fontSize: '12px', top: -20, left: 0}}/>
               <Line 
@@ -397,7 +382,7 @@ export const Dashboard: React.FC = () => {
                 strokeWidth={3} 
                 dot={false}
                 activeDot={{r: 6, strokeWidth: 0}}
-                name="Entradas" 
+                name={t('common.income')} 
               />
               <Line 
                 type="monotone" 
@@ -406,7 +391,7 @@ export const Dashboard: React.FC = () => {
                 strokeWidth={3} 
                 dot={false}
                 activeDot={{r: 6, strokeWidth: 0}}
-                name="Saídas" 
+                name={t('common.expenses')} 
               />
             </LineChart>
           </ResponsiveContainer>
