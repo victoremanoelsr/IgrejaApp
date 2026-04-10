@@ -18,6 +18,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import Draggable, { DraggableData } from 'react-draggable';
 import { GoogleGenAI, Type as GenAIType } from "@google/genai";
+import { CarnetEditor } from '../components/CarnetEditor';
 
 // --- CONFIGURAÇÕES DE DIMENSÃO (BASE 96 DPI) ---
 const EDITOR_WIDTH = 794; 
@@ -746,7 +747,13 @@ export const YouthPanel: React.FC = () => {
                         </div>
                     </div>
                 )}
-                {activeTab === 'CONFIG_MODELO' && renderVisualEditor()}
+                {activeTab === 'CONFIG_MODELO' && (
+                    <CarnetEditor
+                        category="JOVENS"
+                        templates={templates}
+                        onTemplatesChanged={loadTemplates}
+                    />
+                )}
                 {activeTab === 'RELATORIOS' && renderReports()}
                 {activeTab === 'EQUIPE' && renderTeamTab()}
                 {activeTab === 'MEMBROS' && renderMembersTab()}

@@ -1,0 +1,43 @@
+"Atue como um desenvolvedor React Sênior. Preciso refatorar o componente de Edição de Modelos de Carnê (CarnetEditor.tsx) para que ele funcione de forma integrada nos painéis de Jovens e Missões. O objetivo é transformar o editor manual em um Configurador Automático por Seleção Inteligente.
+
+Contexto Técnico:
+
+O sistema já possui um useApp context que fornece a churchId.
+
+A tabela no Supabase é carnet_templates e possui os campos: id, church_id, name, category ('JOVENS' ou 'MISSOES'), background_url e layout_json.
+
+O layout_json armazena um array de objetos com { id, text, x, y, fontSize, isStub }.
+
+Requisitos da Interface (UX/UI):
+
+Layout Profissional: Duas colunas. Esquerda: Painel de Controle (Dark Mode). Direita: Canvas de Prévia (Preview) com a imagem de fundo.
+
+Sistema de Fundo: Upload de imagem para o background_url. A imagem deve preencher o fundo da área de prévia.
+
+Automação de Canhoto (Stub): - Adicione um Switch/Checkbox: 'Este carnê possui canhoto?'.
+
+Se ativado, desenhar uma linha vertical pontilhada (framer-motion) a 25% da largura da prévia para simular o picote do canhoto.
+
+Gerador Automático de Tags (O Coração do Sistema):
+
+Crie uma lista de seleção (Checkboxes) com as opções: [Nome do Membro, Valor, Vencimento, Mês/Referência].
+
+Lógica de Inserção: Ao marcar 'Nome do Membro', o sistema deve inserir automaticamente dois itens no layout_json:
+
+Item 1 (Canhoto): Nome: {{member_name}} (Posicionado na zona de 0-25%).
+
+Item 2 (Principal): Nome do Membro: {{member_name}} (Posicionado na zona de 26-100%).
+
+Repita a lógica para 'Valor' ({{value}}), 'Vencimento' ({{due_date}}) e 'Mês' ({{month}}). Os textos devem aparecer um abaixo do outro automaticamente para evitar sobreposição inicial.
+
+Drag-and-Drop de Ajuste Fino: Os blocos gerados automaticamente devem ser arrastáveis sobre a prévia para que eu possa alinhá-los perfeitamente com o desenho do meu fundo.
+
+Integração e Categoria:
+
+O componente deve aceitar uma prop category ('JOVENS' | 'MISSOES') para que o modelo seja salvo na categoria correta.
+
+O botão 'Salvar Modelo' deve atualizar o layout_json e o background_url via supabase.
+
+Estilização: Use Tailwind CSS com o padrão do app (Orange-500 para destaques, rounded-xl para cards).
+
+Gere o código completo e moderno para o CarnetEditor.tsx."

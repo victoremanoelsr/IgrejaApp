@@ -17,6 +17,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import Draggable, { DraggableData } from 'react-draggable';
 import { GoogleGenAI, Type as GenAIType } from "@google/genai";
+import { CarnetEditor } from '../components/CarnetEditor';
 
 // --- CONFIGURAÇÕES DE DIMENSÃO (BASE 96 DPI) ---
 const EDITOR_WIDTH = 794; 
@@ -258,11 +259,13 @@ export const MissionsPanel: React.FC = () => {
   const loadTemplates = async () => {
       if(!currentChurch) return;
       const loaded = await getCarnetTemplates(currentChurch.id);
-      setTemplates(loaded);
+      // Filter by MISSOES category
+      const filtered = loaded.filter(t => t.category === 'MISSOES');
+      setTemplates(filtered);
       
-      const def = loaded.find(t => t.isDefault);
+      const def = filtered.find(t => t.isDefault);
       if(def && !selectedGenTemplateId) setSelectedGenTemplateId(def.id);
-      else if(loaded.length > 0 && !selectedGenTemplateId) setSelectedGenTemplateId(loaded[0].id);
+      else if(filtered.length > 0 && !selectedGenTemplateId) setSelectedGenTemplateId(filtered[0].id);
   };
 
   const showFeedback = (msg: string, type: 'success'|'error'|'info' = 'success') => {
@@ -1271,7 +1274,13 @@ export const MissionsPanel: React.FC = () => {
                         </div>
                     </div>
                 )}
-                {activeTab === 'CONFIG_MODELO' && renderVisualEditor()}
+                {activeTab === 'CONFIG_MODELO' && (
+                    <CarnetEditor
+                        category="MISSOES"
+                        templates={templates}
+                        onTemplatesChanged={loadTemplates}
+                    />
+                )}
                 {activeTab === 'RELATORIOS' && renderReports()}
                 {activeTab === 'EQUIPE' && renderTeamTab()}
             </div>
