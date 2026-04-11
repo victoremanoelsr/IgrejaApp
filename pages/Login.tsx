@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useApp } from '../context';
 import { useNavigate } from 'react-router-dom';
 import { Lock, User, ArrowRight, AlertCircle, CheckCircle, Building, Eye, EyeOff, Loader } from 'lucide-react';
@@ -32,6 +32,25 @@ export const Login: React.FC = () => {
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+
+  const versiculos = [
+    { texto: 'Tudo posso naquele que me fortalece.', referencia: 'Filipenses 4:13' },
+    { texto: 'O Senhor é o meu pastor e nada me faltará.', referencia: 'Salmos 23:1' },
+    { texto: 'Entrega o teu caminho ao Senhor; confia nele, e ele tudo fará.', referencia: 'Salmos 37:5' },
+    { texto: 'Porque sou eu que conheço os planos que tenho para vocês, diz o Senhor.', referencia: 'Jeremias 29:11' },
+    { texto: 'Seja forte e corajoso. Não se apavore nem desanime, pois o Senhor, o seu Deus, estará com você.', referencia: 'Josué 1:9' },
+    { texto: 'Confie no Senhor de todo o seu coração e não se apoie em seu próprio entendimento.', referencia: 'Provérbios 3:5' },
+    { texto: 'O amor é paciente, o amor é bondoso. Não inveja, não se vangloria, não se orgulha.', referencia: '1 Coríntios 13:4' },
+    { texto: 'Mas os que esperam no Senhor renovarão as suas forças.', referencia: 'Isaías 40:31' },
+    { texto: 'Porque Deus tanto amou o mundo que deu o seu Filho Unigênito.', referencia: 'João 3:16' },
+    { texto: 'Dêem graças ao Senhor, porque ele é bom; o seu amor dura para sempre.', referencia: 'Salmos 107:1' },
+    { texto: 'Não andem ansiosos por coisa alguma, mas em tudo, pela oração, apresentem seus pedidos a Deus.', referencia: 'Filipenses 4:6' },
+    { texto: 'Onde dois ou três se reúnem em meu nome, ali estou no meio deles.', referencia: 'Mateus 18:20' },
+  ];
+
+  const versiculoDoDia = useMemo(() => {
+    return versiculos[Math.floor(Math.random() * versiculos.length)];
+  }, []);
 
   // Helpers
   const formatCPF = (value: string) => {
@@ -184,6 +203,11 @@ export const Login: React.FC = () => {
       <button type="submit" className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-lg shadow-md text-sm font-bold text-white bg-brand-orange hover:bg-brand-red focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-orange transition-all transform active:scale-95 mt-2">
         Acessar Sistema
       </button>
+
+      <div className="text-center my-4 px-2">
+        <p className="text-xs italic text-gray-400 leading-relaxed">"{versiculoDoDia.texto}"</p>
+        <p className="text-[10px] font-semibold text-gray-400 mt-1">— {versiculoDoDia.referencia}</p>
+      </div>
 
       <div className="text-center pt-2">
         <button type="button" onClick={() => { setStep('RECOVERY_IDENTIFY'); setError(''); }} className="text-xs text-gray-500 hover:text-brand-orange transition-colors">
