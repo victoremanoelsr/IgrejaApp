@@ -176,19 +176,19 @@ export const Dashboard: React.FC = () => {
         </div>
 
         {/* GENERAL FINANCE CARD */}
-        <div onClick={() => navigate('/financeiro')} className="col-span-12 lg:col-span-8 bg-white rounded-xl shadow-sm border-l-4 border-brand-orange p-6 flex flex-col justify-center cursor-pointer hover:shadow-md transition-all">
-            <div className="grid grid-cols-3 gap-4 divide-x divide-gray-100">
-                <div className="text-center px-4">
-                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">{t('common.income')}</p>
-                    <p className="text-2xl font-black text-green-600">{formatCurrency(totalInGeneral, lang)}</p>
+        <div onClick={() => navigate('/financeiro')} className="col-span-12 lg:col-span-8 bg-white rounded-xl shadow-sm border-l-4 border-brand-orange p-5 flex flex-col justify-center cursor-pointer hover:shadow-md transition-all">
+            <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-gray-100">
+                <div className="flex sm:flex-col items-center justify-between sm:justify-center sm:text-center px-2 sm:px-4 py-2 sm:py-0 gap-2">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider shrink-0">{t('common.income')}</p>
+                    <p className="text-base sm:text-xl md:text-2xl font-black text-green-600 truncate">{formatCurrency(totalInGeneral, lang)}</p>
                 </div>
-                <div className="text-center px-4">
-                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">{t('common.expenses')}</p>
-                    <p className="text-2xl font-black text-red-600">{formatCurrency(totalOutGeneral, lang)}</p>
+                <div className="flex sm:flex-col items-center justify-between sm:justify-center sm:text-center px-2 sm:px-4 py-2 sm:py-0 gap-2">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider shrink-0">{t('common.expenses')}</p>
+                    <p className="text-base sm:text-xl md:text-2xl font-black text-red-600 truncate">{formatCurrency(totalOutGeneral, lang)}</p>
                 </div>
-                <div className="text-center px-4">
-                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">{t('common.balance')}</p>
-                    <p className={`text-2xl font-black ${balanceGeneral >= 0 ? 'text-gray-800' : 'text-red-600'}`}>{formatCurrency(balanceGeneral, lang)}</p>
+                <div className="flex sm:flex-col items-center justify-between sm:justify-center sm:text-center px-2 sm:px-4 py-2 sm:py-0 gap-2">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider shrink-0">{t('common.balance')}</p>
+                    <p className={`text-base sm:text-xl md:text-2xl font-black truncate ${balanceGeneral >= 0 ? 'text-gray-800' : 'text-red-600'}`}>{formatCurrency(balanceGeneral, lang)}</p>
                 </div>
             </div>
         </div>
