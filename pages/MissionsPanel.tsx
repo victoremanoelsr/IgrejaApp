@@ -18,6 +18,7 @@ import autoTable from 'jspdf-autotable';
 import Draggable, { DraggableData } from 'react-draggable';
 import { GoogleGenAI, Type as GenAIType } from "@google/genai";
 import { CarnetEditor } from '../components/CarnetEditor';
+import { loadImageForPDF, renderElementsToPDF } from '../utils/pdfImageLoader';
 
 // --- CONFIGURAÇÕES DE DIMENSÃO (BASE 96 DPI) ---
 const EDITOR_WIDTH = 794; 
@@ -545,29 +546,19 @@ export const MissionsPanel: React.FC = () => {
 
       const bgUrl = templateToUse.backgroundUrl;
       const bgStyle = templateToUse.backgroundStyle || { mode: 'cover', opacity: 0.5 };
-      let bgData: string | null = null;
-      let bgWidth = 0;
-      let bgHeight = 0;
 
-      if (bgUrl) {
-          try {
-              const response = await fetch(bgUrl);
-              const blob = await response.blob();
-              bgData = await new Promise((resolve) => {
-                  const reader = new FileReader();
-                  reader.onloadend = () => resolve(reader.result as string);
-                  reader.readAsDataURL(blob);
-              });
-              if (bgData) {
-                  const img = new Image();
-                  img.src = bgData;
-                  await new Promise((resolve) => { img.onload = resolve; });
-                  bgWidth = img.naturalWidth;
-                  bgHeight = img.naturalHeight;
-              }
-          } catch (err) {
-              console.error("Erro ao baixar background", err);
-          }
+      // Load background via canvas API (avoids CORS + auto-converts to JPEG)
+      const bgData = bgUrl ? await loadImageForPDF(bgUrl) : null;
+
+      // Get image natural dimensions for aspect-ratio layout
+      let bgWidth = 0, bgHeight = 0;
+      if (bgData) {
+          await new Promise<void>((res) => {
+              const img = new Image();
+              img.onload = () => { bgWidth = img.naturalWidth; bgHeight = img.naturalHeight; res(); };
+              img.onerror = () => res();
+              img.src = bgData;
+          });
       }
 
       const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
@@ -585,7 +576,6 @@ export const MissionsPanel: React.FC = () => {
       if (bgData && bgWidth > 0 && bgHeight > 0) {
           const ratioImg = bgWidth / bgHeight;
           const ratioTicket = 210 / 70; 
-
           if (bgStyle.mode === 'contain') {
               if (ratioImg > ratioTicket) { imgW = 210; imgH = 210 / ratioImg; imgY = (70 - imgH) / 2; } 
               else { imgH = 70; imgW = 70 * ratioImg; imgX = (210 - imgW) / 2; }
@@ -594,6 +584,9 @@ export const MissionsPanel: React.FC = () => {
               else { imgW = 210; imgH = 210 / ratioImg; imgY = (70 - imgH) / 2; }
           } 
       }
+
+      // Preload all image elements (e.g. QR code) once
+      const imageCache: Record<string, string | null> = {};
 
       for (let i = 0; i < 12; i++) { 
           if (i > 0 && i % ticketsPerPage === 0) doc.addPage();
@@ -606,41 +599,14 @@ export const MissionsPanel: React.FC = () => {
               doc.restoreGraphicsState();
           }
 
-          elements.forEach(el => {
-              let text = el.content;
-              text = text.replace('{{nome_membro}}', member.name);
-              text = text.replace('{{valor}}', `R$ ${parseFloat(bookletAmount).toLocaleString('pt-BR', {minimumFractionDigits: 2})}`);
-              text = text.replace('{{mes_extenso}}', months[i]);
-              text = text.replace('{{ano}}', bookletYear.toString());
-              text = text.replace('{{n_parcela}}', `${i+1}/12`);
-
-              let fontSize = el.style.fontSize;
-              doc.setFontSize(fontSize);
-              doc.setFont("helvetica", el.style.fontWeight === 'bold' ? 'bold' : 'normal');
-
-              const xPosMM = el.x * scale;
-              const STUB_WIDTH_MM = 70;
-              const PAGE_WIDTH_MM = 210;
-              const MARGIN_MM = 3;
-              let maxWidthMM = 0;
-
-              if (xPosMM < (STUB_WIDTH_MM - 10)) {
-                  maxWidthMM = STUB_WIDTH_MM - xPosMM - MARGIN_MM;
-              } else {
-                  maxWidthMM = PAGE_WIDTH_MM - xPosMM - MARGIN_MM;
-              }
-              if (maxWidthMM < 10) maxWidthMM = 20;
-
-              while (doc.getTextWidth(text) > maxWidthMM && fontSize > 6) {
-                  fontSize -= 0.5;
-                  doc.setFontSize(fontSize);
-              }
-
-              doc.setTextColor(el.style.color);
-              const x = el.x * scale;
-              const y = el.y * scale;
-              doc.text(text, x, currentY + y + (fontSize * 0.35)); 
-          });
+          const replacements: Record<string, string> = {
+              '{{nome_membro}}': member.name,
+              '{{valor}}': `R$ ${parseFloat(bookletAmount).toLocaleString('pt-BR', {minimumFractionDigits: 2})}`,
+              '{{mes_extenso}}': months[i],
+              '{{ano}}': bookletYear.toString(),
+              '{{n_parcela}}': `${i+1}/12`,
+          };
+          await renderElementsToPDF(doc, elements, scale, currentY, replacements, imageCache);
 
           doc.setDrawColor(200, 200, 200);
           doc.setLineWidth(0.1);
@@ -680,28 +646,19 @@ export const MissionsPanel: React.FC = () => {
       const year = tDate.getFullYear();
       const amountVal = t.amount;
 
-      // Load background
+      // Load background via canvas API (avoids CORS + auto-converts to JPEG)
       const bgUrl = templateToUse.backgroundUrl;
       const bgStyle = templateToUse.backgroundStyle || { mode: 'cover', opacity: 0.5 };
-      let bgData: string | null = null;
-      let bgWidth = 0; let bgHeight = 0;
+      const bgData = bgUrl ? await loadImageForPDF(bgUrl) : null;
 
-      if (bgUrl) {
-          try {
-              const response = await fetch(bgUrl);
-              const blob = await response.blob();
-              bgData = await new Promise((resolve) => {
-                  const reader = new FileReader();
-                  reader.onloadend = () => resolve(reader.result as string);
-                  reader.readAsDataURL(blob);
-              });
-              if (bgData) {
-                  const img = new Image();
-                  img.src = bgData;
-                  await new Promise((resolve) => { img.onload = resolve; });
-                  bgWidth = img.naturalWidth; bgHeight = img.naturalHeight;
-              }
-          } catch (err) { console.error("Erro ao baixar background", err); }
+      let bgWidth = 0, bgHeight = 0;
+      if (bgData) {
+          await new Promise<void>((res) => {
+              const img = new Image();
+              img.onload = () => { bgWidth = img.naturalWidth; bgHeight = img.naturalHeight; res(); };
+              img.onerror = () => res();
+              img.src = bgData;
+          });
       }
 
       const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
@@ -727,7 +684,8 @@ export const MissionsPanel: React.FC = () => {
           } 
       }
 
-      // GENERATE 12 PAGES (CARNET COMPLET)
+      const imageCache: Record<string, string | null> = {};
+
       for (let i = 0; i < 12; i++) {
           if (i > 0 && i % ticketsPerPage === 0) doc.addPage();
           const currentY = marginY + ((i % ticketsPerPage) * TICKET_HEIGHT_MM);
@@ -739,37 +697,14 @@ export const MissionsPanel: React.FC = () => {
               doc.restoreGraphicsState();
           }
 
-          elements.forEach(el => {
-              let text = el.content;
-              text = text.replace('{{nome_membro}}', member.name);
-              text = text.replace('{{valor}}', `R$ ${amountVal.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`);
-              text = text.replace('{{mes_extenso}}', months[i]);
-              text = text.replace('{{ano}}', year.toString());
-              text = text.replace('{{n_parcela}}', `${i+1}/12`);
-
-              let fontSize = el.style.fontSize;
-              doc.setFontSize(fontSize);
-              doc.setFont("helvetica", el.style.fontWeight === 'bold' ? 'bold' : 'normal');
-              
-              const xPosMM = el.x * scale;
-              const STUB_WIDTH_MM = 70;
-              const PAGE_WIDTH_MM = 210;
-              const MARGIN_MM = 3;
-              let maxWidthMM = 0;
-              if (xPosMM < (STUB_WIDTH_MM - 10)) maxWidthMM = STUB_WIDTH_MM - xPosMM - MARGIN_MM;
-              else maxWidthMM = PAGE_WIDTH_MM - xPosMM - MARGIN_MM;
-              if (maxWidthMM < 10) maxWidthMM = 20;
-
-              while (doc.getTextWidth(text) > maxWidthMM && fontSize > 6) {
-                  fontSize -= 0.5;
-                  doc.setFontSize(fontSize);
-              }
-
-              const x = el.x * scale;
-              const y = el.y * scale;
-              doc.setTextColor(el.style.color);
-              doc.text(text, x, currentY + y + (fontSize * 0.35)); 
-          });
+          const replacements: Record<string, string> = {
+              '{{nome_membro}}': member.name,
+              '{{valor}}': `R$ ${amountVal.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`,
+              '{{mes_extenso}}': months[i],
+              '{{ano}}': year.toString(),
+              '{{n_parcela}}': `${i+1}/12`,
+          };
+          await renderElementsToPDF(doc, elements, scale, currentY, replacements, imageCache);
 
           doc.setDrawColor(200, 200, 200);
           doc.setLineWidth(0.1);

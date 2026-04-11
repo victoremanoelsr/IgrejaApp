@@ -385,18 +385,16 @@ export const YouthPanel: React.FC = () => {
       const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' }); 
       const scale = 210 / EDITOR_WIDTH; 
       
-      // Load BG
-      let bgData: string | null = null;
-      if (templateToUse.backgroundUrl) {
-          try {
-              const response = await fetch(templateToUse.backgroundUrl);
-              const blob = await response.blob();
-              bgData = await new Promise((resolve) => { const reader = new FileReader(); reader.onloadend = () => resolve(reader.result as string); reader.readAsDataURL(blob); });
-          } catch(e) {}
-      }
+      // Load BG via canvas API (avoids CORS issues and converts any format to JPEG)
+      const bgData = templateToUse.backgroundUrl
+          ? await loadImageForPDF(templateToUse.backgroundUrl)
+          : null;
+
+      // Preload all image elements (e.g. QR code) once
+      const imageCache: Record<string, string | null> = {};
+      const elements = templateToUse.layoutJson || REQUIRED_FIELDS;
 
       const months = ['JANEIRO', 'FEVEREIRO', 'MARÇO', 'ABRIL', 'MAIO', 'JUNHO', 'JULHO', 'AGOSTO', 'SETEMBRO', 'OUTUBRO', 'NOVEMBRO', 'DEZEMBRO'];
-      const elements = templateToUse.layoutJson || REQUIRED_FIELDS;
 
       for(let i=0; i<12; i++) { 
           if(i>0 && i%4===0) doc.addPage(); 
@@ -408,18 +406,14 @@ export const YouthPanel: React.FC = () => {
               doc.setDrawColor(200); doc.rect(0, currentY, 210, 70); 
           }
 
-          elements.forEach(el => {
-              let text = el.content;
-              text = text.replace('{{nome_membro}}', member.name);
-              text = text.replace('{{valor}}', `R$ ${parseFloat(bookletAmount).toLocaleString('pt-BR', {minimumFractionDigits: 2})}`);
-              text = text.replace('{{mes_extenso}}', months[i]);
-              text = text.replace('{{ano}}', bookletYear.toString());
-              text = text.replace('{{n_parcela}}', `${i+1}/12`);
-              doc.setTextColor(el.style.color);
-              doc.setFontSize(el.style.fontSize);
-              doc.setFont("helvetica", el.style.fontWeight === 'bold' ? 'bold' : 'normal');
-              doc.text(text, el.x * scale, currentY + (el.y * scale) + (el.style.fontSize * 0.35));
-          });
+          const replacements: Record<string, string> = {
+              '{{nome_membro}}': member.name,
+              '{{valor}}': `R$ ${parseFloat(bookletAmount).toLocaleString('pt-BR', {minimumFractionDigits: 2})}`,
+              '{{mes_extenso}}': months[i],
+              '{{ano}}': bookletYear.toString(),
+              '{{n_parcela}}': `${i+1}/12`,
+          };
+          await renderElementsToPDF(doc, elements, scale, currentY, replacements, imageCache);
 
           await addTransaction({ id: '', churchId: currentChurch.id, type: 'ENTRADA', category: 'JOVENS', amount: parseFloat(bookletAmount), date: `${bookletYear}-${(i+1).toString().padStart(2,'0')}-10`, description: `CARNÊ JOVENS ${bookletYear} (${i+1}/12) - ${member.name}`, memberId: member.id, responsibleUserId: user?.id||'', status: 'PENDENTE' }); 
       } 
@@ -438,16 +432,12 @@ export const YouthPanel: React.FC = () => {
       const amountVal = t.amount;
       const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
       const scale = 210 / EDITOR_WIDTH;
-      let bgData: string | null = null;
 
-      if (templateToUse.backgroundUrl) {
-          try {
-              const response = await fetch(templateToUse.backgroundUrl);
-              const blob = await response.blob();
-              bgData = await new Promise((resolve) => { const reader = new FileReader(); reader.onloadend = () => resolve(reader.result as string); reader.readAsDataURL(blob); });
-          } catch (err) {}
-      }
+      const bgData = templateToUse.backgroundUrl
+          ? await loadImageForPDF(templateToUse.backgroundUrl)
+          : null;
 
+      const imageCache: Record<string, string | null> = {};
       const months = ['JANEIRO', 'FEVEREIRO', 'MARÇO', 'ABRIL', 'MAIO', 'JUNHO', 'JULHO', 'AGOSTO', 'SETEMBRO', 'OUTUBRO', 'NOVEMBRO', 'DEZEMBRO'];
       const elements = templateToUse.layoutJson || REQUIRED_FIELDS;
 
@@ -457,18 +447,14 @@ export const YouthPanel: React.FC = () => {
           if (bgData) doc.addImage(bgData, 'JPEG', 0, currentY, 210, 70);
           else { doc.setDrawColor(200); doc.rect(0, currentY, 210, 70); }
 
-          elements.forEach(el => {
-              let text = el.content;
-              text = text.replace('{{nome_membro}}', member.name);
-              text = text.replace('{{valor}}', `R$ ${amountVal.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`);
-              text = text.replace('{{mes_extenso}}', months[i]);
-              text = text.replace('{{ano}}', year.toString());
-              text = text.replace('{{n_parcela}}', `${i+1}/12`);
-              doc.setTextColor(el.style.color);
-              doc.setFontSize(el.style.fontSize);
-              doc.setFont("helvetica", el.style.fontWeight === 'bold' ? 'bold' : 'normal');
-              doc.text(text, el.x * scale, currentY + (el.y * scale) + (el.style.fontSize * 0.35));
-          });
+          const replacements: Record<string, string> = {
+              '{{nome_membro}}': member.name,
+              '{{valor}}': `R$ ${amountVal.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`,
+              '{{mes_extenso}}': months[i],
+              '{{ano}}': year.toString(),
+              '{{n_parcela}}': `${i+1}/12`,
+          };
+          await renderElementsToPDF(doc, elements, scale, currentY, replacements, imageCache);
       }
       doc.save(`CARNE_COMPLETO_JOVENS_${year}_${member.name}.pdf`);
       showFeedback('Carnê completo baixado!');
