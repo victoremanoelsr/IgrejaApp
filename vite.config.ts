@@ -40,6 +40,7 @@ export default defineConfig(({ mode }) => {
         },
         workbox: {
           globPatterns: ['**/*.{js,css,html,ico,png,svg,json,woff,woff2}'],
+          maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
           navigateFallback: 'index.html',
           navigateFallbackDenylist: [/^\/api\//],
           runtimeCaching: [
@@ -124,6 +125,19 @@ export default defineConfig(({ mode }) => {
     },
     build: {
       outDir: 'dist',
+      chunkSizeWarningLimit: 1000,
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+            'supabase': ['@supabase/supabase-js'],
+            'charts': ['recharts'],
+            'pdf': ['jspdf', 'jspdf-autotable'],
+            'i18n': ['i18next', 'react-i18next', 'i18next-browser-languagedetector'],
+            'ui': ['lucide-react', 'react-draggable'],
+          }
+        }
+      }
     },
     define: {
       'process.env.API_KEY': JSON.stringify(env.API_KEY)
