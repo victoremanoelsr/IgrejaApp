@@ -32,6 +32,7 @@ import { MemberFinanceiro } from './pages/member/MemberFinanceiro';
 import { MemberCarnets } from './pages/member/MemberCarnets';
 import { MemberDocumentos } from './pages/member/MemberDocumentos';
 import { MemberPerfil } from './pages/member/MemberPerfil';
+import { BlockedPage } from './pages/BlockedPage';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles?: string[] }> = ({ children, allowedRoles }) => {
   const { user } = useApp();
@@ -66,6 +67,7 @@ const AppRoutes = () => {
   return (
     <Routes>
       <Route path="/" element={<Login />} />
+      <Route path="/bloqueado" element={<BlockedPage />} />
       
       {/* Member Portal */}
       <Route path="/portal/login" element={<MemberLogin />} />

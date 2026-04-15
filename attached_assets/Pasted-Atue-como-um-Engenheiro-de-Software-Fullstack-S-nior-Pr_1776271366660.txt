@@ -1,0 +1,39 @@
+Atue como um Engenheiro de Software Fullstack Sênior. Preciso implementar um sistema completo de Gestão de Planos e Bloqueio Global em Cascata no meu SaaS (IgrejaApp), com foco em converter as igrejas atuais para o modelo de cobrança.
+
+1. Estrutura de Dados e Migração (Supabase/PostgreSQL):
+
+Campos na tabela churches: plan_type (mensal, bimestral, trimestral, semestral, anual, isento), due_day (int), status (bool, default true), grace_period (int, default 5), payment_promise_date (date) e pix_key (text).
+
+Regra de Transição: Para todas as igrejas já existentes no banco de dados, defina automaticamente o plan_type como 'isento' e status como true. Isso garante que ninguém seja bloqueado durante a atualização.
+
+2. Interface de Gestão no Painel Master (Admin):
+
+Lista de Igrejas: Adicione uma coluna 'Plano' que exiba o tipo de plano atual. Mantenha o botão 'Power' funcional para alterar o status manualmente.
+
+Edição de Igreja: Na janela de edição, permita alterar todos os campos de pagamento.
+
+Lógica Condicional no Form: O campo due_day (Dia de Vencimento) só deve aparecer para preenchimento se o plan_type selecionado for diferente de 'isento'.
+
+Promessa de Pagamento: Botão para definir uma payment_promise_date, liberando o acesso até essa data mesmo em caso de atraso.
+
+3. Lógica de Bloqueio em Cascata (Obrigatório):
+
+Verificação Global: Se a Igreja Sede (church_id) estiver com status === false (bloqueada):
+
+O bloqueio deve impedir o login de: Administradores da Sede, líderes de Congregações, líderes de Departamentos e todos os Membros ligados a essa sede.
+
+Cálculo Automático: Se plan_type !== 'isento', o sistema deve verificar se: Data Atual > (Dia de Vencimento + 5 dias de carência). Se positivo e não houver promessa de pagamento ativa, altere o status para false.
+
+4. Interceptação de Login e Tela de Alerta:
+
+No fluxo de autenticação, valide o status da sede. Se bloqueado, redirecione para uma página de bloqueio (tema Dark) com a mensagem: 'Sistema bloqueado por falta de pagamento. O acesso para Sede, Congregações e Membros está suspenso. Entre em contato com a administração para regularizar.'
+
+Adicione um botão de 'Suporte' ou 'Falar com Financeiro' nesta tela.
+
+5. Requisitos Técnicos:
+
+Use React, Tailwind CSS, Lucide Icons e Supabase.
+
+O código deve ser modular e fácil de integrar ao sistema de login que já possuo.
+
+Forneça o código para a atualização da lista/edição de igrejas, a lógica de migração inicial para tornar todos 'isento' e o middleware/função de verificação de bloqueio no login."

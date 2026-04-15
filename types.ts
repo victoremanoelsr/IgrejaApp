@@ -3,6 +3,8 @@ export type Role = 'SUPER_ADM' | 'PRESIDENTE' | 'VICE_PRESIDENTE' | 'DIRIGENTE' 
 
 export type ChurchType = 'SEDE' | 'CONGREGACAO';
 
+export type PlanType = 'mensal' | 'bimestral' | 'trimestral' | 'semestral' | 'anual' | 'isento';
+
 export interface Church {
   id: string;
   name: string;
@@ -13,7 +15,12 @@ export interface Church {
   missionStatement?: string;
   active: boolean;
   type: ChurchType; 
-  parentId?: string; 
+  parentId?: string;
+  planType?: PlanType;
+  dueDay?: number;
+  gracePeriod?: number;
+  paymentPromiseDate?: string;
+  pixKey?: string;
 }
 
 export interface User {

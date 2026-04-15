@@ -11,7 +11,12 @@ export const toAppChurch = (data: any): Church => ({
   pastorName: data.pastor_name,
   cnpj: data.cnpj,
   missionStatement: data.mission_statement,
-  logoUrl: data.logo_url
+  logoUrl: data.logo_url,
+  planType: data.plan_type || 'isento',
+  dueDay: data.due_day ?? 10,
+  gracePeriod: data.grace_period ?? 5,
+  paymentPromiseDate: data.payment_promise_date || undefined,
+  pixKey: data.pix_key || undefined,
 });
 
 export const toAppUser = (data: any): User => ({

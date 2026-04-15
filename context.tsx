@@ -34,7 +34,7 @@ interface AppContextType {
   availableChurches: Church[];
   currentChurch: Church | null;
   
-  login: (u: string, p: string) => Promise<{user?: User, error?: string}>;
+  login: (u: string, p: string) => Promise<{user?: User, error?: string, blocked?: boolean}>;
   logout: () => void;
   recoverAccount: (name: string, cpf: string) => string | null;
   updateUserCredentials: (id: string, username?: string, password?: string) => Promise<{success: boolean, error?: string}>;
@@ -239,10 +239,47 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if(assetsData) setAssets(assetsData.map(toAppAsset));
   };
 
+  const isChurchBlocked = async (churchId: string, churchList: Church[]): Promise<boolean> => {
+    let sede = churchList.find(c => c.id === churchId);
+    if (sede && sede.type === 'CONGREGACAO' && sede.parentId) {
+      sede = churchList.find(c => c.id === sede!.parentId);
+    }
+    if (!sede) return false;
+
+    if (!sede.active) return true;
+
+    if (sede.planType && sede.planType !== 'isento') {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const dueDay = sede.dueDay ?? 10;
+      const gracePeriod = sede.gracePeriod ?? 5;
+      const dueDate = new Date(today.getFullYear(), today.getMonth(), dueDay + gracePeriod);
+
+      if (today > dueDate) {
+        const hasActivePromise = sede.paymentPromiseDate
+          ? new Date(sede.paymentPromiseDate) >= today
+          : false;
+
+        if (!hasActivePromise) {
+          await supabase.from('churches').update({ active: false }).eq('id', sede.id);
+          setChurches(prev => prev.map(c => c.id === sede!.id ? { ...c, active: false } : c));
+          return true;
+        }
+      }
+    }
+    return false;
+  };
+
   const login = async (u: string, p: string) => {
-    const { data, error } = await supabase.from('profiles').select('*').eq('username', u).eq('password', p).single();
+    const { data } = await supabase.from('profiles').select('*').eq('username', u).eq('password', p).single();
     if (data) {
         const appUser = toAppUser(data);
+
+        if (appUser.role !== 'SUPER_ADM' && appUser.churchId) {
+          const blocked = await isChurchBlocked(appUser.churchId, churches);
+          if (blocked) return { blocked: true };
+        }
+
         setUser(appUser);
         if (appUser.churchId) {
             const church = churches.find(c => c.id === appUser.churchId);
@@ -528,14 +565,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateChurch = async (id: string, d: Partial<Church>) => {
-      const { error } = await supabase.from('churches').update({
-          name: d.name,
-          address: d.address,
-          pastor_name: d.pastorName,
-          cnpj: d.cnpj,
-          mission_statement: d.missionStatement,
-          logo_url: d.logoUrl
-      }).eq('id', id);
+      const payload: any = {};
+      if (d.name !== undefined) payload.name = d.name;
+      if (d.address !== undefined) payload.address = d.address;
+      if (d.pastorName !== undefined) payload.pastor_name = d.pastorName;
+      if (d.cnpj !== undefined) payload.cnpj = d.cnpj;
+      if (d.missionStatement !== undefined) payload.mission_statement = d.missionStatement;
+      if (d.logoUrl !== undefined) payload.logo_url = d.logoUrl;
+      if (d.active !== undefined) payload.active = d.active;
+      if (d.planType !== undefined) payload.plan_type = d.planType;
+      if (d.dueDay !== undefined) payload.due_day = d.dueDay;
+      if (d.gracePeriod !== undefined) payload.grace_period = d.gracePeriod;
+      if (d.paymentPromiseDate !== undefined) payload.payment_promise_date = d.paymentPromiseDate || null;
+      if (d.pixKey !== undefined) payload.pix_key = d.pixKey;
+
+      const { error } = await supabase.from('churches').update(payload).eq('id', id);
       if(!error) {
           setChurches(churches.map(c => c.id === id ? { ...c, ...d } : c));
           if(currentChurch?.id === id) setCurrentChurch({ ...currentChurch, ...d });

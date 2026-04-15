@@ -43,6 +43,10 @@ export const MemberLogin: React.FC = () => {
     e.preventDefault();
     setError('');
     const result = await login(cpf, password);
+    if (result.blocked) {
+      navigate('/bloqueado');
+      return;
+    }
     if (result.error) {
       setError(result.error);
     } else {

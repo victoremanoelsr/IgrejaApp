@@ -2,8 +2,26 @@
 import React, { useState } from 'react';
 import { useApp } from '../context';
 import { useNavigate } from 'react-router-dom';
-import { Building, Users, Eye, Power, Plus, UserPlus, Trash2, Edit2, User, AlertTriangle, CheckCircle, Info } from 'lucide-react';
-import { Church, User as UserType, Member } from '../types';
+import { Building, Users, Eye, Power, Plus, UserPlus, Trash2, Edit2, User, AlertTriangle, CheckCircle, Info, CalendarClock, CreditCard } from 'lucide-react';
+import { Church, User as UserType, Member, PlanType } from '../types';
+
+const PLAN_LABELS: Record<PlanType, string> = {
+  isento: 'Isento',
+  mensal: 'Mensal',
+  bimestral: 'Bimestral',
+  trimestral: 'Trimestral',
+  semestral: 'Semestral',
+  anual: 'Anual',
+};
+
+const PlanBadge: React.FC<{ plan?: PlanType }> = ({ plan = 'isento' }) => {
+  const isIsentos = plan === 'isento';
+  return (
+    <span className={`px-1.5 py-0.5 text-[8px] md:text-[9px] rounded font-bold ${isIsentos ? 'bg-gray-100 text-gray-500' : 'bg-blue-100 text-blue-700'}`}>
+      {PLAN_LABELS[plan] ?? 'Isento'}
+    </span>
+  );
+};
 
 // Helper para gerar UUID v4 (mesma lógica do contexto para garantir consistência)
 function generateUUID() {
@@ -126,7 +144,12 @@ export const SuperAdminDashboard: React.FC = () => {
         name: editingChurch.name.toUpperCase(),
         address: editingChurch.address.toUpperCase(),
         pastorName: editingChurch.pastorName.toUpperCase(),
-        cnpj: editingChurch.cnpj
+        cnpj: editingChurch.cnpj,
+        planType: editingChurch.planType,
+        dueDay: editingChurch.planType !== 'isento' ? editingChurch.dueDay : undefined,
+        gracePeriod: editingChurch.gracePeriod,
+        paymentPromiseDate: editingChurch.paymentPromiseDate,
+        pixKey: editingChurch.pixKey,
     });
     
     if (res.success) {
@@ -291,25 +314,102 @@ export const SuperAdminDashboard: React.FC = () => {
       {/* Edit Church Modal */}
       {editingChurch && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-            <div className="bg-white p-6 rounded-xl shadow-lg w-full max-w-lg animate-fade-in-down border-l-4 border-blue-500">
+            <div className="bg-white p-6 rounded-xl shadow-lg w-full max-w-lg animate-fade-in-down border-l-4 border-blue-500 max-h-[90vh] overflow-y-auto">
                 <h3 className="text-lg font-bold mb-4 flex items-center"><Edit2 size={20} className="mr-2"/> Editar Sede</h3>
                 <form onSubmit={handleUpdateChurch} className="space-y-4">
-                    <div>
-                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Nome da Igreja</label>
-                        <input required className="w-full p-2 border rounded uppercase text-sm" value={editingChurch.name} onChange={e => setEditingChurch({...editingChurch, name: e.target.value.toUpperCase()})} />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Nome da Igreja</label>
+                            <input required className="w-full p-2 border rounded uppercase text-sm" value={editingChurch.name} onChange={e => setEditingChurch({...editingChurch, name: e.target.value.toUpperCase()})} />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">CNPJ</label>
+                            <input className="w-full p-2 border rounded text-sm" maxLength={18} value={editingChurch.cnpj || ''} onChange={e => setEditingChurch({...editingChurch, cnpj: formatCNPJ(e.target.value)})} />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Endereço</label>
+                            <input required className="w-full p-2 border rounded uppercase text-sm" value={editingChurch.address} onChange={e => setEditingChurch({...editingChurch, address: e.target.value.toUpperCase()})} />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Pastor Responsável</label>
+                            <input required className="w-full p-2 border rounded uppercase text-sm" value={editingChurch.pastorName} onChange={e => setEditingChurch({...editingChurch, pastorName: e.target.value.toUpperCase()})} />
+                        </div>
                     </div>
-                    <div>
-                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">CNPJ</label>
-                        <input className="w-full p-2 border rounded text-sm" maxLength={18} value={editingChurch.cnpj || ''} onChange={e => setEditingChurch({...editingChurch, cnpj: formatCNPJ(e.target.value)})} />
+
+                    <hr className="border-gray-200"/>
+                    <div className="flex items-center gap-2 mb-1">
+                        <CreditCard size={15} className="text-blue-600"/>
+                        <span className="text-xs font-bold text-gray-600 uppercase">Plano e Cobrança</span>
                     </div>
-                    <div>
-                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Endereço</label>
-                        <input required className="w-full p-2 border rounded uppercase text-sm" value={editingChurch.address} onChange={e => setEditingChurch({...editingChurch, address: e.target.value.toUpperCase()})} />
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Tipo de Plano</label>
+                            <select
+                                className="w-full p-2 border rounded text-sm"
+                                value={editingChurch.planType || 'isento'}
+                                onChange={e => setEditingChurch({...editingChurch, planType: e.target.value as PlanType})}
+                            >
+                                <option value="isento">Isento</option>
+                                <option value="mensal">Mensal</option>
+                                <option value="bimestral">Bimestral</option>
+                                <option value="trimestral">Trimestral</option>
+                                <option value="semestral">Semestral</option>
+                                <option value="anual">Anual</option>
+                            </select>
+                        </div>
+
+                        {editingChurch.planType && editingChurch.planType !== 'isento' && (
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Dia de Vencimento</label>
+                                <input
+                                    type="number"
+                                    min={1}
+                                    max={28}
+                                    className="w-full p-2 border rounded text-sm"
+                                    value={editingChurch.dueDay ?? 10}
+                                    onChange={e => setEditingChurch({...editingChurch, dueDay: parseInt(e.target.value) || 10})}
+                                />
+                            </div>
+                        )}
+
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Dias de Carência</label>
+                            <input
+                                type="number"
+                                min={0}
+                                max={30}
+                                className="w-full p-2 border rounded text-sm"
+                                value={editingChurch.gracePeriod ?? 5}
+                                onChange={e => setEditingChurch({...editingChurch, gracePeriod: parseInt(e.target.value) ?? 5})}
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Chave PIX</label>
+                            <input
+                                type="text"
+                                className="w-full p-2 border rounded text-sm"
+                                placeholder="Chave PIX"
+                                value={editingChurch.pixKey || ''}
+                                onChange={e => setEditingChurch({...editingChurch, pixKey: e.target.value})}
+                            />
+                        </div>
                     </div>
+
                     <div>
-                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Pastor Responsável</label>
-                        <input required className="w-full p-2 border rounded uppercase text-sm" value={editingChurch.pastorName} onChange={e => setEditingChurch({...editingChurch, pastorName: e.target.value.toUpperCase()})} />
+                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1 flex items-center gap-1">
+                            <CalendarClock size={12}/> Promessa de Pagamento
+                        </label>
+                        <input
+                            type="date"
+                            className="w-full p-2 border rounded text-sm"
+                            value={editingChurch.paymentPromiseDate || ''}
+                            onChange={e => setEditingChurch({...editingChurch, paymentPromiseDate: e.target.value || undefined})}
+                        />
+                        <p className="text-[10px] text-gray-400 mt-1">Se preenchida, o acesso fica liberado até esta data mesmo com pagamento em atraso.</p>
                     </div>
+
                     <div className="flex justify-end space-x-2 pt-2">
                         <button type="button" onClick={() => setEditingChurch(null)} className="px-4 py-2 text-gray-500 text-sm">Cancelar</button>
                         <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm font-bold">Atualizar</button>
@@ -368,6 +468,7 @@ export const SuperAdminDashboard: React.FC = () => {
                 <th className="px-2 py-2 text-left text-[10px] font-bold text-gray-500 uppercase w-auto">Unidade / Detalhes</th>
                 <th className="hidden md:table-cell px-2 py-2 text-left text-[10px] font-bold text-gray-500 uppercase w-20">Tipo</th>
                 <th className="hidden md:table-cell px-2 py-2 text-left text-[10px] font-bold text-gray-500 uppercase w-1/3">Pastor</th>
+                <th className="hidden md:table-cell px-2 py-2 text-center text-[10px] font-bold text-gray-500 uppercase w-20">Plano</th>
                 <th className="px-2 py-2 text-center text-[10px] font-bold text-gray-500 uppercase w-14">Status</th>
                 <th className="px-2 py-2 text-right text-[10px] font-bold text-gray-500 uppercase w-36">Ações</th>
                 </tr>
@@ -398,6 +499,9 @@ export const SuperAdminDashboard: React.FC = () => {
                     </td>
                     <td className="hidden md:table-cell px-2 py-2 text-[10px] font-bold text-gray-500">SEDE</td>
                     <td className="hidden md:table-cell px-2 py-2 text-xs text-gray-600 truncate">{church.pastorName}</td>
+                    <td className="hidden md:table-cell px-2 py-2 text-center">
+                        <PlanBadge plan={church.planType} />
+                    </td>
                     <td className="px-2 py-2 text-center">
                         <span className={`px-1 py-0.5 text-[8px] md:text-[9px] rounded font-bold ${church.active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                         {church.active ? 'ON' : 'OFF'}
@@ -460,6 +564,7 @@ export const SuperAdminDashboard: React.FC = () => {
                         </td>
                         <td className="hidden md:table-cell px-2 py-2 text-[10px] text-gray-400">CONG.</td>
                         <td className="hidden md:table-cell px-2 py-2 text-xs text-gray-500 truncate">{child.pastorName}</td>
+                        <td className="hidden md:table-cell px-2 py-2"></td>
                         <td className="px-2 py-2 text-center">
                         <span className={`px-1 py-0.5 text-[8px] md:text-[9px] rounded font-bold ${child.active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                             {child.active ? 'ON' : 'OFF'}

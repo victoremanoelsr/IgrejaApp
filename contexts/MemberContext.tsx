@@ -9,6 +9,7 @@ import {
   getMemberCarnets,
   subscribeToMemberTransactions,
 } from '../services/memberService';
+import { supabase } from '../services/supabaseClient';
 
 const SESSION_KEY = 'member_session';
 
@@ -19,7 +20,7 @@ interface MemberContextType {
   upcomingEvents: Event[];
   carnets: CarnetTemplate[];
   isLoading: boolean;
-  login: (cpf: string, password: string) => Promise<{ error?: string }>;
+  login: (cpf: string, password: string) => Promise<{ error?: string; blocked?: boolean }>;
   logout: () => void;
   refreshContributions: () => Promise<void>;
 }
@@ -110,12 +111,64 @@ export const MemberProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const login = async (cpf: string, password: string) => {
     setIsLoading(true);
     const result = await loginAsMember(cpf, password);
-    setIsLoading(false);
 
     if (result.error || !result.session) {
+      setIsLoading(false);
       return { error: result.error || 'Erro ao entrar.' };
     }
 
+    // Check if the church (or its parent SEDE) is blocked
+    try {
+      const churchId = result.session.churchId;
+      const { data: churchData } = await supabase
+        .from('churches')
+        .select('id, active, type, parent_id, plan_type, due_day, grace_period, payment_promise_date')
+        .eq('id', churchId)
+        .single();
+
+      if (churchData) {
+        let sedeData = churchData;
+
+        if (churchData.type === 'CONGREGACAO' && churchData.parent_id) {
+          const { data: parentData } = await supabase
+            .from('churches')
+            .select('id, active, plan_type, due_day, grace_period, payment_promise_date')
+            .eq('id', churchData.parent_id)
+            .single();
+          if (parentData) sedeData = parentData;
+        }
+
+        let isBlocked = !sedeData.active;
+
+        if (!isBlocked && sedeData.plan_type && sedeData.plan_type !== 'isento') {
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const dueDay = sedeData.due_day ?? 10;
+          const gracePeriod = sedeData.grace_period ?? 5;
+          const dueDate = new Date(today.getFullYear(), today.getMonth(), dueDay + gracePeriod);
+
+          if (today > dueDate) {
+            const hasActivePromise = sedeData.payment_promise_date
+              ? new Date(sedeData.payment_promise_date) >= today
+              : false;
+
+            if (!hasActivePromise) {
+              await supabase.from('churches').update({ active: false }).eq('id', sedeData.id);
+              isBlocked = true;
+            }
+          }
+        }
+
+        if (isBlocked) {
+          setIsLoading(false);
+          return { blocked: true };
+        }
+      }
+    } catch (e) {
+      console.error('Block check error:', e);
+    }
+
+    setIsLoading(false);
     saveSession(result.session);
     setSession(result.session);
     await fetchMemberData(result.session);

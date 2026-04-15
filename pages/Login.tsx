@@ -89,6 +89,10 @@ export const Login: React.FC = () => {
     }
 
     const result = await login(trimmedUser, trimmedPass);
+    if (result.blocked) {
+      navigate('/bloqueado');
+      return;
+    }
     if (result.user) {
       if (result.user.role === 'SUPER_ADM') {
         navigate('/admin/dashboard');
