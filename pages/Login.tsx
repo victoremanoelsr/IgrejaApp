@@ -169,7 +169,7 @@ export const Login: React.FC = () => {
     <form onSubmit={handleLogin} className="space-y-4">
       <div className="text-center mb-4">
         <h2 className="text-2xl font-extrabold text-brand-black">Bem-vindo</h2>
-        <p className="text-gray-500 text-sm mt-1">Administradores usam login · Membros usam CPF</p>
+        <p className="text-gray-500 text-sm mt-1">Acesse o portal da sua igreja</p>
       </div>
       
       <div>
@@ -184,7 +184,7 @@ export const Login: React.FC = () => {
             className="block w-full pl-9 pr-3 py-2.5 border border-gray-300 rounded-lg focus:ring-brand-orange focus:border-brand-orange text-sm transition-all"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            placeholder="Usuário (admin) ou CPF (membro)"
+            placeholder="Digite seu usuário"
           />
         </div>
       </div>
