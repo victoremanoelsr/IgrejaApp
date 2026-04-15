@@ -116,6 +116,16 @@ BEGIN
         ALTER TABLE transactions ADD COLUMN status TEXT DEFAULT 'PAGO';
     END IF;
 
+    -- Portal do Membro: senha personalizada do membro
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='members' AND column_name='member_password') THEN
+        ALTER TABLE members ADD COLUMN member_password TEXT;
+    END IF;
+
+    -- Portal do Membro: chave PIX da igreja
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='churches' AND column_name='pix_key') THEN
+        ALTER TABLE churches ADD COLUMN pix_key TEXT;
+    END IF;
+
 END $$;
 
 NOTIFY pgrst, 'reload schema';

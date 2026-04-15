@@ -1,8 +1,8 @@
 
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../context';
-import { useNavigate } from 'react-router-dom';
-import { Lock, User, ArrowRight, AlertCircle, CheckCircle, Building, Eye, EyeOff, Loader } from 'lucide-react';
+import { useNavigate, Link } from 'react-router-dom';
+import { Lock, User, ArrowRight, AlertCircle, CheckCircle, Building, Eye, EyeOff, Loader, Users } from 'lucide-react';
 
 type LoginStep = 'LOGIN' | 'RECOVERY_IDENTIFY' | 'RECOVERY_SELECT' | 'RECOVERY_RESET_USER' | 'RECOVERY_RESET_PASS';
 
@@ -213,6 +213,16 @@ export const Login: React.FC = () => {
         <button type="button" onClick={() => { setStep('RECOVERY_IDENTIFY'); setError(''); }} className="text-xs text-gray-500 hover:text-brand-orange transition-colors">
           Esqueci minha senha
         </button>
+      </div>
+
+      <div className="border-t border-gray-200 pt-3 mt-1">
+        <Link
+          to="/portal/login"
+          className="w-full flex items-center justify-center gap-2 py-2 px-3 border border-gray-200 rounded-lg text-xs font-semibold text-gray-600 hover:border-brand-orange hover:text-brand-orange transition-all"
+        >
+          <Users size={13} />
+          Acesso Portal do Membro
+        </Link>
       </div>
     </form>
   );

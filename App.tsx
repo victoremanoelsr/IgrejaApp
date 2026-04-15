@@ -3,7 +3,9 @@ import React from 'react';
 import './i18n';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AppProvider, useApp } from './context';
+import { MemberProvider, useMember } from './contexts/MemberContext';
 import { Layout } from './components/Layout';
+import { MemberLayout } from './components/member/MemberLayout';
 import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
 import { Finance } from './pages/Finance';
@@ -24,19 +26,23 @@ import { MenPanel } from './pages/MenPanel';
 import { Departments } from './pages/Departments';
 import { Letters } from './pages/Letters';
 import { Infrastructure } from './pages/Infrastructure';
+import { MemberLogin } from './pages/member/MemberLogin';
+import { MemberDashboard } from './pages/member/MemberDashboard';
+import { MemberFinanceiro } from './pages/member/MemberFinanceiro';
+import { MemberCarnets } from './pages/member/MemberCarnets';
+import { MemberDocumentos } from './pages/member/MemberDocumentos';
+import { MemberPerfil } from './pages/member/MemberPerfil';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles?: string[] }> = ({ children, allowedRoles }) => {
   const { user } = useApp();
   if (!user) return <Navigate to="/" replace />;
   
-  // Listas de cargos exclusivos
   const missionsRoles = ['PRESIDENTE_MISSOES', 'VICE_MISSOES', 'TESOUREIRO_MISSOES', 'SECRETARIO_MISSOES'];
   const youthRoles = ['LIDER_JOVENS', 'TESOUREIRO_JOVENS'];
   const childrenRoles = ['LIDER_CRIANCAS', 'TESOUREIRO_CRIANCAS'];
   const ladiesRoles = ['LIDER_SENHORAS', 'TESOUREIRO_SENHORAS'];
   const menRoles = ['LIDER_SENHORES', 'TESOUREIRO_SENHORES'];
   
-  // Redirecionamentos de acesso exclusivo
   if (missionsRoles.includes(user.role) && window.location.hash !== '#/missoes') return <Navigate to="/missoes" replace />;
   if (youthRoles.includes(user.role) && window.location.hash !== '#/jovens') return <Navigate to="/jovens" replace />;
   if (childrenRoles.includes(user.role) && window.location.hash !== '#/criancas') return <Navigate to="/criancas" replace />;
@@ -50,11 +56,26 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles?: strin
   return <Layout>{children}</Layout>;
 };
 
+const ProtectedMemberRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { session } = useMember();
+  if (!session) return <Navigate to="/portal/login" replace />;
+  return <MemberLayout>{children}</MemberLayout>;
+};
+
 const AppRoutes = () => {
   return (
     <Routes>
       <Route path="/" element={<Login />} />
       
+      {/* Member Portal */}
+      <Route path="/portal/login" element={<MemberLogin />} />
+      <Route path="/portal/dashboard" element={<ProtectedMemberRoute><MemberDashboard /></ProtectedMemberRoute>} />
+      <Route path="/portal/financeiro" element={<ProtectedMemberRoute><MemberFinanceiro /></ProtectedMemberRoute>} />
+      <Route path="/portal/carnets" element={<ProtectedMemberRoute><MemberCarnets /></ProtectedMemberRoute>} />
+      <Route path="/portal/documentos" element={<ProtectedMemberRoute><MemberDocumentos /></ProtectedMemberRoute>} />
+      <Route path="/portal/perfil" element={<ProtectedMemberRoute><MemberPerfil /></ProtectedMemberRoute>} />
+      <Route path="/portal" element={<Navigate to="/portal/login" replace />} />
+
       {/* Super Admin Panel */}
       <Route path="/admin/dashboard" element={<ProtectedRoute allowedRoles={['SUPER_ADM']}><SuperAdminDashboard /></ProtectedRoute>} />
 
@@ -96,9 +117,11 @@ const AppRoutes = () => {
 const App: React.FC = () => {
   return (
     <AppProvider>
-      <HashRouter>
-        <AppRoutes />
-      </HashRouter>
+      <MemberProvider>
+        <HashRouter>
+          <AppRoutes />
+        </HashRouter>
+      </MemberProvider>
     </AppProvider>
   );
 };

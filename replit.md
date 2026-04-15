@@ -74,7 +74,41 @@ Added complete offline resilience for the Finance (Tithes & Offerings) module:
   - `NetworkFirst` for Supabase REST API (GET data loads)
   - `CacheFirst` for Supabase Storage files (images/documents)
 
+## Member Portal (Portal do Membro)
+A separate mobile-first portal for church members at routes `/portal/*`.
+
+### Architecture
+- **`contexts/MemberContext.tsx`**: Separate React context holding member session, contributions, events, carnets. Session stored in `sessionStorage`.
+- **`services/memberService.ts`**: Supabase query functions for member data (login, contributions, events, carnets, password update). Includes real-time channel subscription via `subscribeToMemberTransactions`.
+- **`components/member/MemberLayout.tsx`**: Dark theme layout with sticky header + fixed bottom navigation bar (Início, Financeiro, Carnês, Documentos, Perfil). Shows church-blocked screen if `churches.active === false`.
+
+### Pages (all at `/portal/*`)
+- `MemberLogin.tsx` — CPF + birth date (DDMMAAAA) login, dark theme
+- `MemberDashboard.tsx` — Monthly tithes card with PIX copy button, recent contributions, upcoming events
+- `MemberFinanceiro.tsx` — Full contributions history with filter by DIZIMO/OFERTA
+- `MemberCarnets.tsx` — Carnet templates list with on-demand PDF generation (uses existing `renderElementsToPDF`)
+- `MemberDocumentos.tsx` — Document requests info page
+- `MemberPerfil.tsx` — Member profile, first-access password-change alert, logout
+
+### Authentication Logic
+- **Username**: CPF (digits only, 11 chars)
+- **Initial Password**: birth date as `DDMMYYYY` (converted from `YYYY-MM-DD` stored in DB)
+- **Custom Password**: stored in `members.member_password` column (optional; falls back to birth date)
+- **Church block**: checks `churches.active` — if `false`, renders blocked screen
+- **Real-time**: Supabase channel `postgres_changes` on `transactions` table updates tithes live
+
+### Required SQL Migration (run in Supabase)
+```sql
+ALTER TABLE members ADD COLUMN IF NOT EXISTS member_password TEXT;
+ALTER TABLE churches ADD COLUMN IF NOT EXISTS pix_key TEXT;
+```
+
+### Entry Points
+- Admin login: `/` — has "Acesso Portal do Membro" button linking to `/portal/login`
+- Member login: `/#/portal/login`
+
 ## Recent Changes
+- 2026-04-15: Member Portal (Portal do Membro) — full mobile-first member self-service
 - 2026-04-10: Offline resilience system for Finance module (IndexedDB queue + auto-sync + UX indicators)
 - 2026-04-10: Full i18n system added (pt-BR, en-US, es-ES)
   - All UI text in Dashboard, Members, Finance, Infrastructure, Departments translated
