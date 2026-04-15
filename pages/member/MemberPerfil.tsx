@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useMember } from '../../contexts/MemberContext';
-import { updateMemberPassword } from '../../services/memberService';
+import { updateMemberPassword, updateMemberUsername } from '../../services/memberService';
 import {
   User,
   Lock,
@@ -14,6 +14,7 @@ import {
   MapPin,
   Loader,
   X,
+  AtSign,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -121,12 +122,96 @@ const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
   );
 };
 
+interface ChangeUsernameModalProps {
+  memberId: string;
+  currentUsername?: string;
+  onClose: () => void;
+  onSuccess: (newUsername: string) => void;
+}
+
+const ChangeUsernameModal: React.FC<ChangeUsernameModalProps> = ({
+  memberId,
+  currentUsername,
+  onClose,
+  onSuccess,
+}) => {
+  const [newUser, setNewUser] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    if (newUser.trim().length < 3) { setError('O usuário deve ter pelo menos 3 caracteres.'); return; }
+    setLoading(true);
+    const result = await updateMemberUsername(memberId, newUser.trim());
+    setLoading(false);
+    if (result.success) onSuccess(newUser.trim());
+    else setError(result.error || 'Erro ao atualizar o usuário.');
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-white border border-gray-200 rounded-xl p-5 w-full max-w-md shadow-xl">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-gray-800 font-semibold">Alterar Usuário de Acesso</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
+            <X size={18} />
+          </button>
+        </div>
+
+        {currentUsername && (
+          <p className="text-xs text-gray-500 mb-4">
+            Usuário atual: <span className="font-semibold text-gray-700">{currentUsername}</span>
+          </p>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5 tracking-wider">
+              Novo Usuário
+            </label>
+            <div className="relative">
+              <AtSign size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                value={newUser}
+                onChange={(e) => setNewUser(e.target.value)}
+                placeholder="Mínimo 3 caracteres"
+                className="w-full pl-9 pr-3 py-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-400/40 focus:border-orange-400 text-sm"
+                required
+              />
+            </div>
+            <p className="text-[11px] text-gray-400 mt-1">
+              Após salvar, use este usuário para entrar no portal.
+            </p>
+          </div>
+
+          {error && (
+            <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg p-3">
+              <AlertCircle size={13} className="text-red-500 shrink-0" />
+              <p className="text-red-600 text-xs">{error}</p>
+            </div>
+          )}
+
+          <button type="submit" disabled={loading}
+            className="w-full flex items-center justify-center gap-2 py-3 bg-orange-500 hover:bg-orange-600 disabled:bg-orange-300 text-white font-semibold rounded-lg transition-all text-sm">
+            {loading ? <Loader size={15} className="animate-spin" /> : 'Salvar Usuário'}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+};
+
 export const MemberPerfil: React.FC = () => {
   const { session, logout } = useMember();
   const navigate = useNavigate();
   const [showChangePassword, setShowChangePassword] = useState(false);
+  const [showChangeUsername, setShowChangeUsername] = useState(false);
   const [showFirstAccessAlert, setShowFirstAccessAlert] = useState(false);
   const [passwordChanged, setPasswordChanged] = useState(false);
+  const [usernameChanged, setUsernameChanged] = useState<string | null>(null);
 
   useEffect(() => {
     if (session?.isFirstAccess && !passwordChanged) setShowFirstAccessAlert(true);
@@ -141,6 +226,11 @@ export const MemberPerfil: React.FC = () => {
     setShowChangePassword(false);
     setShowFirstAccessAlert(false);
     setPasswordChanged(true);
+  };
+
+  const handleUsernameSuccess = (newUsername: string) => {
+    setShowChangeUsername(false);
+    setUsernameChanged(newUsername);
   };
 
   const initials = member.name.split(' ').filter(Boolean).slice(0, 2)
@@ -178,6 +268,15 @@ export const MemberPerfil: React.FC = () => {
         <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-lg p-3">
           <CheckCircle size={14} className="text-green-500 shrink-0" />
           <p className="text-green-700 text-xs font-semibold">Senha atualizada com sucesso!</p>
+        </div>
+      )}
+
+      {usernameChanged && (
+        <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-lg p-3">
+          <CheckCircle size={14} className="text-green-500 shrink-0" />
+          <p className="text-green-700 text-xs font-semibold">
+            Usuário alterado para <span className="font-bold">{usernameChanged}</span>. Use-o no próximo acesso.
+          </p>
         </div>
       )}
 
@@ -232,6 +331,21 @@ export const MemberPerfil: React.FC = () => {
 
       {/* Actions */}
       <div className="space-y-2">
+        <button onClick={() => setShowChangeUsername(true)}
+          className="w-full flex items-center gap-3 bg-white border border-gray-200 rounded-xl p-4 text-left shadow-sm hover:border-orange-300 hover:shadow-md transition-all">
+          <div className="w-8 h-8 rounded-lg bg-orange-50 border border-orange-200 flex items-center justify-center shrink-0">
+            <AtSign size={14} className="text-orange-500" />
+          </div>
+          <div>
+            <p className="text-gray-800 text-sm font-semibold">Alterar Usuário</p>
+            <p className="text-gray-400 text-xs">
+              {usernameChanged || member.memberUsername
+                ? `Atual: ${usernameChanged || member.memberUsername}`
+                : 'Defina um usuário personalizado para o login'}
+            </p>
+          </div>
+        </button>
+
         <button onClick={() => setShowChangePassword(true)}
           className="w-full flex items-center gap-3 bg-white border border-gray-200 rounded-xl p-4 text-left shadow-sm hover:border-orange-300 hover:shadow-md transition-all">
           <div className="w-8 h-8 rounded-lg bg-orange-50 border border-orange-200 flex items-center justify-center shrink-0">
@@ -260,6 +374,15 @@ export const MemberPerfil: React.FC = () => {
           memberId={member.id}
           onClose={() => setShowChangePassword(false)}
           onSuccess={handlePasswordSuccess}
+        />
+      )}
+
+      {showChangeUsername && (
+        <ChangeUsernameModal
+          memberId={member.id}
+          currentUsername={usernameChanged || member.memberUsername}
+          onClose={() => setShowChangeUsername(false)}
+          onSuccess={handleUsernameSuccess}
         />
       )}
     </div>

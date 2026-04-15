@@ -47,6 +47,7 @@ export const toAppMember = (data: any): Member => ({
   phone: data.phone, 
   maritalStatus: data.marital_status, 
   status: data.status || 'ATIVO',
+  memberUsername: data.member_username || undefined,
   address: {
     street: data.address?.street || '',
     number: data.address?.number || '',

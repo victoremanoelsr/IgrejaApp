@@ -51,7 +51,8 @@ export interface Member {
   email?: string; 
   phone?: string; 
   maritalStatus?: string; 
-  status?: 'ATIVO' | 'INATIVO' | 'TRANSFERIDO'; 
+  status?: 'ATIVO' | 'INATIVO' | 'TRANSFERIDO';
+  memberUsername?: string;
   address: {
     street: string;
     number: string;

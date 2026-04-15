@@ -71,37 +71,45 @@ export const Login: React.FC = () => {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setIsProcessing(true);
 
     const trimmedUser = username.trim();
     const trimmedPass = password.trim();
-    const isCpf = /^\d{11}$/.test(trimmedUser.replace(/\D/g, '')) && /^\d+$/.test(trimmedUser.replace(/\D/g, ''));
 
-    if (isCpf) {
-      setIsProcessing(true);
-      const result = await memberLogin(trimmedUser, trimmedPass);
+    // Step 1: try admin login
+    const adminResult = await login(trimmedUser, trimmedPass);
+
+    if (adminResult.blocked) {
       setIsProcessing(false);
-      if (result.error) {
-        setError(result.error);
-      } else {
-        navigate('/portal/dashboard');
-      }
-      return;
-    }
-
-    const result = await login(trimmedUser, trimmedPass);
-    if (result.blocked) {
       navigate('/bloqueado');
       return;
     }
-    if (result.user) {
-      if (result.user.role === 'SUPER_ADM') {
+
+    if (adminResult.user) {
+      setIsProcessing(false);
+      if (adminResult.user.role === 'SUPER_ADM') {
         navigate('/admin/dashboard');
       } else {
         navigate('/dashboard');
       }
-    } else {
-      setError(result.error || 'Erro desconhecido ao tentar logar.');
+      return;
     }
+
+    // Step 2: admin not found — try member login (CPF or custom username)
+    const memberResult = await memberLogin(trimmedUser, trimmedPass);
+    setIsProcessing(false);
+
+    if (memberResult.blocked) {
+      navigate('/bloqueado');
+      return;
+    }
+
+    if (!memberResult.error) {
+      navigate('/portal/dashboard');
+      return;
+    }
+
+    setError('Usuário ou senha incorretos.');
   };
 
   const handleIdentify = (e: React.FormEvent) => {

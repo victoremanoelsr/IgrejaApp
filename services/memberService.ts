@@ -31,27 +31,31 @@ const formatBirthDateAsPassword = (birthDate: string): string => {
   return `${day}${month}${year}`;
 };
 
-export const loginAsMember = async (cpf: string, password: string): Promise<MemberLoginResult> => {
-  const cleanCpf = cpf.replace(/\D/g, '');
-  if (!cleanCpf || cleanCpf.length < 11) {
-    return { error: 'CPF inválido. Digite apenas os 11 números.' };
+export const loginAsMember = async (identifier: string, password: string): Promise<MemberLoginResult> => {
+  const cleanIdentifier = identifier.replace(/\D/g, '');
+  const isCpf = /^\d{11}$/.test(cleanIdentifier);
+
+  let memberData: any = null;
+
+  if (isCpf) {
+    const formattedCpf = cleanIdentifier.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+    const { data: rows } = await supabase
+      .from('members')
+      .select('*')
+      .or(`cpf.eq.${cleanIdentifier},cpf.eq.${formattedCpf}`)
+      .limit(1);
+    memberData = rows && rows.length > 0 ? rows[0] : null;
+  } else {
+    const { data: rows } = await supabase
+      .from('members')
+      .select('*')
+      .eq('member_username', identifier.trim())
+      .limit(1);
+    memberData = rows && rows.length > 0 ? rows[0] : null;
   }
 
-  const formattedCpf = cleanCpf.replace(
-    /(\d{3})(\d{3})(\d{3})(\d{2})/,
-    '$1.$2.$3-$4'
-  );
-
-  const { data: rows, error } = await supabase
-    .from('members')
-    .select('*')
-    .or(`cpf.eq.${cleanCpf},cpf.eq.${formattedCpf}`)
-    .limit(1);
-
-  const memberData = rows && rows.length > 0 ? rows[0] : null;
-
-  if (error || !memberData) {
-    return { error: 'Membro não encontrado. Verifique seu CPF.' };
+  if (!memberData) {
+    return { error: 'Usuário não encontrado.' };
   }
 
   const birthDatePassword = formatBirthDateAsPassword(memberData.birth_date || '');
@@ -189,6 +193,33 @@ export const updateMemberPassword = async (
   const { error } = await supabase
     .from('members')
     .update({ member_password: newPassword })
+    .eq('id', memberId);
+
+  if (error) return { success: false, error: error.message };
+  return { success: true };
+};
+
+export const updateMemberUsername = async (
+  memberId: string,
+  newUsername: string
+): Promise<{ success: boolean; error?: string }> => {
+  const trimmed = newUsername.trim();
+  if (!trimmed) return { success: false, error: 'O usuário não pode ser vazio.' };
+
+  const { data: existing } = await supabase
+    .from('members')
+    .select('id')
+    .eq('member_username', trimmed)
+    .neq('id', memberId)
+    .limit(1);
+
+  if (existing && existing.length > 0) {
+    return { success: false, error: 'Este usuário já está em uso por outro membro.' };
+  }
+
+  const { error } = await supabase
+    .from('members')
+    .update({ member_username: trimmed })
     .eq('id', memberId);
 
   if (error) return { success: false, error: error.message };
