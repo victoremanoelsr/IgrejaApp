@@ -37,11 +37,18 @@ export const loginAsMember = async (cpf: string, password: string): Promise<Memb
     return { error: 'CPF inválido. Digite apenas os 11 números.' };
   }
 
-  const { data: memberData, error } = await supabase
+  const formattedCpf = cleanCpf.replace(
+    /(\d{3})(\d{3})(\d{3})(\d{2})/,
+    '$1.$2.$3-$4'
+  );
+
+  const { data: rows, error } = await supabase
     .from('members')
     .select('*')
-    .eq('cpf', cleanCpf)
-    .single();
+    .or(`cpf.eq.${cleanCpf},cpf.eq.${formattedCpf}`)
+    .limit(1);
+
+  const memberData = rows && rows.length > 0 ? rows[0] : null;
 
   if (error || !memberData) {
     return { error: 'Membro não encontrado. Verifique seu CPF.' };
@@ -59,12 +66,13 @@ export const loginAsMember = async (cpf: string, password: string): Promise<Memb
     return { error: 'Senha incorreta. Use sua data de nascimento no formato DDMMAAAA.' };
   }
 
-  const { data: churchData } = await supabase
+  const { data: churchRows } = await supabase
     .from('churches')
     .select('id, name, active, pix_key, logo_url, pastor_name')
     .eq('id', memberData.church_id)
-    .single();
+    .limit(1);
 
+  const churchData = churchRows && churchRows.length > 0 ? churchRows[0] : null;
   const member = toAppMember(memberData);
 
   return {
@@ -85,18 +93,25 @@ export const loginAsMember = async (cpf: string, password: string): Promise<Memb
 };
 
 export const getMemberData = async (churchId: string, cpf: string) => {
-  const { data: memberData } = await supabase
+  const cleanCpf = cpf.replace(/\D/g, '');
+  const formattedCpf = cleanCpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+
+  const { data: memberRows } = await supabase
     .from('members')
     .select('*')
     .eq('church_id', churchId)
-    .eq('cpf', cpf)
-    .single();
+    .or(`cpf.eq.${cleanCpf},cpf.eq.${formattedCpf}`)
+    .limit(1);
 
-  const { data: churchData } = await supabase
+  const memberData = memberRows && memberRows.length > 0 ? memberRows[0] : null;
+
+  const { data: churchRows } = await supabase
     .from('churches')
     .select('id, name, active, pix_key, logo_url, pastor_name')
     .eq('id', churchId)
-    .single();
+    .limit(1);
+
+  const churchData = churchRows && churchRows.length > 0 ? churchRows[0] : null;
 
   return {
     member: memberData ? toAppMember(memberData) : null,
