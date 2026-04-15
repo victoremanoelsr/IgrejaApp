@@ -1,0 +1,61 @@
+"Atue como um Engenheiro de Software Fullstack Sênior e Especialista em UX. Preciso que você desenvolva o Portal do Membro para o sistema SaaS 'IgrejaApp'. Este portal deve ser uma extensão mobile-first do sistema atual, mantendo a consistência visual (Dark Mode, Tailwind CSS, Interfáce de Cards modernos) e utilizando React, TypeScript e Supabase."
+
+1. Lógica de Autenticação e Autorização (Multi-tenancy):
+
+Login Inteligente: Refatore a lógica de login para identificar o perfil:
+
+Admin: E-mail/Senha (fluxo atual).
+
+Membro: Usuário = CPF (apenas números) e Senha Inicial = Data de Nascimento (DDMMYYYY).
+
+Segurança: Após o login, armazene o church_id e o member_cpf na sessão.
+
+Isolamento de Dados: Todas as chamadas ao banco devem ser filtradas obrigatoriamente por church_id e member_cpf. O membro nunca deve acessar dados de outras igrejas ou de outros membros.
+
+Bloqueio de Inadimplência: Antes de renderizar o portal, verifique o campo status na tabela churches. Se status === false, renderize uma tela de bloqueio com a mensagem: 'Sistema em manutenção temporária. Entre em contato com a administração da sua igreja.'
+
+2. Componentização e UI (Mobile-First):
+
+Layout Base (MemberLayout.tsx):
+
+Tema Dark (fundo #0f172a ou similar).
+
+Bottom Navigation Bar: Fixa no rodapé com ícones (Home, Financeiro, Carnês, Documentos, Perfil).
+
+Header com nome da Igreja Sede e foto de perfil do membro.
+
+Dashboard (MemberDashboard.tsx):
+
+Destaque Superior: Card com o valor total de dízimos do mês atual e o botão 'Copiar Chave PIX' (o valor da chave vem do campo pix_key na tabela churches).
+
+Feed de Atividade: Lista simplificada das últimas 5 transações financeiras e próximos eventos.
+
+Financeiro (MemberFinanceiro.tsx): Histórico completo de dízimos e ofertas em formato de lista (data, tipo, valor).
+
+Carnês e Documentos: Listagem de arquivos vinculados ao CPF. Ao clicar, deve chamar a função de geração de PDF já existente no sistema, injetando os dados do membro.
+
+3. Camada de Serviço (memberService.ts):
+
+Crie funções usando o cliente do Supabase para buscar:
+
+getMemberData(): Dados cadastrais e pix_key da igreja.
+
+getMemberContributions(): Histórico financeiro.
+
+getMemberCarnets(): Lista de carnês disponíveis.
+
+Real-time: Utilize supabase.channel para que, se o tesoureiro lançar um dízimo no admin, o dashboard do membro atualize o 'Dízimo do Mês' instantaneamente.
+
+4. Configurações e Troca de Senha:
+
+No primeiro acesso, se a senha for igual à data de nascimento, exiba um modal/alerta sugerindo a criação de uma senha personalizada e um nome de usuário único.
+
+Entregáveis Requeridos:
+
+Código completo do MemberLayout.tsx (com a barra de navegação).
+
+Código do MemberDashboard.tsx com a lógica de PIX e resumo financeiro.
+
+Arquivo memberService.ts com as queries filtradas do Supabase.
+
+Instruções de onde inserir a verificação de status da igreja (bloqueio de acesso)."
