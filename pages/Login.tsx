@@ -1,13 +1,15 @@
 
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../context';
-import { useNavigate, Link } from 'react-router-dom';
-import { Lock, User, ArrowRight, AlertCircle, CheckCircle, Building, Eye, EyeOff, Loader, Users } from 'lucide-react';
+import { useMember } from '../contexts/MemberContext';
+import { useNavigate } from 'react-router-dom';
+import { Lock, User, ArrowRight, AlertCircle, CheckCircle, Building, Eye, EyeOff, Loader } from 'lucide-react';
 
 type LoginStep = 'LOGIN' | 'RECOVERY_IDENTIFY' | 'RECOVERY_SELECT' | 'RECOVERY_RESET_USER' | 'RECOVERY_RESET_PASS';
 
 export const Login: React.FC = () => {
   const { login, recoverAccount, updateUserCredentials } = useApp();
+  const { login: memberLogin } = useMember();
   const navigate = useNavigate();
   const [step, setStep] = useState<LoginStep>('LOGIN');
   
@@ -68,11 +70,25 @@ export const Login: React.FC = () => {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(''); 
-    
-    // Trim para garantir que não haja espaços extras no login
-    const result = await login(username.trim(), password.trim());
-    
+    setError('');
+
+    const trimmedUser = username.trim();
+    const trimmedPass = password.trim();
+    const isCpf = /^\d{11}$/.test(trimmedUser.replace(/\D/g, '')) && /^\d+$/.test(trimmedUser.replace(/\D/g, ''));
+
+    if (isCpf) {
+      setIsProcessing(true);
+      const result = await memberLogin(trimmedUser, trimmedPass);
+      setIsProcessing(false);
+      if (result.error) {
+        setError(result.error);
+      } else {
+        navigate('/portal/dashboard');
+      }
+      return;
+    }
+
+    const result = await login(trimmedUser, trimmedPass);
     if (result.user) {
       if (result.user.role === 'SUPER_ADM') {
         navigate('/admin/dashboard');
@@ -215,15 +231,6 @@ export const Login: React.FC = () => {
         </button>
       </div>
 
-      <div className="border-t border-gray-200 pt-3 mt-1">
-        <Link
-          to="/portal/login"
-          className="w-full flex items-center justify-center gap-2 py-2 px-3 border border-gray-200 rounded-lg text-xs font-semibold text-gray-600 hover:border-brand-orange hover:text-brand-orange transition-all"
-        >
-          <Users size={13} />
-          Acesso Portal do Membro
-        </Link>
-      </div>
     </form>
   );
 
