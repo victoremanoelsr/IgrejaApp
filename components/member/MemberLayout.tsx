@@ -8,27 +8,11 @@ import {
   FileText,
   User,
   LogOut,
-  AlertTriangle,
 } from 'lucide-react';
 
 interface MemberLayoutProps {
   children: React.ReactNode;
 }
-
-const BlockedScreen: React.FC = () => (
-  <div className="min-h-screen bg-slate-900 flex items-center justify-center p-6">
-    <div className="max-w-sm w-full text-center">
-      <div className="inline-flex items-center justify-center w-20 h-20 bg-amber-500/10 border border-amber-500/30 rounded-full mb-6">
-        <AlertTriangle size={36} className="text-amber-400" />
-      </div>
-      <h2 className="text-xl font-bold text-white mb-3">Acesso Temporariamente Bloqueado</h2>
-      <p className="text-slate-400 text-sm leading-relaxed">
-        Sistema em manutenção temporária. Entre em contato com a administração da sua
-        igreja.
-      </p>
-    </div>
-  </div>
-);
 
 const navItems = [
   { to: '/portal/dashboard', icon: Home, label: 'Início' },
@@ -43,10 +27,6 @@ export const MemberLayout: React.FC<MemberLayoutProps> = ({ children }) => {
   const navigate = useNavigate();
 
   if (!session) return null;
-
-  if (!session.church.active) {
-    return <BlockedScreen />;
-  }
 
   const handleLogout = () => {
     logout();

@@ -68,7 +68,7 @@ export const loginAsMember = async (cpf: string, password: string): Promise<Memb
 
   const { data: churchRows } = await supabase
     .from('churches')
-    .select('id, name, active, pix_key, logo_url, pastor_name')
+    .select('id, name, pix_key, logo_url, pastor_name')
     .eq('id', memberData.church_id)
     .limit(1);
 
@@ -82,7 +82,7 @@ export const loginAsMember = async (cpf: string, password: string): Promise<Memb
       church: {
         id: churchData?.id || memberData.church_id,
         name: churchData?.name || '',
-        active: churchData?.active ?? true,
+        active: true,
         pixKey: churchData?.pix_key || undefined,
         logoUrl: churchData?.logo_url || undefined,
         pastorName: churchData?.pastor_name || undefined,
