@@ -135,7 +135,7 @@ export const MemberPerfil: React.FC = () => {
   if (!session) return null;
   const member = session.member;
 
-  const handleLogout = () => { logout(); navigate('/portal/login'); };
+  const handleLogout = () => { logout(); navigate('/'); };
 
   const handlePasswordSuccess = () => {
     setShowChangePassword(false);

@@ -38,7 +38,7 @@ export const MemberLayout: React.FC<MemberLayoutProps> = ({ children }) => {
 
   const handleLogout = () => {
     logout();
-    navigate('/portal/login');
+    navigate('/');
   };
 
   const member = session.member;

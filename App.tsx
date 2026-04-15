@@ -59,7 +59,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles?: strin
 
 const ProtectedMemberRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { session } = useMember();
-  if (!session) return <Navigate to="/portal/login" replace />;
+  if (!session) return <Navigate to="/" replace />;
   return <MemberLayout>{children}</MemberLayout>;
 };
 
@@ -70,13 +70,13 @@ const AppRoutes = () => {
       <Route path="/bloqueado" element={<BlockedPage />} />
       
       {/* Member Portal */}
-      <Route path="/portal/login" element={<MemberLogin />} />
+      <Route path="/portal/login" element={<Navigate to="/" replace />} />
       <Route path="/portal/dashboard" element={<ProtectedMemberRoute><MemberDashboard /></ProtectedMemberRoute>} />
       <Route path="/portal/financeiro" element={<ProtectedMemberRoute><MemberFinanceiro /></ProtectedMemberRoute>} />
       <Route path="/portal/carnets" element={<ProtectedMemberRoute><MemberCarnets /></ProtectedMemberRoute>} />
       <Route path="/portal/documentos" element={<ProtectedMemberRoute><MemberDocumentos /></ProtectedMemberRoute>} />
       <Route path="/portal/perfil" element={<ProtectedMemberRoute><MemberPerfil /></ProtectedMemberRoute>} />
-      <Route path="/portal" element={<Navigate to="/portal/login" replace />} />
+      <Route path="/portal" element={<Navigate to="/" replace />} />
 
       {/* Super Admin Panel */}
       <Route path="/admin/dashboard" element={<ProtectedRoute allowedRoles={['SUPER_ADM']}><SuperAdminDashboard /></ProtectedRoute>} />
