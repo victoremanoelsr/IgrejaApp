@@ -1,7 +1,10 @@
 import React from 'react';
-import { ShieldOff, MessageCircle, Phone } from 'lucide-react';
+import { ShieldOff, MessageCircle, Phone, ArrowLeft } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 export const BlockedPage: React.FC = () => {
+  const navigate = useNavigate();
+
   const handleWhatsApp = () => {
     const msg = encodeURIComponent('Olá, preciso regularizar o acesso ao IgrejaApp. Minha sede está bloqueada por falta de pagamento.');
     window.open(`https://wa.me/?text=${msg}`, '_blank');
@@ -53,7 +56,15 @@ export const BlockedPage: React.FC = () => {
           </a>
         </div>
 
-        <p className="text-slate-600 text-xs mt-8">
+        <button
+          onClick={() => navigate('/')}
+          className="mt-6 flex items-center justify-center gap-2 text-slate-500 hover:text-slate-300 text-sm transition-colors mx-auto"
+        >
+          <ArrowLeft size={15} />
+          Voltar para o Login
+        </button>
+
+        <p className="text-slate-600 text-xs mt-6">
           IgrejaApp &copy; {new Date().getFullYear()} &mdash; Gestão Eclesiástica
         </p>
       </div>
