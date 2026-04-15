@@ -217,8 +217,8 @@ export const MemberLayout: React.FC<MemberLayoutProps> = ({ children }) => {
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 overflow-y-auto bg-gray-900">
-        <div className="p-4 md:p-6 pt-12 md:pt-6">{children}</div>
+      <main className="flex-1 overflow-y-auto bg-gray-100 dark:bg-gray-900">
+        <div className="p-4 md:p-8 pt-12 md:pt-8">{children}</div>
       </main>
     </div>
   );

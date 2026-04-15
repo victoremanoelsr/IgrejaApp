@@ -29,14 +29,11 @@ export const MemberCarnets: React.FC = () => {
       const EDITOR_WIDTH = 794;
       const PAGE_W_MM = 210;
       const scale = PAGE_W_MM / EDITOR_WIDTH;
-
       const imageCache: Record<string, string | null> = {};
 
       if (template.backgroundUrl) {
         const bgData = await loadImageForPDF(template.backgroundUrl);
-        if (bgData) {
-          doc.addImage(bgData, 'JPEG', 0, 0, PAGE_W_MM, 297);
-        }
+        if (bgData) doc.addImage(bgData, 'JPEG', 0, 0, PAGE_W_MM, 297);
       }
 
       const now = new Date();
@@ -53,9 +50,8 @@ export const MemberCarnets: React.FC = () => {
       };
 
       await renderElementsToPDF(doc, template.layoutJson, scale, 0, replacements, imageCache);
-
       doc.save(`carne_${template.name.replace(/\s+/g, '_')}_${member.name.split(' ')[0]}.pdf`);
-    } catch (e) {
+    } catch {
       setError('Erro ao gerar o PDF. Tente novamente.');
     } finally {
       setGeneratingId(null);
@@ -65,22 +61,22 @@ export const MemberCarnets: React.FC = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-100">Carnês</h1>
-        <p className="text-gray-400 text-sm mt-1">Baixe seus carnês disponíveis</p>
+        <h1 className="text-2xl font-bold text-gray-800">Carnês</h1>
+        <p className="text-gray-500 text-sm mt-1">Baixe seus carnês disponíveis</p>
       </div>
 
       {error && (
-        <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/30 rounded-lg p-3">
-          <AlertCircle size={14} className="text-red-400 shrink-0" />
-          <p className="text-red-400 text-xs">{error}</p>
+        <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg p-3">
+          <AlertCircle size={14} className="text-red-500 shrink-0" />
+          <p className="text-red-600 text-xs">{error}</p>
         </div>
       )}
 
       {carnets.length === 0 ? (
-        <div className="bg-gray-800/60 border border-gray-700 rounded-lg p-10 text-center">
-          <BookOpen size={32} className="text-gray-600 mx-auto mb-3" />
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-10 text-center">
+          <BookOpen size={32} className="text-gray-300 mx-auto mb-3" />
           <p className="text-gray-500 text-sm">Nenhum carnê disponível no momento.</p>
-          <p className="text-gray-600 text-xs mt-1">
+          <p className="text-gray-400 text-xs mt-1">
             Entre em contato com a administração da sua igreja.
           </p>
         </div>
@@ -89,7 +85,7 @@ export const MemberCarnets: React.FC = () => {
           {carnets.map((template) => (
             <div
               key={template.id}
-              className="bg-gray-800 border border-gray-700 rounded-lg p-4"
+              className="bg-white rounded-xl shadow-sm border border-gray-200 p-4"
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">
@@ -97,28 +93,27 @@ export const MemberCarnets: React.FC = () => {
                     <img
                       src={template.backgroundUrl}
                       alt={template.name}
-                      className="w-14 h-10 rounded-lg object-cover border border-gray-700 shrink-0"
+                      className="w-14 h-10 rounded-lg object-cover border border-gray-200 shrink-0"
                     />
                   ) : (
-                    <div className="w-14 h-10 rounded-lg bg-orange-500/10 border border-orange-500/20 flex items-center justify-center shrink-0">
+                    <div className="w-14 h-10 rounded-lg bg-orange-50 border border-orange-200 flex items-center justify-center shrink-0">
                       <BookOpen size={18} className="text-orange-400" />
                     </div>
                   )}
                   <div className="min-w-0">
-                    <p className="text-gray-100 text-sm font-semibold truncate">{template.name}</p>
-                    <p className="text-gray-500 text-xs capitalize">{template.category}</p>
+                    <p className="text-gray-800 text-sm font-semibold truncate">{template.name}</p>
+                    <p className="text-gray-400 text-xs capitalize">{template.category}</p>
                     {template.isDefault && (
-                      <span className="text-[9px] font-bold text-orange-400 bg-orange-500/10 border border-orange-500/20 px-1.5 py-0.5 rounded-full">
+                      <span className="text-[9px] font-bold text-orange-600 bg-orange-50 border border-orange-200 px-1.5 py-0.5 rounded-full">
                         Padrão
                       </span>
                     )}
                   </div>
                 </div>
-
                 <button
                   onClick={() => handleGeneratePDF(template.id)}
                   disabled={generatingId === template.id}
-                  className="flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 disabled:bg-orange-500/40 text-white text-xs font-semibold px-3 py-2 rounded-lg transition-all active:scale-95 shrink-0"
+                  className="flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 disabled:bg-orange-300 text-white text-xs font-semibold px-3 py-2 rounded-lg transition-all active:scale-95 shrink-0"
                 >
                   {generatingId === template.id ? (
                     <Loader size={12} className="animate-spin" />
@@ -133,7 +128,7 @@ export const MemberCarnets: React.FC = () => {
         </div>
       )}
 
-      <p className="text-center text-gray-600 text-xs pb-2">
+      <p className="text-center text-gray-400 text-xs pb-2">
         Os PDFs são gerados com seus dados pessoais automaticamente.
       </p>
     </div>
