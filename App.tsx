@@ -20,6 +20,7 @@ import { MissionsPanel } from './pages/MissionsPanel';
 import { YouthPanel } from './pages/YouthPanel';
 import { ChildrenPanel } from './pages/ChildrenPanel';
 import { LadiesPanel } from './pages/LadiesPanel';
+import { MenPanel } from './pages/MenPanel';
 import { Departments } from './pages/Departments';
 import { Letters } from './pages/Letters';
 import { Infrastructure } from './pages/Infrastructure';
@@ -33,12 +34,14 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles?: strin
   const youthRoles = ['LIDER_JOVENS', 'TESOUREIRO_JOVENS'];
   const childrenRoles = ['LIDER_CRIANCAS', 'TESOUREIRO_CRIANCAS'];
   const ladiesRoles = ['LIDER_SENHORAS', 'TESOUREIRO_SENHORAS'];
+  const menRoles = ['LIDER_SENHORES', 'TESOUREIRO_SENHORES'];
   
   // Redirecionamentos de acesso exclusivo
   if (missionsRoles.includes(user.role) && window.location.hash !== '#/missoes') return <Navigate to="/missoes" replace />;
   if (youthRoles.includes(user.role) && window.location.hash !== '#/jovens') return <Navigate to="/jovens" replace />;
   if (childrenRoles.includes(user.role) && window.location.hash !== '#/criancas') return <Navigate to="/criancas" replace />;
   if (ladiesRoles.includes(user.role) && window.location.hash !== '#/senhoras') return <Navigate to="/senhoras" replace />;
+  if (menRoles.includes(user.role) && window.location.hash !== '#/senhores') return <Navigate to="/senhores" replace />;
 
   if (allowedRoles && !allowedRoles.includes(user.role) && !allowedRoles.includes('ALL')) {
      return <Navigate to="/" replace />;
@@ -69,6 +72,9 @@ const AppRoutes = () => {
 
       {/* Rota Exclusiva de Senhoras */}
       <Route path="/senhoras" element={<ProtectedRoute allowedRoles={['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'DIRIGENTE', 'TESOUREIRO', 'SECRETARIO', 'LIDER_SENHORAS', 'TESOUREIRO_SENHORAS']}><LadiesPanel /></ProtectedRoute>} />
+
+      {/* Rota Exclusiva de Senhores */}
+      <Route path="/senhores" element={<ProtectedRoute allowedRoles={['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'DIRIGENTE', 'TESOUREIRO', 'SECRETARIO', 'LIDER_SENHORES', 'TESOUREIRO_SENHORES']}><MenPanel /></ProtectedRoute>} />
 
       {/* Standard Routes */}
       <Route path="/dashboard" element={<ProtectedRoute allowedRoles={['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'DIRIGENTE', 'TESOUREIRO', 'SECRETARIO']}><Dashboard /></ProtectedRoute>} />

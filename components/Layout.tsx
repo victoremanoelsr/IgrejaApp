@@ -147,6 +147,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   const isYouthEntered = location.pathname.startsWith('/jovens') && !!locationState?.entered;
   const isChildrenEntered = location.pathname.startsWith('/criancas') && !!locationState?.entered;
   const isLadiesEntered = location.pathname.startsWith('/senhoras') && !!locationState?.entered;
+  const isMenEntered = location.pathname.startsWith('/senhores') && !!locationState?.entered;
 
   const handleLogout = () => {
     if (pendingOfflineCount > 0) {
@@ -170,6 +171,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   const isYouthUser = ['LIDER_JOVENS', 'TESOUREIRO_JOVENS'].includes(user.role);
   const isChildrenUser = ['LIDER_CRIANCAS', 'TESOUREIRO_CRIANCAS'].includes(user.role);
   const isLadiesUser = ['LIDER_SENHORAS', 'TESOUREIRO_SENHORAS'].includes(user.role);
+  const isMenUser = ['LIDER_SENHORES', 'TESOUREIRO_SENHORES'].includes(user.role);
 
   interface MenuItem {
       label: string;
@@ -230,6 +232,14 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       { label: t('nav.team'), icon: Users, path: '/senhoras', state: { activeTab: 'EQUIPE', entered: true }, roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'LIDER_SENHORAS'] }
   ];
 
+  const menMenuItems: MenuItem[] = [
+      { label: t('nav.dashboard'), icon: LayoutDashboard, path: '/senhores', state: { activeTab: 'DASHBOARD', entered: true }, roles: ['ALL'] },
+      { label: t('nav.menCash'), icon: DollarSign, path: '/senhores', state: { activeTab: 'CAIXA', entered: true }, roles: ['ALL'] },
+      { label: t('nav.reports'), icon: FileText, path: '/senhores', state: { activeTab: 'RELATORIOS', entered: true }, roles: ['ALL'] },
+      { label: t('nav.members'), icon: UsersIcon, path: '/senhores', state: { activeTab: 'MEMBROS', entered: true }, roles: ['ALL'] },
+      { label: t('nav.team'), icon: Users, path: '/senhores', state: { activeTab: 'EQUIPE', entered: true }, roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'LIDER_SENHORES'] }
+  ];
+
   const superAdminMenuItems: MenuItem[] = [
     { label: t('nav.masterPanel'), icon: Building, path: '/admin/dashboard', roles: ['SUPER_ADM'] },
   ];
@@ -242,10 +252,12 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   else if (isYouthUser) itemsToRender = youthMenuItems;
   else if (isChildrenUser) itemsToRender = childrenMenuItems;
   else if (isLadiesUser) itemsToRender = ladiesMenuItems;
+  else if (isMenUser) itemsToRender = menMenuItems;
   else if (isMissionsEntered) itemsToRender = [...missionsMenuItems, { label: t('common.backToGeneral'), icon: ArrowLeft, path: '/departamentos', roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE'] }, { label: t('common.backToGeneral'), icon: ArrowLeft, path: '/dashboard', roles: ['ALL'] }]; 
   else if (isYouthEntered) itemsToRender = [...youthMenuItems, { label: t('common.backToGeneral'), icon: ArrowLeft, path: '/departamentos', roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE'] }, { label: t('common.backToGeneral'), icon: ArrowLeft, path: '/dashboard', roles: ['ALL'] }];
   else if (isChildrenEntered) itemsToRender = [...childrenMenuItems, { label: t('common.backToGeneral'), icon: ArrowLeft, path: '/departamentos', roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE'] }, { label: t('common.backToGeneral'), icon: ArrowLeft, path: '/dashboard', roles: ['ALL'] }];
   else if (isLadiesEntered) itemsToRender = [...ladiesMenuItems, { label: t('common.backToGeneral'), icon: ArrowLeft, path: '/departamentos', roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE'] }, { label: t('common.backToGeneral'), icon: ArrowLeft, path: '/dashboard', roles: ['ALL'] }];
+  else if (isMenEntered) itemsToRender = [...menMenuItems, { label: t('common.backToGeneral'), icon: ArrowLeft, path: '/departamentos', roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE'] }, { label: t('common.backToGeneral'), icon: ArrowLeft, path: '/dashboard', roles: ['ALL'] }];
   else itemsToRender = generalMenuItems;
 
   const backLabel = t('common.backToGeneral');
@@ -263,6 +275,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   else if (isYouthEntered || isYouthUser) headerColorClass = 'bg-orange-900/30';
   else if (isChildrenEntered || isChildrenUser) headerColorClass = 'bg-blue-900/30';
   else if (isLadiesEntered || isLadiesUser) headerColorClass = 'bg-pink-900/30';
+  else if (isMenEntered || isMenUser) headerColorClass = 'bg-indigo-900/30';
 
   return (
     <div className="flex h-screen bg-gray-100 dark:bg-gray-900 overflow-hidden transition-colors duration-300">

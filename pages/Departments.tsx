@@ -8,6 +8,7 @@ import {
   Zap, 
   Baby, 
   Heart, 
+  Shield,
   ArrowRight, 
   Layout, 
   ShieldAlert 
@@ -75,6 +76,17 @@ export const Departments: React.FC = () => {
       textColor: 'text-blue-500',
       bgColor: 'bg-blue-50',
       borderColor: 'border-blue-200'
+    },
+    {
+      id: 'senhores',
+      title: t('departments.men'),
+      description: t('departments.menDesc'),
+      icon: Shield,
+      path: '/senhores',
+      color: 'bg-indigo-600',
+      textColor: 'text-indigo-600',
+      bgColor: 'bg-indigo-50',
+      borderColor: 'border-indigo-200'
     }
   ];
 
