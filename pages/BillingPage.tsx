@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CreditCard, ShieldCheck, Receipt, CheckCircle, Clock, AlertCircle, Zap, ChevronRight, X, Copy, RefreshCw } from 'lucide-react';
+import { CreditCard, ShieldCheck, Receipt, CheckCircle, Clock, AlertCircle, Zap, ChevronRight, X, Copy, RefreshCw, Gift } from 'lucide-react';
 import { useApp } from '../context';
 
 const BILLING_ROLES = ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE'];
@@ -33,7 +33,8 @@ const MOCK_PIX_KEY  = '00020126580014BR.GOV.BCB.PIX013636f5c87e-1a2b-4c3d-8e9f-0
 const MOCK_QR_URL   = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=igrejaapp-pix-mock';
 
 export const BillingPage: React.FC = () => {
-  const { user } = useApp();
+  const { user, currentChurch } = useApp();
+  const isIsento = currentChurch?.planType === 'isento';
   const [isLoading, setIsLoading]     = useState(true);
   const [showPayModal, setShowPayModal] = useState(false);
   const [showPlansModal, setShowPlansModal] = useState(false);
@@ -109,129 +110,183 @@ export const BillingPage: React.FC = () => {
       </div>
 
       {/* Plan Status Card */}
-      <div className="relative bg-slate-900 rounded-2xl border border-slate-700 overflow-hidden shadow-xl">
-        <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-transparent pointer-events-none" />
-        <div className="p-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-emerald-500/10 rounded-xl border border-emerald-500/25 shrink-0">
-                <ShieldCheck size={28} className="text-emerald-400" />
+      {isIsento ? (
+        <div className="relative bg-slate-900 rounded-2xl border border-purple-500/30 overflow-hidden shadow-xl">
+          <div className="absolute inset-0 bg-gradient-to-br from-purple-500/8 via-transparent to-transparent pointer-events-none" />
+          <div className="p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-purple-500/10 rounded-xl border border-purple-500/25 shrink-0">
+                  <Gift size={28} className="text-purple-400" />
+                </div>
+                <div>
+                  <p className="text-xs text-slate-500 uppercase tracking-widest font-bold mb-1">Plano Atual</p>
+                  <h2 className="text-xl font-bold text-white">Isento de Cobrança</h2>
+                  <p className="text-slate-400 text-sm mt-0.5">Esta igreja não está sujeita a cobranças mensais.</p>
+                </div>
               </div>
-              <div>
-                <p className="text-xs text-slate-500 uppercase tracking-widest font-bold mb-1">Plano Atual</p>
-                <h2 className="text-xl font-bold text-white">Plano Mensal — Pró</h2>
-                <p className="text-slate-400 text-sm mt-0.5">Ativo · Próximo vencimento em <span className="text-yellow-400 font-semibold">25 de Abril de 2026</span></p>
+              <div className="text-right shrink-0">
+                <span className="inline-flex items-center gap-2 px-4 py-2 bg-purple-500/15 border border-purple-500/30 text-purple-300 rounded-full font-extrabold text-lg">
+                  <Gift size={16} /> Isento
+                </span>
               </div>
             </div>
-            <div className="text-right shrink-0">
-              <p className="text-3xl font-extrabold text-white">R$ 89<span className="text-lg text-slate-400">,90</span></p>
-              <p className="text-xs text-slate-500">/mês</p>
-            </div>
-          </div>
 
-          <div className="mt-5 grid grid-cols-3 gap-3 pt-5 border-t border-slate-800">
-            {[
-              { label: 'Membros',      value: 'Ilimitado' },
-              { label: 'Congregações', value: 'Ilimitado' },
-              { label: 'Suporte',      value: 'Prioritário' },
-            ].map(feat => (
-              <div key={feat.label} className="text-center">
-                <p className="text-white font-bold text-sm">{feat.value}</p>
-                <p className="text-slate-500 text-xs">{feat.label}</p>
-              </div>
-            ))}
+            <div className="mt-5 grid grid-cols-3 gap-3 pt-5 border-t border-slate-800">
+              {[
+                { label: 'Membros',      value: 'Ilimitado' },
+                { label: 'Congregações', value: 'Ilimitado' },
+                { label: 'Suporte',      value: 'Prioritário' },
+              ].map(feat => (
+                <div key={feat.label} className="text-center">
+                  <p className="text-white font-bold text-sm">{feat.value}</p>
+                  <p className="text-slate-500 text-xs">{feat.label}</p>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
-      </div>
-
-      {/* Actions */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {/* Pay */}
-        <button
-          onClick={() => setShowPayModal(true)}
-          className="flex items-center justify-between gap-3 bg-slate-900 hover:bg-slate-800 border border-slate-700 hover:border-emerald-500/40 rounded-xl p-5 transition-all group shadow-lg text-left"
-        >
-          <div className="flex items-center gap-4">
-            <div className="p-2.5 bg-emerald-500/10 rounded-lg border border-emerald-500/20 group-hover:bg-emerald-500/20 transition-colors">
-              <Receipt size={22} className="text-emerald-400" />
+      ) : (
+        <div className="relative bg-slate-900 rounded-2xl border border-slate-700 overflow-hidden shadow-xl">
+          <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-transparent pointer-events-none" />
+          <div className="p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-emerald-500/10 rounded-xl border border-emerald-500/25 shrink-0">
+                  <ShieldCheck size={28} className="text-emerald-400" />
+                </div>
+                <div>
+                  <p className="text-xs text-slate-500 uppercase tracking-widest font-bold mb-1">Plano Atual</p>
+                  <h2 className="text-xl font-bold text-white">Plano Mensal — Pró</h2>
+                  <p className="text-slate-400 text-sm mt-0.5">Ativo · Próximo vencimento em <span className="text-yellow-400 font-semibold">25 de Abril de 2026</span></p>
+                </div>
+              </div>
+              <div className="text-right shrink-0">
+                <p className="text-3xl font-extrabold text-white">R$ 89<span className="text-lg text-slate-400">,90</span></p>
+                <p className="text-xs text-slate-500">/mês</p>
+              </div>
             </div>
-            <div>
-              <p className="text-white font-bold text-sm">Gerar PIX da Mensalidade</p>
-              <p className="text-slate-500 text-xs mt-0.5">Pague via QR Code ou Copia e Cola</p>
+
+            <div className="mt-5 grid grid-cols-3 gap-3 pt-5 border-t border-slate-800">
+              {[
+                { label: 'Membros',      value: 'Ilimitado' },
+                { label: 'Congregações', value: 'Ilimitado' },
+                { label: 'Suporte',      value: 'Prioritário' },
+              ].map(feat => (
+                <div key={feat.label} className="text-center">
+                  <p className="text-white font-bold text-sm">{feat.value}</p>
+                  <p className="text-slate-500 text-xs">{feat.label}</p>
+                </div>
+              ))}
             </div>
           </div>
-          <ChevronRight size={18} className="text-slate-600 group-hover:text-emerald-400 transition-colors shrink-0" />
-        </button>
+        </div>
+      )}
 
-        {/* Upgrade */}
-        <button
-          onClick={() => setShowPlansModal(true)}
-          className="flex items-center justify-between gap-3 bg-slate-900 hover:bg-slate-800 border border-slate-700 hover:border-blue-500/40 rounded-xl p-5 transition-all group shadow-lg text-left"
-        >
-          <div className="flex items-center gap-4">
-            <div className="p-2.5 bg-blue-500/10 rounded-lg border border-blue-500/20 group-hover:bg-blue-500/20 transition-colors">
-              <Zap size={22} className="text-blue-400" />
+      {/* Actions — hidden when isento */}
+      {!isIsento && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <button
+            onClick={() => setShowPayModal(true)}
+            className="flex items-center justify-between gap-3 bg-slate-900 hover:bg-slate-800 border border-slate-700 hover:border-emerald-500/40 rounded-xl p-5 transition-all group shadow-lg text-left"
+          >
+            <div className="flex items-center gap-4">
+              <div className="p-2.5 bg-emerald-500/10 rounded-lg border border-emerald-500/20 group-hover:bg-emerald-500/20 transition-colors">
+                <Receipt size={22} className="text-emerald-400" />
+              </div>
+              <div>
+                <p className="text-white font-bold text-sm">Gerar PIX da Mensalidade</p>
+                <p className="text-slate-500 text-xs mt-0.5">Pague via QR Code ou Copia e Cola</p>
+              </div>
             </div>
-            <div>
-              <p className="text-white font-bold text-sm">Mudar de Plano</p>
-              <p className="text-slate-500 text-xs mt-0.5">Economize com planos maiores</p>
+            <ChevronRight size={18} className="text-slate-600 group-hover:text-emerald-400 transition-colors shrink-0" />
+          </button>
+
+          <button
+            onClick={() => setShowPlansModal(true)}
+            className="flex items-center justify-between gap-3 bg-slate-900 hover:bg-slate-800 border border-slate-700 hover:border-blue-500/40 rounded-xl p-5 transition-all group shadow-lg text-left"
+          >
+            <div className="flex items-center gap-4">
+              <div className="p-2.5 bg-blue-500/10 rounded-lg border border-blue-500/20 group-hover:bg-blue-500/20 transition-colors">
+                <Zap size={22} className="text-blue-400" />
+              </div>
+              <div>
+                <p className="text-white font-bold text-sm">Mudar de Plano</p>
+                <p className="text-slate-500 text-xs mt-0.5">Economize com planos maiores</p>
+              </div>
             </div>
-          </div>
-          <ChevronRight size={18} className="text-slate-600 group-hover:text-blue-400 transition-colors shrink-0" />
-        </button>
-      </div>
+            <ChevronRight size={18} className="text-slate-600 group-hover:text-blue-400 transition-colors shrink-0" />
+          </button>
+        </div>
+      )}
 
       {/* Invoice History */}
-      <div className="bg-slate-900 rounded-2xl border border-slate-700 shadow-xl overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800">
-          <div className="flex items-center gap-2.5">
+      {isIsento ? (
+        <div className="bg-slate-900 rounded-2xl border border-slate-700 shadow-xl overflow-hidden">
+          <div className="flex items-center gap-2.5 px-5 py-4 border-b border-slate-800">
             <Receipt size={18} className="text-slate-400" />
             <h3 className="text-white font-bold">Histórico de Faturas</h3>
           </div>
-          <button onClick={() => { setIsLoading(true); setTimeout(() => setIsLoading(false), 1000); }} className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-300 transition-colors">
-            <RefreshCw size={12} />
-            Atualizar
-          </button>
+          <div className="flex flex-col items-center justify-center py-14 px-6 text-center">
+            <div className="p-4 bg-purple-500/10 rounded-full border border-purple-500/20 mb-4">
+              <Gift size={32} className="text-purple-400" />
+            </div>
+            <p className="text-white font-bold text-lg mb-1">Sem cobranças</p>
+            <p className="text-slate-500 text-sm">Esta igreja está cadastrada como isenta e não possui faturas geradas.</p>
+          </div>
         </div>
+      ) : (
+        <div className="bg-slate-900 rounded-2xl border border-slate-700 shadow-xl overflow-hidden">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800">
+            <div className="flex items-center gap-2.5">
+              <Receipt size={18} className="text-slate-400" />
+              <h3 className="text-white font-bold">Histórico de Faturas</h3>
+            </div>
+            <button onClick={() => { setIsLoading(true); setTimeout(() => setIsLoading(false), 1000); }} className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-300 transition-colors">
+              <RefreshCw size={12} />
+              Atualizar
+            </button>
+          </div>
 
-        <div>
-          {isLoading ? (
-            <>
-              <SkeletonRow />
-              <SkeletonRow />
-              <SkeletonRow />
-              <SkeletonRow />
-            </>
-          ) : (
-            MOCK_INVOICES.map((inv, idx) => (
-              <div key={inv.id} className={`flex items-center justify-between py-4 px-5 ${idx < MOCK_INVOICES.length - 1 ? 'border-b border-slate-800' : ''} hover:bg-slate-800/40 transition-colors`}>
-                <div className="flex items-center gap-4">
-                  <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${inv.status === 'PAGO' ? 'bg-emerald-500/10 border border-emerald-500/20' : 'bg-yellow-500/10 border border-yellow-500/20'}`}>
-                    {inv.status === 'PAGO'
-                      ? <CheckCircle size={16} className="text-emerald-400" />
-                      : <Clock size={16} className="text-yellow-400" />
-                    }
+          <div>
+            {isLoading ? (
+              <>
+                <SkeletonRow />
+                <SkeletonRow />
+                <SkeletonRow />
+                <SkeletonRow />
+              </>
+            ) : (
+              MOCK_INVOICES.map((inv, idx) => (
+                <div key={inv.id} className={`flex items-center justify-between py-4 px-5 ${idx < MOCK_INVOICES.length - 1 ? 'border-b border-slate-800' : ''} hover:bg-slate-800/40 transition-colors`}>
+                  <div className="flex items-center gap-4">
+                    <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${inv.status === 'PAGO' ? 'bg-emerald-500/10 border border-emerald-500/20' : 'bg-yellow-500/10 border border-yellow-500/20'}`}>
+                      {inv.status === 'PAGO'
+                        ? <CheckCircle size={16} className="text-emerald-400" />
+                        : <Clock size={16} className="text-yellow-400" />
+                      }
+                    </div>
+                    <div>
+                      <p className="text-white font-semibold text-sm">{inv.month}</p>
+                      <p className="text-slate-500 text-xs mt-0.5">
+                        {inv.status === 'PAGO' && inv.paidDate
+                          ? `Pago em ${new Date(inv.paidDate + 'T12:00:00').toLocaleDateString('pt-BR')}`
+                          : `Vence em ${new Date(inv.dueDate + 'T12:00:00').toLocaleDateString('pt-BR')}`}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-white font-semibold text-sm">{inv.month}</p>
-                    <p className="text-slate-500 text-xs mt-0.5">
-                      {inv.status === 'PAGO' && inv.paidDate
-                        ? `Pago em ${new Date(inv.paidDate + 'T12:00:00').toLocaleDateString('pt-BR')}`
-                        : `Vence em ${new Date(inv.dueDate + 'T12:00:00').toLocaleDateString('pt-BR')}`}
+                  <div className="flex items-center gap-4 sm:gap-6">
+                    <StatusBadge status={inv.status} />
+                    <p className="text-white font-bold text-sm hidden sm:block">
+                      R$ {inv.amount.toFixed(2).replace('.', ',')}
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-4 sm:gap-6">
-                  <StatusBadge status={inv.status} />
-                  <p className="text-white font-bold text-sm hidden sm:block">
-                    R$ {inv.amount.toFixed(2).replace('.', ',')}
-                  </p>
-                </div>
-              </div>
-            ))
-          )}
+              ))
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* PIX Payment Modal */}
       {showPayModal && (
