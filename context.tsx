@@ -615,10 +615,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const church = churches.find(c => c.id === id);
       if(church) {
           const nowActivating = !church.active;
-          // When manually unblocking, extend payment promise 30 days so the
+          // When manually unblocking, grant 24h access via payment promise so the
           // automatic overdue check doesn't immediately re-block the church.
           const extraFields = nowActivating
-              ? { paymentPromiseDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] }
+              ? { paymentPromiseDate: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] }
               : {};
           await updateChurch(id, { active: nowActivating, ...extraFields });
       }
