@@ -16,29 +16,26 @@ interface Invoice {
 }
 
 const MOCK_INVOICES: Invoice[] = [
-  { id: '001', month: 'Abril 2026',   amount: 89.90, status: 'PENDENTE', dueDate: '2026-04-25' },
-  { id: '002', month: 'Março 2026',   amount: 89.90, status: 'PAGO',     dueDate: '2026-03-25', paidDate: '2026-03-22' },
-  { id: '003', month: 'Fevereiro 2026', amount: 89.90, status: 'PAGO',   dueDate: '2026-02-25', paidDate: '2026-02-19' },
-  { id: '004', month: 'Janeiro 2026',  amount: 89.90, status: 'PAGO',    dueDate: '2026-01-25', paidDate: '2026-01-24' },
-  { id: '005', month: 'Dezembro 2025', amount: 89.90, status: 'PAGO',    dueDate: '2025-12-25', paidDate: '2025-12-23' },
+  { id: '001', month: 'Abril 2026',     amount: 89.90, status: 'PENDENTE', dueDate: '2026-04-25' },
+  { id: '002', month: 'Março 2026',     amount: 89.90, status: 'PAGO',     dueDate: '2026-03-25', paidDate: '2026-03-22' },
+  { id: '003', month: 'Fevereiro 2026', amount: 89.90, status: 'PAGO',     dueDate: '2026-02-25', paidDate: '2026-02-19' },
+  { id: '004', month: 'Janeiro 2026',   amount: 89.90, status: 'PAGO',     dueDate: '2026-01-25', paidDate: '2026-01-24' },
+  { id: '005', month: 'Dezembro 2025',  amount: 89.90, status: 'PAGO',     dueDate: '2025-12-25', paidDate: '2025-12-23' },
 ];
 
 const PLANS = [
-  { id: 'mensal',     label: 'Plano Mensal',     price: 89.90,  period: 'mês',      highlight: false },
-  { id: 'trimestral', label: 'Plano Trimestral', price: 79.90,  period: 'mês',      highlight: true,  badge: 'Popular' },
-  { id: 'anual',      label: 'Plano Anual',      price: 69.90,  period: 'mês',      highlight: false, badge: 'Melhor valor' },
+  { id: 'mensal',     label: 'Plano Mensal',     price: 89.90, period: 'mês', highlight: false },
+  { id: 'trimestral', label: 'Plano Trimestral', price: 79.90, period: 'mês', highlight: true,  badge: 'Popular' },
+  { id: 'anual',      label: 'Plano Anual',      price: 69.90, period: 'mês', highlight: false, badge: 'Melhor valor' },
 ];
-
-const MOCK_PIX_KEY  = '00020126580014BR.GOV.BCB.PIX013636f5c87e-1a2b-4c3d-8e9f-0a1b2c3d4e5f5204000053039865802BR5913IgrejaApp SaaS6009SAO PAULO62140510igrejaapp16304ABCD';
-const MOCK_QR_URL   = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=igrejaapp-pix-mock';
 
 export const BillingPage: React.FC = () => {
   const { user, currentChurch } = useApp();
-  const isIsento = currentChurch?.planType === 'isento';
-  const [isLoading, setIsLoading]     = useState(true);
-  const [showPayModal, setShowPayModal] = useState(false);
+  const isIsento   = currentChurch?.planType === 'isento';
+  const billingPix = currentChurch?.pixKey?.trim() || '';
+  const [isLoading, setIsLoading]       = useState(true);
   const [showPlansModal, setShowPlansModal] = useState(false);
-  const [copied, setCopied]           = useState(false);
+  const [copied, setCopied]             = useState(false);
 
   useEffect(() => {
     const t = setTimeout(() => setIsLoading(false), 1400);
@@ -55,14 +52,13 @@ export const BillingPage: React.FC = () => {
     );
   }
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(MOCK_PIX_KEY).then(() => {
+  const handleCopyPix = () => {
+    if (!billingPix) return;
+    navigator.clipboard.writeText(billingPix).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2500);
     });
   };
-
-  const pendingInvoice = MOCK_INVOICES.find(i => i.status === 'PENDENTE');
 
   const StatusBadge: React.FC<{ status: InvoiceStatus }> = ({ status }) => {
     const map = {
@@ -186,22 +182,40 @@ export const BillingPage: React.FC = () => {
       {/* Actions — hidden when isento */}
       {!isIsento && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* PIX copy card */}
           <button
-            onClick={() => setShowPayModal(true)}
-            className="flex items-center justify-between gap-3 bg-slate-900 hover:bg-slate-800 border border-slate-700 hover:border-emerald-500/40 rounded-xl p-5 transition-all group shadow-lg text-left"
+            onClick={handleCopyPix}
+            disabled={!billingPix}
+            className={`flex items-center justify-between gap-3 bg-slate-900 border rounded-xl p-5 transition-all group shadow-lg text-left
+              ${billingPix
+                ? copied
+                  ? 'border-emerald-500/60 bg-emerald-500/5 cursor-pointer'
+                  : 'border-slate-700 hover:bg-slate-800 hover:border-emerald-500/40 cursor-pointer'
+                : 'border-slate-800 opacity-50 cursor-not-allowed'}`}
           >
             <div className="flex items-center gap-4">
-              <div className="p-2.5 bg-emerald-500/10 rounded-lg border border-emerald-500/20 group-hover:bg-emerald-500/20 transition-colors">
-                <Receipt size={22} className="text-emerald-400" />
+              <div className={`p-2.5 rounded-lg border transition-colors ${copied ? 'bg-emerald-500/20 border-emerald-500/40' : 'bg-emerald-500/10 border-emerald-500/20 group-hover:bg-emerald-500/20'}`}>
+                {copied ? <CheckCircle size={22} className="text-emerald-400" /> : <Copy size={22} className="text-emerald-400" />}
               </div>
               <div>
-                <p className="text-white font-bold text-sm">Gerar PIX da Mensalidade</p>
-                <p className="text-slate-500 text-xs mt-0.5">Pague via QR Code ou Copia e Cola</p>
+                <p className="text-white font-bold text-sm">
+                  {copied ? 'Chave PIX copiada!' : 'Copiar Chave PIX'}
+                </p>
+                <p className="text-slate-500 text-xs mt-0.5">
+                  {billingPix
+                    ? copied
+                      ? 'Cole no seu app de pagamento'
+                      : billingPix.length > 30 ? billingPix.slice(0, 30) + '…' : billingPix
+                    : 'Nenhuma chave PIX cadastrada'}
+                </p>
               </div>
             </div>
-            <ChevronRight size={18} className="text-slate-600 group-hover:text-emerald-400 transition-colors shrink-0" />
+            {!copied && billingPix && (
+              <ChevronRight size={18} className="text-slate-600 group-hover:text-emerald-400 transition-colors shrink-0" />
+            )}
           </button>
 
+          {/* Upgrade plan */}
           <button
             onClick={() => setShowPlansModal(true)}
             className="flex items-center justify-between gap-3 bg-slate-900 hover:bg-slate-800 border border-slate-700 hover:border-blue-500/40 rounded-xl p-5 transition-all group shadow-lg text-left"
@@ -284,46 +298,6 @@ export const BillingPage: React.FC = () => {
                 </div>
               ))
             )}
-          </div>
-        </div>
-      )}
-
-      {/* PIX Payment Modal */}
-      {showPayModal && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800">
-              <div className="flex items-center gap-2.5">
-                <Receipt size={18} className="text-emerald-400" />
-                <h3 className="text-white font-bold">Pagar Mensalidade</h3>
-              </div>
-              <button onClick={() => setShowPayModal(false)} className="text-slate-500 hover:text-white transition-colors">
-                <X size={20} />
-              </button>
-            </div>
-            <div className="p-6 flex flex-col items-center gap-5">
-              <div className="text-center">
-                <p className="text-slate-400 text-sm">Referência: <span className="text-white font-semibold">{pendingInvoice?.month ?? 'Abril 2026'}</span></p>
-                <p className="text-3xl font-extrabold text-white mt-1">R$ 89<span className="text-xl text-slate-400">,90</span></p>
-              </div>
-
-              <div className="bg-white p-3 rounded-xl shadow-lg">
-                <img src={MOCK_QR_URL} alt="QR Code PIX" className="w-44 h-44" />
-              </div>
-
-              <div className="w-full">
-                <p className="text-xs text-slate-500 text-center mb-2 uppercase tracking-wider font-bold">Copia e Cola</p>
-                <div className="flex items-center gap-2 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5">
-                  <p className="flex-1 text-xs text-slate-400 truncate font-mono">{MOCK_PIX_KEY.slice(0, 38)}…</p>
-                  <button onClick={handleCopy} className={`shrink-0 flex items-center gap-1.5 text-xs font-bold px-2.5 py-1.5 rounded-lg transition-all ${copied ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}>
-                    <Copy size={12} />
-                    {copied ? 'Copiado!' : 'Copiar'}
-                  </button>
-                </div>
-              </div>
-
-              <p className="text-xs text-slate-600 text-center">O pagamento é confirmado automaticamente em até 5 minutos.</p>
-            </div>
           </div>
         </div>
       )}
