@@ -1,6 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../context';
-import { Settings as SettingsIcon, Save, Building, Camera, Upload, AlertTriangle, CheckCircle, Info } from 'lucide-react';
+import { Settings as SettingsIcon, Save, Building, Camera, AlertTriangle, CheckCircle, Info, Key } from 'lucide-react';
+
+const validatePixKey = (key: string): { valid: boolean; type: string } => {
+  const cleaned = key.replace(/\D/g, '');
+  if (/^\d{11}$/.test(cleaned)) return { valid: true, type: 'CPF' };
+  if (/^\d{14}$/.test(cleaned)) return { valid: true, type: 'CNPJ' };
+  if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(key)) return { valid: true, type: 'E-mail' };
+  if (/^\+?55\d{10,11}$/.test(cleaned) || /^\d{10,11}$/.test(cleaned)) return { valid: true, type: 'Telefone' };
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(key)) return { valid: true, type: 'Chave Aleatória' };
+  if (key.length === 0) return { valid: false, type: '' };
+  return { valid: false, type: 'Inválida' };
+};
 
 export const Settings: React.FC = () => {
   const { user, churches, updateChurch, uploadChurchLogo } = useApp();
@@ -14,6 +25,7 @@ export const Settings: React.FC = () => {
   const [pastorName, setPastorName] = useState(''); // Se congregação, este é o Dirigente
   const [mission, setMission] = useState('');
   const [logoUrl, setLogoUrl] = useState('');
+  const [pixKey, setPixKey] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -54,6 +66,7 @@ export const Settings: React.FC = () => {
       setPastorName(currentChurch.pastorName);
       setMission(currentChurch.missionStatement || '');
       setLogoUrl(currentChurch.logoUrl || '');
+      setPixKey(currentChurch.pixKey || '');
     }
   }, [currentChurch]);
 
@@ -81,12 +94,19 @@ export const Settings: React.FC = () => {
     e.preventDefault();
     if (currentChurch) {
       setIsSaving(true);
+      const pixValidation = validatePixKey(pixKey);
+      if (pixKey && !pixValidation.valid) {
+        showAlert('Chave PIX inválida', 'Informe uma chave PIX válida (CPF, CNPJ, e-mail, telefone ou chave aleatória).', 'warning');
+        setIsSaving(false);
+        return;
+      }
       const res = await updateChurch(currentChurch.id, {
         name: name.toUpperCase(),
         address: address.toUpperCase(),
         pastorName: pastorName.toUpperCase(),
         missionStatement: mission.toUpperCase(),
-        logoUrl: logoUrl
+        logoUrl: logoUrl,
+        pixKey: pixKey.trim(),
       });
       setIsSaving(false);
 
@@ -216,6 +236,37 @@ export const Settings: React.FC = () => {
                  value={mission}
                  onChange={e => setMission(e.target.value.toUpperCase())}
                />
+             </div>
+
+             {/* PIX KEY FIELD */}
+             <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 space-y-3">
+               <div className="flex items-center gap-2 mb-1">
+                 <Key size={16} className="text-blue-600 shrink-0" />
+                 <label className="block text-sm font-semibold text-blue-800">Chave PIX da Igreja</label>
+                 {(() => {
+                   const v = validatePixKey(pixKey);
+                   if (pixKey && v.valid) return <span className="ml-auto text-xs font-bold bg-green-100 text-green-700 px-2 py-0.5 rounded-full">{v.type}</span>;
+                   if (pixKey && !v.valid) return <span className="ml-auto text-xs font-bold bg-red-100 text-red-600 px-2 py-0.5 rounded-full">Inválida</span>;
+                   return null;
+                 })()}
+               </div>
+               <input
+                 type="text"
+                 className={`block w-full p-3 border rounded-lg focus:outline-none focus:ring-2 text-sm transition-colors ${
+                   pixKey && !validatePixKey(pixKey).valid
+                     ? 'border-red-400 focus:ring-red-300 bg-white'
+                     : pixKey && validatePixKey(pixKey).valid
+                     ? 'border-green-400 focus:ring-green-300 bg-white'
+                     : 'border-blue-200 focus:ring-blue-300 bg-white'
+                 }`}
+                 placeholder="CPF, CNPJ, e-mail, telefone ou chave aleatória"
+                 value={pixKey}
+                 onChange={e => setPixKey(e.target.value)}
+               />
+               <p className="text-xs text-blue-600 flex items-start gap-1.5">
+                 <Info size={13} className="shrink-0 mt-0.5" />
+                 Esta chave será exibida no Portal do Membro para recebimento de dízimos e ofertas.
+               </p>
              </div>
 
              <div className="pt-4 border-t">

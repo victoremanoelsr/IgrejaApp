@@ -34,6 +34,7 @@ import { MemberDocumentos } from './pages/member/MemberDocumentos';
 import { MemberPerfil } from './pages/member/MemberPerfil';
 import { CarteirinhaDigital } from './pages/member/CarteirinhaDigital';
 import { BlockedPage } from './pages/BlockedPage';
+import { BillingPage } from './pages/BillingPage';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles?: string[] }> = ({ children, allowedRoles }) => {
   const { user } = useApp();
@@ -114,6 +115,7 @@ const AppRoutes = () => {
       <Route path="/usuarios" element={<ProtectedRoute allowedRoles={['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'DIRIGENTE']}><Users /></ProtectedRoute>} />
       <Route path="/congregacoes" element={<ProtectedRoute allowedRoles={['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE']}><Congregations /></ProtectedRoute>} />
       <Route path="/infraestrutura" element={<ProtectedRoute allowedRoles={['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'DIRIGENTE', 'TESOUREIRO', 'SECRETARIO']}><Infrastructure /></ProtectedRoute>} />
+      <Route path="/faturamento" element={<ProtectedRoute allowedRoles={['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE']}><BillingPage /></ProtectedRoute>} />
     </Routes>
   );
 };

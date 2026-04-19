@@ -1,0 +1,44 @@
+"Atue como um Engenheiro Fullstack e Especialista em Segurança de Dados. Preciso implementar uma área de Faturamento do Sistema (SaaS Billing) e atualizar o cadastro de igrejas, com regras de acesso restritas.
+
+1. Segurança e Controle de Acesso (RBAC):
+
+Regra de Visibilidade: O menu e a página 'Pagamentos do Sistema' (onde a igreja paga o SaaS) devem ser visíveis APENAS para usuários com o cargo (role) de: 'pr presidente' e 'pr vice presidente'.
+
+Bloqueio Total: Garanta que, se um 'tesoureiro' ou 'secretário' tentar acessar a URL direta dessa página, o sistema o redirecione para o Dashboard com um alerta de 'Acesso Negado'.
+
+Middleware: Implemente uma função checkAccess(['pr presidente', 'pr vice presidente']) para proteger essa rota no frontend e as chamadas de API no backend.
+
+2. Atualização do Cadastro de Igreja (Configuração Sede):
+
+Campo de Recebimento: Na tela de 'Cadastrar/Editar Igreja', adicione um campo obrigatório chamado 'Chave PIX da Igreja' (pix_key).
+
+Profissionalismo: O campo deve ter validação (verificar se é CPF/CNPJ, E-mail, Telefone ou Chave Aleatória) e uma máscara visual para facilitar a digitação.
+
+Dica de Uso: Adicione um pequeno texto explicativo: 'Esta chave será exibida no Portal do Membro para recebimento de dízimos e ofertas.'
+
+3. Janela 'Pagamentos do Sistema' (Área do Cliente):
+Esta página deve ser o centro financeiro entre a Igreja e o SaaS. Ela deve conter:
+
+Status do Plano: Um card moderno mostrando o plano atual (ex: Plano Mensal - Pró), valor e a data do próximo vencimento.
+
+Histórico de Faturas: Uma lista ou tabela clean com as mensalidades anteriores, status (Pago/Pendente) e data.
+
+Área de Pagamento: Um destaque com o botão 'Gerar Boleto/PIX da Mensalidade'. Ao clicar, deve exibir o QR Code para o Pastor pagar a assinatura do sistema para você.
+
+Upgrade de Plano: Um botão para 'Mudar de Plano', caso a igreja cresça e precise de mais recursos.
+
+4. Requisitos Visuais e UX:
+
+Padrão: Mantenha o tema Dark Mode, usando slate-900 para os containers e emerald-500 para indicar pagamentos confirmados.
+
+Componentes: Use ícones da Lucide (CreditCard, ShieldCheck, Receipt).
+
+Feedback: Use 'Skeletons' de carregamento para as faturas e modais de confirmação para ações de pagamento.
+
+Entregáveis:
+
+Código do formulário de igreja atualizado com o campo PIX.
+
+Lógica de proteção de rota baseada nos cargos específicos.
+
+Interface da página de faturamento (BillingPage.tsx) com o resumo do plano e histórico."
