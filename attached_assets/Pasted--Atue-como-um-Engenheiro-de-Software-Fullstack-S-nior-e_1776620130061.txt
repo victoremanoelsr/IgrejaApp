@@ -1,0 +1,51 @@
+"Atue como um Engenheiro de Software Fullstack Sênior e Especialista em UI/UX. Preciso refatorar o Portal do Membro do sistema 'IgrejaApp' para elevar o nível do produto para um padrão SaaS High-End. O objetivo é transformar a interface atual (estilo formulário) em uma experiência de aplicativo moderno (estilo Nubank/Inter).
+
+1. Identidade Visual e UI (Dark Mode Moderno):
+
+Paleta de Cores: Use o padrão slate-950 para o background e slate-900 para cards, com bordas sutis em slate-800. Evite o preto puro.
+
+Glassmorphism: Aplique efeitos de desfoque (backdrop-blur) na barra de navegação e em modais.
+
+Tipografia: Use hierarquia clara com pesos diferentes (Bold para títulos, Medium para valores financeiros).
+
+Mobile-First: Implemente uma Bottom Navigation Bar fixa (estilo App nativo) com ícones da Lucide React (Início, Financeiro, Documentos, Perfil).
+
+2. O Dashboard (O Coração do Portal):
+
+Header: Saudação personalizada com foto de perfil e o Versículo do Dia em um card elegante.
+
+Card de Fidelidade (Destaque): Um card com gradiente sutil exibindo o 'Dízimo do Mês Atual'. Inclua um botão de ação rápida 'Copiar Chave PIX' (buscando o dado de churches.pix_key).
+
+Membership Badge: Um pequeno selo visual (ex: 'Membro Ativo' ou 'Obreiro') posicionado no topo.
+
+Atalhos Rápidos: Uma grid 2x2 de ícones para as funções mais usadas (Carteirinha, Carnês, Pedidos de Oração, Eventos).
+
+Aniversariantes: Um pequeno widget mostrando os aniversariantes do mês da igreja para gerar engajamento.
+
+3. Módulo Financeiro e Carnês (Transparência):
+
+Sem Tabelas em Mobile: Substitua tabelas por uma lista de 'Atividade Recente'. Cada card deve mostrar o tipo de contribuição, ícone, data e valor.
+
+Gestão de Carnês: Interface estilo 'Progress Bar', mostrando quanto do carnê já foi pago e botão para baixar o PDF gerado pelo motor do sistema.
+
+Relatório Anual: Botão para gerar um consolidado de contribuições do ano.
+
+4. Secretaria Digital e Engajamento:
+
+Carteirinha Digital: Desenvolva um componente que simule um cartão físico (Wallet) com foto, nome, cargo, data de batismo e um QR Code para check-in.
+
+Documentos: Lista de certificados e cartas de recomendação disponíveis para download.
+
+Escala de Serviço: Widget que mostra quando é a próxima vez que o membro está escalado (buscando do painel administrativo).
+
+Pedidos de Oração: Formulário flutuante simples para envio direto ao Pastor.
+
+5. Requisitos Técnicos e Animações:
+
+Use Framer Motion para transições suaves entre páginas (AnimatePresence) e efeitos de 'spring' ao clicar em botões.
+
+Multi-tenancy: Garanta que todos os filtros church_id e member_cpf estejam aplicados em cada componente.
+
+Performance: Implemente estados de 'loading skeleton' enquanto os dados são buscados no Supabase.
+
+Gere o código para o MemberHome.tsx, a BottomNavigation.tsx e o componente de CarteirinhaDigital.tsx seguindo estas diretrizes."
