@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShieldOff, MessageCircle, Phone, ArrowLeft } from 'lucide-react';
+import { ShieldOff, MessageCircle, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export const BlockedPage: React.FC = () => {
@@ -47,13 +47,6 @@ export const BlockedPage: React.FC = () => {
             Falar com Suporte
           </button>
 
-          <a
-            href="tel:+5500000000000"
-            className="flex-1 flex items-center justify-center gap-2 py-3 px-5 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-xl font-bold text-sm transition-all active:scale-95"
-          >
-            <Phone size={18} />
-            Ligar para Financeiro
-          </a>
         </div>
 
         <button
