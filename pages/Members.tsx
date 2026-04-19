@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { formatDate } from '../i18n';
 import { useApp } from '../context';
 import { Member } from '../types';
+import { usePlanLimits } from '../hooks/usePlanLimits';
 import { 
   Search, Plus, Trash2, Edit2, User, Save, X, Phone, Mail, ZoomIn, 
   CheckCircle, Camera, Loader, MapPin, Calendar, Hash, Flag, Lock, Key, Info,
@@ -39,6 +40,7 @@ export const Members: React.FC = () => {
     setModalState({ isOpen: true, title, message, variant, showCancel: true, onConfirm: () => { onConfirm(); setModalState(prev => ({ ...prev, isOpen: false })); } });
   };
   
+  const planLimits = usePlanLimits();
   const canEdit = user?.role !== 'TESOUREIRO';
   const viewId = currentChurch?.id;
 
@@ -120,6 +122,19 @@ export const Members: React.FC = () => {
     if (!editingMemberId) {
       const exists = members.find(m => m.cpf === formData.cpf && m.churchId === formData.churchId);
       if (exists) { showAlert("Erro", "Já existe um membro com este CPF.", 'danger'); setIsSaving(false); return; }
+
+      if (planLimits.isAtMemberLimit) {
+        setModalState({
+          isOpen: true,
+          title: '🔒 Limite do Plano Atingido',
+          message: `Seu plano ${planLimits.limits.label} permite até ${planLimits.memberLimit} membros nesta unidade.\n\nVocê já possui ${planLimits.currentMemberCount} membros cadastrados.\n\nPara continuar cadastrando, solicite ao administrador do sistema o upgrade para um plano superior.`,
+          variant: 'warning',
+          showCancel: false,
+          onConfirm: () => setModalState(prev => ({ ...prev, isOpen: false })),
+        });
+        setIsSaving(false);
+        return;
+      }
     }
 
     let finalPhotoUrl = formData.photo;

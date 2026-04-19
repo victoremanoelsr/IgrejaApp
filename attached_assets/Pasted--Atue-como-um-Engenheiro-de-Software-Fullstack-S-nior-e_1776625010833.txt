@@ -1,0 +1,61 @@
+"Atue como um Engenheiro de Software Fullstack Sênior e Especialista em Finanças para SaaS. Preciso que você implemente o motor de faturamento e a lógica de limites do sistema 'IgrejaApp', integrando as regras de negócio de Capacidade e Periodicidade.
+
+1. Arquitetura de Planos e Capacidade (Multi-tenancy):
+O sistema deve liberar 100% das funcionalidades para todos, mas limitar a quantidade de registros. Defina os limites base:
+
+Bronze (R$ 100/base): Sede até 100 membros | Congregações até 50 membros cada | Limite de 02 congregações.
+
+Prata (R$ 200/base): Sede até 300 membros | Congregações até 100 membros cada | Limite de 05 congregações.
+
+Ouro (R$ 350/base): Sede até 700 membros | Congregações até 200 membros cada | Limite de 10 congregações.
+
+Diamond (R$ 500/base): Tudo Ilimitado.
+
+2. Lógica de Periodicidade e Descontos Progressivos:
+No painel de faturamento, aplique descontos sobre os valores base acima para incentivar contratos longos:
+
+Mensal: Preço Base (0% desc).
+
+Bimestral: 3% de desconto.
+
+Trimestral: 7% de desconto.
+
+Semestral: 10% de desconto.
+
+Anual: 15% de desconto.
+
+3. Validação de Regras e Gatilhos (Segurança):
+
+Cadastro de Membros: Antes de salvar, conte os registros existentes por church_id. Se atingir o limite do plano, bloqueie o cadastro e exiba um modal Dark 'Limite do Plano Atingido' com botão para upgrade.
+
+Criação de Congregações: Verifique se a igreja já possui o máximo de unidades permitidas no plano contratado.
+
+Verificação de Acesso: A janela de pagamentos/faturamento deve ser acessível exclusivamente para os cargos 'pr presidente' e 'pr vice presidente'.
+
+4. Interface de Faturamento (Billing UI/UX):
+
+Seletor de Ciclo: Componente Toggle/Tab no topo para escolher o período (Mensal até Anual).
+
+Cards de Plano: Devem atualizar os valores dinamicamente com framer-motion. Exiba o valor total do ciclo e o destaque: 'Economize R$ XX,XX'.
+
+Selo de Destaque: O plano 'Anual' deve ter um selo visual de 'Melhor Custo-Benefício'.
+
+Barra de Progresso (Master): No seu painel de controle, mostre o consumo de cada igreja (ex: 85/100 membros).
+
+5. Integração com Banco de Dados (Supabase):
+
+Atualize a tabela churches com: plan_type, current_cycle, next_billing_date, pix_key e status.
+
+Implemente o cálculo automático da next_billing_date com base no ciclo escolhido (ex: Semestral = +6 meses).
+
+Requisitos Técnicos:
+
+Use React, Tailwind CSS (Dark Mode slate-900), Lucide React e Framer Motion.
+
+Forneça o código para:
+
+O Hook de validação de limites (usePlanLimits).
+
+O componente de Seleção de Periodicidade e Planos.
+
+A lógica de bloqueio de rota para cargos não autorizados."

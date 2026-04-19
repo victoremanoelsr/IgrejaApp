@@ -579,13 +579,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (d.paymentPromiseDate !== undefined) payload.payment_promise_date = d.paymentPromiseDate || null;
       if (d.pixKey !== undefined) payload.pix_key = d.pixKey;
 
-      const { error } = await supabase.from('churches').update(payload).eq('id', id);
-      if(!error) {
-          setChurches(churches.map(c => c.id === id ? { ...c, ...d } : c));
-          if(currentChurch?.id === id) setCurrentChurch({ ...currentChurch, ...d });
-          return { success: true };
+      // New columns that may not exist yet in older DB schemas – handled separately
+      const extendedPayload: any = {};
+      if (d.planTier !== undefined) extendedPayload.plan_tier = d.planTier;
+      if (d.lastPaymentDate !== undefined) extendedPayload.last_payment_date = d.lastPaymentDate || null;
+
+      const hasMain = Object.keys(payload).length > 0;
+      const hasExt  = Object.keys(extendedPayload).length > 0;
+
+      // Main update
+      if (hasMain) {
+          const { error } = await supabase.from('churches').update(payload).eq('id', id);
+          if (error) return { success: false, error: error.message };
       }
-      return { success: false, error: error.message };
+
+      // Extended update (graceful – silently ignored if columns don't exist)
+      if (hasExt) {
+          await supabase.from('churches').update(extendedPayload).eq('id', id);
+      }
+
+      setChurches(churches.map(c => c.id === id ? { ...c, ...d } : c));
+      if(currentChurch?.id === id) setCurrentChurch({ ...currentChurch, ...d });
+      return { success: true };
   };
 
   const deleteChurch = async (id: string) => {

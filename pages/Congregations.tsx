@@ -4,10 +4,12 @@ import { useApp } from '../context';
 import { Church, User } from '../types';
 import { Building, Plus, MapPin, User as UserIcon, X, UserPlus, Eye, Trash2, ShieldAlert, AlertTriangle, CheckCircle, Info, Edit2, Save } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { usePlanLimits } from '../hooks/usePlanLimits';
 
 export const Congregations: React.FC = () => {
   const { currentChurch, churches, addCongregation, updateChurch, addUser, users, selectChurch, deleteChurch } = useApp();
   const navigate = useNavigate();
+  const planLimits = usePlanLimits();
 
   // Modal State
   const [showCongregationForm, setShowCongregationForm] = useState(false);
@@ -139,6 +141,15 @@ export const Congregations: React.FC = () => {
     }
 
     // --- MODO CRIAÇÃO ---
+    if (planLimits.isAtCongLimit) {
+      showAlert(
+        '🔒 Limite do Plano Atingido',
+        `Seu plano ${planLimits.limits.label} permite até ${planLimits.congLimit} congregação(ões).\n\nVocê já possui ${planLimits.currentCongCount} congregação(ões) cadastrada(s).\n\nPara adicionar mais congregações, solicite ao administrador o upgrade para um plano superior.`,
+        'warning'
+      );
+      return;
+    }
+
     const userExists = users.some(u => u.username === newCongDirigenteUser);
     if(userExists) {
         showAlert("Erro", "O nome de usuário escolhido para o dirigente já existe.", 'danger');

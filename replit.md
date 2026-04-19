@@ -32,11 +32,14 @@ IgrejaApp is a church management system (Portuguese: "Gestão Eclesiástica") bu
 │   ├── Campaigns.tsx
 │   ├── Reports.tsx
 │   └── ...
+├── hooks/
+│   └── usePlanLimits.ts    # Plan tier limits hook (Bronze/Prata/Ouro/Diamond)
 ├── services/
 │   ├── supabaseClient.ts   # Supabase client setup
 │   ├── churchQueries.ts    # Database query functions
 │   └── dataMappers.ts      # Data mapping utilities
-└── setup.sql           # Database schema SQL
+├── setup.sql               # Database schema SQL
+└── supabase-migrations.sql # Pending migrations (plan_tier, last_payment_date columns)
 ```
 
 ## Configuration
@@ -103,11 +106,40 @@ ALTER TABLE members ADD COLUMN IF NOT EXISTS member_password TEXT;
 ALTER TABLE churches ADD COLUMN IF NOT EXISTS pix_key TEXT;
 ```
 
+## SaaS Billing & Tier System
+
+### Plan Tiers (`types.ts` — `PlanTier`)
+| Tier    | Base Price | Sede Members | Cong. Members | Max Cong. |
+|---------|-----------|--------------|---------------|-----------|
+| Bronze  | R$100/mês | 100          | 50            | 2         |
+| Prata   | R$200/mês | 300          | 100           | 5         |
+| Ouro    | R$350/mês | 700          | 200           | 10        |
+| Diamond | R$500/mês | Ilimitado    | Ilimitado     | Ilimitado |
+
+### Cycle Discounts (`hooks/usePlanLimits.ts` — `CYCLE_DISCOUNTS`)
+- Mensal: 0% · Bimestral: 3% · Trimestral: 7% · Semestral: 10% · Anual: 15%
+
+### Limit Enforcement
+- **`hooks/usePlanLimits.ts`**: `usePlanLimits()` hook returns member/cong counts, limits, percentages
+- **`pages/Members.tsx`**: Blocks member addition when `isAtMemberLimit` is true (shows modal)
+- **`pages/Congregations.tsx`**: Blocks congregation creation when `isAtCongLimit` is true (shows modal)
+- **`pages/BillingPage.tsx`**: Shows usage progress bars + plan comparison modal with cycle selector
+- **`pages/SuperAdminDashboard.tsx`**: Shows mini consumption bars per sede + planTier selector in edit form
+
+### Required SQL Migration (run in Supabase SQL editor)
+See `supabase-migrations.sql` for the complete migration script:
+```sql
+ALTER TABLE churches ADD COLUMN IF NOT EXISTS plan_tier TEXT;
+ALTER TABLE churches ADD COLUMN IF NOT EXISTS last_payment_date DATE;
+```
+Note: `updateChurch()` in `context.tsx` handles missing columns gracefully — the app works even without these columns added, but tier/payment data won't persist until the migration is run.
+
 ### Entry Points
 - Admin login: `/` — has "Acesso Portal do Membro" button linking to `/portal/login`
 - Member login: `/#/portal/login`
 
 ## Recent Changes
+- 2026-04-19: SaaS tier system — Bronze/Prata/Ouro/Diamond tiers, cycle discounts, usage bars, limit enforcement
 - 2026-04-15: Member Portal (Portal do Membro) — full mobile-first member self-service
 - 2026-04-10: Offline resilience system for Finance module (IndexedDB queue + auto-sync + UX indicators)
 - 2026-04-10: Full i18n system added (pt-BR, en-US, es-ES)

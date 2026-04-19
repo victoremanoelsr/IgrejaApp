@@ -1,6 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { CreditCard, ShieldCheck, Receipt, CheckCircle, Clock, AlertCircle, Zap, ChevronRight, X, Copy, RefreshCw, Gift } from 'lucide-react';
+import {
+  CreditCard, ShieldCheck, Receipt, CheckCircle, Clock, AlertCircle,
+  Zap, ChevronRight, X, Copy, RefreshCw, Gift, Users, Building2,
+  Star, Crown, Gem, TrendingUp, Info
+} from 'lucide-react';
 import { useApp } from '../context';
+import { PlanType } from '../types';
+import {
+  usePlanLimits, PLAN_LIMITS, CYCLE_DISCOUNTS, CYCLE_MONTHS, CYCLE_LABELS,
+  calcPrice, calcSavings, TierLimits
+} from '../hooks/usePlanLimits';
 
 const BILLING_ROLES = ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE'];
 
@@ -23,19 +32,27 @@ const MOCK_INVOICES: Invoice[] = [
   { id: '005', month: 'Dezembro 2025',  amount: 89.90, status: 'PAGO',     dueDate: '2025-12-25', paidDate: '2025-12-23' },
 ];
 
-const PLANS = [
-  { id: 'mensal',     label: 'Plano Mensal',     price: 89.90, period: 'mês', highlight: false },
-  { id: 'trimestral', label: 'Plano Trimestral', price: 79.90, period: 'mês', highlight: true,  badge: 'Popular' },
-  { id: 'anual',      label: 'Plano Anual',      price: 69.90, period: 'mês', highlight: false, badge: 'Melhor valor' },
-];
+const TIER_META: Record<string, { icon: React.FC<{size?: number; className?: string}>, color: string, border: string, bg: string, badge?: string }> = {
+  bronze:  { icon: TrendingUp, color: 'text-amber-600',   border: 'border-amber-500/40',  bg: 'from-amber-500/8' },
+  prata:   { icon: Star,       color: 'text-slate-400',   border: 'border-slate-400/40',  bg: 'from-slate-400/8', badge: 'Popular' },
+  ouro:    { icon: Crown,      color: 'text-yellow-400',  border: 'border-yellow-500/40', bg: 'from-yellow-500/8' },
+  diamond: { icon: Gem,        color: 'text-cyan-400',    border: 'border-cyan-500/40',   bg: 'from-cyan-500/8',  badge: 'Melhor valor' },
+};
+
+const CYCLES: PlanType[] = ['mensal', 'bimestral', 'trimestral', 'semestral', 'anual'];
+const TIERS = ['bronze', 'prata', 'ouro', 'diamond'] as const;
 
 export const BillingPage: React.FC = () => {
   const { user, currentChurch } = useApp();
-  const isIsento   = currentChurch?.planType === 'isento';
-  const billingPix = currentChurch?.pixKey?.trim() || '';
+  const planLimits = usePlanLimits();
+  const isIsento    = currentChurch?.planType === 'isento';
+  const billingPix  = currentChurch?.pixKey?.trim() || '';
   const [isLoading, setIsLoading]       = useState(true);
   const [showPlansModal, setShowPlansModal] = useState(false);
   const [copied, setCopied]             = useState(false);
+  const [selectedCycle, setSelectedCycle] = useState<PlanType>(
+    (currentChurch?.planType && currentChurch.planType !== 'isento') ? currentChurch.planType : 'mensal'
+  );
 
   useEffect(() => {
     const t = setTimeout(() => setIsLoading(false), 1400);
@@ -91,6 +108,47 @@ export const BillingPage: React.FC = () => {
     </div>
   );
 
+  const UsageBar: React.FC<{
+    label: string;
+    icon: React.FC<{size?: number; className?: string}>;
+    current: number;
+    limit: number;
+    percent: number;
+    isUnlimited: boolean;
+  }> = ({ label, icon: Icon, current, limit, percent, isUnlimited }) => {
+    const color = percent >= 100
+      ? 'bg-red-500'
+      : percent >= 80
+      ? 'bg-yellow-500'
+      : 'bg-emerald-500';
+
+    return (
+      <div className="space-y-2">
+        <div className="flex items-center justify-between text-xs">
+          <span className="flex items-center gap-1.5 text-slate-400 font-medium">
+            <Icon size={13} />
+            {label}
+          </span>
+          <span className={`font-bold ${isUnlimited ? 'text-emerald-400' : percent >= 100 ? 'text-red-400' : percent >= 80 ? 'text-yellow-400' : 'text-white'}`}>
+            {isUnlimited ? 'Ilimitado' : `${current} / ${limit}`}
+          </span>
+        </div>
+        {!isUnlimited && (
+          <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all duration-700 ${color}`}
+              style={{ width: `${Math.min(100, percent)}%` }}
+            />
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const currentTierKey = planLimits.tier;
+  const currentTierLimits = planLimits.limits;
+  const isUnlimitedTier = currentTierKey === 'diamond' || currentTierKey === 'isento';
+
   return (
     <div className="max-w-4xl mx-auto space-y-6 pb-12">
 
@@ -121,44 +179,29 @@ export const BillingPage: React.FC = () => {
                   <p className="text-slate-400 text-sm mt-0.5">Esta igreja não está sujeita a cobranças mensais.</p>
                 </div>
               </div>
-              <div className="text-right shrink-0">
-                <span className="inline-flex items-center gap-2 px-4 py-2 bg-purple-500/15 border border-purple-500/30 text-purple-300 rounded-full font-extrabold text-lg">
-                  <Gift size={16} /> Isento
-                </span>
-              </div>
-            </div>
-
-            <div className="mt-5 grid grid-cols-3 gap-3 pt-5 border-t border-slate-800">
-              {[
-                { label: 'Membros',      value: 'Ilimitado' },
-                { label: 'Congregações', value: 'Ilimitado' },
-                { label: 'Suporte',      value: 'Prioritário' },
-              ].map(feat => (
-                <div key={feat.label} className="text-center">
-                  <p className="text-white font-bold text-sm">{feat.value}</p>
-                  <p className="text-slate-500 text-xs">{feat.label}</p>
-                </div>
-              ))}
+              <span className="inline-flex items-center gap-2 px-4 py-2 bg-purple-500/15 border border-purple-500/30 text-purple-300 rounded-full font-extrabold text-lg shrink-0">
+                <Gift size={16} /> Isento
+              </span>
             </div>
           </div>
         </div>
       ) : (
         <div className="relative bg-slate-900 rounded-2xl border border-slate-700 overflow-hidden shadow-xl">
-          <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-transparent pointer-events-none" />
+          <div className={`absolute inset-0 bg-gradient-to-br ${TIER_META[currentTierKey]?.bg ?? 'from-emerald-500/5'} via-transparent to-transparent pointer-events-none`} />
           <div className="p-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex items-center gap-4">
-                <div className="p-3 bg-emerald-500/10 rounded-xl border border-emerald-500/25 shrink-0">
-                  <ShieldCheck size={28} className="text-emerald-400" />
+                <div className={`p-3 rounded-xl border shrink-0 ${TIER_META[currentTierKey]?.border ?? 'border-emerald-500/25'} bg-white/5`}>
+                  {(() => { const Icon = TIER_META[currentTierKey]?.icon ?? ShieldCheck; return <Icon size={28} className={TIER_META[currentTierKey]?.color ?? 'text-emerald-400'} />; })()}
                 </div>
                 <div>
                   <p className="text-xs text-slate-500 uppercase tracking-widest font-bold mb-1">Plano Atual</p>
                   <h2 className="text-xl font-bold text-white capitalize">
-                    Plano {currentChurch?.planType ?? 'Mensal'}
+                    {currentTierLimits.label} · {CYCLE_LABELS[currentChurch?.planType as PlanType] ?? 'Mensal'}
                   </h2>
                   {currentChurch?.paymentPromiseDate ? (
                     <p className="text-slate-400 text-sm mt-0.5">
-                      Ativo · Próximo vencimento em{' '}
+                      Próximo vencimento:{' '}
                       <span className="text-yellow-400 font-semibold">
                         {new Date(currentChurch.paymentPromiseDate + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
                       </span>
@@ -175,7 +218,7 @@ export const BillingPage: React.FC = () => {
                   )}
                 </div>
               </div>
-              <div className="text-right shrink-0">
+              <div className="shrink-0">
                 {currentChurch?.lastPaymentDate ? (
                   <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 rounded-full text-xs font-bold">
                     <CheckCircle size={12} /> Em dia
@@ -187,24 +230,49 @@ export const BillingPage: React.FC = () => {
                 )}
               </div>
             </div>
-
-            <div className="mt-5 grid grid-cols-3 gap-3 pt-5 border-t border-slate-800">
-              {[
-                { label: 'Membros',      value: 'Ilimitado' },
-                { label: 'Congregações', value: 'Ilimitado' },
-                { label: 'Suporte',      value: 'Prioritário' },
-              ].map(feat => (
-                <div key={feat.label} className="text-center">
-                  <p className="text-white font-bold text-sm">{feat.value}</p>
-                  <p className="text-slate-500 text-xs">{feat.label}</p>
-                </div>
-              ))}
-            </div>
           </div>
         </div>
       )}
 
-      {/* Actions — hidden when isento */}
+      {/* Resource Usage */}
+      <div className="bg-slate-900 rounded-2xl border border-slate-700 shadow-xl overflow-hidden">
+        <div className="flex items-center gap-2.5 px-5 py-4 border-b border-slate-800">
+          <TrendingUp size={16} className="text-slate-400" />
+          <h3 className="text-white font-bold text-sm">Uso dos Recursos</h3>
+          <div className="ml-auto flex items-center gap-1.5 text-[10px] text-slate-500">
+            <Info size={10} />
+            Baseado no plano {currentTierLimits.label}
+          </div>
+        </div>
+        <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-5">
+          <UsageBar
+            label="Membros"
+            icon={Users}
+            current={planLimits.currentMemberCount}
+            limit={planLimits.memberLimit}
+            percent={planLimits.memberPercent}
+            isUnlimited={isUnlimitedTier}
+          />
+          <UsageBar
+            label="Congregações"
+            icon={Building2}
+            current={planLimits.currentCongCount}
+            limit={planLimits.congLimit}
+            percent={planLimits.congPercent}
+            isUnlimited={isUnlimitedTier}
+          />
+        </div>
+        {!isUnlimitedTier && (planLimits.memberPercent >= 80 || planLimits.congPercent >= 80) && (
+          <div className="px-5 pb-4">
+            <div className="flex items-start gap-2 p-3 bg-yellow-500/10 border border-yellow-500/25 rounded-xl text-xs text-yellow-400">
+              <AlertCircle size={14} className="shrink-0 mt-0.5" />
+              <span>Você está se aproximando do limite do seu plano. Considere fazer upgrade para continuar crescendo.</span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Actions */}
       {!isIsento && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {/* PIX copy card */}
@@ -240,7 +308,7 @@ export const BillingPage: React.FC = () => {
             )}
           </button>
 
-          {/* Upgrade plan */}
+          {/* View plans */}
           <button
             onClick={() => setShowPlansModal(true)}
             className="flex items-center justify-between gap-3 bg-slate-900 hover:bg-slate-800 border border-slate-700 hover:border-blue-500/40 rounded-xl p-5 transition-all group shadow-lg text-left"
@@ -250,8 +318,8 @@ export const BillingPage: React.FC = () => {
                 <Zap size={22} className="text-blue-400" />
               </div>
               <div>
-                <p className="text-white font-bold text-sm">Mudar de Plano</p>
-                <p className="text-slate-500 text-xs mt-0.5">Economize com planos maiores</p>
+                <p className="text-white font-bold text-sm">Ver Planos Disponíveis</p>
+                <p className="text-slate-500 text-xs mt-0.5">Compare tiers e ciclos de cobrança</p>
               </div>
             </div>
             <ChevronRight size={18} className="text-slate-600 group-hover:text-blue-400 transition-colors shrink-0" />
@@ -286,24 +354,15 @@ export const BillingPage: React.FC = () => {
               Atualizar
             </button>
           </div>
-
           <div>
             {isLoading ? (
-              <>
-                <SkeletonRow />
-                <SkeletonRow />
-                <SkeletonRow />
-                <SkeletonRow />
-              </>
+              <><SkeletonRow /><SkeletonRow /><SkeletonRow /><SkeletonRow /></>
             ) : (
               MOCK_INVOICES.map((inv, idx) => (
                 <div key={inv.id} className={`flex items-center justify-between py-4 px-5 ${idx < MOCK_INVOICES.length - 1 ? 'border-b border-slate-800' : ''} hover:bg-slate-800/40 transition-colors`}>
                   <div className="flex items-center gap-4">
                     <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${inv.status === 'PAGO' ? 'bg-emerald-500/10 border border-emerald-500/20' : 'bg-yellow-500/10 border border-yellow-500/20'}`}>
-                      {inv.status === 'PAGO'
-                        ? <CheckCircle size={16} className="text-emerald-400" />
-                        : <Clock size={16} className="text-yellow-400" />
-                      }
+                      {inv.status === 'PAGO' ? <CheckCircle size={16} className="text-emerald-400" /> : <Clock size={16} className="text-yellow-400" />}
                     </div>
                     <div>
                       <p className="text-white font-semibold text-sm">{inv.month}</p>
@@ -329,45 +388,138 @@ export const BillingPage: React.FC = () => {
 
       {/* Plans Modal */}
       {showPlansModal && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800">
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden max-h-[90vh] flex flex-col">
+
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 shrink-0">
               <div className="flex items-center gap-2.5">
                 <Zap size={18} className="text-blue-400" />
-                <h3 className="text-white font-bold">Mudar de Plano</h3>
+                <h3 className="text-white font-bold text-lg">Planos Disponíveis</h3>
               </div>
-              <button onClick={() => setShowPlansModal(false)} className="text-slate-500 hover:text-white transition-colors">
+              <button onClick={() => setShowPlansModal(false)} className="text-slate-500 hover:text-white transition-colors p-1">
                 <X size={20} />
               </button>
             </div>
-            <div className="p-5 space-y-3">
-              {PLANS.map(plan => (
-                <div key={plan.id} className={`relative flex items-center justify-between p-4 rounded-xl border cursor-pointer transition-all group ${plan.highlight ? 'border-blue-500/50 bg-blue-500/10 hover:bg-blue-500/15' : 'border-slate-700 bg-slate-800/50 hover:bg-slate-800'}`}>
-                  {plan.badge && (
-                    <span className={`absolute -top-2.5 left-4 text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full ${plan.highlight ? 'bg-blue-500 text-white' : 'bg-yellow-500 text-black'}`}>
-                      {plan.badge}
-                    </span>
-                  )}
-                  <div>
-                    <p className="text-white font-bold text-sm">{plan.label}</p>
-                    <p className="text-slate-400 text-xs mt-0.5">Cobrado mensalmente</p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="text-right">
-                      <p className="text-white font-extrabold">R$ {plan.price.toFixed(2).replace('.', ',')}</p>
-                      <p className="text-slate-500 text-xs">/{plan.period}</p>
-                    </div>
-                    {plan.id === 'mensal' ? (
-                      <span className="text-xs bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 px-2 py-1 rounded-full font-bold">Atual</span>
-                    ) : (
-                      <button className={`text-xs font-bold px-3 py-1.5 rounded-lg transition-colors ${plan.highlight ? 'bg-blue-500 hover:bg-blue-600 text-white' : 'bg-slate-700 hover:bg-slate-600 text-slate-200'}`}>
-                        Selecionar
-                      </button>
-                    )}
-                  </div>
+
+            {/* Cycle Selector */}
+            <div className="px-6 pt-5 shrink-0">
+              <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mb-3">Ciclo de Cobrança</p>
+              <div className="flex flex-wrap gap-2">
+                {CYCLES.map(cycle => {
+                  const disc = CYCLE_DISCOUNTS[cycle];
+                  const isActive = selectedCycle === cycle;
+                  return (
+                    <button
+                      key={cycle}
+                      onClick={() => setSelectedCycle(cycle)}
+                      className={`flex flex-col items-center px-3 py-2 rounded-xl border text-xs font-bold transition-all ${
+                        isActive
+                          ? 'bg-blue-500/20 border-blue-500/60 text-blue-300'
+                          : 'bg-slate-800/60 border-slate-700 text-slate-400 hover:border-slate-500 hover:text-slate-300'
+                      }`}
+                    >
+                      <span className="capitalize">{CYCLE_LABELS[cycle]}</span>
+                      {disc > 0 && (
+                        <span className={`text-[9px] mt-0.5 font-extrabold ${isActive ? 'text-emerald-400' : 'text-emerald-500/70'}`}>
+                          -{Math.round(disc * 100)}%
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+              {CYCLE_DISCOUNTS[selectedCycle] > 0 && (
+                <div className="mt-3 flex items-center gap-2 text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2">
+                  <CheckCircle size={12} />
+                  Desconto de {Math.round(CYCLE_DISCOUNTS[selectedCycle] * 100)}% aplicado no ciclo {CYCLE_LABELS[selectedCycle].toLowerCase()} ({CYCLE_MONTHS[selectedCycle]} meses)
                 </div>
-              ))}
-              <p className="text-xs text-slate-600 text-center pt-2">Entre em contato com o suporte para realizar a migração de plano.</p>
+              )}
+            </div>
+
+            {/* Tier Cards */}
+            <div className="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 overflow-y-auto">
+              {TIERS.map(tierId => {
+                const limits = PLAN_LIMITS[tierId];
+                const meta   = TIER_META[tierId];
+                const Icon   = meta.icon;
+                const baseP  = limits.basePrice;
+                const months = CYCLE_MONTHS[selectedCycle];
+                const totalP = calcPrice(baseP, selectedCycle, months);
+                const perMth = baseP * (1 - CYCLE_DISCOUNTS[selectedCycle]);
+                const saved  = calcSavings(baseP, selectedCycle);
+                const isCurrent = currentChurch?.planTier === tierId;
+                const isUnlim   = tierId === 'diamond';
+
+                return (
+                  <div
+                    key={tierId}
+                    className={`relative flex flex-col rounded-2xl border overflow-hidden transition-all ${meta.border} ${isCurrent ? 'ring-2 ring-offset-2 ring-offset-slate-900 ring-blue-500' : ''}`}
+                  >
+                    {meta.badge && (
+                      <div className={`absolute top-0 left-0 right-0 text-center text-[10px] font-extrabold uppercase py-1 ${tierId === 'diamond' ? 'bg-cyan-500 text-white' : 'bg-slate-600 text-white'}`}>
+                        {meta.badge}
+                      </div>
+                    )}
+
+                    <div className={`bg-gradient-to-br ${meta.bg} via-transparent to-transparent bg-slate-800/60 p-5 ${meta.badge ? 'pt-7' : ''} flex-1`}>
+                      <div className="flex items-center gap-2 mb-3">
+                        <Icon size={18} className={meta.color} />
+                        <h4 className={`font-extrabold text-base ${meta.color}`}>{limits.label}</h4>
+                        {isCurrent && (
+                          <span className="ml-auto text-[9px] bg-blue-500 text-white px-1.5 py-0.5 rounded font-bold">Atual</span>
+                        )}
+                      </div>
+
+                      <div className="mb-4">
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-white font-extrabold text-xl">
+                            R$ {perMth.toFixed(2).replace('.', ',')}
+                          </span>
+                          <span className="text-slate-500 text-xs">/mês</span>
+                        </div>
+                        {months > 1 && (
+                          <p className="text-slate-500 text-[10px] mt-0.5">
+                            R$ {totalP.toFixed(2).replace('.', ',')} cobrado a cada {months} meses
+                          </p>
+                        )}
+                        {saved > 0 && (
+                          <p className="text-emerald-400 text-[10px] font-bold mt-0.5">
+                            Economia de R$ {saved.toFixed(2).replace('.', ',')}
+                          </p>
+                        )}
+                      </div>
+
+                      <ul className="space-y-1.5 text-xs text-slate-400">
+                        <li className="flex items-center gap-1.5">
+                          <Users size={10} className="text-slate-500 shrink-0" />
+                          {isUnlim ? 'Membros ilimitados' : `Até ${limits.sedeMembers} membros na Sede`}
+                        </li>
+                        <li className="flex items-center gap-1.5">
+                          <Building2 size={10} className="text-slate-500 shrink-0" />
+                          {isUnlim ? 'Congregações ilimitadas' : `Até ${limits.maxCongs} congregação(ões)`}
+                        </li>
+                        {!isUnlim && (
+                          <li className="flex items-center gap-1.5">
+                            <Users size={10} className="text-slate-500 shrink-0" />
+                            Até {limits.congMembers} membros/cong.
+                          </li>
+                        )}
+                        {isUnlim && (
+                          <li className="flex items-center gap-1.5">
+                            <Star size={10} className="text-cyan-400 shrink-0" />
+                            <span className="text-cyan-400 font-bold">Suporte prioritário</span>
+                          </li>
+                        )}
+                      </ul>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="px-6 pb-5 shrink-0">
+              <p className="text-xs text-slate-600 text-center">Para realizar a migração de plano, entre em contato com o suporte administrativo.</p>
             </div>
           </div>
         </div>

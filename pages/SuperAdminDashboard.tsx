@@ -3,7 +3,8 @@ import React, { useState } from 'react';
 import { useApp } from '../context';
 import { useNavigate } from 'react-router-dom';
 import { Building, Users, Eye, Power, Plus, UserPlus, Trash2, Edit2, User, AlertTriangle, CheckCircle, Info, CalendarClock, CreditCard, BadgeCheck } from 'lucide-react';
-import { Church, User as UserType, Member, PlanType } from '../types';
+import { Church, User as UserType, Member, PlanType, PlanTier } from '../types';
+import { PLAN_LIMITS } from '../hooks/usePlanLimits';
 
 const PLAN_LABELS: Record<PlanType, string> = {
   isento: 'Isento',
@@ -146,6 +147,7 @@ export const SuperAdminDashboard: React.FC = () => {
         pastorName: editingChurch.pastorName.toUpperCase(),
         cnpj: editingChurch.cnpj,
         planType: editingChurch.planType,
+        planTier: editingChurch.planTier,
         dueDay: editingChurch.planType !== 'isento' ? editingChurch.dueDay : undefined,
         gracePeriod: editingChurch.gracePeriod,
         paymentPromiseDate: editingChurch.paymentPromiseDate,
@@ -390,6 +392,24 @@ export const SuperAdminDashboard: React.FC = () => {
                             </select>
                         </div>
 
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Tier do Plano</label>
+                            <select
+                                className="w-full p-2 border rounded text-sm"
+                                value={editingChurch.planTier || 'bronze'}
+                                onChange={e => setEditingChurch({...editingChurch, planTier: e.target.value as PlanTier})}
+                                disabled={editingChurch.planType === 'isento'}
+                            >
+                                <option value="bronze">Bronze — até 100 membros, 2 cong.</option>
+                                <option value="prata">Prata — até 300 membros, 5 cong.</option>
+                                <option value="ouro">Ouro — até 700 membros, 10 cong.</option>
+                                <option value="diamond">Diamond — ilimitado</option>
+                            </select>
+                            {editingChurch.planType === 'isento' && (
+                                <p className="text-[10px] text-gray-400 mt-1">Igrejas isentas têm acesso ilimitado independente do tier.</p>
+                            )}
+                        </div>
+
                         {editingChurch.planType && editingChurch.planType !== 'isento' && (
                             <div>
                                 <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Dia de Vencimento</label>
@@ -517,6 +537,34 @@ export const SuperAdminDashboard: React.FC = () => {
                             <div className="min-w-0 flex-1">
                                 <div className="font-bold text-xs md:text-sm text-gray-900 truncate uppercase">{church.name}</div>
                                 <div className="text-[10px] text-gray-500 truncate">{church.address}</div>
+                                
+                                {/* Consumption bars */}
+                                {church.planTier && church.planTier !== 'diamond' && church.planType !== 'isento' && (() => {
+                                    const lim = PLAN_LIMITS[church.planTier!];
+                                    const mCount = members.filter(m => m.churchId === church.id).length;
+                                    const cCount = churches.filter(c => c.parentId === church.id).length;
+                                    const mPct = Math.min(100, Math.round((mCount / lim.sedeMembers) * 100));
+                                    const cPct = Math.min(100, Math.round((cCount / lim.maxCongs) * 100));
+                                    const barColor = (pct: number) => pct >= 100 ? 'bg-red-500' : pct >= 80 ? 'bg-yellow-400' : 'bg-emerald-400';
+                                    return (
+                                        <div className="mt-1.5 space-y-1">
+                                            <div className="flex items-center gap-1.5">
+                                                <span className="text-[8px] text-gray-400 w-12 shrink-0">Membros</span>
+                                                <div className="flex-1 h-1 bg-gray-200 rounded-full overflow-hidden">
+                                                    <div className={`h-full rounded-full ${barColor(mPct)}`} style={{ width: `${mPct}%` }} />
+                                                </div>
+                                                <span className={`text-[8px] font-bold shrink-0 ${mPct >= 100 ? 'text-red-600' : 'text-gray-500'}`}>{mCount}/{lim.sedeMembers}</span>
+                                            </div>
+                                            <div className="flex items-center gap-1.5">
+                                                <span className="text-[8px] text-gray-400 w-12 shrink-0">Cong.</span>
+                                                <div className="flex-1 h-1 bg-gray-200 rounded-full overflow-hidden">
+                                                    <div className={`h-full rounded-full ${barColor(cPct)}`} style={{ width: `${cPct}%` }} />
+                                                </div>
+                                                <span className={`text-[8px] font-bold shrink-0 ${cPct >= 100 ? 'text-red-600' : 'text-gray-500'}`}>{cCount}/{lim.maxCongs}</span>
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
                                 
                                 {/* MOBILE DATA VISIBLE HERE (Stacked) */}
                                 <div className="md:hidden mt-1 flex flex-wrap gap-1 items-center">

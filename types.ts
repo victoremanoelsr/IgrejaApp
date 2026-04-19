@@ -4,6 +4,7 @@ export type Role = 'SUPER_ADM' | 'PRESIDENTE' | 'VICE_PRESIDENTE' | 'DIRIGENTE' 
 export type ChurchType = 'SEDE' | 'CONGREGACAO';
 
 export type PlanType = 'mensal' | 'bimestral' | 'trimestral' | 'semestral' | 'anual' | 'isento';
+export type PlanTier = 'bronze' | 'prata' | 'ouro' | 'diamond';
 
 export interface Church {
   id: string;
@@ -17,6 +18,7 @@ export interface Church {
   type: ChurchType; 
   parentId?: string;
   planType?: PlanType;
+  planTier?: PlanTier;
   dueDay?: number;
   gracePeriod?: number;
   paymentPromiseDate?: string;

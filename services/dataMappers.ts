@@ -13,9 +13,11 @@ export const toAppChurch = (data: any): Church => ({
   missionStatement: data.mission_statement,
   logoUrl: data.logo_url,
   planType: data.plan_type || 'isento',
+  planTier: data.plan_tier || undefined,
   dueDay: data.due_day ?? 10,
   gracePeriod: data.grace_period ?? 5,
   paymentPromiseDate: data.payment_promise_date || undefined,
+  lastPaymentDate: data.last_payment_date || undefined,
   pixKey: data.pix_key || undefined,
 });
 
