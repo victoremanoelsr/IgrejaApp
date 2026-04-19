@@ -20,6 +20,7 @@ export interface Church {
   dueDay?: number;
   gracePeriod?: number;
   paymentPromiseDate?: string;
+  lastPaymentDate?: string;
   pixKey?: string;
 }
 

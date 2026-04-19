@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../context';
 import { useNavigate } from 'react-router-dom';
-import { Building, Users, Eye, Power, Plus, UserPlus, Trash2, Edit2, User, AlertTriangle, CheckCircle, Info, CalendarClock, CreditCard } from 'lucide-react';
+import { Building, Users, Eye, Power, Plus, UserPlus, Trash2, Edit2, User, AlertTriangle, CheckCircle, Info, CalendarClock, CreditCard, BadgeCheck } from 'lucide-react';
 import { Church, User as UserType, Member, PlanType } from '../types';
 
 const PLAN_LABELS: Record<PlanType, string> = {
@@ -167,6 +167,37 @@ export const SuperAdminDashboard: React.FC = () => {
           () => deleteChurch(id),
           'danger'
       );
+  };
+
+  const PLAN_MONTHS: Record<string, number> = {
+    mensal: 1, bimestral: 2, trimestral: 3, semestral: 6, anual: 12,
+  };
+
+  const handleDarBaixa = (church: Church) => {
+    showConfirm(
+      'Dar Baixa no Pagamento',
+      `Confirmar recebimento do pagamento de "${church.name}"?\n\nIsso registrará a data de hoje como último pagamento e atualizará a data de vencimento conforme o plano da igreja.`,
+      async () => {
+        const today = new Date();
+        const todayStr = today.toISOString().split('T')[0];
+
+        const months = PLAN_MONTHS[church.planType ?? ''] ?? 1;
+        const nextDue = new Date(today);
+        nextDue.setMonth(nextDue.getMonth() + months);
+        const nextDueStr = nextDue.toISOString().split('T')[0];
+
+        const res = await updateChurch(church.id, {
+          lastPaymentDate: todayStr,
+          paymentPromiseDate: nextDueStr,
+        });
+        if (res.success) {
+          showAlert('Baixa Registrada!', `Pagamento de "${church.name}" confirmado.\nPróximo vencimento: ${nextDue.toLocaleDateString('pt-BR')}.`, 'success');
+        } else {
+          showAlert('Erro', `Não foi possível registrar o pagamento: ${res.error}`, 'danger');
+        }
+      },
+      'warning'
+    );
   };
 
   const handleAddPresident = async (e: React.FormEvent) => {
@@ -523,6 +554,15 @@ export const SuperAdminDashboard: React.FC = () => {
                             >
                             <Edit2 size={14} />
                             </button>
+                            {church.planType && church.planType !== 'isento' && (
+                            <button
+                              onClick={() => handleDarBaixa(church)}
+                              className="p-1.5 bg-emerald-50 text-emerald-600 rounded hover:bg-emerald-100 transition-colors"
+                              title="Dar Baixa no Pagamento"
+                            >
+                              <BadgeCheck size={14} />
+                            </button>
+                            )}
                             <button 
                             onClick={() => toggleChurchStatus(church.id)}
                             className={`p-1.5 rounded transition-colors ${church.active ? 'bg-yellow-50 text-yellow-600 hover:bg-yellow-100' : 'bg-green-50 text-green-600 hover:bg-green-100'}`}

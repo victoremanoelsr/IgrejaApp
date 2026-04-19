@@ -153,13 +153,38 @@ export const BillingPage: React.FC = () => {
                 </div>
                 <div>
                   <p className="text-xs text-slate-500 uppercase tracking-widest font-bold mb-1">Plano Atual</p>
-                  <h2 className="text-xl font-bold text-white">Plano Mensal — Pró</h2>
-                  <p className="text-slate-400 text-sm mt-0.5">Ativo · Próximo vencimento em <span className="text-yellow-400 font-semibold">25 de Abril de 2026</span></p>
+                  <h2 className="text-xl font-bold text-white capitalize">
+                    Plano {currentChurch?.planType ?? 'Mensal'}
+                  </h2>
+                  {currentChurch?.paymentPromiseDate ? (
+                    <p className="text-slate-400 text-sm mt-0.5">
+                      Ativo · Próximo vencimento em{' '}
+                      <span className="text-yellow-400 font-semibold">
+                        {new Date(currentChurch.paymentPromiseDate + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
+                      </span>
+                    </p>
+                  ) : (
+                    <p className="text-slate-400 text-sm mt-0.5">Sem vencimento registrado</p>
+                  )}
+                  {currentChurch?.lastPaymentDate && (
+                    <p className="text-slate-500 text-xs mt-0.5 flex items-center gap-1">
+                      <CheckCircle size={11} className="text-emerald-500" />
+                      Último pagamento:{' '}
+                      {new Date(currentChurch.lastPaymentDate + 'T12:00:00').toLocaleDateString('pt-BR')}
+                    </p>
+                  )}
                 </div>
               </div>
               <div className="text-right shrink-0">
-                <p className="text-3xl font-extrabold text-white">R$ 89<span className="text-lg text-slate-400">,90</span></p>
-                <p className="text-xs text-slate-500">/mês</p>
+                {currentChurch?.lastPaymentDate ? (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 rounded-full text-xs font-bold">
+                    <CheckCircle size={12} /> Em dia
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-yellow-500/15 border border-yellow-500/30 text-yellow-400 rounded-full text-xs font-bold">
+                    Aguardando
+                  </span>
+                )}
               </div>
             </div>
 
