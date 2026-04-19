@@ -13,6 +13,7 @@ import {
   HeartHandshake,
   Sparkles,
   ArrowUpRight,
+  DollarSign,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -53,7 +54,7 @@ const getHourGreeting = () => {
 };
 
 const Skeleton: React.FC<{ className?: string }> = ({ className = '' }) => (
-  <div className={`animate-pulse bg-slate-800 rounded-lg ${className}`} />
+  <div className={`animate-pulse bg-gray-200 rounded-xl ${className}`} />
 );
 
 export const MemberDashboard: React.FC = () => {
@@ -87,25 +88,25 @@ export const MemberDashboard: React.FC = () => {
     {
       label: 'Carteirinha',
       icon: CreditCard,
-      color: 'from-violet-600 to-indigo-700',
+      color: 'from-violet-500 to-indigo-600',
       action: () => navigate('/portal/carteirinha'),
     },
     {
       label: 'Carnês',
       icon: BookOpen,
-      color: 'from-emerald-600 to-teal-700',
+      color: 'from-emerald-500 to-teal-600',
       action: () => navigate('/portal/carnets'),
     },
     {
       label: 'Financeiro',
-      icon: Wallet,
+      icon: DollarSign,
       color: 'from-orange-500 to-red-600',
       action: () => navigate('/portal/financeiro'),
     },
     {
       label: 'Eventos',
       icon: Calendar,
-      color: 'from-blue-600 to-cyan-700',
+      color: 'from-blue-500 to-cyan-600',
       action: () => {
         document.getElementById('eventos-section')?.scrollIntoView({ behavior: 'smooth' });
       },
@@ -113,18 +114,18 @@ export const MemberDashboard: React.FC = () => {
   ];
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6 max-w-2xl">
       {/* Greeting */}
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-slate-400 text-sm">{getHourGreeting()},</p>
-          <h1 className="text-white text-2xl font-bold leading-tight">{firstName} 👋</h1>
+          <p className="text-gray-500 text-sm">{getHourGreeting()},</p>
+          <h1 className="text-2xl font-bold text-gray-800">{firstName} 👋</h1>
           {member.status && (
             <span
-              className={`inline-flex items-center gap-1 mt-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${
+              className={`inline-flex items-center gap-1.5 mt-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${
                 member.status === 'ATIVO'
-                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
-                  : 'bg-slate-700/50 text-slate-400 border-slate-600/30'
+                  ? 'bg-green-100 text-green-700 border-green-200'
+                  : 'bg-gray-100 text-gray-500 border-gray-200'
               }`}
             >
               <span className="w-1.5 h-1.5 rounded-full bg-current" />
@@ -132,38 +133,32 @@ export const MemberDashboard: React.FC = () => {
             </span>
           )}
         </div>
-        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center text-white font-bold text-base overflow-hidden border-2 border-orange-500/30 shadow-lg shadow-orange-500/20 shrink-0">
+        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center text-white font-bold text-base overflow-hidden border-2 border-orange-200 shadow-sm shrink-0">
           {member.photo ? (
             <img src={member.photo} alt={member.name} className="w-full h-full object-cover" />
           ) : (
-            member.name
-              .split(' ')
-              .filter(Boolean)
-              .slice(0, 2)
-              .map((w) => w[0])
-              .join('')
-              .toUpperCase()
+            member.name.split(' ').filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase()
           )}
         </div>
       </div>
 
       {/* Verse of the Day */}
-      <div className="bg-slate-900 border border-slate-800/60 rounded-2xl p-4">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
         <div className="flex items-center gap-2 mb-2">
-          <Sparkles size={12} className="text-amber-400" />
-          <span className="text-amber-400 text-[10px] font-bold uppercase tracking-widest">
+          <Sparkles size={12} className="text-amber-500" />
+          <span className="text-amber-600 text-[10px] font-bold uppercase tracking-widest">
             Versículo do Dia
           </span>
         </div>
-        <p className="text-slate-200 text-sm leading-relaxed italic">"{versiculoDoDia.texto}"</p>
-        <p className="text-slate-500 text-[11px] mt-2 font-semibold">— {versiculoDoDia.referencia}</p>
+        <p className="text-gray-700 text-sm leading-relaxed italic">"{versiculoDoDia.texto}"</p>
+        <p className="text-gray-400 text-[11px] mt-2 font-semibold">— {versiculoDoDia.referencia}</p>
       </div>
 
       {/* Tithe Card */}
       {isLoading ? (
-        <Skeleton className="h-36 rounded-2xl" />
+        <Skeleton className="h-36" />
       ) : (
-        <div className="relative bg-gradient-to-br from-orange-500 via-orange-600 to-red-700 rounded-2xl p-5 overflow-hidden shadow-xl shadow-orange-500/20">
+        <div className="relative bg-gradient-to-br from-orange-500 via-orange-600 to-red-700 rounded-xl p-5 overflow-hidden shadow-md">
           <div className="absolute -top-8 -right-8 w-32 h-32 bg-white/10 rounded-full blur-sm" />
           <div className="absolute -bottom-10 -left-4 w-28 h-28 bg-white/5 rounded-full" />
           <div className="relative">
@@ -180,18 +175,12 @@ export const MemberDashboard: React.FC = () => {
               {church.pixKey ? (
                 <button
                   onClick={handleCopyPix}
-                  className="inline-flex items-center gap-2 bg-white/15 hover:bg-white/25 active:scale-95 border border-white/20 rounded-xl px-3 py-2 text-white text-xs font-semibold transition-all"
+                  className="inline-flex items-center gap-2 bg-white/15 hover:bg-white/25 active:scale-95 border border-white/20 rounded-lg px-3 py-2 text-white text-xs font-semibold transition-all"
                 >
                   {copied ? (
-                    <>
-                      <CheckCheck size={13} className="text-green-300" />
-                      Chave copiada!
-                    </>
+                    <><CheckCheck size={13} className="text-green-300" />Chave copiada!</>
                   ) : (
-                    <>
-                      <Copy size={13} />
-                      Copiar Chave PIX
-                    </>
+                    <><Copy size={13} />Copiar Chave PIX</>
                   )}
                 </button>
               ) : (
@@ -210,9 +199,7 @@ export const MemberDashboard: React.FC = () => {
 
       {/* Quick Actions */}
       <div>
-        <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mb-3">
-          Atalhos Rápidos
-        </p>
+        <h2 className="text-sm font-semibold text-gray-700 mb-3">Atalhos Rápidos</h2>
         <div className="grid grid-cols-4 gap-3">
           {quickActions.map(({ label, icon: Icon, color, action }) => (
             <button
@@ -220,12 +207,10 @@ export const MemberDashboard: React.FC = () => {
               onClick={action}
               className="flex flex-col items-center gap-2 active:scale-95 transition-transform"
             >
-              <div
-                className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${color} flex items-center justify-center shadow-lg`}
-              >
+              <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${color} flex items-center justify-center shadow-sm`}>
                 <Icon size={22} className="text-white" strokeWidth={1.8} />
               </div>
-              <span className="text-slate-400 text-[10px] font-semibold text-center leading-tight">
+              <span className="text-gray-500 text-[10px] font-semibold text-center leading-tight">
                 {label}
               </span>
             </button>
@@ -236,12 +221,13 @@ export const MemberDashboard: React.FC = () => {
       {/* Recent Contributions */}
       <div>
         <div className="flex items-center justify-between mb-3">
-          <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">
+          <h2 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+            <Wallet size={14} className="text-orange-500" />
             Atividade Recente
-          </p>
+          </h2>
           <button
             onClick={() => navigate('/portal/financeiro')}
-            className="text-orange-400 text-xs flex items-center gap-0.5 hover:text-orange-300 transition-colors"
+            className="text-orange-500 text-xs flex items-center gap-0.5 hover:text-orange-600 transition-colors"
           >
             Ver tudo <ChevronRight size={12} />
           </button>
@@ -249,31 +235,29 @@ export const MemberDashboard: React.FC = () => {
 
         {isLoading ? (
           <div className="space-y-2">
-            {[1, 2, 3].map((i) => (
-              <Skeleton key={i} className="h-16 rounded-xl" />
-            ))}
+            {[1, 2, 3].map((i) => <Skeleton key={i} className="h-16" />)}
           </div>
         ) : recentContributions.length === 0 ? (
-          <div className="bg-slate-900 border border-slate-800/60 rounded-2xl p-8 text-center">
-            <Wallet size={28} className="text-slate-700 mx-auto mb-2" />
-            <p className="text-slate-500 text-sm">Nenhuma contribuição registrada.</p>
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-10 text-center">
+            <Wallet size={28} className="text-gray-300 mx-auto mb-2" />
+            <p className="text-gray-400 text-sm">Nenhuma contribuição registrada.</p>
           </div>
         ) : (
-          <div className="bg-slate-900 border border-slate-800/60 rounded-2xl overflow-hidden divide-y divide-slate-800/60">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 divide-y divide-gray-100">
             {recentContributions.map((txn) => (
-              <div key={txn.id} className="p-4 flex items-center justify-between">
+              <div key={txn.id} className="p-3 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0">
-                    <TrendingUp size={15} className="text-emerald-400" />
+                  <div className="w-8 h-8 rounded-lg bg-green-100 border border-green-200 flex items-center justify-center shrink-0">
+                    <TrendingUp size={14} className="text-green-600" />
                   </div>
                   <div>
-                    <p className="text-slate-200 text-sm font-semibold">
+                    <p className="text-gray-800 text-xs font-semibold">
                       {categoryLabel[txn.category] || txn.category}
                     </p>
-                    <p className="text-slate-500 text-[11px]">{formatDate(txn.date)}</p>
+                    <p className="text-gray-400 text-[10px]">{formatDate(txn.date)}</p>
                   </div>
                 </div>
-                <span className="text-emerald-400 text-sm font-bold">
+                <span className="text-green-600 text-sm font-bold">
                   {formatCurrency(txn.amount)}
                 </span>
               </div>
@@ -285,21 +269,19 @@ export const MemberDashboard: React.FC = () => {
       {/* Upcoming Events */}
       {upcomingEvents.length > 0 && (
         <div id="eventos-section">
-          <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-3">
+          <h2 className="text-sm font-semibold text-gray-700 flex items-center gap-2 mb-3">
+            <Calendar size={14} className="text-orange-500" />
             Próximos Eventos
-          </p>
+          </h2>
           <div className="space-y-2">
             {upcomingEvents.map((event) => (
-              <div
-                key={event.id}
-                className="bg-slate-900 border border-slate-800/60 rounded-2xl p-4 flex items-center gap-3"
-              >
-                <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center shrink-0">
-                  <Calendar size={16} className="text-blue-400" />
+              <div key={event.id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 flex items-center gap-3">
+                <div className="bg-orange-100 border border-orange-200 rounded-lg p-2 shrink-0">
+                  <Calendar size={14} className="text-orange-500" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-slate-200 text-sm font-semibold truncate">{event.name}</p>
-                  <p className="text-slate-500 text-[11px] flex items-center gap-1 mt-0.5">
+                  <p className="text-gray-800 text-xs font-semibold truncate">{event.name}</p>
+                  <p className="text-gray-400 text-[10px] flex items-center gap-1 mt-0.5">
                     <Clock size={10} />
                     {formatDate(event.date)} às {event.time}
                     {event.location && ` · ${event.location}`}
@@ -311,19 +293,17 @@ export const MemberDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* Prayer Request Button */}
-      <button className="w-full flex items-center gap-3 bg-slate-900 border border-slate-800/60 rounded-2xl p-4 active:scale-[0.98] transition-transform">
-        <div className="w-10 h-10 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center shrink-0">
-          <HeartHandshake size={16} className="text-violet-400" />
+      {/* Prayer Request */}
+      <button className="w-full flex items-center gap-3 bg-white border border-gray-200 rounded-xl p-4 text-left shadow-sm hover:border-orange-300 hover:shadow-md transition-all active:scale-[0.99]">
+        <div className="w-8 h-8 rounded-lg bg-violet-100 border border-violet-200 flex items-center justify-center shrink-0">
+          <HeartHandshake size={14} className="text-violet-500" />
         </div>
-        <div className="text-left flex-1">
-          <p className="text-slate-200 text-sm font-semibold">Pedido de Oração</p>
-          <p className="text-slate-500 text-[11px]">Envie um pedido ao seu pastor</p>
+        <div className="flex-1">
+          <p className="text-gray-800 text-sm font-semibold">Pedido de Oração</p>
+          <p className="text-gray-400 text-xs">Envie um pedido ao seu pastor</p>
         </div>
-        <ChevronRight size={16} className="text-slate-600 shrink-0" />
+        <ChevronRight size={16} className="text-gray-300 shrink-0" />
       </button>
-
-      <div className="h-2" />
     </div>
   );
 };
