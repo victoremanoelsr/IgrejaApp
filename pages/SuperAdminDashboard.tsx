@@ -596,7 +596,7 @@ export const SuperAdminDashboard: React.FC = () => {
                             <Eye size={14}/>
                             </button>
                             <button 
-                            onClick={() => setEditingChurch(church)}
+                            onClick={() => setEditingChurch({ ...church, planTier: church.planTier ?? 'bronze' })}
                             className="p-1.5 bg-blue-50 text-blue-600 rounded hover:bg-blue-100 transition-colors"
                             title="Editar"
                             >

@@ -65,7 +65,7 @@ export function calcSavings(basePrice: number, cycle: PlanType): number {
 export const usePlanLimits = () => {
   const { currentChurch, members, churches } = useApp();
 
-  const tier = (currentChurch?.planType === 'isento' ? 'isento' : currentChurch?.planTier) ?? 'diamond';
+  const tier = (currentChurch?.planType === 'isento' ? 'isento' : currentChurch?.planTier) ?? 'bronze';
   const limits: TierLimits = PLAN_LIMITS[tier as PlanTier | 'isento'] ?? PLAN_LIMITS.diamond;
 
   const currentMemberCount = members.filter(m => m.churchId === currentChurch?.id).length;
