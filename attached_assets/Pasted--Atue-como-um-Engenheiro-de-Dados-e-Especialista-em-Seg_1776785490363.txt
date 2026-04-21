@@ -1,0 +1,39 @@
+"Atue como um Engenheiro de Dados e Especialista em Segurança Supabase. Tenho um sistema SaaS de igrejas em produção e preciso implementar melhorias críticas de segurança e faturamento SEM realizar breaking changes (sem deletar tabelas existentes, sem resetar usuários ou senhas).
+
+1. Refinamento de RLS (Row Level Security) - CRÍTICO:
+
+Problema: Atualmente as políticas usam USING (true).
+
+Solução: Reimplemente as políticas de RLS para as tabelas members, finance, churches e congregações.
+
+Regra: Um usuário só pode VER e EDITAR dados onde o church_id do registro seja igual ao church_id vinculado ao seu profile (UUID do auth.uid()).
+
+Preservação: Não altere a estrutura da tabela profile, apenas use-a como referência para validar as permissões.
+
+2. Sistema de Auditoria (Logs):
+
+Crie uma tabela audit_logs (id, user_id, action, table_name, record_id, old_data, new_data, created_at).
+
+Implemente uma function e trigger no PostgreSQL que registre automaticamente qualquer operação de UPDATE ou DELETE nas tabelas financeiras e de membros.
+
+3. Lógica de Status (ON/OFF) e Faturamento:
+
+Fluxo de Bloqueio: Se a igreja estiver com status = 'off', o sistema deve redirecionar o login para a tela de 'Pagamento Pendente'.
+
+Liberação Automática: Crie a lógica para que, ao confirmar o pagamento no Painel Master, o status mude para 'on', liberando o acesso imediatamente.
+
+Visibilidade: A janela de pagamentos deve aparecer apenas na SEDE e apenas para os cargos: 'pr presidente', 'pr vice presidente' e 'tesoureiro'.
+
+4. Janela de Planos e WhatsApp:
+
+Implemente a grade de planos clicáveis (Bronze a Diamond) com os descontos progressivos (3% a 15%).
+
+O botão 'Contratar' deve abrir o WhatsApp configurado no Painel Master com a mensagem: 'Olá! Quero contratar o plano [NOME] no ciclo [CICLO] para a minha igreja.'
+
+5. Correção de Valores e Mobile:
+
+Garanta que o valor exibido na janela de pagamentos seja o valor real do plano salvo no banco.
+
+Substitua as tabelas por Cards de Listagem para evitar quebras no celular.
+
+IMPORTANTE: Forneça primeiro o script SQL de migração para o Supabase (para que eu aplique no Editor SQL) e depois o código dos componentes React atualizados."
