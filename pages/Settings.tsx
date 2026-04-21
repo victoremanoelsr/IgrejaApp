@@ -14,7 +14,7 @@ const validatePixKey = (key: string): { valid: boolean; type: string } => {
 };
 
 export const Settings: React.FC = () => {
-  const { user, churches, updateChurch, uploadChurchLogo } = useApp();
+  const { user, churches, updateChurch, uploadChurchLogo, systemSettings } = useApp();
   const currentChurch = churches.find(c => c.id === user?.churchId);
   
   // Encontrar a igreja pai (Sede) se for congregação
@@ -66,7 +66,8 @@ export const Settings: React.FC = () => {
       setPastorName(currentChurch.pastorName);
       setMission(currentChurch.missionStatement || '');
       setLogoUrl(currentChurch.logoUrl || '');
-      setPixKey(currentChurch.pixKey || '');
+      // Se a igreja ainda não tem PIX cadastrado, pré-preenche com o PIX master configurado pelo dono do sistema.
+      setPixKey(currentChurch.pixKey?.trim() || systemSettings.masterPixKey?.trim() || '');
     }
   }, [currentChurch]);
 

@@ -36,7 +36,7 @@ function generateUUID() {
 }
 
 export const SuperAdminDashboard: React.FC = () => {
-  const { churches, members, selectChurch, toggleChurchStatus, addChurch, addUser, addMember, deleteChurch, updateChurch, confirmChurchPayment } = useApp();
+  const { churches, members, selectChurch, toggleChurchStatus, addChurch, addUser, addMember, deleteChurch, updateChurch, confirmChurchPayment, systemSettings } = useApp();
   const navigate = useNavigate();
   
   const [showChurchForm, setShowChurchForm] = useState(false);
@@ -129,7 +129,9 @@ export const SuperAdminDashboard: React.FC = () => {
       address: newChurch.address.toUpperCase(),
       pastorName: newChurch.pastorName.toUpperCase(),
       active: true,
-      type: 'SEDE', 
+      type: 'SEDE',
+      // Pré-preenche a chave PIX da nova igreja com o PIX master do sistema (caso configurado).
+      pixKey: systemSettings.masterPixKey?.trim() || undefined,
     };
     addChurch(church);
     setShowChurchForm(false);
@@ -593,7 +595,12 @@ export const SuperAdminDashboard: React.FC = () => {
                             <Eye size={14}/>
                             </button>
                             <button 
-                            onClick={() => setEditingChurch({ ...church, planTier: church.planTier ?? 'bronze' })}
+                            onClick={() => setEditingChurch({
+                              ...church,
+                              planTier: church.planTier ?? 'bronze',
+                              // Se a igreja ainda não possui PIX, abre com o PIX master pré-preenchido.
+                              pixKey: church.pixKey?.trim() || systemSettings.masterPixKey?.trim() || '',
+                            })}
                             className="p-1.5 bg-blue-50 text-blue-600 rounded hover:bg-blue-100 transition-colors"
                             title="Editar"
                             >

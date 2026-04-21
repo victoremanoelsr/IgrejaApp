@@ -59,8 +59,9 @@ export const BillingPage: React.FC = () => {
   const { user, currentChurch, systemSettings } = useApp();
   const planLimits = usePlanLimits();
   const isIsento    = currentChurch?.planType === 'isento';
-  // PIX exibido: prioriza chave da própria igreja; fallback para PIX master do dono do sistema.
-  const billingPix  = (currentChurch?.pixKey?.trim() || systemSettings.masterPixKey?.trim() || '');
+  // PIX exibido na cobrança do SaaS: por padrão usa o PIX master do dono do sistema;
+  // fallback para o PIX cadastrado na própria igreja apenas se o master não estiver configurado.
+  const billingPix  = (systemSettings.masterPixKey?.trim() || currentChurch?.pixKey?.trim() || '');
   const [isLoading, setIsLoading]       = useState(true);
   const [showPlansModal, setShowPlansModal] = useState(false);
   const [copied, setCopied]             = useState(false);
