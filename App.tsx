@@ -35,10 +35,24 @@ import { MemberPerfil } from './pages/member/MemberPerfil';
 import { CarteirinhaDigital } from './pages/member/CarteirinhaDigital';
 import { BlockedPage } from './pages/BlockedPage';
 import { BillingPage } from './pages/BillingPage';
+import { ConfiguracoesSaas } from './pages/ConfiguracoesSaas';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles?: string[] }> = ({ children, allowedRoles }) => {
-  const { user } = useApp();
+  const { user, currentChurch, churches } = useApp();
   if (!user) return <Navigate to="/" replace />;
+
+  // Bloqueio automático: se a SEDE da igreja atual estiver com status 'off' (active=false),
+  // restringe o acesso à tela de Pagamento Pendente. SUPER_ADM nunca é bloqueado.
+  if (user.role !== 'SUPER_ADM' && currentChurch) {
+    let sede = currentChurch;
+    if (sede.type === 'CONGREGACAO' && sede.parentId) {
+      const parent = churches.find(c => c.id === sede.parentId);
+      if (parent) sede = parent;
+    }
+    if (sede.active === false) {
+      return <Navigate to="/bloqueado" replace />;
+    }
+  }
   
   const missionsRoles = ['PRESIDENTE_MISSOES', 'VICE_MISSOES', 'TESOUREIRO_MISSOES', 'SECRETARIO_MISSOES'];
   const youthRoles = ['LIDER_JOVENS', 'TESOUREIRO_JOVENS'];
@@ -83,6 +97,7 @@ const AppRoutes = () => {
 
       {/* Super Admin Panel */}
       <Route path="/admin/dashboard" element={<ProtectedRoute allowedRoles={['SUPER_ADM']}><SuperAdminDashboard /></ProtectedRoute>} />
+      <Route path="/admin/configuracoes-saas" element={<ProtectedRoute allowedRoles={['SUPER_ADM']}><ConfiguracoesSaas /></ProtectedRoute>} />
 
       {/* Nova Rota Central de Departamentos */}
       <Route path="/departamentos" element={<ProtectedRoute allowedRoles={['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE']}><Departments /></ProtectedRoute>} />
@@ -115,7 +130,7 @@ const AppRoutes = () => {
       <Route path="/usuarios" element={<ProtectedRoute allowedRoles={['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'DIRIGENTE']}><Users /></ProtectedRoute>} />
       <Route path="/congregacoes" element={<ProtectedRoute allowedRoles={['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE']}><Congregations /></ProtectedRoute>} />
       <Route path="/infraestrutura" element={<ProtectedRoute allowedRoles={['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'DIRIGENTE', 'TESOUREIRO', 'SECRETARIO']}><Infrastructure /></ProtectedRoute>} />
-      <Route path="/faturamento" element={<ProtectedRoute allowedRoles={['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE']}><BillingPage /></ProtectedRoute>} />
+      <Route path="/faturamento" element={<ProtectedRoute allowedRoles={['PRESIDENTE', 'VICE_PRESIDENTE', 'TESOUREIRO']}><BillingPage /></ProtectedRoute>} />
     </Routes>
   );
 };

@@ -196,7 +196,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     { label: t('nav.reports'), icon: FileText, path: '/relatorios', roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'DIRIGENTE', 'TESOUREIRO', 'SECRETARIO'] },
     { label: t('nav.users'), icon: ShieldCheck, path: '/usuarios', roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'DIRIGENTE'] },
     { label: t('nav.settings'), icon: Settings, path: '/configuracoes', roles: ['SUPER_ADM', 'PRESIDENTE', 'DIRIGENTE'] },
-    { label: 'Pagamentos do Sistema', icon: CreditCard, path: '/faturamento', roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE'] },
+    { label: 'Pagamentos do Sistema', icon: CreditCard, path: '/faturamento', roles: ['PRESIDENTE', 'VICE_PRESIDENTE', 'TESOUREIRO'] },
   ];
 
   const missionsMenuItems: MenuItem[] = [
@@ -265,6 +265,8 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   const backLabel = t('common.backToGeneral');
   const visibleMenuItems = itemsToRender.filter(item => {
     if (item.path === '/congregacoes' && currentChurch?.type !== 'SEDE') return false;
+    // 'Pagamentos do Sistema' aparece SOMENTE no painel da SEDE.
+    if (item.path === '/faturamento' && currentChurch?.type !== 'SEDE') return false;
     if (item.path === '/departamentos' && item.label === backLabel && !['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE'].includes(user.role)) return false;
     if (item.path === '/dashboard' && item.label === backLabel && ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE'].includes(user.role)) return false;
 

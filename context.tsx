@@ -4,7 +4,7 @@ import { supabase } from './services/supabaseClient';
 import { 
   User, Church, Member, Transaction, Campaign, Event, Minute, 
   FixedExpense, LetterHistory, BookletSettings, CarnetTemplate, LetterTemplate,
-  PhysicalSpace, Asset
+  PhysicalSpace, Asset, SystemSettings
 } from './types';
 import { 
   toAppUser, toAppChurch, toAppMember, toAppTransaction, 
@@ -117,6 +117,12 @@ interface AppContextType {
   isOnline: boolean;
   pendingOfflineCount: number;
   syncOfflineTransactions: () => Promise<void>;
+
+  // SaaS master settings (sales WhatsApp, master PIX, support email)
+  systemSettings: SystemSettings;
+  saveSystemSettings: (s: SystemSettings) => Promise<{success: boolean, error?: string}>;
+  // Confirma o pagamento manual da igreja (status off->on + nova next_billing_date)
+  confirmChurchPayment: (churchId: string) => Promise<{success: boolean, error?: string, nextDueDate?: string}>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -167,6 +173,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [pendingOfflineCount, setPendingOfflineCount] = useState(0);
+  const [systemSettings, setSystemSettings] = useState<SystemSettings>(() => {
+    try {
+      const raw = localStorage.getItem('igrejaapp_system_settings');
+      return raw ? JSON.parse(raw) as SystemSettings : {};
+    } catch { return {}; }
+  });
 
   interface ToastItem { id: string; message: string; type: ToastType; duration?: number; }
   const [toasts, setToasts] = useState<ToastItem[]>([]);
@@ -237,6 +249,65 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const { data: assetsData } = await supabase.from('inventory_assets').select('*').order('created_at', { ascending: true });
     if(assetsData) setAssets(assetsData.map(toAppAsset));
+
+    // System settings (single-row table). Falha silenciosa se a tabela não existir.
+    try {
+      const { data: sysData } = await supabase.from('system_settings').select('*').eq('id', 1).maybeSingle();
+      if (sysData) {
+        const next: SystemSettings = {
+          salesPhone:    sysData.sales_phone     || undefined,
+          masterPixKey:  sysData.master_pix_key  || undefined,
+          supportEmail:  sysData.support_email   || undefined,
+        };
+        setSystemSettings(next);
+        try { localStorage.setItem('igrejaapp_system_settings', JSON.stringify(next)); } catch {}
+      }
+    } catch (e) { /* tabela inexistente — usa cache local */ }
+  };
+
+  const saveSystemSettings = async (s: SystemSettings) => {
+    const payload = {
+      id: 1,
+      sales_phone:    s.salesPhone     || null,
+      master_pix_key: s.masterPixKey   || null,
+      support_email:  s.supportEmail   || null,
+      updated_at:     new Date().toISOString(),
+    };
+    try {
+      const { error } = await supabase.from('system_settings').upsert(payload, { onConflict: 'id' });
+      if (error && !/relation .* does not exist/i.test(error.message)) {
+        return { success: false, error: error.message };
+      }
+    } catch (e: any) {
+      // tabela inexistente — segue salvando apenas localmente
+    }
+    setSystemSettings(s);
+    try { localStorage.setItem('igrejaapp_system_settings', JSON.stringify(s)); } catch {}
+    return { success: true };
+  };
+
+  const PLAN_MONTHS_INTERNAL: Record<string, number> = {
+    mensal: 1, bimestral: 2, trimestral: 3, semestral: 6, anual: 12, isento: 0,
+  };
+
+  const confirmChurchPayment = async (churchId: string) => {
+    const church = churches.find(c => c.id === churchId);
+    if (!church) return { success: false, error: 'Igreja não encontrada' };
+
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+    const months = PLAN_MONTHS_INTERNAL[church.planType ?? 'mensal'] ?? 1;
+    const nextDue = new Date(today);
+    if (months > 0) nextDue.setMonth(nextDue.getMonth() + months);
+    const nextDueStr = nextDue.toISOString().split('T')[0];
+
+    const res = await updateChurch(churchId, {
+      active: true,
+      lastPaymentDate: todayStr,
+      paymentPromiseDate: nextDueStr,
+    });
+    if (!res.success) return { success: false, error: res.error };
+    return { success: true, nextDueDate: nextDueStr };
   };
 
   const isChurchBlocked = async (churchId: string, churchList: Church[]): Promise<boolean> => {
@@ -1007,6 +1078,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     isOnline,
     pendingOfflineCount,
     syncOfflineTransactions,
+    systemSettings,
+    saveSystemSettings,
+    confirmChurchPayment,
   };
 
   return (

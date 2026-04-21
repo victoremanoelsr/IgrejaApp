@@ -1,17 +1,19 @@
 import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   CreditCard, ShieldCheck, Receipt, CheckCircle, Clock, AlertCircle,
   Zap, ChevronRight, X, Copy, RefreshCw, Gift, Users, Building2,
-  Star, Crown, Gem, TrendingUp, Info
+  Star, Crown, Gem, TrendingUp, Info, MessageCircle, Home
 } from 'lucide-react';
 import { useApp } from '../context';
-import { PlanType } from '../types';
+import { PlanType, PlanTier } from '../types';
 import {
   usePlanLimits, PLAN_LIMITS, CYCLE_DISCOUNTS, CYCLE_MONTHS, CYCLE_LABELS,
   calcPrice, calcSavings, TierLimits
 } from '../hooks/usePlanLimits';
 
-const BILLING_ROLES = ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE'];
+// RBAC: apenas estes cargos podem visualizar/interagir com a janela na SEDE.
+const BILLING_ROLES = ['PRESIDENTE', 'VICE_PRESIDENTE', 'TESOUREIRO'];
 
 type InvoiceStatus = 'PAGO' | 'PENDENTE' | 'VENCIDO';
 
@@ -43,15 +45,19 @@ const CYCLES: PlanType[] = ['mensal', 'bimestral', 'trimestral', 'semestral', 'a
 const TIERS = ['bronze', 'prata', 'ouro', 'diamond'] as const;
 
 export const BillingPage: React.FC = () => {
-  const { user, currentChurch } = useApp();
+  const { user, currentChurch, systemSettings } = useApp();
   const planLimits = usePlanLimits();
   const isIsento    = currentChurch?.planType === 'isento';
-  const billingPix  = currentChurch?.pixKey?.trim() || '';
+  // PIX exibido: prioriza chave da própria igreja; fallback para PIX master do dono do sistema.
+  const billingPix  = (currentChurch?.pixKey?.trim() || systemSettings.masterPixKey?.trim() || '');
   const [isLoading, setIsLoading]       = useState(true);
   const [showPlansModal, setShowPlansModal] = useState(false);
   const [copied, setCopied]             = useState(false);
   const [selectedCycle, setSelectedCycle] = useState<PlanType>(
     (currentChurch?.planType && currentChurch.planType !== 'isento') ? currentChurch.planType : 'mensal'
+  );
+  const [selectedTier, setSelectedTier] = useState<PlanTier>(
+    (currentChurch?.planTier as PlanTier) || 'bronze'
   );
 
   useEffect(() => {
@@ -59,12 +65,26 @@ export const BillingPage: React.FC = () => {
     return () => clearTimeout(t);
   }, []);
 
+  // Visibilidade estrita: somente no painel da SEDE.
+  if (currentChurch && currentChurch.type !== 'SEDE') {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-8">
+        <Home size={48} className="text-yellow-500 mb-4" />
+        <h2 className="text-xl font-bold text-white mb-2">Disponível apenas na Sede</h2>
+        <p className="text-slate-400 max-w-md">
+          A janela "Pagamentos do Sistema" só pode ser acessada a partir do painel da igreja Sede.
+          Selecione a sua sede no seletor de igreja para gerenciar a assinatura.
+        </p>
+      </div>
+    );
+  }
+
   if (!user || !BILLING_ROLES.includes(user.role)) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-8">
         <ShieldCheck size={48} className="text-red-500 mb-4" />
         <h2 className="text-xl font-bold text-white mb-2">Acesso Negado</h2>
-        <p className="text-slate-400">Você não tem permissão para acessar esta área.</p>
+        <p className="text-slate-400">Apenas Pastor Presidente, Vice-Presidente e Tesoureiro podem acessar esta área.</p>
       </div>
     );
   }
@@ -75,6 +95,19 @@ export const BillingPage: React.FC = () => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2500);
     });
+  };
+
+  // Botão "Contratar Novo Plano": abre WhatsApp do dono do sistema com mensagem pré-definida.
+  const openWhatsAppCheckout = (tierId: PlanTier, cycle: PlanType) => {
+    const tierLabel = PLAN_LIMITS[tierId]?.label ?? tierId;
+    const cycleLabel = CYCLE_LABELS[cycle] ?? cycle;
+    const churchName = currentChurch?.name ?? 'minha igreja';
+    const msg = `Olá! Quero contratar o plano ${tierLabel} no ciclo ${cycleLabel} para a minha igreja (${churchName}).`;
+    const phone = (systemSettings.salesPhone || '').replace(/\D+/g, '');
+    const url = phone
+      ? `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`
+      : `https://wa.me/?text=${encodeURIComponent(msg)}`;
+    window.open(url, '_blank');
   };
 
   const StatusBadge: React.FC<{ status: InvoiceStatus }> = ({ status }) => {
@@ -150,7 +183,12 @@ export const BillingPage: React.FC = () => {
   const isUnlimitedTier = currentTierKey === 'diamond' || currentTierKey === 'isento';
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 pb-12">
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35, ease: 'easeOut' }}
+      className="max-w-4xl mx-auto space-y-6 pb-12"
+    >
 
       {/* Header */}
       <div className="flex items-center gap-3 pb-4 border-b border-slate-700">
@@ -451,10 +489,17 @@ export const BillingPage: React.FC = () => {
                 const isCurrent = currentChurch?.planTier === tierId;
                 const isUnlim   = tierId === 'diamond';
 
+                const isSelected = selectedTier === tierId;
                 return (
-                  <div
+                  <motion.button
+                    type="button"
                     key={tierId}
-                    className={`relative flex flex-col rounded-2xl border overflow-hidden transition-all ${meta.border} ${isCurrent ? 'ring-2 ring-offset-2 ring-offset-slate-900 ring-blue-500' : ''}`}
+                    onClick={() => setSelectedTier(tierId)}
+                    whileHover={{ y: -2 }}
+                    whileTap={{ scale: 0.98 }}
+                    className={`relative flex flex-col rounded-2xl border overflow-hidden transition-all text-left cursor-pointer ${meta.border}
+                      ${isSelected ? 'ring-2 ring-blue-500 shadow-lg shadow-blue-500/50' : 'hover:border-blue-500/40'}
+                      ${isCurrent && !isSelected ? 'ring-2 ring-offset-2 ring-offset-slate-900 ring-blue-500/60' : ''}`}
                   >
                     {meta.badge && (
                       <div className={`absolute top-0 left-0 right-0 text-center text-[10px] font-extrabold uppercase py-1 ${tierId === 'diamond' ? 'bg-cyan-500 text-white' : 'bg-slate-600 text-white'}`}>
@@ -513,17 +558,28 @@ export const BillingPage: React.FC = () => {
                         )}
                       </ul>
                     </div>
-                  </div>
+                  </motion.button>
                 );
               })}
             </div>
 
-            <div className="px-6 pb-5 shrink-0">
-              <p className="text-xs text-slate-600 text-center">Para realizar a migração de plano, entre em contato com o suporte administrativo.</p>
+            <div className="px-6 pb-5 shrink-0 space-y-3">
+              <motion.button
+                type="button"
+                onClick={() => openWhatsAppCheckout(selectedTier, selectedCycle)}
+                whileTap={{ scale: 0.97 }}
+                className="w-full flex items-center justify-center gap-2 py-3 px-5 bg-green-600 hover:bg-green-500 text-white rounded-xl font-bold text-sm transition-colors shadow-lg shadow-green-900/30"
+              >
+                <MessageCircle size={18} />
+                Contratar Novo Plano
+              </motion.button>
+              <p className="text-[11px] text-slate-600 text-center">
+                Você será direcionado ao WhatsApp do administrador IgrejaApp para finalizar a contratação.
+              </p>
             </div>
           </div>
         </div>
       )}
-    </div>
+    </motion.div>
   );
 };

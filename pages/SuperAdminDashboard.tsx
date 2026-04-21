@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../context';
 import { useNavigate } from 'react-router-dom';
-import { Building, Users, Eye, Power, Plus, UserPlus, Trash2, Edit2, User, AlertTriangle, CheckCircle, Info, CalendarClock, CreditCard, BadgeCheck } from 'lucide-react';
+import { Building, Users, Eye, Power, Plus, UserPlus, Trash2, Edit2, User, AlertTriangle, CheckCircle, Info, CalendarClock, CreditCard, BadgeCheck, Crown } from 'lucide-react';
 import { Church, User as UserType, Member, PlanType, PlanTier } from '../types';
 import { PLAN_LIMITS } from '../hooks/usePlanLimits';
 
@@ -36,7 +36,7 @@ function generateUUID() {
 }
 
 export const SuperAdminDashboard: React.FC = () => {
-  const { churches, members, selectChurch, toggleChurchStatus, addChurch, addUser, addMember, deleteChurch, updateChurch } = useApp();
+  const { churches, members, selectChurch, toggleChurchStatus, addChurch, addUser, addMember, deleteChurch, updateChurch, confirmChurchPayment } = useApp();
   const navigate = useNavigate();
   
   const [showChurchForm, setShowChurchForm] = useState(false);
@@ -178,24 +178,14 @@ export const SuperAdminDashboard: React.FC = () => {
   const handleDarBaixa = (church: Church) => {
     showConfirm(
       'Dar Baixa no Pagamento',
-      `Confirmar recebimento do pagamento de "${church.name}"?\n\nIsso registrará a data de hoje como último pagamento e atualizará a data de vencimento conforme o plano da igreja.`,
+      `Confirmar recebimento do pagamento de "${church.name}"?\n\nIsso reativará o acesso (status ON), registrará a data de hoje como último pagamento e atualizará o próximo vencimento conforme o ciclo do plano.`,
       async () => {
-        const today = new Date();
-        const todayStr = today.toISOString().split('T')[0];
-
-        const months = PLAN_MONTHS[church.planType ?? ''] ?? 1;
-        const nextDue = new Date(today);
-        nextDue.setMonth(nextDue.getMonth() + months);
-        const nextDueStr = nextDue.toISOString().split('T')[0];
-
-        const res = await updateChurch(church.id, {
-          lastPaymentDate: todayStr,
-          paymentPromiseDate: nextDueStr,
-        });
-        if (res.success) {
-          showAlert('Baixa Registrada!', `Pagamento de "${church.name}" confirmado.\nPróximo vencimento: ${nextDue.toLocaleDateString('pt-BR')}.`, 'success');
+        const res = await confirmChurchPayment(church.id);
+        if (res.success && res.nextDueDate) {
+          const nice = new Date(res.nextDueDate + 'T00:00:00').toLocaleDateString('pt-BR');
+          showAlert('Baixa Registrada!', `Pagamento de "${church.name}" confirmado e acesso liberado.\nPróximo vencimento: ${nice}.`, 'success');
         } else {
-          showAlert('Erro', `Não foi possível registrar o pagamento: ${res.error}`, 'danger');
+          showAlert('Erro', `Não foi possível registrar o pagamento: ${res.error ?? 'erro desconhecido'}`, 'danger');
         }
       },
       'warning'
@@ -277,6 +267,13 @@ export const SuperAdminDashboard: React.FC = () => {
         <div className="z-10">
           <h1 className="text-2xl md:text-3xl font-black tracking-tight mb-1">Painel Master</h1>
           <p className="text-gray-400 text-xs md:text-sm">Bem-vindo, Administrador Geral.</p>
+          <button
+            onClick={() => navigate('/admin/configuracoes-saas')}
+            className="mt-3 inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-amber-400 hover:text-amber-300 transition-colors"
+          >
+            <Crown size={13} />
+            Configurações Master do SaaS
+          </button>
         </div>
         <div className="flex space-x-6 mt-4 md:mt-0 z-10">
           <div className="text-center">

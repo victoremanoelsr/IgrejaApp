@@ -12,6 +12,7 @@
     "@google/genai": "^1.50.1",
     "@supabase/supabase-js": "^2.103.0",
     "canvg": "^4.0.3",
+    "framer-motion": "^12.38.0",
     "i18next": "^26.0.4",
     "i18next-browser-languagedetector": "^8.2.1",
     "jspdf": "^4.2.1",

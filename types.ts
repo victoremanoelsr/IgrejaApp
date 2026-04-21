@@ -3,6 +3,12 @@ export type Role = 'SUPER_ADM' | 'PRESIDENTE' | 'VICE_PRESIDENTE' | 'DIRIGENTE' 
 
 export type ChurchType = 'SEDE' | 'CONGREGACAO';
 
+export interface SystemSettings {
+  salesPhone?: string;     // WhatsApp do dono do sistema (somente dígitos com DDI, ex: 5511999999999)
+  masterPixKey?: string;   // Chave PIX master (recebimento global)
+  supportEmail?: string;   // E-mail de suporte
+}
+
 export type PlanType = 'mensal' | 'bimestral' | 'trimestral' | 'semestral' | 'anual' | 'isento';
 export type PlanTier = 'bronze' | 'prata' | 'ouro' | 'diamond';
 
