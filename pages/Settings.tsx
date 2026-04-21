@@ -69,7 +69,7 @@ export const Settings: React.FC = () => {
       setMission(currentChurch.missionStatement || '');
       setLogoUrl(currentChurch.logoUrl || '');
       // Se a igreja ainda não tem PIX cadastrado, pré-preenche com o PIX master configurado pelo dono do sistema.
-      setPixKey(currentChurch.pixKey?.trim() || systemSettings.masterPixKey?.trim() || '');
+      setPixKey(currentChurch.pixKey != null ? currentChurch.pixKey.trim() : (systemSettings.masterPixKey?.trim() || ''));
     }
   }, [currentChurch]);
 

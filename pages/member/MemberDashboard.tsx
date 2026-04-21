@@ -124,9 +124,7 @@ export const MemberDashboard: React.FC = () => {
       label: 'Eventos',
       icon: Calendar,
       color: 'from-blue-500 to-cyan-600',
-      action: () => {
-        document.getElementById('eventos-section')?.scrollIntoView({ behavior: 'smooth' });
-      },
+      action: () => navigate('/portal/eventos'),
     },
   ];
 
