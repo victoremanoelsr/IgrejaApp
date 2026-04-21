@@ -26,13 +26,24 @@ interface Invoice {
   paidDate?: string;
 }
 
-const MOCK_INVOICES: Invoice[] = [
-  { id: '001', month: 'Abril 2026',     amount: 89.90, status: 'PENDENTE', dueDate: '2026-04-25' },
-  { id: '002', month: 'Março 2026',     amount: 89.90, status: 'PAGO',     dueDate: '2026-03-25', paidDate: '2026-03-22' },
-  { id: '003', month: 'Fevereiro 2026', amount: 89.90, status: 'PAGO',     dueDate: '2026-02-25', paidDate: '2026-02-19' },
-  { id: '004', month: 'Janeiro 2026',   amount: 89.90, status: 'PAGO',     dueDate: '2026-01-25', paidDate: '2026-01-24' },
-  { id: '005', month: 'Dezembro 2025',  amount: 89.90, status: 'PAGO',     dueDate: '2025-12-25', paidDate: '2025-12-23' },
+const MONTH_NAMES_PT = [
+  'Janeiro','Fevereiro','Março','Abril','Maio','Junho',
+  'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'
 ];
+
+const formatPeriodLabel = (date: Date, months: number) => {
+  if (months <= 1) return `${MONTH_NAMES_PT[date.getMonth()]} ${date.getFullYear()}`;
+  const end = new Date(date);
+  const start = new Date(date);
+  start.setMonth(start.getMonth() - (months - 1));
+  const sameYear = start.getFullYear() === end.getFullYear();
+  if (sameYear) {
+    return `${MONTH_NAMES_PT[start.getMonth()].slice(0,3)}–${MONTH_NAMES_PT[end.getMonth()].slice(0,3)} ${end.getFullYear()}`;
+  }
+  return `${MONTH_NAMES_PT[start.getMonth()].slice(0,3)}/${start.getFullYear()} – ${MONTH_NAMES_PT[end.getMonth()].slice(0,3)}/${end.getFullYear()}`;
+};
+
+const toIsoDate = (d: Date) => d.toISOString().split('T')[0];
 
 const TIER_META: Record<string, { icon: React.FC<{size?: number; className?: string}>, color: string, border: string, bg: string, badge?: string }> = {
   bronze:  { icon: TrendingUp, color: 'text-amber-600',   border: 'border-amber-500/40',  bg: 'from-amber-500/8' },
@@ -64,6 +75,82 @@ export const BillingPage: React.FC = () => {
     const t = setTimeout(() => setIsLoading(false), 1400);
     return () => clearTimeout(t);
   }, []);
+
+  // ---- Histórico de faturas DERIVADO do plano cadastrado da igreja ----
+  // Usa: planTier (preço base), planType (ciclo), paymentPromiseDate (próx. vencimento) e lastPaymentDate.
+  const invoices: Invoice[] = React.useMemo(() => {
+    if (!currentChurch || !currentChurch.planTier || !currentChurch.planType || currentChurch.planType === 'isento') {
+      return [];
+    }
+    const tierKey = currentChurch.planTier;
+    const cycle   = currentChurch.planType;
+    const months  = CYCLE_MONTHS[cycle] ?? 1;
+    const basePrice = PLAN_LIMITS[tierKey]?.basePrice ?? 0;
+    // Valor cobrado em cada fatura (já com desconto do ciclo aplicado).
+    const cyclePrice = calcPrice(basePrice, cycle, months);
+
+    // Âncora de vencimento: usa paymentPromiseDate; se não houver, calcula a partir do último pagamento + ciclo.
+    let nextDue: Date;
+    if (currentChurch.paymentPromiseDate) {
+      nextDue = new Date(currentChurch.paymentPromiseDate + 'T00:00:00');
+    } else if (currentChurch.lastPaymentDate) {
+      nextDue = new Date(currentChurch.lastPaymentDate + 'T00:00:00');
+      nextDue.setMonth(nextDue.getMonth() + months);
+    } else {
+      nextDue = new Date();
+      nextDue.setMonth(nextDue.getMonth() + months);
+    }
+
+    const lastPaid = currentChurch.lastPaymentDate
+      ? new Date(currentChurch.lastPaymentDate + 'T00:00:00')
+      : null;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const HISTORY_LENGTH = 5; // 1 vigente + 4 anteriores
+    const list: Invoice[] = [];
+
+    for (let i = 0; i < HISTORY_LENGTH; i++) {
+      const due = new Date(nextDue);
+      due.setMonth(due.getMonth() - i * months);
+
+      // Períodos anteriores ao último pagamento são considerados pagos; a fatura vigente fica pendente/vencida.
+      const isCurrent = i === 0;
+      let status: InvoiceStatus;
+      let paidDate: string | undefined;
+
+      if (isCurrent) {
+        if (currentChurch.active === false || due < today) {
+          status = 'VENCIDO';
+        } else {
+          status = 'PENDENTE';
+        }
+      } else {
+        status = 'PAGO';
+        // Se temos a data do último pagamento, usamos para a fatura mais recente (i=1) e estimamos as demais.
+        if (lastPaid && i === 1) {
+          paidDate = toIsoDate(lastPaid);
+        } else {
+          // Estimativa: pagamento ocorreu poucos dias antes do vencimento.
+          const estimated = new Date(due);
+          estimated.setDate(estimated.getDate() - 3);
+          paidDate = toIsoDate(estimated);
+        }
+      }
+
+      list.push({
+        id: `${tierKey}-${cycle}-${i}`,
+        month: formatPeriodLabel(due, months),
+        amount: cyclePrice,
+        status,
+        dueDate: toIsoDate(due),
+        paidDate,
+      });
+    }
+
+    return list;
+  }, [currentChurch?.planTier, currentChurch?.planType, currentChurch?.paymentPromiseDate, currentChurch?.lastPaymentDate, currentChurch?.active]);
 
   // Visibilidade estrita: somente no painel da SEDE.
   if (currentChurch && currentChurch.type !== 'SEDE') {
@@ -396,8 +483,13 @@ export const BillingPage: React.FC = () => {
             {isLoading ? (
               <><SkeletonRow /><SkeletonRow /><SkeletonRow /><SkeletonRow /></>
             ) : (
-              MOCK_INVOICES.map((inv, idx) => (
-                <div key={inv.id} className={`flex items-center justify-between py-4 px-5 ${idx < MOCK_INVOICES.length - 1 ? 'border-b border-slate-800' : ''} hover:bg-slate-800/40 transition-colors`}>
+              invoices.length === 0 ? (
+                <div className="py-10 text-center text-sm text-slate-500">
+                  Nenhuma fatura disponível para o plano atual.
+                </div>
+              ) : (
+              invoices.map((inv, idx) => (
+                <div key={inv.id} className={`flex items-center justify-between py-4 px-5 ${idx < invoices.length - 1 ? 'border-b border-slate-800' : ''} hover:bg-slate-800/40 transition-colors`}>
                   <div className="flex items-center gap-4">
                     <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${inv.status === 'PAGO' ? 'bg-emerald-500/10 border border-emerald-500/20' : 'bg-yellow-500/10 border border-yellow-500/20'}`}>
                       {inv.status === 'PAGO' ? <CheckCircle size={16} className="text-emerald-400" /> : <Clock size={16} className="text-yellow-400" />}
@@ -419,6 +511,7 @@ export const BillingPage: React.FC = () => {
                   </div>
                 </div>
               ))
+              )
             )}
           </div>
         </div>
