@@ -154,45 +154,81 @@ export const MemberDashboard: React.FC = () => {
         <p className="text-gray-400 text-[11px] mt-2 font-semibold">— {versiculoDoDia.referencia}</p>
       </div>
 
-      {/* Tithe Card */}
+      {/* Tithe Card — dois estados: convite (sem dízimo) ou confirmação (com dízimo) */}
       {isLoading ? (
-        <Skeleton className="h-36" />
-      ) : (
-        <div className="relative bg-gradient-to-br from-orange-500 via-orange-600 to-red-700 rounded-xl p-5 overflow-hidden shadow-md">
-          <div className="absolute -top-8 -right-8 w-32 h-32 bg-white/10 rounded-full blur-sm" />
-          <div className="absolute -bottom-10 -left-4 w-28 h-28 bg-white/5 rounded-full" />
+        <Skeleton className="h-44" />
+      ) : currentMonthTithes > 0 ? (
+        // Estado pós-pagamento: tesoureiro já lançou o dízimo do mês corrente.
+        <div className="relative bg-slate-900 border border-emerald-500/25 rounded-2xl p-5 overflow-hidden shadow-xl">
+          <div className="absolute -top-10 -right-10 w-40 h-40 bg-emerald-500/10 rounded-full blur-2xl" />
           <div className="relative">
-            <div className="flex items-center gap-2 mb-1">
-              <TrendingUp size={13} className="text-orange-200" />
-              <span className="text-orange-100 text-[10px] font-bold uppercase tracking-widest">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="p-1.5 bg-emerald-500/15 rounded-lg border border-emerald-500/25">
+                <CheckCheck size={14} className="text-emerald-400" />
+              </div>
+              <span className="text-emerald-300 text-[10px] font-bold uppercase tracking-widest">
+                Contribuição registrada
+              </span>
+            </div>
+            <p className="text-slate-300 text-sm">
+              Sua contribuição de <span className="text-white font-semibold capitalize">{monthName()}</span>:
+            </p>
+            <p className="text-white text-4xl font-extrabold tracking-tight mt-1">
+              {formatCurrency(currentMonthTithes)}
+            </p>
+            <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-800">
+              <p className="text-slate-500 text-xs italic">"O Senhor ama quem dá com alegria." — 2 Co 9:7</p>
+              <button
+                onClick={() => navigate('/portal/financeiro')}
+                className="flex items-center gap-1 text-emerald-400 hover:text-emerald-300 text-xs font-semibold transition-colors shrink-0 ml-2"
+              >
+                Histórico <ArrowUpRight size={12} />
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        // Estado inicial: nenhum dízimo registrado neste mês — convite à fidelidade.
+        <div className="relative bg-slate-900 border border-slate-700 rounded-2xl p-5 overflow-hidden shadow-xl">
+          <div className="absolute -top-12 -right-12 w-40 h-40 bg-orange-500/10 rounded-full blur-2xl" />
+          <div className="absolute -bottom-12 -left-12 w-32 h-32 bg-amber-500/10 rounded-full blur-2xl" />
+          <div className="relative">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="p-1.5 bg-orange-500/15 rounded-lg border border-orange-500/25">
+                <HeartHandshake size={14} className="text-orange-400" />
+              </div>
+              <span className="text-orange-300 text-[10px] font-bold uppercase tracking-widest">
                 Dízimo de {monthName()}
               </span>
             </div>
-            <p className="text-white text-3xl font-bold tracking-tight mt-1">
-              {formatCurrency(currentMonthTithes)}
+
+            <p className="text-white text-lg font-bold leading-snug">
+              Sua fidelidade edifica a Casa de Deus.
             </p>
-            <div className="flex items-center justify-between mt-4">
-              {church.pixKey ? (
-                <button
-                  onClick={handleCopyPix}
-                  className="inline-flex items-center gap-2 bg-white/15 hover:bg-white/25 active:scale-95 border border-white/20 rounded-lg px-3 py-2 text-white text-xs font-semibold transition-all"
-                >
-                  {copied ? (
-                    <><CheckCheck size={13} className="text-green-300" />Chave copiada!</>
-                  ) : (
-                    <><Copy size={13} />Copiar Chave PIX</>
-                  )}
-                </button>
-              ) : (
-                <span className="text-orange-200 text-xs">Sem chave PIX cadastrada</span>
-              )}
+            <p className="text-slate-400 text-xs mt-1.5 leading-relaxed">
+              Contribua quando o Espírito tocar o seu coração — você define o valor diretamente no app do seu banco.
+            </p>
+
+            {church.pixKey ? (
               <button
-                onClick={() => navigate('/portal/financeiro')}
-                className="flex items-center gap-1 text-orange-100 hover:text-white text-xs font-semibold transition-colors"
+                onClick={handleCopyPix}
+                className={`mt-5 w-full inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold transition-all active:scale-[0.98] shadow-lg ${
+                  copied
+                    ? 'bg-emerald-500 text-white shadow-emerald-500/30'
+                    : 'bg-orange-500 hover:bg-orange-400 text-white shadow-orange-500/30'
+                }`}
               >
-                Ver tudo <ArrowUpRight size={12} />
+                {copied ? (
+                  <><CheckCheck size={16} />Chave PIX copiada!</>
+                ) : (
+                  <><Copy size={16} />Copiar Chave PIX</>
+                )}
               </button>
-            </div>
+            ) : (
+              <div className="mt-5 w-full text-center text-xs text-slate-500 bg-slate-800/40 border border-slate-700 rounded-xl py-3">
+                A igreja ainda não cadastrou uma chave PIX.
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -238,26 +274,27 @@ export const MemberDashboard: React.FC = () => {
             {[1, 2, 3].map((i) => <Skeleton key={i} className="h-16" />)}
           </div>
         ) : recentContributions.length === 0 ? (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-10 text-center">
-            <Wallet size={28} className="text-gray-300 mx-auto mb-2" />
-            <p className="text-gray-400 text-sm">Nenhuma contribuição registrada.</p>
+          <div className="bg-slate-900 rounded-2xl shadow-sm border border-slate-700 p-10 text-center">
+            <Wallet size={28} className="text-slate-600 mx-auto mb-2" />
+            <p className="text-slate-400 text-sm">Nenhuma contribuição registrada ainda.</p>
           </div>
         ) : (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 divide-y divide-gray-100">
+          <div className="space-y-2">
             {recentContributions.map((txn) => (
-              <div key={txn.id} className="p-3 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-green-100 border border-green-200 flex items-center justify-center shrink-0">
-                    <TrendingUp size={14} className="text-green-600" />
-                  </div>
-                  <div>
-                    <p className="text-gray-800 text-xs font-semibold">
-                      {categoryLabel[txn.category] || txn.category}
-                    </p>
-                    <p className="text-gray-400 text-[10px]">{formatDate(txn.date)}</p>
-                  </div>
+              <div
+                key={txn.id}
+                className="bg-slate-900 border border-slate-700 rounded-2xl shadow-sm p-3.5 flex items-center justify-between gap-3 hover:border-emerald-500/40 transition-colors"
+              >
+                <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/25 flex items-center justify-center shrink-0">
+                  <TrendingUp size={16} className="text-emerald-400" />
                 </div>
-                <span className="text-green-600 text-sm font-bold">
+                <div className="flex-1 min-w-0">
+                  <p className="text-white text-sm font-semibold truncate">
+                    {categoryLabel[txn.category] || txn.category}
+                  </p>
+                  <p className="text-slate-500 text-[11px] mt-0.5">{formatDate(txn.date)}</p>
+                </div>
+                <span className="text-emerald-400 text-sm font-extrabold shrink-0">
                   {formatCurrency(txn.amount)}
                 </span>
               </div>
