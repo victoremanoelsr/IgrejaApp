@@ -9,6 +9,8 @@ export interface MemberChurchInfo {
   pixKey?: string;
   logoUrl?: string;
   pastorName?: string;
+  sedePastorPhone?: string; // WhatsApp do Pastor Presidente da SEDE (para pedidos de oração)
+  sedePastorName?: string;
 }
 
 export interface MemberSession {
@@ -72,12 +74,27 @@ export const loginAsMember = async (identifier: string, password: string): Promi
 
   const { data: churchRows } = await supabase
     .from('churches')
-    .select('id, name, pix_key, logo_url, pastor_name')
+    .select('id, name, type, parent_id, pix_key, logo_url, pastor_name, pastor_phone')
     .eq('id', memberData.church_id)
     .limit(1);
 
   const churchData = churchRows && churchRows.length > 0 ? churchRows[0] : null;
   const member = toAppMember(memberData);
+
+  // Resolve pastor presidente da SEDE (se for congregação, busca a igreja-pai).
+  let sedePastorPhone: string | undefined = churchData?.pastor_phone || undefined;
+  let sedePastorName: string | undefined = churchData?.pastor_name || undefined;
+  if (churchData?.type === 'CONGREGACAO' && churchData?.parent_id) {
+    const { data: sedeRows } = await supabase
+      .from('churches')
+      .select('pastor_name, pastor_phone')
+      .eq('id', churchData.parent_id)
+      .limit(1);
+    if (sedeRows && sedeRows.length > 0) {
+      sedePastorPhone = sedeRows[0].pastor_phone || undefined;
+      sedePastorName = sedeRows[0].pastor_name || undefined;
+    }
+  }
 
   return {
     session: {
@@ -90,6 +107,8 @@ export const loginAsMember = async (identifier: string, password: string): Promi
         pixKey: churchData?.pix_key || undefined,
         logoUrl: churchData?.logo_url || undefined,
         pastorName: churchData?.pastor_name || undefined,
+        sedePastorPhone,
+        sedePastorName,
       },
       isFirstAccess,
     },

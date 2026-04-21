@@ -23,6 +23,7 @@ export const Settings: React.FC = () => {
   const [name, setName] = useState('');
   const [address, setAddress] = useState('');
   const [pastorName, setPastorName] = useState(''); // Se congregação, este é o Dirigente
+  const [pastorPhone, setPastorPhone] = useState('');
   const [mission, setMission] = useState('');
   const [logoUrl, setLogoUrl] = useState('');
   const [pixKey, setPixKey] = useState('');
@@ -64,6 +65,7 @@ export const Settings: React.FC = () => {
       setName(currentChurch.name);
       setAddress(currentChurch.address);
       setPastorName(currentChurch.pastorName);
+      setPastorPhone(currentChurch.pastorPhone || '');
       setMission(currentChurch.missionStatement || '');
       setLogoUrl(currentChurch.logoUrl || '');
       // Se a igreja ainda não tem PIX cadastrado, pré-preenche com o PIX master configurado pelo dono do sistema.
@@ -105,6 +107,7 @@ export const Settings: React.FC = () => {
         name: name.toUpperCase(),
         address: address.toUpperCase(),
         pastorName: pastorName.toUpperCase(),
+        pastorPhone: pastorPhone.replace(/\D/g, ''),
         missionStatement: mission.toUpperCase(),
         logoUrl: logoUrl,
         pixKey: pixKey.trim(),
@@ -218,14 +221,28 @@ export const Settings: React.FC = () => {
                  </>
              ) : (
                  /* Se for SEDE, edita o Pastor Responsável diretamente */
-                 <div>
-                   <label className="block text-sm font-medium text-gray-700">Pastor Responsável (Presidente)</label>
-                   <input 
-                     type="text" 
-                     className="mt-1 block w-full p-3 border rounded-lg focus:ring-brand-orange uppercase"
-                     value={pastorName}
-                     onChange={e => setPastorName(e.target.value.toUpperCase())}
-                   />
+                 <div className="space-y-4">
+                   <div>
+                     <label className="block text-sm font-medium text-gray-700">Pastor Responsável (Presidente)</label>
+                     <input 
+                       type="text" 
+                       className="mt-1 block w-full p-3 border rounded-lg focus:ring-brand-orange uppercase"
+                       value={pastorName}
+                       onChange={e => setPastorName(e.target.value.toUpperCase())}
+                     />
+                   </div>
+                   <div>
+                     <label className="block text-sm font-medium text-gray-700">WhatsApp do Pastor Presidente</label>
+                     <input 
+                       type="tel"
+                       inputMode="tel"
+                       placeholder="55 11 99999-9999"
+                       className="mt-1 block w-full p-3 border rounded-lg focus:ring-brand-orange"
+                       value={pastorPhone}
+                       onChange={e => setPastorPhone(e.target.value)}
+                     />
+                     <p className="text-xs text-gray-500 mt-1">Receberá os pedidos de oração enviados pelo Portal do Membro. Inclua o DDI 55.</p>
+                   </div>
                  </div>
              )}
 

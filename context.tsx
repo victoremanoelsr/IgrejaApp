@@ -654,6 +654,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const extendedPayload: any = {};
       if (d.planTier !== undefined) extendedPayload.plan_tier = d.planTier;
       if (d.lastPaymentDate !== undefined) extendedPayload.last_payment_date = d.lastPaymentDate || null;
+      if (d.pastorPhone !== undefined) extendedPayload.pastor_phone = d.pastorPhone || null;
 
       const hasMain = Object.keys(payload).length > 0;
       const hasExt  = Object.keys(extendedPayload).length > 0;

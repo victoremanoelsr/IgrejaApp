@@ -30,6 +30,7 @@ export interface Church {
   paymentPromiseDate?: string;
   lastPaymentDate?: string;
   pixKey?: string;
+  pastorPhone?: string; // WhatsApp do Pastor Presidente (somente dígitos com DDI, ex: 5511999999999)
 }
 
 export interface User {

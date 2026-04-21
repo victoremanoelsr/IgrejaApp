@@ -76,6 +76,23 @@ export const MemberDashboard: React.FC = () => {
     member.name.split(' ')[0].charAt(0).toUpperCase() +
     member.name.split(' ')[0].slice(1).toLowerCase();
 
+  const handlePrayerRequest = () => {
+    const rawPhone = church.sedePastorPhone?.replace(/\D/g, '') || '';
+    if (!rawPhone) {
+      alert('A SEDE ainda não cadastrou o WhatsApp do Pastor Presidente. Procure a secretaria da igreja.');
+      return;
+    }
+    const pastorTitle = church.sedePastorName ? `Pr. ${church.sedePastorName}` : 'Pastor';
+    const message =
+      `Paz do Senhor, ${pastorTitle}!\n\n` +
+      `Sou *${member.name}*, membro da ${church.name}.\n\n` +
+      `Gostaria de pedir uma oração:\n\n` +
+      `_(escreva aqui o seu pedido)_\n\n` +
+      `Que Deus o(a) abençoe! 🙏`;
+    const url = `https://wa.me/${rawPhone}?text=${encodeURIComponent(message)}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
   const handleCopyPix = () => {
     if (!church.pixKey) return;
     navigator.clipboard.writeText(church.pixKey).then(() => {
@@ -331,13 +348,20 @@ export const MemberDashboard: React.FC = () => {
       )}
 
       {/* Prayer Request */}
-      <button className="w-full flex items-center gap-3 bg-white border border-gray-200 rounded-xl p-4 text-left shadow-sm hover:border-orange-300 hover:shadow-md transition-all active:scale-[0.99]">
+      <button
+        onClick={handlePrayerRequest}
+        className="w-full flex items-center gap-3 bg-white border border-gray-200 rounded-xl p-4 text-left shadow-sm hover:border-violet-300 hover:shadow-md transition-all active:scale-[0.99]"
+      >
         <div className="w-8 h-8 rounded-lg bg-violet-100 border border-violet-200 flex items-center justify-center shrink-0">
           <HeartHandshake size={14} className="text-violet-500" />
         </div>
         <div className="flex-1">
           <p className="text-gray-800 text-sm font-semibold">Pedido de Oração</p>
-          <p className="text-gray-400 text-xs">Envie um pedido ao seu pastor</p>
+          <p className="text-gray-400 text-xs">
+            {church.sedePastorPhone
+              ? `Envie um pedido ao Pr. ${(church.sedePastorName || 'Presidente').split(' ')[0]} via WhatsApp`
+              : 'Envie um pedido ao seu pastor'}
+          </p>
         </div>
         <ChevronRight size={16} className="text-gray-300 shrink-0" />
       </button>

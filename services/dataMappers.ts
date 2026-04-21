@@ -19,6 +19,7 @@ export const toAppChurch = (data: any): Church => ({
   paymentPromiseDate: data.payment_promise_date || undefined,
   lastPaymentDate: data.last_payment_date || undefined,
   pixKey: data.pix_key || undefined,
+  pastorPhone: data.pastor_phone || undefined,
 });
 
 export const toAppUser = (data: any): User => ({

@@ -19,7 +19,8 @@ const mapMemberFromDB = (data: any): Member => ({
 const mapChurchFromDB = (data: any): Church => ({
   ...data,
   pastorName: data.pastor_name,
-  parentId: data.parent_id
+  parentId: data.parent_id,
+  pastorPhone: data.pastor_phone || undefined,
 });
 
 /**
