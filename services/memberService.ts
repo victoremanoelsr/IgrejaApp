@@ -9,7 +9,7 @@ export interface MemberChurchInfo {
   pixKey?: string;
   logoUrl?: string;
   pastorName?: string;
-  sedePastorPhone?: string; // WhatsApp do Pastor Presidente da SEDE (para pedidos de oração)
+  sedePastorPhone?: string;
   sedePastorName?: string;
 }
 
@@ -25,121 +25,49 @@ export interface MemberLoginResult {
   error?: string;
 }
 
-const formatBirthDateAsPassword = (birthDate: string): string => {
-  if (!birthDate) return '';
-  const parts = birthDate.split('-');
-  if (parts.length !== 3) return '';
-  const [year, month, day] = parts;
-  return `${day}${month}${year}`;
-};
-
 export const loginAsMember = async (identifier: string, password: string): Promise<MemberLoginResult> => {
-  const cleanIdentifier = identifier.replace(/\D/g, '');
-  const isCpf = /^\d{11}$/.test(cleanIdentifier);
+  const { data, error } = await supabase.rpc('member_login', {
+    p_identifier: identifier,
+    p_password: password,
+  });
 
-  let memberData: any = null;
+  if (error) return { error: 'Erro ao realizar login. Tente novamente.' };
 
-  if (isCpf) {
-    const formattedCpf = cleanIdentifier.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
-    const { data: rows } = await supabase
-      .from('members')
-      .select('*')
-      .or(`cpf.eq.${cleanIdentifier},cpf.eq.${formattedCpf}`)
-      .limit(1);
-    memberData = rows && rows.length > 0 ? rows[0] : null;
-  } else {
-    const { data: rows } = await supabase
-      .from('members')
-      .select('*')
-      .eq('member_username', identifier.trim())
-      .limit(1);
-    memberData = rows && rows.length > 0 ? rows[0] : null;
-  }
+  if (data?.error) return { error: data.error };
 
-  if (!memberData) {
-    return { error: 'Usuário não encontrado.' };
-  }
+  if (!data?.member) return { error: 'Usuário não encontrado.' };
 
-  const birthDatePassword = formatBirthDateAsPassword(memberData.birth_date || '');
-  const customPassword = memberData.member_password || null;
-  const isFirstAccess = !customPassword || customPassword === birthDatePassword;
-
-  const passwordMatches =
-    password === birthDatePassword ||
-    (customPassword && password === customPassword);
-
-  if (!passwordMatches) {
-    return { error: 'Senha incorreta. Use sua data de nascimento no formato DDMMAAAA.' };
-  }
-
-  const { data: churchRows } = await supabase
-    .from('churches')
-    .select('id, name, type, parent_id, pix_key, logo_url, pastor_name, pastor_phone')
-    .eq('id', memberData.church_id)
-    .limit(1);
-
-  const churchData = churchRows && churchRows.length > 0 ? churchRows[0] : null;
-  const member = toAppMember(memberData);
-
-  // Resolve pastor presidente da SEDE (se for congregação, busca a igreja-pai).
-  let sedePastorPhone: string | undefined = churchData?.pastor_phone || undefined;
-  let sedePastorName: string | undefined = churchData?.pastor_name || undefined;
-  if (churchData?.type === 'CONGREGACAO' && churchData?.parent_id) {
-    const { data: sedeRows } = await supabase
-      .from('churches')
-      .select('pastor_name, pastor_phone')
-      .eq('id', churchData.parent_id)
-      .limit(1);
-    if (sedeRows && sedeRows.length > 0) {
-      sedePastorPhone = sedeRows[0].pastor_phone || undefined;
-      sedePastorName = sedeRows[0].pastor_name || undefined;
-    }
-  }
+  const memberRaw = data.member;
+  const churchRaw = data.church;
 
   return {
     session: {
-      member,
-      churchId: memberData.church_id,
+      member: toAppMember(memberRaw),
+      churchId: memberRaw.church_id,
       church: {
-        id: churchData?.id || memberData.church_id,
-        name: churchData?.name || '',
-        active: true,
-        pixKey: churchData?.pix_key || undefined,
-        logoUrl: churchData?.logo_url || undefined,
-        pastorName: churchData?.pastor_name || undefined,
-        sedePastorPhone,
-        sedePastorName,
+        id: churchRaw?.id || memberRaw.church_id,
+        name: churchRaw?.name || '',
+        active: churchRaw?.active ?? true,
+        pixKey: churchRaw?.pix_key || undefined,
+        logoUrl: churchRaw?.logo_url || undefined,
+        pastorName: churchRaw?.pastor_name || undefined,
+        sedePastorPhone: data.sede_pastor_phone || undefined,
+        sedePastorName: data.sede_pastor_name || undefined,
       },
-      isFirstAccess,
+      isFirstAccess: data.is_first_access ?? true,
     },
   };
 };
 
 export const getMemberData = async (churchId: string, cpf: string) => {
-  const cleanCpf = cpf.replace(/\D/g, '');
-  const formattedCpf = cleanCpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
-
-  const { data: memberRows } = await supabase
-    .from('members')
-    .select('*')
-    .eq('church_id', churchId)
-    .or(`cpf.eq.${cleanCpf},cpf.eq.${formattedCpf}`)
-    .limit(1);
-
-  const memberData = memberRows && memberRows.length > 0 ? memberRows[0] : null;
-
-  const { data: churchRows } = await supabase
-    .from('churches')
-    .select('id, name, active, pix_key, logo_url, pastor_name')
-    .eq('id', churchId)
-    .limit(1);
-
-  const churchData = churchRows && churchRows.length > 0 ? churchRows[0] : null;
-
-  return {
-    member: memberData ? toAppMember(memberData) : null,
-    church: churchData as MemberChurchInfo | null,
-  };
+  const result = await loginAsMember(cpf, '');
+  if (result.session) {
+    return {
+      member: result.session.member,
+      church: result.session.church,
+    };
+  }
+  return { member: null, church: null };
 };
 
 export const getMemberContributions = async (
@@ -147,72 +75,60 @@ export const getMemberContributions = async (
   memberId: string,
   limit?: number
 ): Promise<Transaction[]> => {
-  let query = supabase
-    .from('transactions')
-    .select('*')
-    .eq('church_id', churchId)
-    .eq('member_id', memberId)
-    .in('category', ['DIZIMO', 'OFERTA'])
-    .order('date', { ascending: false });
+  const { data, error } = await supabase.rpc('get_member_contributions', {
+    p_church_id: churchId,
+    p_member_id: memberId,
+  });
 
-  if (limit) query = query.limit(limit);
+  if (error || !data) return [];
 
-  const { data } = await query;
-  return (data || []).map(toAppTransaction);
+  const rows: any[] = Array.isArray(data) ? data : [];
+  const mapped = rows.map(toAppTransaction);
+  return limit ? mapped.slice(0, limit) : mapped;
 };
 
 export const getMemberCurrentMonthTithes = async (
   churchId: string,
   memberId: string
 ): Promise<number> => {
-  const now = new Date();
-  const firstDay = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
-  const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0)
-    .toISOString()
-    .split('T')[0];
+  const { data, error } = await supabase.rpc('get_member_tithes_month', {
+    p_church_id: churchId,
+    p_member_id: memberId,
+  });
 
-  const { data } = await supabase
-    .from('transactions')
-    .select('amount')
-    .eq('church_id', churchId)
-    .eq('member_id', memberId)
-    .eq('category', 'DIZIMO')
-    .gte('date', firstDay)
-    .lte('date', lastDay);
-
-  return (data || []).reduce((sum, t) => sum + parseFloat(t.amount || '0'), 0);
+  if (error || data === null || data === undefined) return 0;
+  return parseFloat(String(data)) || 0;
 };
 
 export const getMemberUpcomingEvents = async (churchId: string): Promise<Event[]> => {
-  const today = new Date().toISOString().split('T')[0];
-  const { data } = await supabase
-    .from('events')
-    .select('*')
-    .eq('church_id', churchId)
-    .gte('date', today)
-    .order('date', { ascending: true })
-    .limit(3);
+  const { data, error } = await supabase.rpc('get_member_events', {
+    p_church_id: churchId,
+  });
 
-  return (data || []).map(toAppEvent);
+  if (error || !data) return [];
+
+  const rows: any[] = Array.isArray(data) ? data : [];
+  return rows.map(toAppEvent);
 };
 
 export const getMemberCarnets = async (churchId: string): Promise<CarnetTemplate[]> => {
-  const { data } = await supabase
-    .from('carnet_templates')
+  const { data, error } = await supabase
+    .from('mission_carnet_templates')
     .select('*')
     .eq('church_id', churchId);
 
-  return (data || []).map(toAppCarnetTemplate);
+  if (error || !data) return [];
+  return data.map(toAppCarnetTemplate);
 };
 
 export const updateMemberPassword = async (
   memberId: string,
   newPassword: string
 ): Promise<{ success: boolean; error?: string }> => {
-  const { error } = await supabase
-    .from('members')
-    .update({ member_password: newPassword })
-    .eq('id', memberId);
+  const { data, error } = await supabase.rpc('update_member_password', {
+    p_member_id: memberId,
+    p_password: newPassword,
+  });
 
   if (error) return { success: false, error: error.message };
   return { success: true };
@@ -225,23 +141,13 @@ export const updateMemberUsername = async (
   const trimmed = newUsername.trim();
   if (!trimmed) return { success: false, error: 'O usuário não pode ser vazio.' };
 
-  const { data: existing } = await supabase
-    .from('members')
-    .select('id')
-    .eq('member_username', trimmed)
-    .neq('id', memberId)
-    .limit(1);
-
-  if (existing && existing.length > 0) {
-    return { success: false, error: 'Este usuário já está em uso por outro membro.' };
-  }
-
-  const { error } = await supabase
-    .from('members')
-    .update({ member_username: trimmed })
-    .eq('id', memberId);
+  const { data, error } = await supabase.rpc('update_member_username', {
+    p_member_id: memberId,
+    p_username: trimmed,
+  });
 
   if (error) return { success: false, error: error.message };
+  if (data?.error) return { success: false, error: data.error };
   return { success: true };
 };
 
