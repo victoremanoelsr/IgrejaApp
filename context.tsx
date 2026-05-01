@@ -381,8 +381,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (profileData) {
       const appUser = toAppUser(profileData);
 
+      // Recarrega todos os dados agora que o usuário está autenticado
+      // (essencial quando o RLS está ativo — dados anteriores podem estar vazios)
+      await fetchData();
+
       if (appUser.role !== 'SUPER_ADM' && appUser.churchId) {
-        const blocked = await isChurchBlocked(appUser.churchId, churches);
+        // Usa a lista de igrejas recém-carregada
+        const { data: freshChurches } = await supabase.from('churches').select('*');
+        const churchList = freshChurches ? freshChurches.map(toAppChurch) : churches;
+        const blocked = await isChurchBlocked(appUser.churchId, churchList);
         if (blocked) {
           await supabase.auth.signOut().catch(() => {});
           return { blocked: true };
@@ -391,8 +398,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       setUser(appUser);
       if (appUser.churchId) {
-        const church = churches.find(c => c.id === appUser.churchId);
-        if (church) setCurrentChurch(church);
+        const { data: freshChurches } = await supabase.from('churches').select('*');
+        if (freshChurches) {
+          const church = freshChurches.map(toAppChurch).find(c => c.id === appUser.churchId);
+          if (church) setCurrentChurch(church);
+        }
       }
       return { user: appUser };
     }
