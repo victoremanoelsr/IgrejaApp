@@ -341,27 +341,67 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return false;
   };
 
+  const EMAIL_DOMAIN = 'igrejaapp.internal';
+
   const login = async (u: string, p: string) => {
-    const { data } = await supabase.from('profiles').select('*').eq('username', u).eq('password', p).single();
-    if (data) {
-        const appUser = toAppUser(data);
+    let profileData: any = null;
 
-        if (appUser.role !== 'SUPER_ADM' && appUser.churchId) {
-          const blocked = await isChurchBlocked(appUser.churchId, churches);
-          if (blocked) return { blocked: true };
-        }
+    // 1. Tenta login via Supabase Auth (método novo, seguro)
+    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+      email: `${u}@${EMAIL_DOMAIN}`,
+      password: p,
+    });
 
-        setUser(appUser);
-        if (appUser.churchId) {
-            const church = churches.find(c => c.id === appUser.churchId);
-            if (church) setCurrentChurch(church);
-        }
-        return { user: appUser };
+    if (authData?.user) {
+      // Busca o perfil vinculado ao auth_user_id
+      const { data: pd } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('auth_user_id', authData.user.id)
+        .single();
+      profileData = pd;
     }
+
+    // 2. Fallback: login direto na tabela profiles (compatibilidade com usuários não migrados)
+    if (!profileData) {
+      const { data: pd } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('username', u)
+        .eq('password', p)
+        .single();
+      profileData = pd;
+
+      // Se o auth falhou mas o perfil foi encontrado, garante logout do Supabase Auth
+      if (profileData && authError) {
+        await supabase.auth.signOut().catch(() => {});
+      }
+    }
+
+    if (profileData) {
+      const appUser = toAppUser(profileData);
+
+      if (appUser.role !== 'SUPER_ADM' && appUser.churchId) {
+        const blocked = await isChurchBlocked(appUser.churchId, churches);
+        if (blocked) {
+          await supabase.auth.signOut().catch(() => {});
+          return { blocked: true };
+        }
+      }
+
+      setUser(appUser);
+      if (appUser.churchId) {
+        const church = churches.find(c => c.id === appUser.churchId);
+        if (church) setCurrentChurch(church);
+      }
+      return { user: appUser };
+    }
+
     return { error: 'Credenciais inválidas' };
   };
 
   const logout = () => {
+    supabase.auth.signOut().catch(() => {});
     setUser(null);
     setCurrentChurch(null);
   };
@@ -373,15 +413,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const updateUserCredentials = async (id: string, username?: string, password?: string) => {
     const updates: any = {};
-    if(username) updates.username = username;
-    if(password) updates.password = password;
-    
+    if (username) updates.username = username;
+    if (password) updates.password = password;
+
     const { error } = await supabase.from('profiles').update(updates).eq('id', id);
-    if (!error) {
-        setUsers(users.map(u => u.id === id ? { ...u, ...updates } : u));
-        return { success: true };
-    }
-    return { success: false, error: error.message };
+    if (error) return { success: false, error: error.message };
+
+    // Atualiza também no Supabase Auth (funciona para o usuário logado atualmente)
+    try {
+      const authUpdates: any = {};
+      if (password) authUpdates.password = password;
+      if (username) authUpdates.email = `${username}@${EMAIL_DOMAIN}`;
+      if (Object.keys(authUpdates).length > 0) {
+        await supabase.auth.updateUser(authUpdates);
+      }
+    } catch (_) { /* Ignora silenciosamente — profiles já foi atualizado */ }
+
+    setUsers(users.map(u => u.id === id ? { ...u, ...updates } : u));
+    return { success: true };
   };
 
   const selectChurch = (id: string) => {
