@@ -49,7 +49,7 @@ export const Dashboard: React.FC = () => {
   const viewId = currentChurch.id;
   const churchMembers = members.filter(m => m.churchId === viewId);
   
-  const excludedCategoriesFromGeneral = ['MISSOES', 'JOVENS', 'CRIANCAS', 'SENHORAS'];
+  const excludedCategoriesFromGeneral = ['MISSOES', 'JOVENS', 'CRIANCAS', 'SENHORAS', 'SENHORES'];
 
   const matchesSelectedDate = (dateStr: string) => {
       const [y, m] = dateStr.split('-').map(Number);

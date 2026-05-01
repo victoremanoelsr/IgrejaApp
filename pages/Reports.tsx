@@ -54,7 +54,7 @@ export const Reports: React.FC = () => {
       if (!endDate) setEndDate(finalEnd);
   };
   
-  const excludedCategories = ['MISSOES', 'JOVENS', 'CRIANCAS', 'SENHORAS'];
+  const excludedCategories = ['MISSOES', 'JOVENS', 'CRIANCAS', 'SENHORAS', 'SENHORES'];
 
   // --- CALCULATIONS ---
 
@@ -98,7 +98,7 @@ export const Reports: React.FC = () => {
   // Sub-grouping for Display (visual layout requirement)
   const dizimosList = inflowsList.filter(t => t.category === 'DIZIMO');
   const ofertasList = inflowsList.filter(t => t.category === 'OFERTA');
-  const outrosList = inflowsList.filter(t => !['DIZIMO', 'OFERTA', 'MISSOES'].includes(t.category));
+  const outrosList = inflowsList.filter(t => !['DIZIMO', 'OFERTA', ...excludedCategories].includes(t.category));
 
   const totalDizimos = dizimosList.reduce((acc, t) => acc + t.amount, 0);
   const totalOfertas = ofertasList.reduce((acc, t) => acc + t.amount, 0);
