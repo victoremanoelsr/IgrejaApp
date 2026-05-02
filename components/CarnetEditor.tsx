@@ -104,7 +104,19 @@ export const CarnetEditor: React.FC<CarnetEditorProps> = ({
     setTimeout(() => setFeedback(null), 3000);
   };
 
-  const currentLayout = buildLayout(checkedIds, hasStub);
+  const currentLayout = (() => {
+    const layout = buildLayout(checkedIds, hasStub);
+    if (qrUrl) {
+      const qrX = hasStub ? Math.round(STUB_X_PX + 14) : 28;
+      const qrY = ROW_Y[Math.min(checkedIds.length, ROW_Y.length - 1)];
+      layout.push({
+        id: 'qr_pix', type: 'image', content: qrUrl,
+        x: qrX, y: qrY, width: 50, height: 50,
+        style: { fontSize: 10, color: '#000000', fontWeight: 'normal', textAlign: 'left' },
+      });
+    }
+    return layout;
+  })();
 
   // ── Uploads ────────────────────────────────────────────────────────────────
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
