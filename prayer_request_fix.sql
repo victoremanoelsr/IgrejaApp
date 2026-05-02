@@ -36,8 +36,11 @@ BEGIN
   END IF;
 
   -- 2. Verificar senha
-  --    Se member_password é NULL => primeiro acesso, qualquer senha é aceita
+  --    Se member_password é NULL => primeiro acesso (senha padrão = data de nascimento DDMMAAAA)
   IF v_member.member_password IS NULL THEN
+    IF TO_CHAR(v_member.birth_date, 'DDMMYYYY') != p_password THEN
+      RETURN jsonb_build_object('error', 'Senha incorreta.');
+    END IF;
     v_is_first := TRUE;
   ELSE
     IF v_member.member_password != p_password THEN

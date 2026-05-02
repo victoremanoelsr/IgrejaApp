@@ -158,7 +158,7 @@ export const MemberPerfil: React.FC = () => {
             <div className="flex-1">
               <p className="text-amber-700 text-sm font-semibold">Primeiro Acesso</p>
               <p className="text-amber-600 text-xs mt-1 leading-relaxed">
-                Você ainda não criou uma senha personalizada. Recomendamos criar uma agora para proteger sua conta.
+                Você está usando sua data de nascimento como senha. Recomendamos criar uma senha personalizada.
               </p>
               <div className="flex gap-2 mt-3">
                 <button onClick={() => setShowChangePassword(true)}
