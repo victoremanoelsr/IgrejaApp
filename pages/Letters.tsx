@@ -80,7 +80,7 @@ export const Letters: React.FC = () => {
     const [activeTab, setActiveTab] = useState<'EMISSAO' | 'MODELOS'>('EMISSAO');
 
     // EMISSAO STATE
-    const [letterType, setLetterType] = useState<'RECOMENDACAO' | 'MUDANCA'>('RECOMENDACAO');
+    const [letterType, setLetterType] = useState<'RECOMENDACAO' | 'MUDANCA' | 'BATISMO' | 'APRESENTACAO'>('RECOMENDACAO');
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedMember, setSelectedMember] = useState<Member | null>(null);
     const [roleOrFunction, setRoleOrFunction] = useState('MEMBRO');
@@ -91,7 +91,7 @@ export const Letters: React.FC = () => {
     const [templates, setTemplates] = useState<LetterTemplate[]>([]);
     const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
     const [templateName, setTemplateName] = useState('');
-    const [templateType, setTemplateType] = useState<'RECOMENDACAO' | 'MUDANCA' | 'GENERICO'>('RECOMENDACAO');
+    const [templateType, setTemplateType] = useState<'RECOMENDACAO' | 'MUDANCA' | 'BATISMO' | 'APRESENTACAO' | 'GENERICO'>('RECOMENDACAO');
     const [templateRecommendationText, setTemplateRecommendationText] = useState('');
     const [templateChangeText, setTemplateChangeText] = useState('');
     const [layoutElements, setLayoutElements] = useState<LayoutElement[]>(DEFAULT_TAGS);
@@ -191,7 +191,7 @@ export const Letters: React.FC = () => {
             const elementsToRender = template.layoutJson || DEFAULT_TAGS;
             elementsToRender.forEach(el => {
                 if (el.content === '{{texto_cadastrado}}') {
-                    const textContent = letterType === 'RECOMENDACAO' ? (template.recommendationText || '') : (template.changeText || '');
+                    const textContent = letterType === 'MUDANCA' ? (template.changeText || '') : (template.recommendationText || '');
                     if (textContent.trim()) {
                         doc.setTextColor(el.style.color);
                         doc.setFontSize(el.style.fontSize);
@@ -236,8 +236,8 @@ export const Letters: React.FC = () => {
             const formattedDate = today.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
             const recommendationTemplate = `A Igreja Evangélica Assembleia de Deus em ${currentChurch.address.split(',')[1]?.trim() || currentChurch.name}, vem por meio desta, recomendar à comunhão dos santos, o(a) irmão(a) ${selectedMember.name}, portador(a) do CPF nº ${selectedMember.cpf}, nascido(a) em ${new Date(selectedMember.birthDate).toLocaleDateString('pt-BR')} e batizado(a) nas águas em ${selectedMember.baptismDate ? new Date(selectedMember.baptismDate).toLocaleDateString('pt-BR') : 'data não registrada'}.\n\nO(A) referido(a) irmão(a) é ${roleOrFunction} em nossa igreja, encontrando-se em plena comunhão e paz conosco. Portanto, o(a) recomendamos para participar de todas as atividades e sacramentos, como membro do corpo de Cristo.\n\nSem mais para o momento, subscrevemo-nos.`;
             const transferTemplate = `A Igreja Evangélica Assembleia de Deus em ${currentChurch.address.split(',')[1]?.trim() || currentChurch.name}, concede a presente CARTA DE MUDANÇA ao(à) irmão(ã) ${selectedMember.name}, portador(a) do CPF nº ${selectedMember.cpf}, nascido(a) em ${new Date(selectedMember.birthDate).toLocaleDateString('pt-BR')} e batizado(a) nas águas em ${selectedMember.baptismDate ? new Date(selectedMember.baptismDate).toLocaleDateString('pt-BR') : 'data não registrada'}.\n\nO(A) referido(a) irmão(a) esteve em comunhão conosco na função de ${roleOrFunction} e, por motivo de mudança, solicitou seu desligamento de nosso rol de membros.\n\nNada temos que desabone sua conduta moral e espiritual. Portanto, o(a) recomendamos à vossa filiação.\n\nSem mais para o momento, subscrevemo-nos.`;
-            const content = letterType === 'RECOMENDACAO' ? recommendationTemplate : transferTemplate;
-            const title = letterType === 'RECOMENDACAO' ? 'CARTA DE RECOMENDAÇÃO' : 'CARTA DE MUDANÇA';
+            const content = letterType === 'MUDANCA' ? transferTemplate : recommendationTemplate;
+            const title = DOC_TITLES[letterType] || 'CARTA';
             if (currentChurch.logoUrl) doc.addImage(currentChurch.logoUrl, 'PNG', 15, 15, 30, 30);
             doc.setFontSize(14); doc.setFont(undefined, 'bold');
             doc.text(currentChurch.name.toUpperCase(), 105, 25, { align: 'center' });
@@ -256,7 +256,8 @@ export const Letters: React.FC = () => {
             doc.text(currentChurch.pastorName.toUpperCase(), 105, 230, { align: 'center' });
         }
 
-        doc.save(`Carta_${letterType}_${selectedMember.name.replace(/\s/g, '_')}.pdf`);
+        const filePrefix = (letterType === 'BATISMO' || letterType === 'APRESENTACAO') ? 'Certificado' : 'Carta';
+        doc.save(`${filePrefix}_${letterType}_${selectedMember.name.replace(/\s/g, '_')}.pdf`);
 
         if (user) {
             await addLetterHistory({
@@ -290,7 +291,7 @@ export const Letters: React.FC = () => {
     const handleNewTemplate = () => {
         setEditingTemplateId(null);
         setTemplateName('');
-        setTemplateType('RECOMENDACAO');
+        setTemplateType('RECOMENDACAO' as const);
         setBackgroundUrl(undefined);
         setLayoutElements(DEFAULT_TAGS);
         setTemplateRecommendationText('');
@@ -386,6 +387,20 @@ export const Letters: React.FC = () => {
     const activeMembers = members.filter(m => m.churchId === currentChurch?.id && (m.status || 'ATIVO') === 'ATIVO');
     const memberSuggestions = searchTerm.length < 2 ? [] : activeMembers.filter(m => m.name.toLowerCase().includes(searchTerm.toLowerCase()) || m.cpf.includes(searchTerm));
     const filteredTemplates = templates.filter(t => t.churchId === currentChurch?.id && (t.type === letterType || t.type === 'GENERICO'));
+
+    const DOC_LABELS: Record<string, string> = {
+        RECOMENDACAO: 'Recomendação',
+        MUDANCA: 'Mudança',
+        BATISMO: 'Cert. Batismo',
+        APRESENTACAO: 'Cert. Apresentação',
+        GENERICO: 'Genérico',
+    };
+    const DOC_TITLES: Record<string, string> = {
+        RECOMENDACAO: 'CARTA DE RECOMENDAÇÃO',
+        MUDANCA: 'CARTA DE MUDANÇA',
+        BATISMO: 'CERTIFICADO DE BATISMO',
+        APRESENTACAO: 'CERTIFICADO DE APRESENTAÇÃO',
+    };
     const selectedElement = layoutElements.find(el => el.id === selectedElementId);
 
     // --- RENDERERS ---
@@ -413,6 +428,8 @@ export const Letters: React.FC = () => {
                         <select className="w-full p-2 border rounded" value={templateType} onChange={e => setTemplateType(e.target.value as any)}>
                             <option value="RECOMENDACAO">Recomendação</option>
                             <option value="MUDANCA">Mudança</option>
+                            <option value="BATISMO">Cert. Batismo</option>
+                            <option value="APRESENTACAO">Cert. Apresentação</option>
                             <option value="GENERICO">Genérico</option>
                         </select>
                     </div>
@@ -507,29 +524,44 @@ export const Letters: React.FC = () => {
                 </div>
 
                 {/* TEXTOS DO MODELO */}
-                <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6 bg-gray-50 p-4 border rounded-lg">
-                    <div className="md:col-span-2">
-                        <h4 className="font-bold text-gray-700 flex items-center mb-1"><Type size={16} className="mr-2"/> Textos do Modelo</h4>
-                        <p className="text-xs text-gray-500">Este texto aparece onde a tag <b>{'{{texto_cadastrado}}'}</b> for posicionada. Margens de 2cm e alinhamento justificado são aplicados automaticamente.</p>
-                    </div>
+                <div className="mt-6 bg-gray-50 p-4 border rounded-lg space-y-4">
                     <div>
-                        <label className="block text-xs font-bold text-gray-600 mb-2">Para Cartas de Recomendação</label>
-                        <textarea
-                            className="w-full h-40 p-3 border rounded text-sm resize-y"
-                            placeholder="A Igreja Evangélica Assembleia de Deus..."
-                            value={templateRecommendationText}
-                            onChange={e => setTemplateRecommendationText(e.target.value)}
-                        />
+                        <h4 className="font-bold text-gray-700 flex items-center mb-1"><Type size={16} className="mr-2"/> Texto do Modelo</h4>
+                        <p className="text-xs text-gray-500">Este texto aparece onde a tag <b>{'{{texto_cadastrado}}'}</b> for posicionada. Use as tags como <b>{'{{nome_membro}}'}</b>, <b>{'{{data_batismo}}'}</b> etc. dentro do texto.</p>
                     </div>
-                    <div>
-                        <label className="block text-xs font-bold text-gray-600 mb-2">Para Cartas de Mudança</label>
-                        <textarea
-                            className="w-full h-40 p-3 border rounded text-sm resize-y"
-                            placeholder="A Igreja Evangélica Assembleia de Deus concede a presente carta de mudança..."
-                            value={templateChangeText}
-                            onChange={e => setTemplateChangeText(e.target.value)}
-                        />
-                    </div>
+                    {/* Texto principal — para todos os tipos exceto MUDANCA puro */}
+                    {(templateType !== 'MUDANCA') && (
+                        <div>
+                            <label className="block text-xs font-bold text-gray-600 mb-2">
+                                {templateType === 'BATISMO' ? 'Texto do Certificado de Batismo' :
+                                 templateType === 'APRESENTACAO' ? 'Texto do Certificado de Apresentação' :
+                                 templateType === 'GENERICO' ? 'Texto Principal (Recomendação / Batismo / Apresentação)' :
+                                 'Texto da Carta de Recomendação'}
+                            </label>
+                            <textarea
+                                className="w-full h-40 p-3 border rounded text-sm resize-y"
+                                placeholder={
+                                    templateType === 'BATISMO' ? 'Certificamos que {{nome_membro}}, nascido(a) em {{data_nascimento}}, foi batizado(a) nas águas...' :
+                                    templateType === 'APRESENTACAO' ? 'Apresentamos o(a) irmão(a) {{nome_membro}}, portador(a) do CPF {{cpf}}...' :
+                                    'A Igreja Evangélica Assembleia de Deus...'
+                                }
+                                value={templateRecommendationText}
+                                onChange={e => setTemplateRecommendationText(e.target.value)}
+                            />
+                        </div>
+                    )}
+                    {/* Texto de Mudança — só aparece quando tipo é MUDANCA ou GENERICO */}
+                    {(templateType === 'MUDANCA' || templateType === 'GENERICO') && (
+                        <div>
+                            <label className="block text-xs font-bold text-gray-600 mb-2">Texto da Carta de Mudança</label>
+                            <textarea
+                                className="w-full h-40 p-3 border rounded text-sm resize-y"
+                                placeholder="A Igreja Evangélica Assembleia de Deus concede a presente carta de mudança..."
+                                value={templateChangeText}
+                                onChange={e => setTemplateChangeText(e.target.value)}
+                            />
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -562,10 +594,22 @@ export const Letters: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div className="md:col-span-1 space-y-4">
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Tipo de Carta</label>
-                            <div className="flex gap-2">
-                                <button onClick={() => setLetterType('RECOMENDACAO')} className={`flex-1 py-2 text-xs font-bold rounded-lg border ${letterType === 'RECOMENDACAO' ? 'bg-brand-black text-white' : 'bg-white'}`}>Recomendação</button>
-                                <button onClick={() => setLetterType('MUDANCA')} className={`flex-1 py-2 text-xs font-bold rounded-lg border ${letterType === 'MUDANCA' ? 'bg-brand-black text-white' : 'bg-white'}`}>Mudança</button>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Tipo de Documento</label>
+                            <div className="grid grid-cols-2 gap-2">
+                                {([
+                                    { key: 'RECOMENDACAO', label: 'Recomendação' },
+                                    { key: 'MUDANCA',      label: 'Mudança' },
+                                    { key: 'BATISMO',      label: 'Cert. Batismo' },
+                                    { key: 'APRESENTACAO', label: 'Cert. Apresentação' },
+                                ] as const).map(({ key, label }) => (
+                                    <button
+                                        key={key}
+                                        onClick={() => setLetterType(key)}
+                                        className={`py-2 text-xs font-bold rounded-lg border transition-all ${letterType === key ? 'bg-brand-black text-white border-brand-black' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
+                                    >
+                                        {label}
+                                    </button>
+                                ))}
                             </div>
                         </div>
                         <div ref={wrapperRef}>
@@ -677,8 +721,13 @@ export const Letters: React.FC = () => {
                                         {h.memberName || h.memberDataSnapshot?.name || '-'}
                                     </td>
                                     <td className="px-4 py-2 text-sm">
-                                        <span className={`px-2 py-1 rounded text-xs border font-bold ${h.letterType === 'RECOMENDACAO' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-orange-50 text-orange-700 border-orange-200'}`}>
-                                            {h.letterType === 'RECOMENDACAO' ? 'Recomendação' : 'Mudança'}
+                                        <span className={`px-2 py-1 rounded text-xs border font-bold ${
+                                            h.letterType === 'RECOMENDACAO' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                                            h.letterType === 'MUDANCA'      ? 'bg-orange-50 text-orange-700 border-orange-200' :
+                                            h.letterType === 'BATISMO'      ? 'bg-green-50 text-green-700 border-green-200' :
+                                                                              'bg-purple-50 text-purple-700 border-purple-200'
+                                        }`}>
+                                            {DOC_LABELS[h.letterType] || h.letterType}
                                         </span>
                                     </td>
                                     <td className="px-4 py-2 text-gray-600 text-sm">
@@ -690,7 +739,7 @@ export const Letters: React.FC = () => {
                                                 onClick={() => {
                                                     setSelectedMember({ name: h.memberDataSnapshot.name, cpf: h.memberDataSnapshot.cpf, birthDate: h.memberDataSnapshot.birthDate || '', baptismDate: h.memberDataSnapshot.baptismDate } as Member);
                                                     setRoleOrFunction(h.memberDataSnapshot.roleOrFunction);
-                                                    setLetterType(h.letterType);
+                                                    setLetterType(h.letterType as any);
                                                     showAlert("Pronto para Reemissão", "Os dados foram carregados. Clique em 'Gerar Carta PDF' para reimprimir.", "info");
                                                     window.scrollTo({ top: 0, behavior: 'smooth' });
                                                 }}

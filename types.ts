@@ -161,10 +161,10 @@ export interface LetterTemplate {
   id: string;
   churchId: string;
   name: string;
-  type: 'RECOMENDACAO' | 'MUDANCA' | 'GENERICO';
+  type: 'RECOMENDACAO' | 'MUDANCA' | 'BATISMO' | 'APRESENTACAO' | 'GENERICO';
   backgroundUrl?: string;
-  recommendationText?: string; // Texto base para recomendação
-  changeText?: string;         // Texto base para mudança
+  recommendationText?: string; // Texto principal (Recomendação / Batismo / Apresentação)
+  changeText?: string;         // Texto para Mudança
   layoutJson: LayoutElement[];
   createdAt?: string;
 }
@@ -202,7 +202,7 @@ export interface LetterHistory {
   id: string;
   churchId: string;
   memberId: string;
-  letterType: 'RECOMENDACAO' | 'MUDANCA';
+  letterType: 'RECOMENDACAO' | 'MUDANCA' | 'BATISMO' | 'APRESENTACAO';
   issuedAt: string; // date string
   issuedByUserId: string;
   // Snapshot of data used to generate the letter, for re-generation
