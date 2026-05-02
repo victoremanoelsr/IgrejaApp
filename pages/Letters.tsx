@@ -202,18 +202,20 @@ export const Letters: React.FC = () => {
                             .replace(/{{data_atual}}/g, today.toLocaleDateString('pt-BR'))
                             .replace(/{{cidade_igreja}}/g, fullDate)
                             .replace(/{{estado_civil}}/g, selectedMember.maritalStatus || '');
-                        const textX   = el.x * scale;
-                        const textY   = (el.y * scale) + (el.style.fontSize * 0.35);
-                        const maxW    = el.width ? (el.width * scale) : (pdfW_mm - 2 * textX);
-                        const align   = el.style.textAlign as string;
+                        // Always use safe fixed margins so text never overflows the page
+                        const pageMargin = 15; // mm
+                        const safeMaxW   = pdfW_mm - 2 * pageMargin;
+                        const textY      = (el.y * scale) + (el.style.fontSize * 0.35);
+                        const lh         = doc.getLineHeight() / doc.internal.scaleFactor;
+                        const align      = el.style.textAlign as string;
                         if (align === 'center') {
-                            const lines = doc.splitTextToSize(processedText, maxW);
+                            const centerX = pdfW_mm / 2;
+                            const lines   = doc.splitTextToSize(processedText, safeMaxW);
                             lines.forEach((line: string, i: number) => {
-                                doc.text(line, textX, textY + i * (el.style.fontSize * 0.45), { align: 'center' });
+                                doc.text(line, centerX, textY + i * lh, { align: 'center' });
                             });
                         } else {
-                            const leftX = align === 'right' ? textX - maxW : Math.min(textX, 15);
-                            renderJustifiedText(doc, processedText, leftX, textY, maxW);
+                            renderJustifiedText(doc, processedText, pageMargin, textY, safeMaxW, lh);
                         }
                     }
                 } else {
