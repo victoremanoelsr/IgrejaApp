@@ -108,7 +108,7 @@ export const CarnetEditor: React.FC<CarnetEditorProps> = ({
     const layout = buildLayout(checkedIds, hasStub);
     if (qrUrl) {
       const QR_SIZE = 50;
-      const QR_X = EDITOR_WIDTH - QR_SIZE - 10;           // right edge, 10px margin
+      const QR_X = EDITOR_WIDTH - QR_SIZE - 86;           // ~2cm from right edge
       const QR_Y = Math.round((EDITOR_HEIGHT - QR_SIZE) / 2); // vertically centered
       layout.push({
         id: 'qr_pix', type: 'image', content: qrUrl,
@@ -188,7 +188,7 @@ export const CarnetEditor: React.FC<CarnetEditorProps> = ({
     const layout = buildLayout(checkedIds, hasStub);
     if (qrUrl) {
       const QR_SIZE = 50;
-      const QR_X = EDITOR_WIDTH - QR_SIZE - 10;
+      const QR_X = EDITOR_WIDTH - QR_SIZE - 86;           // ~2cm from right edge
       const QR_Y = Math.round((EDITOR_HEIGHT - QR_SIZE) / 2);
       layout.push({
         id: 'qr_pix', type: 'image', content: qrUrl,
