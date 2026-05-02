@@ -27,20 +27,33 @@ const TAG_DEFS = [
   { id: 'valor',   label: 'Valor',                 tag: '{{valor}}',       prefix: 'VALOR: ',   dummy: 'R$ 50,00',          fontSize: 11, fontSizeStub: 9  },
   { id: 'mes',     label: 'Mês / Referência',      tag: '{{mes_extenso}}', prefix: 'MÊS: ',     dummy: 'MARÇO',             fontSize: 10, fontSizeStub: 8  },
   { id: 'data',    label: 'Data (preench. manual)', tag: '',               prefix: 'DATA: ___/___/____', dummy: '',         fontSize: 10, fontSizeStub: 8  },
+  { id: 'parcela', label: 'Parcela (canto sup. dir.)', tag: '{{n_parcela}}', prefix: '',                dummy: '1/12',      fontSize: 9,  fontSizeStub: 8  },
 ] as const;
 
 type TagId = typeof TAG_DEFS[number]['id'];
 
+// Parcela is always pinned to the top-right corner, not part of the centred group
+const PARCELA_Y        = 10;
+const PARCELA_X_MAIN  = EDITOR_WIDTH - 16;           // right edge of ticket
+const PARCELA_X_STUB  = Math.round(STUB_X_PX) - 6;  // right edge of stub zone
+
 // ─── Build layout from checked tags + stub mode ───────────────────────────────
 const buildLayout = (checkedIds: TagId[], hasStub: boolean): LayoutElement[] => {
   const els: LayoutElement[] = [];
-  const n       = checkedIds.length;
-  const startY  = CENTER_Y - Math.round(((n - 1) * LINE_SPACING) / 2);
-  checkedIds.forEach((tagId, idx) => {
-    const def  = TAG_DEFS.find(t => t.id === tagId)!;
-    const y    = startY + idx * LINE_SPACING;
+
+  // Separate parcela (fixed position) from the centred fields
+  const centredIds = checkedIds.filter(id => id !== 'parcela');
+  const hasParcela = checkedIds.includes('parcela');
+
+  // Vertically centre the remaining fields
+  const n      = centredIds.length;
+  const startY = n > 0 ? CENTER_Y - Math.round(((n - 1) * LINE_SPACING) / 2) : CENTER_Y;
+
+  centredIds.forEach((tagId, idx) => {
+    const def     = TAG_DEFS.find(t => t.id === tagId)!;
+    const y       = startY + idx * LINE_SPACING;
     const content = `${def.prefix}${def.tag}`;
-    const base = { type: 'tag' as const, content, style: { color: '#000000', fontWeight: 'bold' as const, textAlign: 'left' as const } };
+    const base    = { type: 'tag' as const, content, style: { color: '#000000', fontWeight: 'bold' as const, textAlign: 'left' as const } };
 
     if (hasStub) {
       els.push({ ...base, id: `stub_${tagId}`, x: 12, y, style: { ...base.style, fontSize: def.fontSizeStub } });
@@ -49,6 +62,19 @@ const buildLayout = (checkedIds: TagId[], hasStub: boolean): LayoutElement[] => 
       els.push({ ...base, id: `main_${tagId}`, x: 28, y, style: { ...base.style, fontSize: def.fontSize } });
     }
   });
+
+  // Parcela — fixed top-right, no prefix, right-aligned
+  if (hasParcela) {
+    const def  = TAG_DEFS.find(t => t.id === 'parcela')!;
+    const base = { type: 'tag' as const, content: def.tag, style: { color: '#000000', fontWeight: 'bold' as const, textAlign: 'right' as const } };
+    if (hasStub) {
+      els.push({ ...base, id: 'stub_parcela', x: PARCELA_X_STUB, y: PARCELA_Y, style: { ...base.style, fontSize: def.fontSizeStub } });
+      els.push({ ...base, id: 'main_parcela', x: PARCELA_X_MAIN, y: PARCELA_Y, style: { ...base.style, fontSize: def.fontSize } });
+    } else {
+      els.push({ ...base, id: 'main_parcela', x: PARCELA_X_MAIN, y: PARCELA_Y, style: { ...base.style, fontSize: def.fontSize } });
+    }
+  }
+
   return els;
 };
 
