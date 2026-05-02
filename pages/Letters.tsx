@@ -5,6 +5,7 @@ import { Member, LetterHistory, LetterTemplate, LayoutElement } from '../types';
 import { Mail, Search, X, Download, User, Check, History, Eye, FileSignature, AlertTriangle, CheckCircle, Info, Settings, Move, Image as ImageIcon, Save, Trash2, PlusCircle, Type, User as UserIcon, Calendar, Briefcase, MapPin, AlignLeft, AlignCenter, AlignRight, AlignJustify } from 'lucide-react';
 import jsPDF from 'jspdf';
 import Draggable, { DraggableData } from 'react-draggable';
+import { loadImageForPDF, addImageToPdf } from '../utils/pdfImageLoader';
 
 // --- CONSTANTES EDITOR ---
 const EDITOR_WIDTH          = 595;
@@ -172,22 +173,10 @@ export const Letters: React.FC = () => {
 
         if (template) {
             if (template.backgroundUrl) {
-                try {
-                    const imgProps = await new Promise<{ data: string; w: number; h: number }>((resolve, reject) => {
-                        const img = new Image();
-                        img.crossOrigin = "Anonymous";
-                        img.src = template.backgroundUrl!;
-                        img.onload = () => {
-                            const canvas = document.createElement('canvas');
-                            canvas.width = img.naturalWidth;
-                            canvas.height = img.naturalHeight;
-                            canvas.getContext('2d')?.drawImage(img, 0, 0);
-                            resolve({ data: canvas.toDataURL('image/jpeg'), w: img.naturalWidth, h: img.naturalHeight });
-                        };
-                        img.onerror = reject;
-                    });
-                    doc.addImage(imgProps.data, 'JPEG', 0, 0, pdfW_mm, pdfH_mm);
-                } catch (e) {
+                const bgData = await loadImageForPDF(template.backgroundUrl);
+                if (bgData) {
+                    addImageToPdf(doc, bgData, 0, 0, pdfW_mm, pdfH_mm);
+                } else {
                     showAlert("Aviso", "Não foi possível carregar o papel timbrado. Gerando apenas texto.", "warning");
                 }
             }
@@ -213,7 +202,19 @@ export const Letters: React.FC = () => {
                             .replace(/{{data_atual}}/g, today.toLocaleDateString('pt-BR'))
                             .replace(/{{cidade_igreja}}/g, fullDate)
                             .replace(/{{estado_civil}}/g, selectedMember.maritalStatus || '');
-                        renderJustifiedText(doc, processedText, 20, (el.y * scale) + (el.style.fontSize * 0.35), 170);
+                        const textX   = el.x * scale;
+                        const textY   = (el.y * scale) + (el.style.fontSize * 0.35);
+                        const maxW    = el.width ? (el.width * scale) : (pdfW_mm - 2 * textX);
+                        const align   = el.style.textAlign as string;
+                        if (align === 'center') {
+                            const lines = doc.splitTextToSize(processedText, maxW);
+                            lines.forEach((line: string, i: number) => {
+                                doc.text(line, textX, textY + i * (el.style.fontSize * 0.45), { align: 'center' });
+                            });
+                        } else {
+                            const leftX = align === 'right' ? textX - maxW : Math.min(textX, 15);
+                            renderJustifiedText(doc, processedText, leftX, textY, maxW);
+                        }
                     }
                 } else {
                     let text = el.content
