@@ -393,13 +393,13 @@ export const Infrastructure: React.FC = () => {
 
       {/* ===== SPACE MODAL ===== */}
       {showSpaceModal && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-5 border-b">
-              <h2 className="text-lg font-bold text-gray-900">{editingSpace ? 'Editar Ambiente' : 'Novo Ambiente'}</h2>
+        <div className="fixed inset-0 bg-black/60 flex items-end sm:items-center justify-center z-50 sm:p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-lg max-h-[92vh] overflow-y-auto">
+            <div className="flex items-center justify-between px-4 py-4 sm:p-5 border-b">
+              <h2 className="text-base sm:text-lg font-bold text-gray-900">{editingSpace ? 'Editar Ambiente' : 'Novo Ambiente'}</h2>
               <button onClick={() => setShowSpaceModal(false)} className="p-2 hover:bg-gray-100 rounded-lg"><X size={18} /></button>
             </div>
-            <div className="p-5 space-y-4">
+            <div className="px-4 py-4 sm:p-5 space-y-4">
               {/* Church selector — only for sede users with multiple units */}
               {isSede && hasMultipleUnits ? (
                 <div>
@@ -538,12 +538,12 @@ export const Infrastructure: React.FC = () => {
                 )}
               </div>
             </div>
-            <div className="p-5 border-t flex justify-end gap-3">
-              <button onClick={() => setShowSpaceModal(false)} className="px-4 py-2.5 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50">{t('common.cancel')}</button>
+            <div className="px-4 py-4 sm:p-5 border-t flex gap-3">
+              <button onClick={() => setShowSpaceModal(false)} className="flex-1 sm:flex-none px-4 py-2.5 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50">{t('common.cancel')}</button>
               <button
                 onClick={handleSaveSpace}
                 disabled={saving || !spaceForm.name.trim() || !spaceForm.churchId}
-                className="px-5 py-2.5 text-sm font-semibold bg-gradient-to-r from-orange-500 to-red-600 text-white rounded-xl shadow hover:shadow-md transition disabled:opacity-50"
+                className="flex-1 sm:flex-none px-5 py-2.5 text-sm font-semibold bg-gradient-to-r from-orange-500 to-red-600 text-white rounded-xl shadow hover:shadow-md transition disabled:opacity-50"
               >
                 {saving ? t('common.saving') : editingSpace ? t('common.save') : t('infrastructure.newSpace')}
               </button>
@@ -554,13 +554,13 @@ export const Infrastructure: React.FC = () => {
 
       {/* ===== ASSET MODAL ===== */}
       {showAssetModal && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-5 border-b">
-              <h2 className="text-lg font-bold text-gray-900">{editingAsset ? 'Editar Item' : 'Novo Item'}</h2>
+        <div className="fixed inset-0 bg-black/60 flex items-end sm:items-center justify-center z-50 sm:p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-md max-h-[92vh] overflow-y-auto">
+            <div className="flex items-center justify-between px-4 py-4 sm:p-5 border-b">
+              <h2 className="text-base sm:text-lg font-bold text-gray-900">{editingAsset ? 'Editar Item' : 'Novo Item'}</h2>
               <button onClick={() => setShowAssetModal(false)} className="p-2 hover:bg-gray-100 rounded-lg"><X size={18} /></button>
             </div>
-            <div className="p-5 space-y-4">
+            <div className="px-4 py-4 sm:p-5 space-y-4">
               {/* Space selector */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">Ambiente *</label>
@@ -657,12 +657,12 @@ export const Infrastructure: React.FC = () => {
                 )}
               </div>
             </div>
-            <div className="p-5 border-t flex justify-end gap-3">
-              <button onClick={() => setShowAssetModal(false)} className="px-4 py-2.5 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50">{t('common.cancel')}</button>
+            <div className="px-4 py-4 sm:p-5 border-t flex gap-3">
+              <button onClick={() => setShowAssetModal(false)} className="flex-1 sm:flex-none px-4 py-2.5 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50">{t('common.cancel')}</button>
               <button
                 onClick={handleSaveAsset}
                 disabled={saving || !assetForm.name.trim() || !assetForm.spaceId}
-                className="px-5 py-2.5 text-sm font-semibold bg-gradient-to-r from-orange-500 to-red-600 text-white rounded-xl shadow hover:shadow-md transition disabled:opacity-50"
+                className="flex-1 sm:flex-none px-5 py-2.5 text-sm font-semibold bg-gradient-to-r from-orange-500 to-red-600 text-white rounded-xl shadow hover:shadow-md transition disabled:opacity-50"
               >
                 {saving ? t('common.saving') : editingAsset ? t('common.save') : t('infrastructure.newAsset')}
               </button>
