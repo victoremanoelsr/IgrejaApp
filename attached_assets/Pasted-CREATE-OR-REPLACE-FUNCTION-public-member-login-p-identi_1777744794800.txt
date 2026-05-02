@@ -1,0 +1,85 @@
+CREATE OR REPLACE FUNCTION public.member_login(
+  p_identifier TEXT,
+  p_password   TEXT
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_member      RECORD;
+  v_church      RECORD;
+  v_sede        RECORD;
+  v_is_first    BOOLEAN;
+BEGIN
+  SELECT *
+  INTO v_member
+  FROM members
+  WHERE cpf = p_identifier OR member_username = p_identifier
+  LIMIT 1;
+
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('error', 'Usuário não encontrado.');
+  END IF;
+
+  IF v_member.member_password IS NULL THEN
+    IF regexp_replace(v_member.cpf, '[^0-9]', '', 'g') != p_password THEN
+      RETURN jsonb_build_object('error', 'Senha incorreta.');
+    END IF;
+    v_is_first := TRUE;
+  ELSE
+    IF v_member.member_password != p_password THEN
+      RETURN jsonb_build_object('error', 'Senha incorreta.');
+    END IF;
+    v_is_first := FALSE;
+  END IF;
+
+  SELECT * INTO v_church FROM churches WHERE id = v_member.church_id LIMIT 1;
+
+  IF v_church.parent_id IS NOT NULL THEN
+    SELECT * INTO v_sede FROM churches WHERE id = v_church.parent_id LIMIT 1;
+  ELSE
+    v_sede := v_church;
+  END IF;
+
+  RETURN jsonb_build_object(
+    'member', jsonb_build_object(
+      'id',             v_member.id,
+      'church_id',      v_member.church_id,
+      'name',           v_member.name,
+      'cpf',            v_member.cpf,
+      'birth_date',     v_member.birth_date,
+      'member_number',  v_member.member_number,
+      'is_tither',      v_member.is_tither,
+      'baptism_date',   v_member.baptism_date,
+      'address',        v_member.address,
+      'photo_url',      v_member.photo_url,
+      'email',          v_member.email,
+      'phone',          v_member.phone,
+      'marital_status', v_member.marital_status,
+      'status',         v_member.status,
+      'is_youth',       v_member.is_youth,
+      'is_child',       v_member.is_child,
+      'is_lady',        v_member.is_lady,
+      'member_username', v_member.member_username
+    ),
+    'church', jsonb_build_object(
+      'id',           v_church.id,
+      'name',         v_church.name,
+      'active',       v_church.active,
+      'pix_key',      v_church.pix_key,
+      'logo_url',     v_church.logo_url,
+      'pastor_name',  v_church.pastor_name,
+      'type',         v_church.type,
+      'parent_id',    v_church.parent_id
+    ),
+    'sede_pastor_phone', v_sede.pastor_phone,
+    'sede_pastor_name',  v_sede.pastor_name,
+    'is_first_access',   v_is_first
+  );
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.member_login(TEXT, TEXT) TO anon;
+GRANT EXECUTE ON FUNCTION public.member_login(TEXT, TEXT) TO authenticated;
