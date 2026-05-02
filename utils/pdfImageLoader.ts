@@ -83,34 +83,31 @@ export const renderElementsToPDF = async (
         text = text.replace(tag, val);
       });
 
-      let fontSize = el.style?.fontSize || 11;
+      const fontSize = el.style?.fontSize || 11;
       doc.setFontSize(fontSize);
       doc.setFont('helvetica', el.style?.fontWeight === 'bold' ? 'bold' : 'normal');
+      doc.setTextColor(el.style?.color || '#000000');
 
-      const xMM = el.x * scale;
+      const xMM  = el.x * scale;
+      const yMM  = currentY + el.y * scale + fontSize * 0.35;
 
-      // Stub zone: clamp text width so it never crosses the canhoto boundary
+      // Stub zone: wrap text so it never crosses the canhoto divider line
       const isStub = xMM < STUB_BOUNDARY_MM;
       const maxW   = isStub
         ? STUB_BOUNDARY_MM - xMM - 1.5   // 1.5 mm margin before the divider
         : 210 - xMM - 2;                 // 2 mm margin from right edge
 
-      // Shrink font until text fits
-      while (doc.getTextWidth(text) > maxW && fontSize > 4.5) {
-        fontSize -= 0.4;
-        doc.setFontSize(fontSize);
+      if (isStub) {
+        // Use splitTextToSize for word-wrap — keeps font size intact, looks professional
+        const lineHeightMM = fontSize * 0.352778 * 1.25; // pt → mm × line-height factor
+        const lines: string[] = doc.splitTextToSize(text, maxW);
+        lines.forEach((line: string, i: number) => {
+          doc.text(line, xMM, yMM + i * lineHeightMM);
+        });
+      } else {
+        // Main zone: single line (wide enough for any realistic value)
+        doc.text(text, xMM, yMM);
       }
-
-      // If still too long, truncate with ellipsis
-      while (doc.getTextWidth(text) > maxW && text.length > 4) {
-        text = text.slice(0, -1);
-      }
-      if (doc.getTextWidth(text + '…') <= maxW) {
-        // Already fits after shrink — use as-is (no ellipsis needed unless forced above)
-      }
-
-      doc.setTextColor(el.style?.color || '#000000');
-      doc.text(text, xMM, currentY + el.y * scale + fontSize * 0.35);
     }
   }
 };
