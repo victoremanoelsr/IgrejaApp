@@ -17,9 +17,9 @@ const EDITOR_HEIGHT = Math.round((EDITOR_WIDTH * TICKET_H_MM) / TICKET_W_MM); //
 const STUB_RATIO    = 0.25;
 const STUB_X_PX     = EDITOR_WIDTH * STUB_RATIO; // 198.5 px
 
-// ─── Fixed Y rows (editor pixels) — 5 rows, centered in 264px height ─────────
-// center = 132, span = 4×36 = 144, start = 132 - 72 = 60
-const ROW_Y = [60, 96, 132, 168, 204] as const;
+// ─── Dynamic vertical centering ───────────────────────────────────────────────
+const LINE_SPACING = 36; // px between rows
+const CENTER_Y     = Math.round(EDITOR_HEIGHT / 2); // 132 px
 
 // ─── Field definitions ────────────────────────────────────────────────────────
 const TAG_DEFS = [
@@ -34,9 +34,11 @@ type TagId = typeof TAG_DEFS[number]['id'];
 // ─── Build layout from checked tags + stub mode ───────────────────────────────
 const buildLayout = (checkedIds: TagId[], hasStub: boolean): LayoutElement[] => {
   const els: LayoutElement[] = [];
+  const n       = checkedIds.length;
+  const startY  = CENTER_Y - Math.round(((n - 1) * LINE_SPACING) / 2);
   checkedIds.forEach((tagId, idx) => {
     const def  = TAG_DEFS.find(t => t.id === tagId)!;
-    const y    = ROW_Y[idx] ?? (42 + idx * 57);
+    const y    = startY + idx * LINE_SPACING;
     const content = `${def.prefix}${def.tag}`;
     const base = { type: 'tag' as const, content, style: { color: '#000000', fontWeight: 'bold' as const, textAlign: 'left' as const } };
 
