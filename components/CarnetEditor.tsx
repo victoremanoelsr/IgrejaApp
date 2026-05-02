@@ -17,9 +17,9 @@ const EDITOR_HEIGHT = Math.round((EDITOR_WIDTH * TICKET_H_MM) / TICKET_W_MM); //
 const STUB_RATIO    = 0.25;
 const STUB_X_PX     = EDITOR_WIDTH * STUB_RATIO; // 198.5 px
 
-// ─── Fixed Y rows (editor pixels) — 4 rows, centered in 264px height ─────────
-// center = 132, span = 3×36 = 108, start = 132 - 54 = 78
-const ROW_Y = [78, 114, 150, 186] as const;
+// ─── Fixed Y rows (editor pixels) — 5 rows, centered in 264px height ─────────
+// center = 132, span = 4×36 = 144, start = 132 - 72 = 60
+const ROW_Y = [60, 96, 132, 168, 204] as const;
 
 // ─── Field definitions ────────────────────────────────────────────────────────
 const TAG_DEFS = [
@@ -27,6 +27,7 @@ const TAG_DEFS = [
   { id: 'valor',   label: 'Valor',                 tag: '{{valor}}',       prefix: 'VALOR: ',   dummy: 'R$ 50,00',          fontSize: 11, fontSizeStub: 9  },
   { id: 'parcela', label: 'Parcela / Vencimento',  tag: '{{n_parcela}}',   prefix: 'PARCELA: ', dummy: '3/12',              fontSize: 10, fontSizeStub: 8  },
   { id: 'mes',     label: 'Mês / Referência',      tag: '{{mes_extenso}}', prefix: 'MÊS: ',     dummy: 'MARÇO',             fontSize: 10, fontSizeStub: 8  },
+  { id: 'data',    label: 'Data (preench. manual)', tag: '',               prefix: 'DATA: ___/___/____', dummy: '',         fontSize: 10, fontSizeStub: 8  },
 ] as const;
 
 type TagId = typeof TAG_DEFS[number]['id'];
