@@ -1,46 +1,54 @@
+const STUB_BOUNDARY_MM = 210 * 0.25; // 52.5 mm — 25% canhoto boundary
+
 /**
- * Loads an image URL as a JPEG base64 data-URL using the browser Canvas API.
- * This avoids fetch/CORS issues and auto-converts any format to JPEG for jsPDF.
+ * Loads an image URL as a JPEG base64 data-URL.
+ * Strategy: fetch → FileReader (no canvas taint), then canvas fallback.
  */
 export const loadImageForPDF = (url: string): Promise<string | null> => {
-  return new Promise((resolve) => {
-    const img = new Image();
-
-    const draw = (source: HTMLImageElement) => {
-      const canvas = document.createElement('canvas');
-      canvas.width  = source.naturalWidth  || 794;
-      canvas.height = source.naturalHeight || 264;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) { resolve(null); return; }
-      ctx.drawImage(source, 0, 0);
-      try {
-        resolve(canvas.toDataURL('image/jpeg', 0.92));
-      } catch {
-        resolve(null);
-      }
-    };
-
-    img.crossOrigin = 'anonymous';
-    img.onload  = () => draw(img);
-    img.onerror = () => {
-      // Retry without crossOrigin (works for same-origin images)
-      const fallback = new Image();
-      fallback.onload  = () => draw(fallback);
-      fallback.onerror = () => resolve(null);
-      fallback.src = url;
-    };
-    img.src = url;
-  });
+  // 1) Try fetch → blob → FileReader (most reliable, avoids canvas CORS taint)
+  return fetch(url, { mode: 'cors', credentials: 'omit' })
+    .then(r => {
+      if (!r.ok) throw new Error('fetch failed');
+      return r.blob();
+    })
+    .then(blob => new Promise<string | null>((resolve) => {
+      // Convert blob to data URL (preserves original format; jsPDF handles JPEG/PNG/WEBP)
+      const reader = new FileReader();
+      reader.onload  = () => resolve(reader.result as string);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
+    }))
+    .catch(() => {
+      // 2) Canvas fallback (works for same-origin or CORS-permissive servers)
+      return new Promise<string | null>((resolve) => {
+        const draw = (source: HTMLImageElement) => {
+          const canvas = document.createElement('canvas');
+          canvas.width  = source.naturalWidth  || 794;
+          canvas.height = source.naturalHeight || 264;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) { resolve(null); return; }
+          ctx.drawImage(source, 0, 0);
+          try { resolve(canvas.toDataURL('image/jpeg', 0.92)); }
+          catch { resolve(null); }
+        };
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload  = () => draw(img);
+        img.onerror = () => {
+          const fallback = new Image();
+          fallback.onload  = () => draw(fallback);
+          fallback.onerror = () => resolve(null);
+          fallback.src = url;
+        };
+        img.src = url;
+      });
+    });
 };
 
 /**
  * Renders layout elements (text + image) onto a jsPDF document for one ticket slot.
- * @param doc        jsPDF instance
- * @param elements   LayoutElement array from the template
- * @param scale      mm/px ratio  (typically 210 / EDITOR_WIDTH)
- * @param currentY   top of the current ticket slot in mm
- * @param replacements  tag → value map for the current ticket
- * @param imageCache    cache of preloaded image dataURLs (url → dataURL)
+ * Stub-zone elements (x < STUB_BOUNDARY_MM) are clamped so text never crosses the
+ * canhoto divider line.
  */
 export const renderElementsToPDF = async (
   doc: any,
@@ -52,7 +60,6 @@ export const renderElementsToPDF = async (
 ) => {
   for (const el of elements) {
     if (el.type === 'image') {
-      // Render QR code / image element
       const src = el.content;
       if (!src) continue;
       if (!(src in imageCache)) {
@@ -60,14 +67,17 @@ export const renderElementsToPDF = async (
       }
       const imgData = imageCache[src];
       if (imgData) {
-        const wMM  = (el.width  || 50) * scale;
-        const hMM  = (el.height || 50) * scale;
-        const xMM  = el.x * scale;
-        const yMM  = currentY + el.y * scale;
-        doc.addImage(imgData, 'JPEG', xMM, yMM, wMM, hMM);
+        const wMM = (el.width  || 50) * scale;
+        const hMM = (el.height || 50) * scale;
+        const xMM = el.x * scale;
+        const yMM = currentY + el.y * scale;
+        // Detect format hint from data-url prefix
+        const fmt = imgData.startsWith('data:image/png') ? 'PNG'
+                  : imgData.startsWith('data:image/webp') ? 'WEBP'
+                  : 'JPEG';
+        try { doc.addImage(imgData, fmt, xMM, yMM, wMM, hMM); } catch { /* skip */ }
       }
     } else {
-      // Text / tag element
       let text = el.content as string;
       Object.entries(replacements).forEach(([tag, val]) => {
         text = text.replace(tag, val);
@@ -77,13 +87,26 @@ export const renderElementsToPDF = async (
       doc.setFontSize(fontSize);
       doc.setFont('helvetica', el.style?.fontWeight === 'bold' ? 'bold' : 'normal');
 
-      // Auto-shrink text to fit zone width
       const xMM = el.x * scale;
-      const PAGE_W = 210;
-      const maxW = Math.max(10, PAGE_W - xMM - 2);
-      while (doc.getTextWidth(text) > maxW && fontSize > 5) {
-        fontSize -= 0.5;
+
+      // Stub zone: clamp text width so it never crosses the canhoto boundary
+      const isStub = xMM < STUB_BOUNDARY_MM;
+      const maxW   = isStub
+        ? STUB_BOUNDARY_MM - xMM - 1.5   // 1.5 mm margin before the divider
+        : 210 - xMM - 2;                 // 2 mm margin from right edge
+
+      // Shrink font until text fits
+      while (doc.getTextWidth(text) > maxW && fontSize > 4.5) {
+        fontSize -= 0.4;
         doc.setFontSize(fontSize);
+      }
+
+      // If still too long, truncate with ellipsis
+      while (doc.getTextWidth(text) > maxW && text.length > 4) {
+        text = text.slice(0, -1);
+      }
+      if (doc.getTextWidth(text + '…') <= maxW) {
+        // Already fits after shrink — use as-is (no ellipsis needed unless forced above)
       }
 
       doc.setTextColor(el.style?.color || '#000000');
