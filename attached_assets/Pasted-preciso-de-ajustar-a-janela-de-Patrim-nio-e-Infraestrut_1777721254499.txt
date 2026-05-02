@@ -1,0 +1,21 @@
+preciso de ajustar a janela de Património e Infraestrutura para aplicar uma hierarquia visual correta entre Sede e Congregações, com base nas imagens que te mostro:
+>  1. **No Banco de Dados:** Garante que a tabela de ambientes/espaços físicos (physical_spaces) e a de itens/bens (assets) têm a coluna church_id (ID da Sede) e a coluna branch_id (ID da Congregação, que fica vazio/null se o espaço for da Sede).
+>  2. **No Painel da Sede:** O Pastor Presidente tem de ver tudo.
+>    * O filtro de 'Unidades' deve listar a Sede e todas as Congregações ativas.
+>    * Ao carregar no ecrã de Infraestrutura, por padrão mostra os espaços da Sede. Se ele mudar o filtro para 'Congregação 1', a lista atualiza e mostra os espaços e inventário daquela congregação.
+>  3. **No Painel da Congregação:** >    * O utilizador da congregação só pode visualizar, criar, editar e eliminar os espaços e bens que pertencem ao seu próprio branch_id.
+>    * Ele não tem acesso ao filtro de 'Todas as Unidades' (esse filtro deve ser ocultado ou bloqueado no ecrã dele).
+>    * Quando ele cria um 'Novo Espaço' ou 'Novo Item', o sistema deve guardar o branch_id dele automaticamente por trás.
+>  4. **No Modal de Inventário:** Ao abrir o botão 'Ver Inventário', a Sede consegue ver os itens de qualquer unidade através do filtro, enquanto a congregação só vê os seus próprios itens.
+> Ajusta as consultas (queries) no backend e a lógica do frontend para que esta separação fique 100% ativa."*
+> Como deve funcionar na Janela de Infraestrutura (Seguindo os Prints)
+1. No Painel da Sede (Pastor Presidente)
+Ao abrir o ecrã de Património e Infraestrutura:
+• O sistema deve listar primeiro os espaços físicos da Sede.
+• Logo abaixo (ou utilizando o filtro de "Todas as Unidades" que já tem no topo do seu print), o Pastor Presidente pode ver os espaços criados por cada congregação.
+• A regra de ouro: Se o Pastor Presidente da Sede clicar no filtro "Todas as Unidades", ele consegue ver os espaços da Congregação 1, Congregação 2, etc.
+2. No Painel da Congregação (Ex: Congregação 1)
+• Quando o dirigente da Congregação 1 abrir este ecrã, o filtro "Todas as Unidades" não deve aparecer ou deve ficar travado apenas na unidade dele.
+• Ele não pode ver os espaços criados pela Sede nem os das outras congregações.
+• Ao clicar em "+ Novo Espaço" ou "+ Item", o sistema já grava automaticamente no banco de dados o ID daquela congregação (branch_id).
+

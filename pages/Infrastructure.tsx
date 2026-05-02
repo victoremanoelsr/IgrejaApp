@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApp } from '../context';
 import {
@@ -93,6 +93,18 @@ export const Infrastructure: React.FC = () => {
   const assetPhotoRef = useRef<HTMLInputElement>(null);
 
   const effectiveChurchId = currentChurch?.id || user?.churchId || '';
+
+  const userChurch = useMemo(() =>
+    availableChurches.find(c => c.id === effectiveChurchId) || null,
+    [availableChurches, effectiveChurchId]
+  );
+
+  const isSede = user?.role === 'SUPER_ADM' || userChurch?.type === 'SEDE';
+  const hasMultipleUnits = availableChurches.length > 1;
+
+  useEffect(() => {
+    if (effectiveChurchId) setFilterChurchId(effectiveChurchId);
+  }, [effectiveChurchId]);
 
   const myChurchIds = useMemo(() => {
     if (!user) return [];
@@ -244,19 +256,21 @@ export const Infrastructure: React.FC = () => {
 
         {/* Filters */}
         <div className="flex flex-wrap gap-3 mt-4">
-          <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5">
-            <Filter size={14} className="text-gray-400" />
-            <select
-              value={filterChurchId}
-              onChange={e => setFilterChurchId(e.target.value)}
-              className="text-sm bg-transparent outline-none text-gray-700 min-w-[140px]"
-            >
-              <option value="">Todas as Unidades</option>
-              {availableChurches.filter(c => myChurchIds.includes(c.id)).map(c => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
-          </div>
+          {isSede && hasMultipleUnits && (
+            <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5">
+              <Filter size={14} className="text-gray-400" />
+              <select
+                value={filterChurchId}
+                onChange={e => setFilterChurchId(e.target.value)}
+                className="text-sm bg-transparent outline-none text-gray-700 min-w-[140px]"
+              >
+                <option value="">Todas as Unidades</option>
+                {availableChurches.filter(c => myChurchIds.includes(c.id)).map(c => (
+                  <option key={c.id} value={c.id}>{c.name}{c.type === 'SEDE' ? ' (Sede)' : ''}</option>
+                ))}
+              </select>
+            </div>
+          )}
           <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5">
             <ChevronDown size={14} className="text-gray-400" />
             <select
@@ -298,8 +312,15 @@ export const Infrastructure: React.FC = () => {
                       <div className="text-white/60">{categoryIcon[sp.category]}</div>
                     )}
                     <div className="absolute inset-0 bg-black/10" />
-                    <div className="absolute top-2 left-2 bg-black/40 text-white text-[10px] font-bold px-2 py-1 rounded-full uppercase backdrop-blur-sm">
-                      {sp.category}
+                    <div className="absolute top-2 left-2 flex items-center gap-1.5">
+                      <span className="bg-black/40 text-white text-[10px] font-bold px-2 py-1 rounded-full uppercase backdrop-blur-sm">
+                        {sp.category}
+                      </span>
+                      {isSede && !filterChurchId && (
+                        <span className={`text-[9px] font-bold px-2 py-1 rounded-full backdrop-blur-sm ${availableChurches.find(c => c.id === sp.churchId)?.type === 'SEDE' ? 'bg-orange-500/80 text-white' : 'bg-blue-500/80 text-white'}`}>
+                          {availableChurches.find(c => c.id === sp.churchId)?.type === 'SEDE' ? 'Sede' : 'Congregação'}
+                        </span>
+                      )}
                     </div>
                     <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button onClick={() => openEditSpace(sp)} className="p-1.5 bg-white/80 rounded-lg hover:bg-white text-gray-700 shadow-sm"><Edit2 size={13} /></button>
@@ -379,8 +400,8 @@ export const Infrastructure: React.FC = () => {
               <button onClick={() => setShowSpaceModal(false)} className="p-2 hover:bg-gray-100 rounded-lg"><X size={18} /></button>
             </div>
             <div className="p-5 space-y-4">
-              {/* Church selector (if multiple available) */}
-              {availableChurches.filter(c => myChurchIds.includes(c.id)).length > 1 && (
+              {/* Church selector — only for sede users with multiple units */}
+              {isSede && hasMultipleUnits ? (
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1.5">Unidade / Congregação</label>
                   <select
@@ -390,9 +411,16 @@ export const Infrastructure: React.FC = () => {
                   >
                     <option value="">Selecionar...</option>
                     {availableChurches.filter(c => myChurchIds.includes(c.id)).map(c => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
+                      <option key={c.id} value={c.id}>{c.name}{c.type === 'SEDE' ? ' (Sede)' : ''}</option>
                     ))}
                   </select>
+                </div>
+              ) : !isSede && (
+                <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-xl px-3 py-2.5">
+                  <Building2 size={15} className="text-blue-500 shrink-0" />
+                  <span className="text-sm text-blue-700 font-medium">
+                    {userChurch?.name || churchName(effectiveChurchId)}
+                  </span>
                 </div>
               )}
 
