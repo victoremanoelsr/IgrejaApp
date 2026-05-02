@@ -17,8 +17,9 @@ const EDITOR_HEIGHT = Math.round((EDITOR_WIDTH * TICKET_H_MM) / TICKET_W_MM); //
 const STUB_RATIO    = 0.25;
 const STUB_X_PX     = EDITOR_WIDTH * STUB_RATIO; // 198.5 px
 
-// ─── Fixed Y rows (editor pixels) — 4 rows within 264px height ───────────────
-const ROW_Y = [42, 98, 155, 210] as const;
+// ─── Fixed Y rows (editor pixels) — 4 rows, centered in 264px height ─────────
+// center = 132, span = 3×36 = 108, start = 132 - 54 = 78
+const ROW_Y = [78, 114, 150, 186] as const;
 
 // ─── Field definitions ────────────────────────────────────────────────────────
 const TAG_DEFS = [
