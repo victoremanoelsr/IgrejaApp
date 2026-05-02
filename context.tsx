@@ -297,14 +297,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const today = new Date();
     const todayStr = today.toISOString().split('T')[0];
     const months = PLAN_MONTHS_INTERNAL[church.planType ?? 'mensal'] ?? 1;
-    const nextDue = new Date(today);
-    if (months > 0) nextDue.setMonth(nextDue.getMonth() + months);
+    const dueDay = church.dueDay ?? 10;
+
+    // Próximo vencimento: dueDay do próximo ciclo (baseado no dia de vencimento original, não na data de hoje)
+    const nextDue = new Date(today.getFullYear(), today.getMonth() + months, dueDay);
     const nextDueStr = nextDue.toISOString().split('T')[0];
 
     const res = await updateChurch(churchId, {
       active: true,
       lastPaymentDate: todayStr,
-      paymentPromiseDate: nextDueStr,
+      paymentPromiseDate: '', // Limpa a promessa ao confirmar pagamento
     });
     if (!res.success) return { success: false, error: res.error };
     return { success: true, nextDueDate: nextDueStr };

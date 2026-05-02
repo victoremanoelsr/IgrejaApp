@@ -77,8 +77,42 @@ export const BillingPage: React.FC = () => {
     return () => clearTimeout(t);
   }, []);
 
+  // ---- Cálculo do próximo vencimento real (baseado no dueDay, não na promessa) ----
+  const billingStatus = React.useMemo(() => {
+    if (!currentChurch || !currentChurch.planType || currentChurch.planType === 'isento') {
+      return { nextDueDate: null, isOnTime: true, isInGrace: false, isLate: false, hasActivePromise: false, promiseDate: null };
+    }
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const dueDay = currentChurch.dueDay ?? 10;
+    const months = CYCLE_MONTHS[currentChurch.planType as PlanType] ?? 1;
+    const gracePeriod = currentChurch.gracePeriod ?? 5;
+
+    // Próximo vencimento calculado a partir do último pagamento + ciclo, usando o dueDay original
+    let nextDue: Date;
+    if (currentChurch.lastPaymentDate) {
+      const last = new Date(currentChurch.lastPaymentDate + 'T00:00:00');
+      nextDue = new Date(last.getFullYear(), last.getMonth() + months, dueDay);
+    } else {
+      nextDue = new Date(today.getFullYear(), today.getMonth(), dueDay);
+      if (nextDue < today) nextDue = new Date(today.getFullYear(), today.getMonth() + 1, dueDay);
+    }
+
+    const graceDate = new Date(nextDue);
+    graceDate.setDate(graceDate.getDate() + gracePeriod);
+
+    const promiseDate = currentChurch.paymentPromiseDate
+      ? new Date(currentChurch.paymentPromiseDate + 'T00:00:00')
+      : null;
+    const hasActivePromise = promiseDate ? promiseDate >= today : false;
+
+    const isOnTime  = today <= nextDue;
+    const isInGrace = !isOnTime && today <= graceDate;
+    const isLate    = !isOnTime && !isInGrace;
+
+    return { nextDueDate: nextDue, isOnTime, isInGrace, isLate, hasActivePromise, promiseDate };
+  }, [currentChurch?.dueDay, currentChurch?.gracePeriod, currentChurch?.planType, currentChurch?.lastPaymentDate, currentChurch?.paymentPromiseDate]);
+
   // ---- Histórico de faturas DERIVADO do plano cadastrado da igreja ----
-  // Usa: planTier (preço base), planType (ciclo), paymentPromiseDate (próx. vencimento) e lastPaymentDate.
   const invoices: Invoice[] = React.useMemo(() => {
     if (!currentChurch || !currentChurch.planTier || !currentChurch.planType || currentChurch.planType === 'isento') {
       return [];
@@ -86,20 +120,18 @@ export const BillingPage: React.FC = () => {
     const tierKey = currentChurch.planTier;
     const cycle   = currentChurch.planType;
     const months  = CYCLE_MONTHS[cycle] ?? 1;
+    const dueDay  = currentChurch.dueDay ?? 10;
     const basePrice = PLAN_LIMITS[tierKey]?.basePrice ?? 0;
-    // Valor cobrado em cada fatura (já com desconto do ciclo aplicado).
     const cyclePrice = calcPrice(basePrice, cycle, months);
 
-    // Âncora de vencimento: usa paymentPromiseDate; se não houver, calcula a partir do último pagamento + ciclo.
+    // Âncora de vencimento: sempre calculada pelo dueDay original, nunca pela promessa
     let nextDue: Date;
-    if (currentChurch.paymentPromiseDate) {
-      nextDue = new Date(currentChurch.paymentPromiseDate + 'T00:00:00');
-    } else if (currentChurch.lastPaymentDate) {
-      nextDue = new Date(currentChurch.lastPaymentDate + 'T00:00:00');
-      nextDue.setMonth(nextDue.getMonth() + months);
+    if (currentChurch.lastPaymentDate) {
+      const last = new Date(currentChurch.lastPaymentDate + 'T00:00:00');
+      nextDue = new Date(last.getFullYear(), last.getMonth() + months, dueDay);
     } else {
-      nextDue = new Date();
-      nextDue.setMonth(nextDue.getMonth() + months);
+      const now = new Date();
+      nextDue = new Date(now.getFullYear(), now.getMonth() + 1, dueDay);
     }
 
     const lastPaid = currentChurch.lastPaymentDate
@@ -109,31 +141,23 @@ export const BillingPage: React.FC = () => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const HISTORY_LENGTH = 5; // 1 vigente + 4 anteriores
+    const HISTORY_LENGTH = 5;
     const list: Invoice[] = [];
 
     for (let i = 0; i < HISTORY_LENGTH; i++) {
-      const due = new Date(nextDue);
-      due.setMonth(due.getMonth() - i * months);
+      const due = new Date(nextDue.getFullYear(), nextDue.getMonth() - i * months, dueDay);
 
-      // Períodos anteriores ao último pagamento são considerados pagos; a fatura vigente fica pendente/vencida.
       const isCurrent = i === 0;
       let status: InvoiceStatus;
       let paidDate: string | undefined;
 
       if (isCurrent) {
-        if (currentChurch.active === false || due < today) {
-          status = 'VENCIDO';
-        } else {
-          status = 'PENDENTE';
-        }
+        status = (currentChurch.active === false || due < today) ? 'VENCIDO' : 'PENDENTE';
       } else {
         status = 'PAGO';
-        // Se temos a data do último pagamento, usamos para a fatura mais recente (i=1) e estimamos as demais.
         if (lastPaid && i === 1) {
           paidDate = toIsoDate(lastPaid);
         } else {
-          // Estimativa: pagamento ocorreu poucos dias antes do vencimento.
           const estimated = new Date(due);
           estimated.setDate(estimated.getDate() - 3);
           paidDate = toIsoDate(estimated);
@@ -151,7 +175,7 @@ export const BillingPage: React.FC = () => {
     }
 
     return list;
-  }, [currentChurch?.planTier, currentChurch?.planType, currentChurch?.paymentPromiseDate, currentChurch?.lastPaymentDate, currentChurch?.active]);
+  }, [currentChurch?.planTier, currentChurch?.planType, currentChurch?.dueDay, currentChurch?.lastPaymentDate, currentChurch?.active]);
 
   // Visibilidade estrita: somente no painel da SEDE.
   if (currentChurch && currentChurch.type !== 'SEDE') {
@@ -325,15 +349,24 @@ export const BillingPage: React.FC = () => {
                   <h2 className="text-xl font-bold text-white capitalize">
                     {currentTierLimits.label} · {CYCLE_LABELS[currentChurch?.planType as PlanType] ?? 'Mensal'}
                   </h2>
-                  {currentChurch?.paymentPromiseDate ? (
+                  {billingStatus.nextDueDate ? (
                     <p className="text-slate-400 text-sm mt-0.5">
                       Próximo vencimento:{' '}
-                      <span className="text-yellow-400 font-semibold">
-                        {new Date(currentChurch.paymentPromiseDate + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
+                      <span className={`font-semibold ${billingStatus.isOnTime ? 'text-emerald-400' : billingStatus.isInGrace ? 'text-yellow-400' : 'text-red-400'}`}>
+                        {billingStatus.nextDueDate.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
                       </span>
                     </p>
                   ) : (
                     <p className="text-slate-400 text-sm mt-0.5">Sem vencimento registrado</p>
+                  )}
+                  {billingStatus.hasActivePromise && billingStatus.promiseDate && (billingStatus.isInGrace || billingStatus.isLate) && (
+                    <p className="text-slate-500 text-xs mt-0.5 flex items-center gap-1">
+                      <Clock size={11} className="text-yellow-500" />
+                      Acesso liberado por promessa até:{' '}
+                      <span className="text-yellow-400 font-semibold">
+                        {billingStatus.promiseDate.toLocaleDateString('pt-BR')}
+                      </span>
+                    </p>
                   )}
                   {currentChurch?.lastPaymentDate && (
                     <p className="text-slate-500 text-xs mt-0.5 flex items-center gap-1">
@@ -345,13 +378,21 @@ export const BillingPage: React.FC = () => {
                 </div>
               </div>
               <div className="shrink-0">
-                {currentChurch?.lastPaymentDate ? (
+                {billingStatus.isOnTime ? (
                   <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 rounded-full text-xs font-bold">
                     <CheckCircle size={12} /> Em dia
                   </span>
-                ) : (
+                ) : billingStatus.isInGrace ? (
                   <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-yellow-500/15 border border-yellow-500/30 text-yellow-400 rounded-full text-xs font-bold">
-                    Aguardando
+                    <Clock size={12} /> Em atraso
+                  </span>
+                ) : billingStatus.hasActivePromise ? (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-yellow-500/15 border border-yellow-500/30 text-yellow-400 rounded-full text-xs font-bold">
+                    <Clock size={12} /> Acesso prometido
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-500/15 border border-red-500/30 text-red-400 rounded-full text-xs font-bold">
+                    <AlertCircle size={12} /> Bloqueado
                   </span>
                 )}
               </div>
