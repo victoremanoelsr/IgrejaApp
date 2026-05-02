@@ -1,8 +1,54 @@
+import { supabase } from '../services/supabaseClient';
+
 const STUB_BOUNDARY_MM = 210 * 0.25; // 52.5 mm
 
-// ── helpers ─────────────────────────────────────────────────────────────────
+// ── Supabase storage download (primary — same client used by entire app) ─────
 
-/** Convert ArrayBuffer to base64 string (no canvas, no CORS issues). */
+/**
+ * Parses a Supabase public storage URL and downloads the raw Blob via the SDK.
+ * This is the most reliable approach: no CORS issues, no canvas taint.
+ * URL format: https://PROJECT.supabase.co/storage/v1/object/public/BUCKET/PATH
+ */
+const downloadViaSupabase = async (url: string): Promise<Blob | null> => {
+  const match = url.match(/\/storage\/v1\/object\/public\/([^/?#]+)\/(.+?)(?:\?.*)?$/);
+  if (!match) return null;
+  const bucket = match[1];
+  const path   = decodeURIComponent(match[2]);
+  const { data, error } = await supabase.storage.from(bucket).download(path);
+  if (error || !data) { console.error('[PDF] supabase.download error:', error?.message); return null; }
+  return data; // Blob
+};
+
+// ── canvas helper ─────────────────────────────────────────────────────────────
+
+/** Loads a Blob into an <img> via a same-origin blob URL, then draws on canvas → JPEG. */
+const blobToJpeg = (blob: Blob): Promise<string | null> =>
+  new Promise((resolve) => {
+    const objUrl = URL.createObjectURL(blob);
+    const img    = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(objUrl);
+      try {
+        const c = document.createElement('canvas');
+        c.width  = img.naturalWidth  || 794;
+        c.height = img.naturalHeight || 264;
+        const ctx = c.getContext('2d');
+        if (!ctx) { resolve(null); return; }
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, c.width, c.height);
+        ctx.drawImage(img, 0, 0);
+        resolve(c.toDataURL('image/jpeg', 0.92));
+      } catch (e) {
+        console.error('[PDF] canvas error:', e);
+        resolve(null);
+      }
+    };
+    img.onerror = () => { URL.revokeObjectURL(objUrl); resolve(null); };
+    img.src = objUrl;
+  });
+
+// ── ArrayBuffer helpers (for direct JPEG/PNG, no canvas needed) ───────────────
+
 const bufToBase64 = (buf: ArrayBuffer): string => {
   const bytes = new Uint8Array(buf);
   let bin = '';
@@ -13,82 +59,78 @@ const bufToBase64 = (buf: ArrayBuffer): string => {
   return btoa(bin);
 };
 
-/** Detect image MIME type from the first 4 magic bytes. */
-const detectMime = (buf: ArrayBuffer): 'image/jpeg' | 'image/png' | 'image/webp' | 'unknown' => {
+const detectMime = (buf: ArrayBuffer): 'image/jpeg' | 'image/png' | 'image/webp' | 'other' => {
   const b = new Uint8Array(buf, 0, 12);
-  if (b[0] === 0xFF && b[1] === 0xD8 && b[2] === 0xFF) return 'image/jpeg';
+  if (b[0] === 0xFF && b[1] === 0xD8 && b[2] === 0xFF)               return 'image/jpeg';
   if (b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4E && b[3] === 0x47) return 'image/png';
   if (b[0] === 0x52 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x46) return 'image/webp';
-  return 'unknown';
+  return 'other';
 };
 
-/** Draw an <img> on a canvas and return JPEG data URL.
- *  img MUST have been loaded from a same-origin blob URL to avoid taint. */
-const imgToJpeg = (img: HTMLImageElement): string | null => {
-  try {
-    const c = document.createElement('canvas');
-    c.width  = img.naturalWidth  || 794;
-    c.height = img.naturalHeight || 264;
-    const ctx = c.getContext('2d');
-    if (!ctx) return null;
-    ctx.fillStyle = '#ffffff'; // white bg so transparency renders cleanly
-    ctx.fillRect(0, 0, c.width, c.height);
-    ctx.drawImage(img, 0, 0);
-    return c.toDataURL('image/jpeg', 0.92);
-  } catch (e) {
-    console.error('[PDF] canvas error:', e);
-    return null;
-  }
-};
-
-// ── main export ──────────────────────────────────────────────────────────────
+// ── main export ───────────────────────────────────────────────────────────────
 
 /**
- * Fetches a remote image and returns a data-URL that jsPDF can consume.
+ * Loads a Supabase storage image and returns a base64 data-URL for jsPDF.
  *
- * • JPEG / PNG → base64 directly from the raw bytes (no canvas, no CORS taint risk)
- * • WEBP / other → blob URL → canvas → JPEG  (blob URL is same-origin → safe)
- * • Fallback → crossOrigin <img> → canvas → JPEG
- *
- * Always returns either a JPEG or PNG data-URL, or null on total failure.
+ * Strategy:
+ *  1. Supabase SDK  → Blob → blobToJpeg  (most reliable, zero CORS issues)
+ *  2. fetch + ArrayBuffer → base64 directly for JPEG/PNG, canvas for WEBP
+ *  3. crossOrigin <img> → canvas → JPEG
  */
-export const loadImageForPDF = (url: string): Promise<string | null> =>
-  fetch(url, { mode: 'cors', credentials: 'omit' })
-    .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.arrayBuffer(); })
-    .then(buf => {
+export const loadImageForPDF = async (url: string): Promise<string | null> => {
+  // ── 1. Supabase SDK download (same path as all other storage operations)
+  const blob = await downloadViaSupabase(url);
+  if (blob) {
+    // For JPEG/PNG use fast ArrayBuffer→base64 (no canvas);
+    // for WEBP/other use canvas via blob URL (same-origin → no taint)
+    const buf  = await blob.arrayBuffer();
+    const mime = detectMime(buf);
+    if (mime === 'image/jpeg' || mime === 'image/png') {
+      return `data:${mime};base64,${bufToBase64(buf)}`;
+    }
+    const jpeg = await blobToJpeg(blob);
+    if (jpeg) return jpeg;
+  }
+
+  // ── 2. Direct fetch fallback
+  try {
+    const r = await fetch(url, { mode: 'cors', credentials: 'omit' });
+    if (r.ok) {
+      const buf  = await r.arrayBuffer();
       const mime = detectMime(buf);
-
-      // ── JPEG / PNG: convert raw bytes → base64 (no canvas needed!)
       if (mime === 'image/jpeg' || mime === 'image/png') {
-        const b64     = bufToBase64(buf);
-        const dataUrl = `data:${mime};base64,${b64}`;
-        return dataUrl;
+        return `data:${mime};base64,${bufToBase64(buf)}`;
       }
+      const jpeg = await blobToJpeg(new Blob([buf]));
+      if (jpeg) return jpeg;
+    }
+  } catch { /* fall through */ }
 
-      // ── WEBP / other: use blob URL + canvas to convert to JPEG
-      return new Promise<string | null>((resolve) => {
-        const blob   = new Blob([buf]);
-        const objUrl = URL.createObjectURL(blob);
-        const img    = new Image();
-        img.onload  = () => { resolve(imgToJpeg(img)); URL.revokeObjectURL(objUrl); };
-        img.onerror = () => { resolve(null);            URL.revokeObjectURL(objUrl); };
-        img.src     = objUrl;
-      });
-    })
-    .catch(() =>
-      // ── Fallback: crossOrigin img → canvas (Supabase public buckets allow *)
-      new Promise<string | null>((resolve) => {
-        const img = new Image();
-        img.crossOrigin = 'anonymous';
-        img.onload  = () => resolve(imgToJpeg(img));
-        img.onerror = () => resolve(null);
-        img.src     = url;
-      })
-    );
+  // ── 3. crossOrigin img → canvas → JPEG
+  return new Promise<string | null>((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      try {
+        const c = document.createElement('canvas');
+        c.width  = img.naturalWidth  || 794;
+        c.height = img.naturalHeight || 264;
+        const ctx = c.getContext('2d');
+        if (!ctx) { resolve(null); return; }
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, c.width, c.height);
+        ctx.drawImage(img, 0, 0);
+        resolve(c.toDataURL('image/jpeg', 0.92));
+      } catch { resolve(null); }
+    };
+    img.onerror = () => resolve(null);
+    img.src = url;
+  });
+};
 
-// ── addImageToPdf ────────────────────────────────────────────────────────────
+// ── addImageToPdf helper ──────────────────────────────────────────────────────
 
-/** Wrapper around doc.addImage that auto-detects JPEG vs PNG from the data URL. */
+/** Adds a data-URL image to a jsPDF doc, auto-detecting PNG vs JPEG. */
 export const addImageToPdf = (
   doc: any,
   dataUrl: string,
@@ -99,11 +141,12 @@ export const addImageToPdf = (
   catch (e) { console.error('[PDF] addImage failed:', e); }
 };
 
-// ── renderElementsToPDF ──────────────────────────────────────────────────────
+// ── renderElementsToPDF ───────────────────────────────────────────────────────
 
 /**
- * Renders layout elements (text + image) for one ticket slot onto a jsPDF document.
- * Stub-zone text (xMM < 52.5 mm) wraps with splitTextToSize.
+ * Renders all layout elements for one ticket slot onto the jsPDF document.
+ * Images loaded via loadImageForPDF (Supabase SDK path — no CORS issues).
+ * Stub-zone text (x < 52.5 mm) wraps with splitTextToSize.
  */
 export const renderElementsToPDF = async (
   doc: any,
@@ -122,11 +165,12 @@ export const renderElementsToPDF = async (
       }
       const imgData = imageCache[src];
       if (imgData) {
-        const xMM = el.x * scale;
-        const yMM = currentY + el.y * scale;
-        const wMM = (el.width  || 50) * scale;
-        const hMM = (el.height || 50) * scale;
-        addImageToPdf(doc, imgData, xMM, yMM, wMM, hMM);
+        addImageToPdf(doc, imgData,
+          el.x * scale,
+          currentY + el.y * scale,
+          (el.width  || 50) * scale,
+          (el.height || 50) * scale
+        );
       }
     } else {
       let text = el.content as string;
