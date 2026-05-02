@@ -25,7 +25,6 @@ const ROW_Y = [60, 96, 132, 168, 204] as const;
 const TAG_DEFS = [
   { id: 'nome',    label: 'Nome do Membro',       tag: '{{nome_membro}}', prefix: 'NOME: ',    dummy: 'JOÃO DA SILVA',     fontSize: 10, fontSizeStub: 8  },
   { id: 'valor',   label: 'Valor',                 tag: '{{valor}}',       prefix: 'VALOR: ',   dummy: 'R$ 50,00',          fontSize: 11, fontSizeStub: 9  },
-  { id: 'parcela', label: 'Parcela / Vencimento',  tag: '{{n_parcela}}',   prefix: 'PARCELA: ', dummy: '3/12',              fontSize: 10, fontSizeStub: 8  },
   { id: 'mes',     label: 'Mês / Referência',      tag: '{{mes_extenso}}', prefix: 'MÊS: ',     dummy: 'MARÇO',             fontSize: 10, fontSizeStub: 8  },
   { id: 'data',    label: 'Data (preench. manual)', tag: '',               prefix: 'DATA: ___/___/____', dummy: '',         fontSize: 10, fontSizeStub: 8  },
 ] as const;
