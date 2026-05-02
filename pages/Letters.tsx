@@ -364,16 +364,18 @@ export const Letters: React.FC = () => {
     };
 
     const handleAddField = (tag: string) => {
-        const marginPx = 2 * (EDITOR_WIDTH / A4_WIDTH_MM);
+        const isText = tag === '{{texto_cadastrado}}';
+        const canvasH = isCertType(templateType) ? EDITOR_HEIGHT_LAND : EDITOR_HEIGHT;
+        const marginPx = Math.round(2 * (EDITOR_WIDTH / A4_WIDTH_MM));
         const contentWidth = EDITOR_WIDTH - (2 * marginPx);
         const newEl: LayoutElement = {
             id: `tag_${Date.now()}`,
-            type: tag === '{{texto_cadastrado}}' ? 'text' : 'tag',
+            type: isText ? 'text' : 'tag',
             content: tag,
-            x: tag === '{{texto_cadastrado}}' ? marginPx : 50,
-            y: tag === '{{texto_cadastrado}}' ? Math.round(EDITOR_HEIGHT / 2) - 50 : 50,
-            width: tag === '{{texto_cadastrado}}' ? contentWidth : 150,
-            style: { fontSize: 12, color: '#000000', fontWeight: 'normal', textAlign: tag === '{{texto_cadastrado}}' ? 'center' : 'left' }
+            x: isText ? Math.round(EDITOR_WIDTH / 2) : 50,
+            y: isText ? Math.round(canvasH / 2)       : 50,
+            width: isText ? contentWidth : 150,
+            style: { fontSize: 12, color: '#000000', fontWeight: 'normal', textAlign: isText ? 'center' : 'left' }
         };
         setLayoutElements(prev => [...prev, newEl]);
         setSelectedElementId(newEl.id);
