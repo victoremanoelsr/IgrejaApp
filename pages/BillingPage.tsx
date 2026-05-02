@@ -65,6 +65,8 @@ export const BillingPage: React.FC = () => {
   const [isLoading, setIsLoading]       = useState(true);
   const [showPlansModal, setShowPlansModal] = useState(false);
   const [copied, setCopied]             = useState(false);
+  const [invoicePage, setInvoicePage]   = useState(0);
+  const INVOICES_PER_PAGE = 6;
   const [selectedCycle, setSelectedCycle] = useState<PlanType>(
     (currentChurch?.planType && currentChurch.planType !== 'isento') ? currentChurch.planType : 'mensal'
   );
@@ -141,7 +143,7 @@ export const BillingPage: React.FC = () => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const HISTORY_LENGTH = 5;
+    const HISTORY_LENGTH = 24;
     const list: Invoice[] = [];
 
     for (let i = 0; i < HISTORY_LENGTH; i++) {
@@ -524,37 +526,64 @@ export const BillingPage: React.FC = () => {
           <div>
             {isLoading ? (
               <><SkeletonRow /><SkeletonRow /><SkeletonRow /><SkeletonRow /></>
-            ) : (
-              invoices.length === 0 ? (
-                <div className="py-10 text-center text-sm text-slate-500">
-                  Nenhuma fatura disponível para o plano atual.
-                </div>
-              ) : (
-              invoices.map((inv, idx) => (
-                <div key={inv.id} className={`flex items-center justify-between py-4 px-5 ${idx < invoices.length - 1 ? 'border-b border-slate-800' : ''} hover:bg-slate-800/40 transition-colors`}>
-                  <div className="flex items-center gap-4">
-                    <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${inv.status === 'PAGO' ? 'bg-emerald-500/10 border border-emerald-500/20' : 'bg-yellow-500/10 border border-yellow-500/20'}`}>
-                      {inv.status === 'PAGO' ? <CheckCircle size={16} className="text-emerald-400" /> : <Clock size={16} className="text-yellow-400" />}
+            ) : invoices.length === 0 ? (
+              <div className="py-10 text-center text-sm text-slate-500">
+                Nenhuma fatura disponível para o plano atual.
+              </div>
+            ) : (() => {
+              const totalPages = Math.ceil(invoices.length / INVOICES_PER_PAGE);
+              const pageInvoices = invoices.slice(invoicePage * INVOICES_PER_PAGE, (invoicePage + 1) * INVOICES_PER_PAGE);
+              return (
+                <>
+                  {pageInvoices.map((inv, idx) => (
+                    <div key={inv.id} className={`flex items-center justify-between py-4 px-5 ${idx < pageInvoices.length - 1 ? 'border-b border-slate-800' : ''} hover:bg-slate-800/40 transition-colors`}>
+                      <div className="flex items-center gap-4">
+                        <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${inv.status === 'PAGO' ? 'bg-emerald-500/10 border border-emerald-500/20' : 'bg-yellow-500/10 border border-yellow-500/20'}`}>
+                          {inv.status === 'PAGO' ? <CheckCircle size={16} className="text-emerald-400" /> : <Clock size={16} className="text-yellow-400" />}
+                        </div>
+                        <div>
+                          <p className="text-white font-semibold text-sm">{inv.month}</p>
+                          <p className="text-slate-500 text-xs mt-0.5">
+                            {inv.status === 'PAGO' && inv.paidDate
+                              ? `Pago em ${new Date(inv.paidDate + 'T12:00:00').toLocaleDateString('pt-BR')}`
+                              : `Vence em ${new Date(inv.dueDate + 'T12:00:00').toLocaleDateString('pt-BR')}`}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4 sm:gap-6">
+                        <StatusBadge status={inv.status} />
+                        <p className="text-white font-bold text-sm hidden sm:block">
+                          R$ {inv.amount.toFixed(2).replace('.', ',')}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-white font-semibold text-sm">{inv.month}</p>
-                      <p className="text-slate-500 text-xs mt-0.5">
-                        {inv.status === 'PAGO' && inv.paidDate
-                          ? `Pago em ${new Date(inv.paidDate + 'T12:00:00').toLocaleDateString('pt-BR')}`
-                          : `Vence em ${new Date(inv.dueDate + 'T12:00:00').toLocaleDateString('pt-BR')}`}
-                      </p>
+                  ))}
+                  {totalPages > 1 && (
+                    <div className="flex items-center justify-between px-5 py-3 border-t border-slate-800">
+                      <span className="text-xs text-slate-500">
+                        Página {invoicePage + 1} de {totalPages}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setInvoicePage(p => Math.max(0, p - 1))}
+                          disabled={invoicePage === 0}
+                          className="px-3 py-1.5 text-xs rounded-lg border border-slate-700 text-slate-400 hover:text-white hover:border-slate-500 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                        >
+                          ← Anterior
+                        </button>
+                        <button
+                          onClick={() => setInvoicePage(p => Math.min(totalPages - 1, p + 1))}
+                          disabled={invoicePage >= totalPages - 1}
+                          className="px-3 py-1.5 text-xs rounded-lg border border-slate-700 text-slate-400 hover:text-white hover:border-slate-500 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                        >
+                          Próxima →
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-4 sm:gap-6">
-                    <StatusBadge status={inv.status} />
-                    <p className="text-white font-bold text-sm hidden sm:block">
-                      R$ {inv.amount.toFixed(2).replace('.', ',')}
-                    </p>
-                  </div>
-                </div>
-              ))
-              )
-            )}
+                  )}
+                </>
+              );
+            })()}
           </div>
         </div>
       )}
