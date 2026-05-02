@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '../context';
 import { LayoutElement, CarnetTemplate, CarnetBackgroundStyle } from '../types';
-import { loadImageForPDF } from '../utils/pdfImageLoader';
+import { loadImageForPDF, addImageToPdf } from '../utils/pdfImageLoader';
 import jsPDF from 'jspdf';
 
 // ─── Editor constants ─────────────────────────────────────────────────────────
@@ -247,7 +247,7 @@ export const CarnetEditor: React.FC<CarnetEditorProps> = ({
     const scale = TICKET_W_MM / EDITOR_WIDTH;
 
     const bgData = await loadImageForPDF(backgroundUrl);
-    if (bgData) doc.addImage(bgData, 'JPEG', 0, 0, TICKET_W_MM, TICKET_H_MM);
+    if (bgData) addImageToPdf(doc, bgData, 0, 0, TICKET_W_MM, TICKET_H_MM);
 
     const dummy: Record<string, string> = {
       '{{nome_membro}}': 'JOÃO DA SILVA',

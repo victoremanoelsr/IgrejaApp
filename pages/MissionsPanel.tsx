@@ -18,7 +18,7 @@ import autoTable from 'jspdf-autotable';
 import Draggable, { DraggableData } from 'react-draggable';
 import { GoogleGenAI, Type as GenAIType } from "@google/genai";
 import { CarnetEditor } from '../components/CarnetEditor';
-import { loadImageForPDF, renderElementsToPDF } from '../utils/pdfImageLoader';
+import { loadImageForPDF, renderElementsToPDF, addImageToPdf } from '../utils/pdfImageLoader';
 
 // --- CONFIGURAÇÕES DE DIMENSÃO (BASE 96 DPI) ---
 const EDITOR_WIDTH = 794; 
@@ -595,7 +595,7 @@ export const MissionsPanel: React.FC = () => {
           if (bgData) {
               doc.saveGraphicsState();
               doc.setGState(new (doc as any).GState({ opacity: bgStyle.opacity }));
-              doc.addImage(bgData, 'JPEG', imgX, currentY + imgY, imgW, imgH);
+              addImageToPdf(doc, bgData, imgX, currentY + imgY, imgW, imgH);
               doc.restoreGraphicsState();
           }
 
@@ -693,7 +693,7 @@ export const MissionsPanel: React.FC = () => {
           if (bgData) {
               doc.saveGraphicsState();
               doc.setGState(new (doc as any).GState({ opacity: bgStyle.opacity }));
-              doc.addImage(bgData, 'JPEG', imgX, currentY + imgY, imgW, imgH);
+              addImageToPdf(doc, bgData, imgX, currentY + imgY, imgW, imgH);
               doc.restoreGraphicsState();
           }
 

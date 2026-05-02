@@ -1,61 +1,109 @@
-const STUB_BOUNDARY_MM = 210 * 0.25; // 52.5 mm — 25% canhoto boundary
+const STUB_BOUNDARY_MM = 210 * 0.25; // 52.5 mm
+
+// ── helpers ─────────────────────────────────────────────────────────────────
+
+/** Convert ArrayBuffer to base64 string (no canvas, no CORS issues). */
+const bufToBase64 = (buf: ArrayBuffer): string => {
+  const bytes = new Uint8Array(buf);
+  let bin = '';
+  const CHUNK = 8192;
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    bin += String.fromCharCode(...Array.from(bytes.subarray(i, i + CHUNK)));
+  }
+  return btoa(bin);
+};
+
+/** Detect image MIME type from the first 4 magic bytes. */
+const detectMime = (buf: ArrayBuffer): 'image/jpeg' | 'image/png' | 'image/webp' | 'unknown' => {
+  const b = new Uint8Array(buf, 0, 12);
+  if (b[0] === 0xFF && b[1] === 0xD8 && b[2] === 0xFF) return 'image/jpeg';
+  if (b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4E && b[3] === 0x47) return 'image/png';
+  if (b[0] === 0x52 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x46) return 'image/webp';
+  return 'unknown';
+};
+
+/** Draw an <img> on a canvas and return JPEG data URL.
+ *  img MUST have been loaded from a same-origin blob URL to avoid taint. */
+const imgToJpeg = (img: HTMLImageElement): string | null => {
+  try {
+    const c = document.createElement('canvas');
+    c.width  = img.naturalWidth  || 794;
+    c.height = img.naturalHeight || 264;
+    const ctx = c.getContext('2d');
+    if (!ctx) return null;
+    ctx.fillStyle = '#ffffff'; // white bg so transparency renders cleanly
+    ctx.fillRect(0, 0, c.width, c.height);
+    ctx.drawImage(img, 0, 0);
+    return c.toDataURL('image/jpeg', 0.92);
+  } catch (e) {
+    console.error('[PDF] canvas error:', e);
+    return null;
+  }
+};
+
+// ── main export ──────────────────────────────────────────────────────────────
 
 /**
- * Loads an image URL and returns it as a JPEG base64 data-URL suitable for jsPDF.
+ * Fetches a remote image and returns a data-URL that jsPDF can consume.
  *
- * Strategy:
- *  1. fetch() → blob → createObjectURL  (avoids canvas CORS taint)
- *  2. Draw onto canvas → export as JPEG  (converts WEBP/PNG/etc → JPEG, which jsPDF supports)
- *  3. Canvas fallback with crossOrigin attribute (if fetch fails)
+ * • JPEG / PNG → base64 directly from the raw bytes (no canvas, no CORS taint risk)
+ * • WEBP / other → blob URL → canvas → JPEG  (blob URL is same-origin → safe)
+ * • Fallback → crossOrigin <img> → canvas → JPEG
+ *
+ * Always returns either a JPEG or PNG data-URL, or null on total failure.
  */
-export const loadImageForPDF = (url: string): Promise<string | null> => {
-  const drawToJpeg = (img: HTMLImageElement): string | null => {
-    try {
-      const canvas = document.createElement('canvas');
-      canvas.width  = img.naturalWidth  || 794;
-      canvas.height = img.naturalHeight || 264;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return null;
-      ctx.drawImage(img, 0, 0);
-      return canvas.toDataURL('image/jpeg', 0.92);
-    } catch {
-      return null;
-    }
-  };
+export const loadImageForPDF = (url: string): Promise<string | null> =>
+  fetch(url, { mode: 'cors', credentials: 'omit' })
+    .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.arrayBuffer(); })
+    .then(buf => {
+      const mime = detectMime(buf);
 
-  // ── Strategy 1: fetch → blob URL → canvas (no CORS taint, handles WEBP)
-  return fetch(url, { mode: 'cors', credentials: 'omit' })
-    .then(r => { if (!r.ok) throw new Error('fetch failed'); return r.blob(); })
-    .then(blob => new Promise<string | null>((resolve) => {
-      const objUrl = URL.createObjectURL(blob);
-      const img    = new Image();
-      img.onload  = () => { resolve(drawToJpeg(img)); URL.revokeObjectURL(objUrl); };
-      img.onerror = () => { resolve(null);             URL.revokeObjectURL(objUrl); };
-      img.src     = objUrl;
-    }))
+      // ── JPEG / PNG: convert raw bytes → base64 (no canvas needed!)
+      if (mime === 'image/jpeg' || mime === 'image/png') {
+        const b64     = bufToBase64(buf);
+        const dataUrl = `data:${mime};base64,${b64}`;
+        return dataUrl;
+      }
+
+      // ── WEBP / other: use blob URL + canvas to convert to JPEG
+      return new Promise<string | null>((resolve) => {
+        const blob   = new Blob([buf]);
+        const objUrl = URL.createObjectURL(blob);
+        const img    = new Image();
+        img.onload  = () => { resolve(imgToJpeg(img)); URL.revokeObjectURL(objUrl); };
+        img.onerror = () => { resolve(null);            URL.revokeObjectURL(objUrl); };
+        img.src     = objUrl;
+      });
+    })
     .catch(() =>
-      // ── Strategy 2: direct <img> with crossOrigin (same-origin or permissive CORS)
+      // ── Fallback: crossOrigin img → canvas (Supabase public buckets allow *)
       new Promise<string | null>((resolve) => {
         const img = new Image();
         img.crossOrigin = 'anonymous';
-        img.onload  = () => resolve(drawToJpeg(img));
-        img.onerror = () => {
-          // ── Strategy 3: no crossOrigin (last resort, canvas may be tainted)
-          const fb = new Image();
-          fb.onload  = () => resolve(drawToJpeg(fb));
-          fb.onerror = () => resolve(null);
-          fb.src = url;
-        };
-        img.src = url;
+        img.onload  = () => resolve(imgToJpeg(img));
+        img.onerror = () => resolve(null);
+        img.src     = url;
       })
     );
+
+// ── addImageToPdf ────────────────────────────────────────────────────────────
+
+/** Wrapper around doc.addImage that auto-detects JPEG vs PNG from the data URL. */
+export const addImageToPdf = (
+  doc: any,
+  dataUrl: string,
+  x: number, y: number, w: number, h: number
+) => {
+  const fmt = dataUrl.startsWith('data:image/png') ? 'PNG' : 'JPEG';
+  try { doc.addImage(dataUrl, fmt, x, y, w, h); }
+  catch (e) { console.error('[PDF] addImage failed:', e); }
 };
 
+// ── renderElementsToPDF ──────────────────────────────────────────────────────
+
 /**
- * Renders layout elements (text + image) onto a jsPDF document for one ticket slot.
- *
- * Stub-zone elements (xMM < STUB_BOUNDARY_MM) use splitTextToSize for line-wrapping
- * so text never crosses the canhoto divider.
+ * Renders layout elements (text + image) for one ticket slot onto a jsPDF document.
+ * Stub-zone text (xMM < 52.5 mm) wraps with splitTextToSize.
  */
 export const renderElementsToPDF = async (
   doc: any,
@@ -74,11 +122,11 @@ export const renderElementsToPDF = async (
       }
       const imgData = imageCache[src];
       if (imgData) {
-        const wMM = (el.width  || 50) * scale;
-        const hMM = (el.height || 50) * scale;
         const xMM = el.x * scale;
         const yMM = currentY + el.y * scale;
-        try { doc.addImage(imgData, 'JPEG', xMM, yMM, wMM, hMM); } catch { /* skip */ }
+        const wMM = (el.width  || 50) * scale;
+        const hMM = (el.height || 50) * scale;
+        addImageToPdf(doc, imgData, xMM, yMM, wMM, hMM);
       }
     } else {
       let text = el.content as string;
@@ -95,9 +143,7 @@ export const renderElementsToPDF = async (
       const yMM = currentY + el.y * scale + fontSize * 0.35;
 
       const isStub = xMM < STUB_BOUNDARY_MM;
-      const maxW   = isStub
-        ? STUB_BOUNDARY_MM - xMM - 1.5
-        : 210 - xMM - 2;
+      const maxW   = isStub ? STUB_BOUNDARY_MM - xMM - 1.5 : 210 - xMM - 2;
 
       if (isStub) {
         const lineHeightMM = fontSize * 0.352778 * 1.25;

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useMember } from '../../contexts/MemberContext';
 import { BookOpen, Download, Loader, AlertCircle } from 'lucide-react';
 import { jsPDF } from 'jspdf';
-import { renderElementsToPDF, loadImageForPDF } from '../../utils/pdfImageLoader';
+import { renderElementsToPDF, loadImageForPDF, addImageToPdf } from '../../utils/pdfImageLoader';
 
 const monthNames = [
   'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -33,7 +33,7 @@ export const MemberCarnets: React.FC = () => {
 
       if (template.backgroundUrl) {
         const bgData = await loadImageForPDF(template.backgroundUrl);
-        if (bgData) doc.addImage(bgData, 'JPEG', 0, 0, PAGE_W_MM, 297);
+        if (bgData) addImageToPdf(doc, bgData, 0, 0, PAGE_W_MM, 297);
       }
 
       const now = new Date();

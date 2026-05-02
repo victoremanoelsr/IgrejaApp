@@ -19,7 +19,7 @@ import autoTable from 'jspdf-autotable';
 import Draggable, { DraggableData } from 'react-draggable';
 import { GoogleGenAI, Type as GenAIType } from "@google/genai";
 import { CarnetEditor } from '../components/CarnetEditor';
-import { loadImageForPDF, renderElementsToPDF } from '../utils/pdfImageLoader';
+import { loadImageForPDF, renderElementsToPDF, addImageToPdf } from '../utils/pdfImageLoader';
 
 // --- CONFIGURAÇÕES DE DIMENSÃO (BASE 96 DPI) ---
 const EDITOR_WIDTH = 794; 
@@ -401,7 +401,7 @@ export const YouthPanel: React.FC = () => {
           const currentY = ((297 - (4*70))/2) + ((i % 4) * 70); 
           
           if(bgData) {
-              doc.addImage(bgData, 'JPEG', 0, currentY, 210, 70);
+              addImageToPdf(doc, bgData, 0, currentY, 210, 70);
           } else {
               doc.setDrawColor(200); doc.rect(0, currentY, 210, 70); 
           }
@@ -444,7 +444,7 @@ export const YouthPanel: React.FC = () => {
       for (let i = 0; i < 12; i++) {
           if (i > 0 && i % 4 === 0) doc.addPage();
           const currentY = ((297 - (4*70))/2) + ((i % 4) * 70);
-          if (bgData) doc.addImage(bgData, 'JPEG', 0, currentY, 210, 70);
+          if (bgData) addImageToPdf(doc, bgData, 0, currentY, 210, 70);
           else { doc.setDrawColor(200); doc.rect(0, currentY, 210, 70); }
 
           const replacements: Record<string, string> = {
