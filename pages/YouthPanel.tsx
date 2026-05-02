@@ -701,6 +701,22 @@ export const YouthPanel: React.FC = () => {
                                     </div>
                                 ) : (
                                     <>
+                                        {/* Template selector */}
+                                        <div>
+                                            <label className="block text-xs font-black text-gray-600 uppercase tracking-wider mb-2">Modelo de Impressão</label>
+                                            <select
+                                                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm font-bold text-gray-700 focus:border-orange-400 focus:outline-none transition-colors bg-white"
+                                                value={selectedGenTemplateId}
+                                                onChange={e => setSelectedGenTemplateId(e.target.value)}
+                                            >
+                                                {templates.map(t => (
+                                                    <option key={t.id} value={t.id}>
+                                                        {t.name}{t.isDefault ? ' ★ Padrão' : ''}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+
                                         {/* Member search */}
                                         <div className="relative">
                                             <label className="block text-xs font-black text-gray-600 uppercase tracking-wider mb-2">Nome do Membro</label>
@@ -761,7 +777,7 @@ export const YouthPanel: React.FC = () => {
                                                 <p className="text-[10px] text-gray-500 mt-0.5">
                                                     Serão gerados <span className="font-bold">12 carnês</span> (Jan–Dez de {new Date().getFullYear()}) e lançados automaticamente no financeiro como pendentes.
                                                 </p>
-                                                <p className="text-[10px] text-gray-400 mt-1">Modelo: <span className="font-bold text-gray-600">{templates.find(t => t.isDefault)?.name || templates[0]?.name}</span></p>
+                                                <p className="text-[10px] text-gray-400 mt-1">Modelo selecionado: <span className="font-bold text-gray-600">{templates.find(t => t.id === selectedGenTemplateId)?.name || '—'}</span></p>
                                             </div>
                                         </div>
 
