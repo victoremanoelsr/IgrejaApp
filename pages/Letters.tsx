@@ -7,10 +7,14 @@ import jsPDF from 'jspdf';
 import Draggable, { DraggableData } from 'react-draggable';
 
 // --- CONSTANTES EDITOR ---
-const EDITOR_WIDTH = 595;
-const A4_WIDTH_MM = 210;
-const A4_HEIGHT_MM = 297;
-const EDITOR_HEIGHT = (EDITOR_WIDTH * A4_HEIGHT_MM) / A4_WIDTH_MM;
+const EDITOR_WIDTH          = 595;
+const A4_WIDTH_MM           = 210;
+const A4_HEIGHT_MM          = 297;
+const EDITOR_HEIGHT         = Math.round((EDITOR_WIDTH * A4_HEIGHT_MM) / A4_WIDTH_MM); // 842px — retrato
+const EDITOR_HEIGHT_LAND    = Math.round((EDITOR_WIDTH * A4_WIDTH_MM)  / A4_HEIGHT_MM); // 421px — paisagem
+const CERT_TYPES            = ['BATISMO', 'APRESENTACAO'] as const;
+type CertType = typeof CERT_TYPES[number];
+const isCertType = (t: string): t is CertType => CERT_TYPES.includes(t as CertType);
 
 const DEFAULT_TAGS: LayoutElement[] = [
     { id: 'tag_nome', type: 'tag', content: '{{nome_membro}}', x: 50, y: 100, width: 150, style: { fontSize: 12, color: '#000000', fontWeight: 'bold', textAlign: 'left' } },
@@ -158,7 +162,11 @@ export const Letters: React.FC = () => {
     // --- GERAÇÃO PDF ---
     const generatePDF = async () => {
         if (!currentChurch || !selectedMember) return;
-        const doc = new jsPDF('p', 'mm', 'a4');
+        const isCert = isCertType(letterType);
+        const orientation = isCert ? 'l' : 'p';
+        const pdfW_mm = isCert ? A4_HEIGHT_MM : A4_WIDTH_MM;   // landscape: 297, portrait: 210
+        const pdfH_mm = isCert ? A4_WIDTH_MM  : A4_HEIGHT_MM;  // landscape: 210, portrait: 297
+        const doc = new jsPDF(orientation as any, 'mm', 'a4');
         const currentFiltered = templates.filter(t => t.churchId === currentChurch.id && (t.type === letterType || t.type === 'GENERICO'));
         const template = templates.find(t => t.id === selectedTemplateId) || (currentFiltered.length > 0 ? currentFiltered[0] : undefined);
 
@@ -178,13 +186,13 @@ export const Letters: React.FC = () => {
                         };
                         img.onerror = reject;
                     });
-                    doc.addImage(imgProps.data, 'JPEG', 0, 0, 210, 297);
+                    doc.addImage(imgProps.data, 'JPEG', 0, 0, pdfW_mm, pdfH_mm);
                 } catch (e) {
                     showAlert("Aviso", "Não foi possível carregar o papel timbrado. Gerando apenas texto.", "warning");
                 }
             }
 
-            const scale = 210 / EDITOR_WIDTH;
+            const scale = pdfW_mm / EDITOR_WIDTH;
             const today = new Date();
             const fullDate = `${currentChurch.address.split(',')[1]?.trim() || currentChurch.name}, ${today.getDate()} de ${today.toLocaleString('pt-BR', { month: 'long' })} de ${today.getFullYear()}`;
 
@@ -509,19 +517,27 @@ export const Letters: React.FC = () => {
                 )}
 
                 {/* CANVAS A4 */}
-                <div
-                    className="relative border-2 border-gray-300 bg-white overflow-hidden mx-auto shadow-2xl"
-                    style={{ width: `${EDITOR_WIDTH}px`, height: `${EDITOR_HEIGHT}px` }}
-                    onClick={() => setSelectedElementId(null)}
-                >
-                    {backgroundUrl && (
-                        <img src={backgroundUrl} className="absolute inset-0 w-full h-full object-cover pointer-events-none" style={{ opacity: 0.85 }} />
-                    )}
-                    {layoutElements.map(el => (
-                        <DraggableLabel key={el.id} el={el} isSelected={selectedElementId === el.id} onSelect={setSelectedElementId} onDragStop={handleDragStop} />
-                    ))}
-                    <div className="absolute bottom-2 right-2 text-[10px] text-gray-400 bg-white/80 px-1 rounded pointer-events-none select-none">A4 Preview</div>
-                </div>
+                {(() => {
+                    const isLand = isCertType(templateType);
+                    const canvasH = isLand ? EDITOR_HEIGHT_LAND : EDITOR_HEIGHT;
+                    return (
+                        <div
+                            className="relative border-2 border-gray-300 bg-white overflow-hidden mx-auto shadow-2xl"
+                            style={{ width: `${EDITOR_WIDTH}px`, height: `${canvasH}px` }}
+                            onClick={() => setSelectedElementId(null)}
+                        >
+                            {backgroundUrl && (
+                                <img src={backgroundUrl} className="absolute inset-0 w-full h-full object-cover pointer-events-none" style={{ opacity: 0.85 }} />
+                            )}
+                            {layoutElements.map(el => (
+                                <DraggableLabel key={el.id} el={el} isSelected={selectedElementId === el.id} onSelect={setSelectedElementId} onDragStop={handleDragStop} />
+                            ))}
+                            <div className="absolute bottom-2 right-2 text-[10px] text-gray-400 bg-white/80 px-1 rounded pointer-events-none select-none">
+                                {isLand ? 'A4 Paisagem' : 'A4 Retrato'}
+                            </div>
+                        </div>
+                    );
+                })()}
 
                 {/* TEXTOS DO MODELO */}
                 <div className="mt-6 bg-gray-50 p-4 border rounded-lg space-y-4">
