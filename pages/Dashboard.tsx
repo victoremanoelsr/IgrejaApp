@@ -221,7 +221,7 @@ export const Dashboard: React.FC = () => {
         </div>
 
         {/* MISSIONS CARD */}
-        <div onClick={() => navigate('/missoes')} className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 flex flex-col cursor-pointer hover:shadow-md h-96 relative">
+        <div onClick={() => navigate('/departamentos')} className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 flex flex-col cursor-pointer hover:shadow-md h-96 relative">
             <div className="flex justify-between items-start mb-2">
                 <div className="flex items-center">
                     <Globe size={18} className="text-red-500 mr-2"/>
