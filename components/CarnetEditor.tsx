@@ -485,10 +485,15 @@ export const CarnetEditor: React.FC<CarnetEditorProps> = ({
 
         {/* ── RIGHT: Preview canvas ────────────────────────────────────────── */}
         <div className="flex-1 min-w-0 space-y-3">
-          {/* Canvas */}
+          {/* Canvas — container-type enables cqw font scaling */}
           <div
-            className="relative overflow-hidden border-2 border-dashed border-gray-300 bg-gray-100 rounded-xl mx-auto shadow-inner select-none"
-            style={{ width: '100%', maxWidth: `${EDITOR_WIDTH}px`, aspectRatio: `${TICKET_W_MM}/${TICKET_H_MM}` }}
+            className="relative border-2 border-dashed border-gray-300 bg-gray-100 rounded-xl mx-auto shadow-inner select-none overflow-hidden"
+            style={{
+              width: '100%',
+              maxWidth: `${EDITOR_WIDTH}px`,
+              aspectRatio: `${TICKET_W_MM}/${TICKET_H_MM}`,
+              containerType: 'inline-size',
+            }}
           >
             {/* Background */}
             {backgroundUrl ? (
@@ -505,82 +510,156 @@ export const CarnetEditor: React.FC<CarnetEditorProps> = ({
               </div>
             )}
 
-            {/* Stub dashed divider + labels */}
-            {hasStub && (
+            {hasStub ? (
               <>
+                {/* ── STUB ZONE (0–25%) — clips overflow at boundary ── */}
                 <div
-                  className="absolute top-0 bottom-0 pointer-events-none z-10"
-                  style={{ left: `${STUB_RATIO * 100}%`, borderLeft: '2px dashed rgba(90,110,210,0.65)' }}
-                />
-                <div className="absolute top-1 left-1 text-[7px] font-bold text-blue-600/70 pointer-events-none z-10 uppercase tracking-wider">
-                  Canhoto
-                </div>
-                <div
-                  className="absolute top-1 text-[7px] font-bold text-gray-500/70 pointer-events-none z-10 uppercase tracking-wider"
-                  style={{ left: `calc(${STUB_RATIO * 100}% + 4px)` }}
+                  className="absolute top-0 left-0 h-full overflow-hidden pointer-events-none z-20"
+                  style={{ width: `${STUB_RATIO * 100}%` }}
                 >
-                  Principal
+                  <span className="absolute top-[3%] left-[4%] text-[1.8cqw] font-black text-blue-700/60 uppercase tracking-widest select-none leading-none">
+                    Canhoto
+                  </span>
+                  {currentLayout
+                    .filter(el => el.id.startsWith('stub_'))
+                    .map(el => {
+                      const dummy: Record<string, string> = { '{{nome_membro}}': 'JOÃO DA SILVA', '{{valor}}': 'R$ 50,00', '{{n_parcela}}': '3/12', '{{mes_extenso}}': 'MARÇO' };
+                      const text = Object.entries(dummy).reduce((t, [k, v]) => t.replace(k, v), el.content);
+                      return (
+                        <div
+                          key={el.id}
+                          className="absolute"
+                          style={{
+                            left:       pct(el.x, STUB_X_PX),
+                            top:        pct(el.y, EDITOR_HEIGHT),
+                            fontSize:   `${(el.style.fontSize / EDITOR_WIDTH) * 100}cqw`,
+                            color:      el.style.color,
+                            fontWeight: el.style.fontWeight,
+                            fontFamily: 'Helvetica, Arial, sans-serif',
+                            whiteSpace: 'nowrap',
+                            textShadow: '0 0 2px rgba(255,255,255,1)',
+                            lineHeight: 1.2,
+                          }}
+                        >
+                          {text}
+                        </div>
+                      );
+                    })
+                  }
+                </div>
+
+                {/* ── Dashed divider line ── */}
+                <div
+                  className="absolute top-0 bottom-0 z-30 pointer-events-none"
+                  style={{ left: `${STUB_RATIO * 100}%`, borderLeft: '2px dashed rgba(80,100,220,0.7)' }}
+                />
+
+                {/* ── MAIN ZONE (25%–100%) — clips overflow at right edge ── */}
+                <div
+                  className="absolute top-0 h-full overflow-hidden pointer-events-none z-20"
+                  style={{ left: `${STUB_RATIO * 100}%`, right: 0 }}
+                >
+                  <span className="absolute top-[3%] left-[1.5%] text-[1.6cqw] font-black text-gray-500/60 uppercase tracking-widest select-none leading-none">
+                    Principal
+                  </span>
+                  {currentLayout
+                    .filter(el => el.id.startsWith('main_') || el.id === 'qr_pix')
+                    .map(el => {
+                      if (el.type === 'image') {
+                        const zoneW = EDITOR_WIDTH - STUB_X_PX;
+                        return (
+                          <div
+                            key={el.id}
+                            className="absolute border border-purple-400 rounded bg-white/70 flex items-center justify-center overflow-hidden"
+                            style={{
+                              left:   pct(el.x - STUB_X_PX, zoneW),
+                              top:    pct(el.y, EDITOR_HEIGHT),
+                              width:  pct(el.width  || 50, zoneW),
+                              height: pct(el.height || 50, EDITOR_HEIGHT),
+                            }}
+                          >
+                            <img src={el.content} alt="QR" className="w-full h-full object-contain"/>
+                          </div>
+                        );
+                      }
+                      const dummy: Record<string, string> = { '{{nome_membro}}': 'JOÃO DA SILVA', '{{valor}}': 'R$ 50,00', '{{n_parcela}}': '3/12', '{{mes_extenso}}': 'MARÇO' };
+                      const text = Object.entries(dummy).reduce((t, [k, v]) => t.replace(k, v), el.content);
+                      const zoneW = EDITOR_WIDTH - STUB_X_PX;
+                      return (
+                        <div
+                          key={el.id}
+                          className="absolute"
+                          style={{
+                            left:       pct(el.x - STUB_X_PX, zoneW),
+                            top:        pct(el.y, EDITOR_HEIGHT),
+                            fontSize:   `${(el.style.fontSize / EDITOR_WIDTH) * 100}cqw`,
+                            color:      el.style.color,
+                            fontWeight: el.style.fontWeight,
+                            fontFamily: 'Helvetica, Arial, sans-serif',
+                            whiteSpace: 'nowrap',
+                            textShadow: '0 0 2px rgba(255,255,255,1)',
+                            lineHeight: 1.2,
+                          }}
+                        >
+                          {text}
+                        </div>
+                      );
+                    })
+                  }
                 </div>
               </>
+            ) : (
+              /* ── NO STUB — full width zone ── */
+              <div className="absolute inset-0 overflow-hidden pointer-events-none z-20">
+                {currentLayout.map(el => {
+                  if (el.type === 'image') {
+                    return (
+                      <div
+                        key={el.id}
+                        className="absolute border border-purple-400 rounded bg-white/70 flex items-center justify-center overflow-hidden"
+                        style={{
+                          left:   pct(el.x, EDITOR_WIDTH),
+                          top:    pct(el.y, EDITOR_HEIGHT),
+                          width:  pct(el.width  || 50, EDITOR_WIDTH),
+                          height: pct(el.height || 50, EDITOR_HEIGHT),
+                        }}
+                      >
+                        <img src={el.content} alt="QR" className="w-full h-full object-contain"/>
+                      </div>
+                    );
+                  }
+                  const dummy: Record<string, string> = { '{{nome_membro}}': 'JOÃO DA SILVA', '{{valor}}': 'R$ 50,00', '{{n_parcela}}': '3/12', '{{mes_extenso}}': 'MARÇO' };
+                  const text = Object.entries(dummy).reduce((t, [k, v]) => t.replace(k, v), el.content);
+                  return (
+                    <div
+                      key={el.id}
+                      className="absolute"
+                      style={{
+                        left:       pct(el.x, EDITOR_WIDTH),
+                        top:        pct(el.y, EDITOR_HEIGHT),
+                        fontSize:   `${(el.style.fontSize / EDITOR_WIDTH) * 100}cqw`,
+                        color:      el.style.color,
+                        fontWeight: el.style.fontWeight,
+                        fontFamily: 'Helvetica, Arial, sans-serif',
+                        whiteSpace: 'nowrap',
+                        textShadow: '0 0 2px rgba(255,255,255,1)',
+                        lineHeight: 1.2,
+                      }}
+                    >
+                      {text}
+                    </div>
+                  );
+                })}
+              </div>
             )}
-
-            {/* Fixed field overlays */}
-            {currentLayout.map(el => {
-              if (el.type === 'image') {
-                // QR code preview
-                return (
-                  <div
-                    key={el.id}
-                    className="absolute pointer-events-none border border-purple-400 rounded bg-white/70 flex items-center justify-center overflow-hidden"
-                    style={{
-                      left:   pct(el.x, EDITOR_WIDTH),
-                      top:    pct(el.y, EDITOR_HEIGHT),
-                      width:  pct(el.width  || 50, EDITOR_WIDTH),
-                      height: pct(el.height || 50, EDITOR_HEIGHT),
-                    }}
-                  >
-                    <img src={el.content} alt="QR" className="w-full h-full object-contain"/>
-                  </div>
-                );
-              }
-              // Build preview text (replace tags with dummy values)
-              const dummy: Record<string, string> = {
-                '{{nome_membro}}': 'JOÃO DA SILVA',
-                '{{valor}}': 'R$ 50,00',
-                '{{n_parcela}}': '3/12',
-                '{{mes_extenso}}': 'MARÇO',
-              };
-              const displayText = Object.entries(dummy).reduce(
-                (t, [k, v]) => t.replace(k, v), el.content
-              );
-              return (
-                <div
-                  key={el.id}
-                  className="absolute pointer-events-none"
-                  style={{
-                    left:       pct(el.x, EDITOR_WIDTH),
-                    top:        pct(el.y, EDITOR_HEIGHT),
-                    fontSize:   `${(el.style.fontSize / EDITOR_HEIGHT) * 100}cqh`,
-                    color:      el.style.color,
-                    fontWeight: el.style.fontWeight,
-                    fontFamily: 'Helvetica, Arial, sans-serif',
-                    whiteSpace: 'nowrap',
-                    textShadow: '0 0 3px rgba(255,255,255,0.9)',
-                    lineHeight: 1.15,
-                  }}
-                >
-                  {displayText}
-                </div>
-              );
-            })}
           </div>
 
           <p className="text-[10px] text-gray-400 text-center">
             {checkedIds.length === 0
               ? 'Marque os campos no painel esquerdo para vê-los na prévia'
               : hasStub
-                ? 'Os campos aparecem nas duas zonas — canhoto e principal — em posições fixas'
-                : 'Os campos aparecem em posições fixas na folha'
+                ? 'Campos aparecem nas duas zonas com clipe automático na linha de picote'
+                : 'Campos aparecem em posições fixas na folha'
             }
           </p>
         </div>
