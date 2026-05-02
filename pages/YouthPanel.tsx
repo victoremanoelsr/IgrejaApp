@@ -685,47 +685,100 @@ export const YouthPanel: React.FC = () => {
                 {activeTab === 'CAIXA' && renderTransactionTab()}
                 {activeTab === 'CARNES' && (
                     <div className="space-y-6">
-                        <div className="bg-white p-6 rounded-xl shadow border">
-                            <h3 className="font-bold text-gray-700 mb-4 flex items-center"><BookOpen className="mr-2"/> Gerador de Carnês</h3>
-                            <div className="bg-blue-50 p-3 rounded text-blue-800 text-sm mb-4">Selecione um modelo visual e preencha os dados abaixo para gerar o PDF.</div>
-                            
-                            <div className="space-y-4">
-                                <div>
-                                    <label className="block text-xs font-bold text-gray-500 mb-1">Selecione o Modelo de Impressão</label>
-                                    <select 
-                                        className="w-full p-2 border rounded bg-gray-50 text-sm"
-                                        value={selectedGenTemplateId}
-                                        onChange={e => setSelectedGenTemplateId(e.target.value)}
-                                    >
-                                        <option value="">Selecione...</option>
-                                        {templates.map(t => (
-                                            <option key={t.id} value={t.id}>
-                                                {t.name} {t.isDefault ? '(Padrão)' : ''}
-                                            </option>
-                                        ))}
-                                    </select>
-                                    {templates.length === 0 && <p className="text-xs text-red-500 mt-1">Nenhum modelo cadastrado. Vá em "Config. Modelo" para criar.</p>}
-                                </div>
-
-                                <div className="relative">
-                                    <label className="block text-xs font-bold text-gray-500 mb-1">Membro Contribuinte</label>
-                                    <input type="text" className="w-full p-2 border rounded uppercase font-bold" placeholder="Digite o nome..." value={bookletSearchTerm} onChange={e => { setBookletSearchTerm(e.target.value.toUpperCase()); setBookletMemberId(''); }} />
-                                    {bookletSearchTerm && !bookletMemberId && (<div className="absolute w-full bg-white shadow border mt-1 max-h-40 overflow-y-auto z-10">{filteredMembersForBooklet.map(m => (<div key={m.id} onClick={() => handleBookletMemberSelect(m)} className="p-2 hover:bg-gray-100 cursor-pointer text-xs font-bold">{m.name}</div>))}</div>)}
-                                    {bookletMemberId && <div className="text-xs text-green-600 font-bold mt-1"><CheckCircle size={10} className="inline"/> {bookletSearchTerm}</div>}
-                                </div>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div><label className="text-xs font-bold text-gray-500">Ano de Referência</label><input type="number" className="w-full p-2 border rounded" value={bookletYear} onChange={e => setBookletYear(parseInt(e.target.value))}/></div>
-                                    <div><label className="text-xs font-bold text-gray-500">Valor Mensal (R$)</label><input type="number" step="0.01" className="w-full p-2 border rounded" value={bookletAmount} onChange={e => setBookletAmount(e.target.value)}/></div>
-                                </div>
+                        <div className="bg-white rounded-2xl shadow border border-gray-100 overflow-hidden">
+                            {/* Header */}
+                            <div className="bg-gradient-to-r from-orange-500 to-orange-600 px-6 py-5">
+                                <h3 className="font-black text-white text-lg flex items-center gap-2"><BookOpen size={20}/> Emitir Carnê</h3>
+                                <p className="text-orange-100 text-xs mt-0.5">Preencha os dados e gere o PDF com os 12 meses</p>
                             </div>
-                            <button 
-                                onClick={generateBookletPDF} 
-                                disabled={isGenerating}
-                                className="w-full py-3 mt-4 bg-orange-600 text-white rounded font-bold hover:bg-orange-700 flex items-center justify-center disabled:opacity-70"
-                            >
-                                {isGenerating ? <Loader className="animate-spin mr-2" size={18}/> : <Download className="mr-2" />}
-                                {isGenerating ? 'Gerando PDF...' : 'Gerar PDF do Carnê & Lançar'}
-                            </button>
+
+                            <div className="p-6 space-y-5">
+                                {templates.length === 0 ? (
+                                    <div className="py-8 text-center border-2 border-dashed border-orange-200 rounded-xl bg-orange-50">
+                                        <BookOpen size={28} className="mx-auto text-orange-300 mb-2"/>
+                                        <p className="text-sm font-bold text-orange-700">Nenhum modelo cadastrado</p>
+                                        <p className="text-xs text-orange-500 mt-1">Acesse <span className="font-bold">"Config. Modelo"</span> para criar a arte do carnê</p>
+                                    </div>
+                                ) : (
+                                    <>
+                                        {/* Member search */}
+                                        <div className="relative">
+                                            <label className="block text-xs font-black text-gray-600 uppercase tracking-wider mb-2">Nome do Membro</label>
+                                            <div className="relative">
+                                                <Search className="absolute left-3 top-3 text-gray-400" size={16}/>
+                                                <input
+                                                    type="text"
+                                                    className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl uppercase font-bold text-sm focus:border-orange-400 focus:outline-none transition-colors"
+                                                    placeholder="Digite o nome para buscar..."
+                                                    value={bookletSearchTerm}
+                                                    onChange={e => { setBookletSearchTerm(e.target.value.toUpperCase()); setBookletMemberId(''); }}
+                                                />
+                                            </div>
+                                            {bookletSearchTerm && !bookletMemberId && (
+                                                <div className="absolute w-full bg-white shadow-xl border border-gray-200 mt-1 rounded-xl max-h-44 overflow-y-auto z-20">
+                                                    {filteredMembersForBooklet.length > 0
+                                                        ? filteredMembersForBooklet.map(m => (
+                                                            <div key={m.id} onClick={() => handleBookletMemberSelect(m)}
+                                                                className="px-4 py-3 hover:bg-orange-50 cursor-pointer text-sm font-bold border-b last:border-0 text-gray-700 transition-colors">
+                                                                {m.name}
+                                                            </div>
+                                                          ))
+                                                        : <div className="px-4 py-3 text-sm text-gray-400 text-center">Nenhum membro encontrado</div>
+                                                    }
+                                                </div>
+                                            )}
+                                            {bookletMemberId && (
+                                                <div className="mt-2 flex items-center gap-2 text-green-700 text-sm font-bold bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+                                                    <CheckCircle size={14}/> {bookletSearchTerm}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Value */}
+                                        <div>
+                                            <label className="block text-xs font-black text-gray-600 uppercase tracking-wider mb-2">Valor Mensal (R$)</label>
+                                            <div className="relative">
+                                                <span className="absolute left-3 top-3 text-gray-400 font-bold text-sm">R$</span>
+                                                <input
+                                                    type="number"
+                                                    step="0.01"
+                                                    min="0"
+                                                    className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl font-black text-lg focus:border-orange-400 focus:outline-none transition-colors"
+                                                    placeholder="0,00"
+                                                    value={bookletAmount}
+                                                    onChange={e => setBookletAmount(e.target.value)}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        {/* Info */}
+                                        <div className="flex items-start gap-3 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3">
+                                            <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center shrink-0 mt-0.5">
+                                                <BookOpen size={14} className="text-orange-600"/>
+                                            </div>
+                                            <div>
+                                                <p className="text-xs font-bold text-gray-700">Carnê com 12 parcelas</p>
+                                                <p className="text-[10px] text-gray-500 mt-0.5">
+                                                    Serão gerados <span className="font-bold">12 carnês</span> (Jan–Dez de {new Date().getFullYear()}) e lançados automaticamente no financeiro como pendentes.
+                                                </p>
+                                                <p className="text-[10px] text-gray-400 mt-1">Modelo: <span className="font-bold text-gray-600">{templates.find(t => t.isDefault)?.name || templates[0]?.name}</span></p>
+                                            </div>
+                                        </div>
+
+                                        {/* Generate button */}
+                                        <button
+                                            onClick={generateBookletPDF}
+                                            disabled={isGenerating || !bookletMemberId || !bookletAmount}
+                                            className="w-full py-4 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-black text-base flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-orange-200 active:scale-[0.98]"
+                                        >
+                                            {isGenerating
+                                                ? <><Loader className="animate-spin" size={20}/> Gerando PDF...</>
+                                                : <><Download size={20}/> Gerar e Imprimir Carnê</>
+                                            }
+                                        </button>
+                                    </>
+                                )}
+                            </div>
                         </div>
                         
                         {/* Histórico */}
