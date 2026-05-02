@@ -36,12 +36,8 @@ BEGIN
   END IF;
 
   -- 2. Verificar senha
-  --    Se member_password é NULL => primeiro acesso (senha padrão = CPF sem pontuação)
+  --    Se member_password é NULL => primeiro acesso, qualquer senha é aceita
   IF v_member.member_password IS NULL THEN
-    -- Primeiro acesso: senha padrão é o CPF sem pontuação
-    IF regexp_replace(v_member.cpf, '[^0-9]', '', 'g') != regexp_replace(p_password, '[^0-9]', '', 'g') THEN
-      RETURN jsonb_build_object('error', 'Senha incorreta.');
-    END IF;
     v_is_first := TRUE;
   ELSE
     IF v_member.member_password != p_password THEN

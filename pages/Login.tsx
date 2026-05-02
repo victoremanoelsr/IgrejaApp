@@ -224,6 +224,7 @@ export const Login: React.FC = () => {
       {error && (
         <div className="text-brand-red text-xs font-bold flex flex-col bg-red-50 p-2 rounded">
             <div className="flex items-center"><AlertCircle size={14} className="mr-1 shrink-0"/> {error}</div>
+            <div className="text-gray-500 font-normal mt-1 text-xs">Membro? Use seu CPF como usuário e senha no primeiro acesso.</div>
         </div>
       )}
       {successMsg && <div className="text-green-600 text-xs font-bold flex items-center bg-green-50 p-2 rounded"><CheckCircle size={14} className="mr-1"/>{successMsg}</div>}
