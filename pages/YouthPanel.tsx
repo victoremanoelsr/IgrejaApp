@@ -415,9 +415,8 @@ export const YouthPanel: React.FC = () => {
               '{{n_parcela}}': `${i+1}/12`,
           };
           await renderElementsToPDF(doc, elements, scale, currentY, replacements, imageCache);
-
-          await addTransaction({ id: '', churchId: currentChurch.id, type: 'ENTRADA', category: 'JOVENS', amount: parseFloat(bookletAmount), date: emissionDate, description: `CARNÊ JOVENS ${bookletYear} (${i+1}/12) - ${member.name}`, memberId: member.id, responsibleUserId: user?.id||'', status: 'PENDENTE' }); 
       } 
+      await addTransaction({ id: '', churchId: currentChurch.id, type: 'ENTRADA', category: 'JOVENS', amount: parseFloat(bookletAmount), date: emissionDate, description: `CARNÊ JOVENS ${bookletYear} - ${member.name}`, memberId: member.id, responsibleUserId: user?.id||'', status: 'PENDENTE' });
       doc.save(`Carne_Jovens_${member.name}.pdf`); 
       setIsGenerating(false); 
       showFeedback('Gerado!'); 

@@ -619,18 +619,18 @@ export const MissionsPanel: React.FC = () => {
               doc.line(0, currentY + 70, 210, currentY + 70);
               (doc as any).setLineDash([], 0); 
           }
-
-          await addTransaction({ 
-              id: '', churchId: currentChurch.id, type: 'ENTRADA', category: 'MISSOES', 
-              amount: parseFloat(bookletAmount), date: emissionDate, 
-              description: `CARNÊ ${bookletYear} (${i+1}/12) - ${member.name}`, 
-              memberId: member.id, responsibleUserId: user?.id || '', status: 'PENDENTE' 
-          }); 
       } 
+
+      await addTransaction({ 
+          id: '', churchId: currentChurch.id, type: 'ENTRADA', category: 'MISSOES', 
+          amount: parseFloat(bookletAmount), date: emissionDate, 
+          description: `CARNÊ MISSÕES ${bookletYear} - ${member.name}`, 
+          memberId: member.id, responsibleUserId: user?.id || '', status: 'PENDENTE' 
+      });
       
       doc.save(`CARNE_MISSOES_${member.name.replace(/\s+/g, '_')}_${bookletYear}.pdf`); 
       setIsGenerating(false);
-      showFeedback("Carnê gerado e lançamentos criados!"); 
+      showFeedback("Carnê gerado!"); 
   };
 
   const handleReprintCarnet = async (t: Transaction) => {
