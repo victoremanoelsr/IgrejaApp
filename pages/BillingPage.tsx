@@ -13,7 +13,7 @@ import {
 } from '../hooks/usePlanLimits';
 
 // RBAC: apenas estes cargos podem visualizar/interagir com a janela na SEDE.
-const BILLING_ROLES = ['PRESIDENTE', 'VICE_PRESIDENTE', 'TESOUREIRO'];
+const BILLING_ROLES = ['PRESIDENTE', 'VICE_PRESIDENTE', 'TESOUREIRO', 'SECRETARIO'];
 
 type InvoiceStatus = 'PAGO' | 'PENDENTE' | 'VENCIDO';
 
@@ -114,10 +114,10 @@ export const BillingPage: React.FC = () => {
 
   // ---- Histórico de faturas DERIVADO do plano cadastrado da igreja ----
   const invoices: Invoice[] = React.useMemo(() => {
-    if (!currentChurch || !currentChurch.planTier || !currentChurch.planType || currentChurch.planType === 'isento') {
+    if (!currentChurch || !currentChurch.planType || currentChurch.planType === 'isento') {
       return [];
     }
-    const tierKey = currentChurch.planTier;
+    const tierKey = currentChurch.planTier || 'bronze'; // fallback se tier não cadastrado
     const cycle   = currentChurch.planType;
     const months  = CYCLE_MONTHS[cycle] ?? 1;
     const dueDay  = currentChurch.dueDay ?? 10;
