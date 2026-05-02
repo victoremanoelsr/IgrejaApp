@@ -107,11 +107,12 @@ export const CarnetEditor: React.FC<CarnetEditorProps> = ({
   const currentLayout = (() => {
     const layout = buildLayout(checkedIds, hasStub);
     if (qrUrl) {
-      const qrX = hasStub ? Math.round(STUB_X_PX + 14) : 28;
-      const qrY = ROW_Y[Math.min(checkedIds.length, ROW_Y.length - 1)];
+      const QR_SIZE = 50;
+      const QR_X = EDITOR_WIDTH - QR_SIZE - 10;           // right edge, 10px margin
+      const QR_Y = Math.round((EDITOR_HEIGHT - QR_SIZE) / 2); // vertically centered
       layout.push({
         id: 'qr_pix', type: 'image', content: qrUrl,
-        x: qrX, y: qrY, width: 50, height: 50,
+        x: QR_X, y: QR_Y, width: QR_SIZE, height: QR_SIZE,
         style: { fontSize: 10, color: '#000000', fontWeight: 'normal', textAlign: 'left' },
       });
     }
@@ -186,11 +187,12 @@ export const CarnetEditor: React.FC<CarnetEditorProps> = ({
   const buildFinalLayout = (): LayoutElement[] => {
     const layout = buildLayout(checkedIds, hasStub);
     if (qrUrl) {
-      const qrX = hasStub ? Math.round(STUB_X_PX + 14) : 28;
-      const qrY = ROW_Y[checkedIds.length] ?? (42 + checkedIds.length * 57);
+      const QR_SIZE = 50;
+      const QR_X = EDITOR_WIDTH - QR_SIZE - 10;
+      const QR_Y = Math.round((EDITOR_HEIGHT - QR_SIZE) / 2);
       layout.push({
         id: 'qr_pix', type: 'image', content: qrUrl,
-        x: qrX, y: qrY, width: 50, height: 50,
+        x: QR_X, y: QR_Y, width: QR_SIZE, height: QR_SIZE,
         style: { fontSize: 10, color: '#000000', fontWeight: 'normal', textAlign: 'left' },
       });
     }
