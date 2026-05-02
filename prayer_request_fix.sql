@@ -20,12 +20,14 @@ DECLARE
   v_sede        RECORD;
   v_is_first    BOOLEAN;
 BEGIN
-  -- 1. Encontrar o membro por CPF ou username (login customizado)
+  -- 1. Encontrar o membro por CPF (normalizado) ou username customizado
+  --    CPF armazenado pode ser '144.444.444-44'; o usuário pode digitar '14444444444'
+  --    regexp_replace garante que ambos os formatos funcionem.
   SELECT *
   INTO v_member
   FROM members
   WHERE
-    cpf = p_identifier
+    regexp_replace(cpf, '[^0-9]', '', 'g') = regexp_replace(p_identifier, '[^0-9]', '', 'g')
     OR member_username = p_identifier
   LIMIT 1;
 
@@ -37,7 +39,7 @@ BEGIN
   --    Se member_password é NULL => primeiro acesso (senha padrão = CPF sem pontuação)
   IF v_member.member_password IS NULL THEN
     -- Primeiro acesso: senha padrão é o CPF sem pontuação
-    IF regexp_replace(v_member.cpf, '[^0-9]', '', 'g') != p_password THEN
+    IF regexp_replace(v_member.cpf, '[^0-9]', '', 'g') != regexp_replace(p_password, '[^0-9]', '', 'g') THEN
       RETURN jsonb_build_object('error', 'Senha incorreta.');
     END IF;
     v_is_first := TRUE;
