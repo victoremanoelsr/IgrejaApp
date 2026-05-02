@@ -34,7 +34,7 @@ type TagId = typeof TAG_DEFS[number]['id'];
 
 // Parcela is always pinned to the top-right corner, not part of the centred group
 const PARCELA_Y        = 10;
-const PARCELA_X_MAIN  = EDITOR_WIDTH - 16;           // right edge of ticket
+const PARCELA_X_MAIN  = EDITOR_WIDTH - 50;           // slightly left of right edge
 const PARCELA_X_STUB  = Math.round(STUB_X_PX) - 6;  // right edge of stub zone
 
 // ─── Build layout from checked tags + stub mode ───────────────────────────────
