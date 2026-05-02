@@ -790,7 +790,7 @@ export const Letters: React.FC = () => {
             <div className="flex justify-between items-center">
                 <div>
                     <h1 className="text-3xl font-bold text-gray-800 flex items-center">
-                        <Mail className="mr-3 text-brand-orange"/> Secretaria: Cartas
+                        <Mail className="mr-3 text-brand-orange"/> Emissão de Documentos
                     </h1>
                     <p className="text-gray-500 mt-1">Emissão de documentos oficiais e gestão de modelos.</p>
                 </div>
