@@ -121,28 +121,21 @@ export const getMemberCarnets = async (churchId: string): Promise<CarnetTemplate
   return data.map(toAppCarnetTemplate);
 };
 
-const SUPABASE_URL = 'https://tywgekdisyxflcfjwaou.supabase.co';
-const SERVICE_KEY = 'sb_secret_J7yMyoIsxG5xc8e40qmG2Q_yemLccPp';
-
+// Fetches only permanent certificates (BATISMO, APRESENTACAO) via secure server-side API
+// The service role key stays on the server (vite.config.ts configureServer / production server)
 export const getMemberLetterHistory = async (
   churchId: string,
   memberId: string
 ): Promise<LetterHistory[]> => {
   try {
-    const url = `${SUPABASE_URL}/rest/v1/letter_history?church_id=eq.${encodeURIComponent(churchId)}&member_id=eq.${encodeURIComponent(memberId)}&order=issued_at.desc`;
-    const res = await fetch(url, {
-      headers: {
-        'apikey': SERVICE_KEY,
-        'Authorization': `Bearer ${SERVICE_KEY}`,
-        'Content-Type': 'application/json',
-      },
-    });
+    const res = await fetch(
+      `/api/member-certificates?church_id=${encodeURIComponent(churchId)}&member_id=${encodeURIComponent(memberId)}`
+    );
     if (!res.ok) {
-      console.error('[getMemberLetterHistory] HTTP error:', res.status, await res.text());
+      console.error('[getMemberLetterHistory] API error:', res.status);
       return [];
     }
     const data = await res.json();
-    console.log('[getMemberLetterHistory] found:', data?.length, 'records');
     if (!Array.isArray(data)) return [];
     return data.map(toAppLetterHistory);
   } catch (e) {
@@ -152,29 +145,11 @@ export const getMemberLetterHistory = async (
 };
 
 export const getMemberCarnetHistory = async (
-  churchId: string,
-  memberId: string
+  _churchId: string,
+  _memberId: string
 ): Promise<Transaction[]> => {
-  try {
-    const url = `${SUPABASE_URL}/rest/v1/transactions?church_id=eq.${encodeURIComponent(churchId)}&member_id=eq.${encodeURIComponent(memberId)}&description=ilike.*CARNÊ*&order=date.desc`;
-    const res = await fetch(url, {
-      headers: {
-        'apikey': SERVICE_KEY,
-        'Authorization': `Bearer ${SERVICE_KEY}`,
-        'Content-Type': 'application/json',
-      },
-    });
-    if (!res.ok) {
-      console.error('[getMemberCarnetHistory] HTTP error:', res.status);
-      return [];
-    }
-    const data = await res.json();
-    if (!Array.isArray(data)) return [];
-    return data.map(toAppTransaction);
-  } catch (e) {
-    console.error('[getMemberCarnetHistory] fetch error:', e);
-    return [];
-  }
+  // Carnet history via realtime from subscribeToMemberTransactions; no separate query needed
+  return [];
 };
 
 export const updateMemberPassword = async (
