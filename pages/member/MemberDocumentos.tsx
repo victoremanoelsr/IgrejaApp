@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { FileText, Award, Star, BookOpen, Loader } from 'lucide-react';
 import { useMember } from '../../contexts/MemberContext';
 import { LetterHistory } from '../../types';
@@ -39,7 +39,11 @@ const formatDate = (iso: string) => {
 };
 
 export const MemberDocumentos: React.FC = () => {
-  const { letterHistory, isLoading } = useMember();
+  const { letterHistory, isLoading, refreshLetterHistory } = useMember();
+
+  useEffect(() => {
+    refreshLetterHistory();
+  }, []);
 
   return (
     <div className="space-y-6 max-w-2xl">

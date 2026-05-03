@@ -19,9 +19,13 @@ const formatDate = (dateStr: string) => {
 };
 
 export const MemberCarnets: React.FC = () => {
-  const { carnets, carnetHistory, session, isLoading } = useMember();
+  const { carnets, carnetHistory, session, isLoading, refreshCarnetHistory } = useMember();
   const [generatingId, setGeneratingId] = useState<string | null>(null);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    refreshCarnetHistory();
+  }, []);
 
   if (!session) return null;
   const member = session.member;

@@ -12,6 +12,7 @@ import {
   subscribeToMemberTransactions,
 } from '../services/memberService';
 import { supabase } from '../services/supabaseClient';
+import { toAppLetterHistory } from '../services/dataMappers';
 
 const SESSION_KEY = 'member_session';
 
@@ -27,6 +28,8 @@ interface MemberContextType {
   login: (cpf: string, password: string) => Promise<{ error?: string; blocked?: boolean }>;
   logout: () => void;
   refreshContributions: () => Promise<void>;
+  refreshLetterHistory: () => Promise<void>;
+  refreshCarnetHistory: () => Promise<void>;
 }
 
 const MemberContext = createContext<MemberContextType | undefined>(undefined);
@@ -64,6 +67,8 @@ export const MemberProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [carnetHistory, setCarnetHistory] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const channelRef = useRef<any>(null);
+  const letterChannelRef = useRef<any>(null);
+  const sessionRef = useRef<MemberSession | null>(null);
 
   const fetchMemberData = async (s: MemberSession) => {
     setIsLoading(true);
@@ -87,7 +92,23 @@ export const MemberProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
+  const refreshLetterHistory = async () => {
+    const s = sessionRef.current;
+    if (!s) return;
+    const data = await getMemberLetterHistory(s.churchId, s.member.id);
+    setLetterHistory(data);
+  };
+
+  const refreshCarnetHistory = async () => {
+    const s = sessionRef.current;
+    if (!s) return;
+    const data = await getMemberCarnetHistory(s.churchId, s.member.id);
+    setCarnetHistory(data);
+  };
+
   const setupRealtime = (s: MemberSession) => {
+    sessionRef.current = s;
+
     if (channelRef.current) {
       channelRef.current.unsubscribe();
     }
@@ -105,7 +126,33 @@ export const MemberProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           }
         }
       }
+      if (txn.category === 'JOVENS' || txn.category === 'MISSOES') {
+        if (txn.description?.toUpperCase().startsWith('CARNÊ')) {
+          setCarnetHistory((prev) => [txn, ...prev]);
+        }
+      }
     });
+
+    if (letterChannelRef.current) {
+      letterChannelRef.current.unsubscribe();
+    }
+    letterChannelRef.current = supabase
+      .channel(`member-letters-${s.member.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'letter_history',
+          filter: `church_id=eq.${s.churchId}`,
+        },
+        (payload) => {
+          if (payload.new && payload.new.member_id === s.member.id) {
+            setLetterHistory((prev) => [toAppLetterHistory(payload.new), ...prev]);
+          }
+        }
+      )
+      .subscribe();
   };
 
   useEffect(() => {
@@ -115,6 +162,7 @@ export const MemberProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
     return () => {
       channelRef.current?.unsubscribe();
+      letterChannelRef.current?.unsubscribe();
     };
   }, []);
 
@@ -188,6 +236,8 @@ export const MemberProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const logout = () => {
     channelRef.current?.unsubscribe();
+    letterChannelRef.current?.unsubscribe();
+    sessionRef.current = null;
     saveSession(null);
     setSession(null);
     setContributions([]);
@@ -222,6 +272,8 @@ export const MemberProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         login,
         logout,
         refreshContributions,
+        refreshLetterHistory,
+        refreshCarnetHistory,
       }}
     >
       {children}
