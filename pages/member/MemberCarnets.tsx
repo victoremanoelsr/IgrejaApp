@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useMember } from '../../contexts/MemberContext';
 import { BookOpen, Download, Loader, AlertCircle, History } from 'lucide-react';
 import { jsPDF } from 'jspdf';

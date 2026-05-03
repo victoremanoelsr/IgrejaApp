@@ -122,35 +122,60 @@ export const getMemberCarnets = async (churchId: string): Promise<CarnetTemplate
   return data.map(toAppCarnetTemplate);
 };
 
+const SUPABASE_URL = 'https://tywgekdisyxflcfjwaou.supabase.co';
+const SERVICE_KEY = 'sb_secret_J7yMyoIsxG5xc8e40qmG2Q_yemLccPp';
+
 export const getMemberLetterHistory = async (
   churchId: string,
   memberId: string
 ): Promise<LetterHistory[]> => {
-  const { data, error } = await supabaseAdmin
-    .from('letter_history')
-    .select('*')
-    .eq('church_id', churchId)
-    .eq('member_id', memberId)
-    .order('issued_at', { ascending: false });
-
-  if (error || !data) return [];
-  return data.map(toAppLetterHistory);
+  try {
+    const url = `${SUPABASE_URL}/rest/v1/letter_history?church_id=eq.${encodeURIComponent(churchId)}&member_id=eq.${encodeURIComponent(memberId)}&order=issued_at.desc`;
+    const res = await fetch(url, {
+      headers: {
+        'apikey': SERVICE_KEY,
+        'Authorization': `Bearer ${SERVICE_KEY}`,
+        'Content-Type': 'application/json',
+      },
+    });
+    if (!res.ok) {
+      console.error('[getMemberLetterHistory] HTTP error:', res.status, await res.text());
+      return [];
+    }
+    const data = await res.json();
+    console.log('[getMemberLetterHistory] found:', data?.length, 'records');
+    if (!Array.isArray(data)) return [];
+    return data.map(toAppLetterHistory);
+  } catch (e) {
+    console.error('[getMemberLetterHistory] fetch error:', e);
+    return [];
+  }
 };
 
 export const getMemberCarnetHistory = async (
   churchId: string,
   memberId: string
 ): Promise<Transaction[]> => {
-  const { data, error } = await supabaseAdmin
-    .from('transactions')
-    .select('*')
-    .eq('church_id', churchId)
-    .eq('member_id', memberId)
-    .ilike('description', 'CARNÊ%')
-    .order('date', { ascending: false });
-
-  if (error || !data) return [];
-  return data.map(toAppTransaction);
+  try {
+    const url = `${SUPABASE_URL}/rest/v1/transactions?church_id=eq.${encodeURIComponent(churchId)}&member_id=eq.${encodeURIComponent(memberId)}&description=ilike.*CARNÊ*&order=date.desc`;
+    const res = await fetch(url, {
+      headers: {
+        'apikey': SERVICE_KEY,
+        'Authorization': `Bearer ${SERVICE_KEY}`,
+        'Content-Type': 'application/json',
+      },
+    });
+    if (!res.ok) {
+      console.error('[getMemberCarnetHistory] HTTP error:', res.status);
+      return [];
+    }
+    const data = await res.json();
+    if (!Array.isArray(data)) return [];
+    return data.map(toAppTransaction);
+  } catch (e) {
+    console.error('[getMemberCarnetHistory] fetch error:', e);
+    return [];
+  }
 };
 
 export const updateMemberPassword = async (

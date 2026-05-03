@@ -26,6 +26,7 @@ interface MemberContextType {
   letterHistory: LetterHistory[];
   carnetHistory: Transaction[];
   isLoading: boolean;
+  isLoadingLetters: boolean;
   login: (cpf: string, password: string) => Promise<{ error?: string; blocked?: boolean }>;
   logout: () => void;
   refreshContributions: () => Promise<void>;
@@ -67,29 +68,42 @@ export const MemberProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [letterHistory, setLetterHistory] = useState<LetterHistory[]>([]);
   const [carnetHistory, setCarnetHistory] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingLetters, setIsLoadingLetters] = useState(!!loadSession());
   const channelRef = useRef<any>(null);
   const letterChannelRef = useRef<any>(null);
-  const sessionRef = useRef<MemberSession | null>(null);
+  const sessionRef = useRef<MemberSession | null>(loadSession());
 
   const fetchMemberData = async (s: MemberSession) => {
     setIsLoading(true);
     try {
-      const [contribs, tithes, events, carnetList, letHistory, carHistory] = await Promise.all([
+      const [contribs, tithes, events, carnetList] = await Promise.all([
         getMemberContributions(s.churchId, s.member.id),
         getMemberCurrentMonthTithes(s.churchId, s.member.id),
         getMemberUpcomingEvents(s.churchId),
         getMemberCarnets(s.churchId),
-        getMemberLetterHistory(s.churchId, s.member.id),
-        getMemberCarnetHistory(s.churchId, s.member.id),
       ]);
       setContributions(contribs);
       setCurrentMonthTithes(tithes);
       setUpcomingEvents(events);
       setCarnets(carnetList);
-      setLetterHistory(letHistory);
-      setCarnetHistory(carHistory);
     } finally {
       setIsLoading(false);
+    }
+
+    // Fetch letter and carnet history independently so errors don't block other data
+    setIsLoadingLetters(true);
+    try {
+      const [letHistory, carHistory] = await Promise.all([
+        getMemberLetterHistory(s.churchId, s.member.id),
+        getMemberCarnetHistory(s.churchId, s.member.id),
+      ]);
+      console.log('[fetchMemberData] letterHistory count:', letHistory.length, 'carnetHistory count:', carHistory.length);
+      setLetterHistory(letHistory);
+      setCarnetHistory(carHistory);
+    } catch (e) {
+      console.error('[fetchMemberData] letters/carnets error:', e);
+    } finally {
+      setIsLoadingLetters(false);
     }
   };
 
@@ -247,6 +261,7 @@ export const MemberProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setCarnets([]);
     setLetterHistory([]);
     setCarnetHistory([]);
+    setIsLoadingLetters(false);
   };
 
   const refreshContributions = async () => {
@@ -270,6 +285,7 @@ export const MemberProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         letterHistory,
         carnetHistory,
         isLoading,
+        isLoadingLetters,
         login,
         logout,
         refreshContributions,

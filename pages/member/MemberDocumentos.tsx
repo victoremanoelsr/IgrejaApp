@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { FileText, Award, Star, BookOpen, Loader } from 'lucide-react';
 import { useMember } from '../../contexts/MemberContext';
 import { LetterHistory } from '../../types';
@@ -39,11 +39,7 @@ const formatDate = (iso: string) => {
 };
 
 export const MemberDocumentos: React.FC = () => {
-  const { letterHistory, isLoading, refreshLetterHistory } = useMember();
-
-  useEffect(() => {
-    refreshLetterHistory();
-  }, []);
+  const { letterHistory, isLoadingLetters } = useMember();
 
   return (
     <div className="space-y-6 max-w-2xl">
@@ -52,7 +48,7 @@ export const MemberDocumentos: React.FC = () => {
         <p className="text-gray-500 text-sm mt-1">Cartas e certificados emitidos em seu nome</p>
       </div>
 
-      {isLoading ? (
+      {isLoadingLetters ? (
         <div className="flex items-center justify-center py-12">
           <Loader size={24} className="animate-spin text-gray-400" />
         </div>
