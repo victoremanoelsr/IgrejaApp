@@ -13,7 +13,6 @@ import {
   X,
   Globe,
   ChevronDown,
-  CreditCard,
   Calendar,
 } from 'lucide-react';
 import { NavLink, useNavigate } from 'react-router-dom';
@@ -22,7 +21,6 @@ const navItems = [
   { to: '/portal/dashboard', icon: LayoutDashboard, label: 'Início' },
   { to: '/portal/financeiro', icon: DollarSign, label: 'Financeiro' },
   { to: '/portal/carnets', icon: BookOpen, label: 'Carnês' },
-  { to: '/portal/carteirinha', icon: CreditCard, label: 'Carteirinha' },
   { to: '/portal/eventos', icon: Calendar, label: 'Eventos' },
   { to: '/portal/documentos', icon: FileText, label: 'Documentos' },
   { to: '/portal/perfil', icon: User, label: 'Perfil' },

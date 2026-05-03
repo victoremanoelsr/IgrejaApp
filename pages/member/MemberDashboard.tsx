@@ -8,7 +8,6 @@ import {
   Clock,
   ChevronRight,
   Wallet,
-  CreditCard,
   BookOpen,
   HeartHandshake,
   Sparkles,
@@ -102,12 +101,6 @@ export const MemberDashboard: React.FC = () => {
   };
 
   const quickActions = [
-    {
-      label: 'Carteirinha',
-      icon: CreditCard,
-      color: 'from-violet-500 to-indigo-600',
-      action: () => navigate('/portal/carteirinha'),
-    },
     {
       label: 'Carnês',
       icon: BookOpen,
