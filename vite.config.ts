@@ -10,6 +10,30 @@ export default defineConfig(({ mode }) => {
   const SUPABASE_URL = 'https://tywgekdisyxflcfjwaou.supabase.co';
   const SERVICE_KEY = env.SUPABASE_SERVICE_ROLE_KEY || 'sb_secret_J7yMyoIsxG5xc8e40qmG2Q_yemLccPp';
 
+  const supabaseFetch = async (path: string) => {
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+      headers: {
+        apikey: SERVICE_KEY,
+        Authorization: `Bearer ${SERVICE_KEY}`,
+        'Content-Type': 'application/json',
+      },
+    });
+    if (!response.ok) return null;
+    return response.json();
+  };
+
+  const parseParams = (req: IncomingMessage) => {
+    const rawUrl = req.url || '';
+    const qIdx = rawUrl.indexOf('?');
+    return new URLSearchParams(qIdx >= 0 ? rawUrl.slice(qIdx + 1) : '');
+  };
+
+  const jsonResponse = (res: ServerResponse, data: any) => {
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.end(JSON.stringify(data));
+  };
+
   const memberApiPlugin = {
     name: 'member-api',
     configureServer(server: any) {
@@ -18,48 +42,63 @@ export default defineConfig(({ mode }) => {
       server.middlewares.use(
         '/api/member-certificates',
         async (req: IncomingMessage, res: ServerResponse) => {
-          const rawUrl = req.url || '';
-          const qIdx = rawUrl.indexOf('?');
-          const params = new URLSearchParams(qIdx >= 0 ? rawUrl.slice(qIdx + 1) : '');
+          const params = parseParams(req);
           const churchId = params.get('church_id') || '';
           const memberId = params.get('member_id') || '';
 
-          res.setHeader('Content-Type', 'application/json');
-          res.setHeader('Access-Control-Allow-Origin', '*');
-
-          if (!churchId || !memberId) {
-            res.end(JSON.stringify([]));
-            return;
-          }
+          if (!churchId || !memberId) { jsonResponse(res, []); return; }
 
           try {
-            const apiUrl =
-              `${SUPABASE_URL}/rest/v1/letter_history` +
-              `?church_id=eq.${encodeURIComponent(churchId)}` +
+            const data = await supabaseFetch(
+              `letter_history?church_id=eq.${encodeURIComponent(churchId)}` +
               `&member_id=eq.${encodeURIComponent(memberId)}` +
               `&letter_type=in.(BATISMO,APRESENTACAO)` +
-              `&order=issued_at.desc`;
-
-            const response = await fetch(apiUrl, {
-              headers: {
-                apikey: SERVICE_KEY,
-                Authorization: `Bearer ${SERVICE_KEY}`,
-                'Content-Type': 'application/json',
-              },
-            });
-
-            if (!response.ok) {
-              console.error('[api/member-certificates] Supabase error:', response.status, await response.text());
-              res.end(JSON.stringify([]));
-              return;
-            }
-
-            const data = await response.json();
+              `&order=issued_at.desc`
+            );
             console.log(`[api/member-certificates] returned ${Array.isArray(data) ? data.length : 0} records`);
-            res.end(JSON.stringify(Array.isArray(data) ? data : []));
+            jsonResponse(res, Array.isArray(data) ? data : []);
           } catch (e) {
             console.error('[api/member-certificates] error:', e);
-            res.end(JSON.stringify([]));
+            jsonResponse(res, []);
+          }
+        }
+      );
+
+      // GET /api/member-cert-template?church_id=...&letter_type=...
+      // Returns the best matching LetterTemplate + church info for PDF regeneration
+      server.middlewares.use(
+        '/api/member-cert-template',
+        async (req: IncomingMessage, res: ServerResponse) => {
+          const params = parseParams(req);
+          const churchId = params.get('church_id') || '';
+          const letterType = params.get('letter_type') || '';
+
+          if (!churchId || !letterType) { jsonResponse(res, { template: null, church: null }); return; }
+
+          try {
+            const [templates, churches] = await Promise.all([
+              supabaseFetch(
+                `letter_templates?church_id=eq.${encodeURIComponent(churchId)}` +
+                `&type=in.(${encodeURIComponent(letterType)},GENERICO)` +
+                `&order=created_at.desc`
+              ),
+              supabaseFetch(
+                `churches?id=eq.${encodeURIComponent(churchId)}&select=id,name,address,pastor_name,logo_url`
+              ),
+            ]);
+
+            const templateList = Array.isArray(templates) ? templates : [];
+            const template = templateList.find((t: any) => t.type === letterType) ||
+                             templateList.find((t: any) => t.type === 'GENERICO') ||
+                             null;
+
+            const church = Array.isArray(churches) && churches.length > 0 ? churches[0] : null;
+
+            console.log(`[api/member-cert-template] type=${letterType} template=${template?.id || 'none'} church=${church?.name || 'none'}`);
+            jsonResponse(res, { template, church });
+          } catch (e) {
+            console.error('[api/member-cert-template] error:', e);
+            jsonResponse(res, { template: null, church: null });
           }
         }
       );
