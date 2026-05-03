@@ -12,8 +12,6 @@ import {
   subscribeToMemberTransactions,
 } from '../services/memberService';
 import { supabase } from '../services/supabaseClient';
-import { supabaseAdmin } from '../services/supabaseAdminClient';
-import { toAppLetterHistory } from '../services/dataMappers';
 
 const SESSION_KEY = 'member_session';
 
@@ -72,6 +70,7 @@ export const MemberProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const channelRef = useRef<any>(null);
   const letterChannelRef = useRef<any>(null);
   const sessionRef = useRef<MemberSession | null>(loadSession());
+
 
   const fetchMemberData = async (s: MemberSession) => {
     setIsLoading(true);
@@ -151,7 +150,8 @@ export const MemberProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (letterChannelRef.current) {
       letterChannelRef.current.unsubscribe();
     }
-    letterChannelRef.current = supabaseAdmin
+    // Use regular anon client for realtime; on INSERT refetch with service key to bypass RLS
+    letterChannelRef.current = supabase
       .channel(`member-letters-${s.member.id}`)
       .on(
         'postgres_changes',
@@ -161,10 +161,9 @@ export const MemberProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           table: 'letter_history',
           filter: `church_id=eq.${s.churchId}`,
         },
-        (payload) => {
-          if (payload.new && payload.new.member_id === s.member.id) {
-            setLetterHistory((prev) => [toAppLetterHistory(payload.new), ...prev]);
-          }
+        async () => {
+          const data = await getMemberLetterHistory(s.churchId, s.member.id);
+          setLetterHistory(data);
         }
       )
       .subscribe();

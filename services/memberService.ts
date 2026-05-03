@@ -1,5 +1,4 @@
 import { supabase } from './supabaseClient';
-import { supabaseAdmin } from './supabaseAdminClient';
 import { Member, Transaction, Event, CarnetTemplate, LetterHistory } from '../types';
 import { toAppMember, toAppTransaction, toAppEvent, toAppCarnetTemplate, toAppLetterHistory } from './dataMappers';
 
