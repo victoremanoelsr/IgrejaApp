@@ -1,6 +1,6 @@
 import { supabase } from './supabaseClient';
-import { Member, Transaction, Event, CarnetTemplate } from '../types';
-import { toAppMember, toAppTransaction, toAppEvent, toAppCarnetTemplate } from './dataMappers';
+import { Member, Transaction, Event, CarnetTemplate, LetterHistory } from '../types';
+import { toAppMember, toAppTransaction, toAppEvent, toAppCarnetTemplate, toAppLetterHistory } from './dataMappers';
 
 export interface MemberChurchInfo {
   id: string;
@@ -119,6 +119,37 @@ export const getMemberCarnets = async (churchId: string): Promise<CarnetTemplate
 
   if (error || !data) return [];
   return data.map(toAppCarnetTemplate);
+};
+
+export const getMemberLetterHistory = async (
+  churchId: string,
+  memberId: string
+): Promise<LetterHistory[]> => {
+  const { data, error } = await supabase
+    .from('letter_history')
+    .select('*')
+    .eq('church_id', churchId)
+    .eq('member_id', memberId)
+    .order('issued_at', { ascending: false });
+
+  if (error || !data) return [];
+  return data.map(toAppLetterHistory);
+};
+
+export const getMemberCarnetHistory = async (
+  churchId: string,
+  memberId: string
+): Promise<Transaction[]> => {
+  const { data, error } = await supabase
+    .from('transactions')
+    .select('*')
+    .eq('church_id', churchId)
+    .eq('member_id', memberId)
+    .ilike('description', 'CARNÊ%')
+    .order('date', { ascending: false });
+
+  if (error || !data) return [];
+  return data.map(toAppTransaction);
 };
 
 export const updateMemberPassword = async (

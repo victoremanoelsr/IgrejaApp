@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
-import { Transaction, Event, CarnetTemplate } from '../types';
+import { Transaction, Event, CarnetTemplate, LetterHistory } from '../types';
 import {
   MemberSession,
   loginAsMember,
@@ -7,6 +7,8 @@ import {
   getMemberCurrentMonthTithes,
   getMemberUpcomingEvents,
   getMemberCarnets,
+  getMemberLetterHistory,
+  getMemberCarnetHistory,
   subscribeToMemberTransactions,
 } from '../services/memberService';
 import { supabase } from '../services/supabaseClient';
@@ -19,6 +21,8 @@ interface MemberContextType {
   currentMonthTithes: number;
   upcomingEvents: Event[];
   carnets: CarnetTemplate[];
+  letterHistory: LetterHistory[];
+  carnetHistory: Transaction[];
   isLoading: boolean;
   login: (cpf: string, password: string) => Promise<{ error?: string; blocked?: boolean }>;
   logout: () => void;
@@ -56,22 +60,28 @@ export const MemberProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [currentMonthTithes, setCurrentMonthTithes] = useState(0);
   const [upcomingEvents, setUpcomingEvents] = useState<Event[]>([]);
   const [carnets, setCarnets] = useState<CarnetTemplate[]>([]);
+  const [letterHistory, setLetterHistory] = useState<LetterHistory[]>([]);
+  const [carnetHistory, setCarnetHistory] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const channelRef = useRef<any>(null);
 
   const fetchMemberData = async (s: MemberSession) => {
     setIsLoading(true);
     try {
-      const [contribs, tithes, events, carnetList] = await Promise.all([
+      const [contribs, tithes, events, carnetList, letHistory, carHistory] = await Promise.all([
         getMemberContributions(s.churchId, s.member.id),
         getMemberCurrentMonthTithes(s.churchId, s.member.id),
         getMemberUpcomingEvents(s.churchId),
         getMemberCarnets(s.churchId),
+        getMemberLetterHistory(s.churchId, s.member.id),
+        getMemberCarnetHistory(s.churchId, s.member.id),
       ]);
       setContributions(contribs);
       setCurrentMonthTithes(tithes);
       setUpcomingEvents(events);
       setCarnets(carnetList);
+      setLetterHistory(letHistory);
+      setCarnetHistory(carHistory);
     } finally {
       setIsLoading(false);
     }
@@ -184,6 +194,8 @@ export const MemberProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setCurrentMonthTithes(0);
     setUpcomingEvents([]);
     setCarnets([]);
+    setLetterHistory([]);
+    setCarnetHistory([]);
   };
 
   const refreshContributions = async () => {
@@ -204,6 +216,8 @@ export const MemberProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         currentMonthTithes,
         upcomingEvents,
         carnets,
+        letterHistory,
+        carnetHistory,
         isLoading,
         login,
         logout,

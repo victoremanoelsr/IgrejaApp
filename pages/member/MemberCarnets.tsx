@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useMember } from '../../contexts/MemberContext';
-import { BookOpen, Download, Loader, AlertCircle } from 'lucide-react';
+import { BookOpen, Download, Loader, AlertCircle, History } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import { renderElementsToPDF, loadImageForPDF, addImageToPdf } from '../../utils/pdfImageLoader';
 
@@ -9,8 +9,17 @@ const monthNames = [
   'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
 ];
 
+const formatDate = (dateStr: string) => {
+  try {
+    const [year, month, day] = dateStr.split('T')[0].split('-');
+    return `${day}/${month}/${year}`;
+  } catch {
+    return dateStr;
+  }
+};
+
 export const MemberCarnets: React.FC = () => {
-  const { carnets, session, isLoading } = useMember();
+  const { carnets, carnetHistory, session, isLoading } = useMember();
   const [generatingId, setGeneratingId] = useState<string | null>(null);
   const [error, setError] = useState('');
 
@@ -132,6 +141,40 @@ export const MemberCarnets: React.FC = () => {
       <p className="text-center text-gray-400 text-xs pb-2">
         Os PDFs são gerados com seus dados pessoais automaticamente.
       </p>
+
+      {/* Histórico de carnês emitidos */}
+      <div>
+        <div className="flex items-center gap-2 mb-3">
+          <History size={16} className="text-gray-400" />
+          <h2 className="text-sm font-bold text-gray-600 uppercase tracking-wide">Histórico de Emissão</h2>
+        </div>
+
+        {carnetHistory.length === 0 ? (
+          <div className="bg-white rounded-xl border border-gray-200 p-6 text-center">
+            <p className="text-gray-400 text-xs">Nenhum carnê foi emitido para você ainda.</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {carnetHistory.map((txn) => {
+              const isJovens = txn.category === 'JOVENS';
+              return (
+                <div key={txn.id} className="bg-white rounded-xl border border-gray-200 p-3 flex items-center gap-3">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${isJovens ? 'bg-orange-100' : 'bg-blue-100'}`}>
+                    <BookOpen size={14} className={isJovens ? 'text-orange-500' : 'text-blue-500'} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-gray-700 text-xs font-semibold truncate">{txn.description}</p>
+                    <p className="text-gray-400 text-[11px] mt-0.5">Emitido em {formatDate(txn.date)}</p>
+                  </div>
+                  <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border shrink-0 ${isJovens ? 'bg-orange-50 text-orange-600 border-orange-200' : 'bg-blue-50 text-blue-600 border-blue-200'}`}>
+                    {txn.category}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 };
