@@ -12,6 +12,7 @@ import {
   subscribeToMemberTransactions,
 } from '../services/memberService';
 import { supabase } from '../services/supabaseClient';
+import { supabaseAdmin } from '../services/supabaseAdminClient';
 import { toAppLetterHistory } from '../services/dataMappers';
 
 const SESSION_KEY = 'member_session';
@@ -136,7 +137,7 @@ export const MemberProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (letterChannelRef.current) {
       letterChannelRef.current.unsubscribe();
     }
-    letterChannelRef.current = supabase
+    letterChannelRef.current = supabaseAdmin
       .channel(`member-letters-${s.member.id}`)
       .on(
         'postgres_changes',

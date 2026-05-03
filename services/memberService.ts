@@ -1,4 +1,5 @@
 import { supabase } from './supabaseClient';
+import { supabaseAdmin } from './supabaseAdminClient';
 import { Member, Transaction, Event, CarnetTemplate, LetterHistory } from '../types';
 import { toAppMember, toAppTransaction, toAppEvent, toAppCarnetTemplate, toAppLetterHistory } from './dataMappers';
 
@@ -125,7 +126,7 @@ export const getMemberLetterHistory = async (
   churchId: string,
   memberId: string
 ): Promise<LetterHistory[]> => {
-  const { data, error } = await supabase
+  const { data, error } = await supabaseAdmin
     .from('letter_history')
     .select('*')
     .eq('church_id', churchId)
@@ -140,7 +141,7 @@ export const getMemberCarnetHistory = async (
   churchId: string,
   memberId: string
 ): Promise<Transaction[]> => {
-  const { data, error } = await supabase
+  const { data, error } = await supabaseAdmin
     .from('transactions')
     .select('*')
     .eq('church_id', churchId)
