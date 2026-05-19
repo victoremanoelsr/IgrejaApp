@@ -1,15 +1,16 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useApp } from '../context';
 import { Church, User } from '../types';
-import { Building, Plus, MapPin, User as UserIcon, X, UserPlus, Eye, Trash2, ShieldAlert, AlertTriangle, CheckCircle, Info, Edit2, Save } from 'lucide-react';
+import { Building, Plus, MapPin, User as UserIcon, X, UserPlus, Eye, Trash2, ShieldAlert, AlertTriangle, CheckCircle, Info, Edit2, Save, Camera, ImageIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { usePlanLimits } from '../hooks/usePlanLimits';
 
 export const Congregations: React.FC = () => {
-  const { currentChurch, churches, addCongregation, updateChurch, addUser, users, selectChurch, deleteChurch } = useApp();
+  const { currentChurch, churches, addCongregation, updateChurch, addUser, users, selectChurch, deleteChurch, uploadChurchLogo } = useApp();
   const navigate = useNavigate();
   const planLimits = usePlanLimits();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Modal State
   const [showCongregationForm, setShowCongregationForm] = useState(false);
@@ -23,6 +24,10 @@ export const Congregations: React.FC = () => {
   const [newCongDirigenteUser, setNewCongDirigenteUser] = useState('');
   const [newCongDirigentePass, setNewCongDirigentePass] = useState('');
   const [newCongDirigenteCpf, setNewCongDirigenteCpf] = useState('');
+
+  // Photo
+  const [newCongLogoUrl, setNewCongLogoUrl] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
 
   // --- CUSTOM CONFIRM/ALERT MODAL STATE ---
   const [modalState, setModalState] = useState<{
@@ -80,12 +85,10 @@ export const Congregations: React.FC = () => {
       setNewCongName(cong.name);
       setNewCongAddress(cong.address);
       setNewCongPastorName(cong.pastorName);
-      
-      // Limpa campos de usuário (não editáveis aqui para simplificar)
+      setNewCongLogoUrl(cong.logoUrl || '');
       setNewCongDirigenteUser('');
       setNewCongDirigentePass('');
       setNewCongDirigenteCpf('');
-      
       setShowCongregationForm(true);
   };
 
@@ -98,6 +101,16 @@ export const Congregations: React.FC = () => {
       setNewCongDirigenteUser('');
       setNewCongDirigentePass('');
       setNewCongDirigenteCpf('');
+      setNewCongLogoUrl('');
+  };
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploading(true);
+    const url = await uploadChurchLogo(file);
+    if (url) setNewCongLogoUrl(url);
+    setIsUploading(false);
   };
 
   const handleDelete = (id: string, name: string) => {
@@ -128,7 +141,8 @@ export const Congregations: React.FC = () => {
         const res = await updateChurch(editingId, {
             name: newCongName.toUpperCase(),
             address: newCongAddress.toUpperCase(),
-            pastorName: newCongPastorName.toUpperCase()
+            pastorName: newCongPastorName.toUpperCase(),
+            logoUrl: newCongLogoUrl || undefined,
         });
 
         if (res.success) {
@@ -158,13 +172,14 @@ export const Congregations: React.FC = () => {
 
     // 1. Cria a Congregação primeiro e espera o ID
     const newCong: Church = {
-        id: '', // Banco vai gerar
+        id: '',
         name: newCongName.toUpperCase(),
         address: newCongAddress.toUpperCase(),
         pastorName: newCongPastorName.toUpperCase(),
         active: true,
         type: 'CONGREGACAO',
-        parentId: currentChurch.id
+        parentId: currentChurch.id,
+        logoUrl: newCongLogoUrl || undefined,
     };
 
     const createdCongId = await addCongregation(newCong);
@@ -178,7 +193,7 @@ export const Congregations: React.FC = () => {
             password: newCongDirigentePass,
             cpf: newCongDirigenteCpf,
             role: 'DIRIGENTE',
-            churchId: createdCongId // Usa o ID retornado pelo banco
+            churchId: createdCongId
         };
 
         const res = await addUser(newDirigente);
@@ -232,8 +247,52 @@ export const Congregations: React.FC = () => {
                 <button onClick={handleCloseForm} className="hover:text-brand-orange"><X/></button>
              </div>
              
-             <form onSubmit={handleSave} className="p-6 space-y-6">
+             <form onSubmit={handleSave} className="p-6 space-y-6 max-h-[80vh] overflow-y-auto">
                 
+                {/* FOTO DA CONGREGAÇÃO */}
+                <div className="space-y-3">
+                    <h4 className="text-sm font-bold text-brand-orange uppercase tracking-wider border-b pb-1 flex items-center">
+                        <Camera size={14} className="mr-2"/> Foto da Congregação
+                    </h4>
+                    <div className="flex items-center gap-4">
+                        <div className="h-24 w-24 rounded-xl border-2 border-dashed border-gray-300 overflow-hidden flex-shrink-0 bg-gray-50 flex items-center justify-center">
+                            {newCongLogoUrl ? (
+                                <img src={newCongLogoUrl} alt="Foto" className="h-full w-full object-cover" />
+                            ) : (
+                                <ImageIcon size={28} className="text-gray-300" />
+                            )}
+                        </div>
+                        <div className="flex flex-col gap-2">
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={handlePhotoUpload}
+                            />
+                            <button
+                                type="button"
+                                onClick={() => fileInputRef.current?.click()}
+                                disabled={isUploading}
+                                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition-colors flex items-center disabled:opacity-50"
+                            >
+                                <Camera size={15} className="mr-2"/>
+                                {isUploading ? 'Enviando...' : (newCongLogoUrl ? 'Alterar Foto' : 'Adicionar Foto')}
+                            </button>
+                            {newCongLogoUrl && (
+                                <button
+                                    type="button"
+                                    onClick={() => setNewCongLogoUrl('')}
+                                    className="px-4 py-2 text-red-500 hover:bg-red-50 rounded-lg text-sm font-medium transition-colors"
+                                >
+                                    Remover
+                                </button>
+                            )}
+                            <p className="text-xs text-gray-400">JPG, PNG ou GIF. Recomendado: 400×300px</p>
+                        </div>
+                    </div>
+                </div>
+
                 {/* BLOCO DE DADOS GERAIS */}
                 <div className="space-y-4">
                     <h4 className="text-sm font-bold text-brand-orange uppercase tracking-wider border-b pb-1">Dados da Igreja</h4>
@@ -265,7 +324,7 @@ export const Congregations: React.FC = () => {
                                 <label className="block text-xs font-bold text-gray-500 uppercase mb-1">CPF</label>
                                 <input required className="w-full p-2 border rounded focus:ring-brand-orange" placeholder="000.000.000-00" maxLength={14} value={newCongDirigenteCpf} onChange={e => setNewCongDirigenteCpf(formatCPF(e.target.value))} />
                             </div>
-                            <div></div> {/* Spacer */}
+                            <div></div>
                             <div>
                                 <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Usuário de Acesso</label>
                                 <input required className="w-full p-2 border rounded focus:ring-brand-orange" value={newCongDirigenteUser} onChange={e => setNewCongDirigenteUser(e.target.value)} />
@@ -292,37 +351,50 @@ export const Congregations: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
          {childCongregations.map(cong => (
              <div key={cong.id} className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-all border border-gray-100 group">
-                 <div className="p-6">
-                    <div className="flex justify-between items-start mb-4">
-                        <div className="h-12 w-12 bg-gray-100 rounded-full flex items-center justify-center text-brand-black group-hover:bg-brand-black group-hover:text-white transition-colors">
-                            <Building size={24}/>
-                        </div>
-                        <div className="flex flex-col items-end">
-                            {cong.active ? (
-                                <span className="bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded-full mb-2">ATIVA</span>
-                            ) : (
-                                <span className="bg-red-100 text-red-700 text-xs font-bold px-2 py-1 rounded-full mb-2">INATIVA</span>
-                            )}
-                            <button 
-                                onClick={() => handleEdit(cong)} 
-                                className="text-brand-orange hover:text-brand-red p-1 rounded hover:bg-orange-50 transition-colors"
-                                title="Editar Informações"
-                            >
-                                <Edit2 size={16}/>
-                            </button>
-                        </div>
-                    </div>
-                    <h3 className="text-lg font-bold text-gray-800 mb-1">{cong.name}</h3>
-                    <p className="text-sm text-gray-500 mb-4 flex items-center"><MapPin size={14} className="mr-1"/> {cong.address}</p>
+                 {/* Foto da congregação ou banner padrão */}
+                 <div className="h-36 w-full bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden relative">
+                     {cong.logoUrl ? (
+                         <img
+                             src={cong.logoUrl}
+                             alt={cong.name}
+                             className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
+                         />
+                     ) : (
+                         <div className="h-full w-full flex items-center justify-center">
+                             <Building size={48} className="text-gray-300"/>
+                         </div>
+                     )}
+                     {/* Status badge sobre a foto */}
+                     <div className="absolute top-3 left-3">
+                         {cong.active ? (
+                             <span className="bg-green-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow">ATIVA</span>
+                         ) : (
+                             <span className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow">INATIVA</span>
+                         )}
+                     </div>
+                     {/* Botão editar sobre a foto */}
+                     <button
+                         onClick={() => handleEdit(cong)}
+                         className="absolute top-3 right-3 bg-white/90 hover:bg-white text-brand-orange p-1.5 rounded-lg shadow transition-colors"
+                         title="Editar Informações"
+                     >
+                         <Edit2 size={14}/>
+                     </button>
+                 </div>
+
+                 <div className="p-5">
+                    <h3 className="text-base font-bold text-gray-800 mb-1 leading-tight">{cong.name}</h3>
+                    <p className="text-xs text-gray-500 mb-4 flex items-center"><MapPin size={12} className="mr-1 flex-shrink-0"/> {cong.address}</p>
                     
-                    <div className="bg-gray-50 p-3 rounded-lg flex items-center mb-4">
-                        <UserIcon size={16} className="text-gray-400 mr-2"/>
+                    <div className="bg-gray-50 p-3 rounded-lg flex items-center">
+                        <UserIcon size={15} className="text-gray-400 mr-2 flex-shrink-0"/>
                         <div>
                             <p className="text-xs text-gray-500 uppercase font-bold">Dirigente</p>
                             <p className="text-sm font-medium text-gray-800">{cong.pastorName}</p>
                         </div>
                     </div>
                  </div>
+
                  <div className="bg-gray-50 p-4 border-t border-gray-100 flex justify-between items-center">
                     <button 
                         onClick={() => handleDelete(cong.id, cong.name)}
