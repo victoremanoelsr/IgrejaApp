@@ -306,7 +306,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const res = await updateChurch(churchId, {
       active: true,
       lastPaymentDate: todayStr,
-      paymentPromiseDate: '', // Limpa a promessa ao confirmar pagamento
+      paymentPromiseDate: nextDueStr, // Mantém acesso liberado até o próximo vencimento
     });
     if (!res.success) return { success: false, error: res.error };
     return { success: true, nextDueDate: nextDueStr };
@@ -329,15 +329,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const dueDate = new Date(today.getFullYear(), today.getMonth(), dueDay + gracePeriod);
 
       if (today > dueDate) {
+        // Se há uma promessa/liberação ativa, não bloqueia
         const hasActivePromise = sede.paymentPromiseDate
-          ? new Date(sede.paymentPromiseDate) >= today
+          ? new Date(sede.paymentPromiseDate + 'T00:00:00') >= today
           : false;
 
-        if (!hasActivePromise) {
-          await supabase.from('churches').update({ active: false }).eq('id', sede.id);
-          setChurches(prev => prev.map(c => c.id === sede!.id ? { ...c, active: false } : c));
-          return true;
+        if (hasActivePromise) return false;
+
+        // Se o último pagamento cobre o ciclo atual, não bloqueia
+        if (sede.lastPaymentDate) {
+          const months = PLAN_MONTHS_INTERNAL[sede.planType ?? 'mensal'] ?? 1;
+          const lastPay = new Date(sede.lastPaymentDate + 'T00:00:00');
+          const nextDueAfterPayment = new Date(
+            lastPay.getFullYear(),
+            lastPay.getMonth() + (months || 1),
+            dueDay
+          );
+          nextDueAfterPayment.setHours(0, 0, 0, 0);
+          if (today <= nextDueAfterPayment) return false;
         }
+
+        await supabase.from('churches').update({ active: false }).eq('id', sede.id);
+        setChurches(prev => prev.map(c => c.id === sede!.id ? { ...c, active: false } : c));
+        return true;
       }
     }
     return false;
