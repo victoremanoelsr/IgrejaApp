@@ -7,7 +7,7 @@ import { TransactionCategory, Transaction, FixedExpense } from '../types';
 import { 
   PlusCircle, MinusCircle, Search, CheckCircle, ShieldAlert, X, 
   Paperclip, ExternalLink, Trash2, Upload, Loader, Filter, 
-  Calendar, Edit2, AlertTriangle, Info, ChevronDown, ChevronUp, Globe,
+  Calendar, Edit2, AlertTriangle, Info, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Globe,
   Receipt, PlayCircle, Save, RefreshCw, Clock, MessageCircle, CloudOff
 } from 'lucide-react';
 import { sendWhatsApp, treasuryMessage } from '../utils/whatsapp';
@@ -29,6 +29,7 @@ export const Finance: React.FC = () => {
   // Removed 'PENDENTE' from type
   const [filterType, setFilterType] = useState<'TODOS' | 'DIZIMO' | 'OFERTA' | 'SAIDA' | 'OUTROS'>('TODOS');
   const [showFilters, setShowFilters] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
 
   // Editing State
   const [editingTransactionId, setEditingTransactionId] = useState<string | null>(null);
@@ -74,6 +75,9 @@ export const Finance: React.FC = () => {
       }
   }, [viewId, filterMonth, filterYear, activeTab]);
 
+  // Volta para página 1 ao mudar filtros
+  useEffect(() => { setCurrentPage(1); }, [filterMonth, filterYear, filterType, viewId]);
+
   const filteredMembers = members.filter(m => m.churchId === viewId && m.name.toLowerCase().includes(searchTerm.toLowerCase()));
   
   const excludedCategories = ['MISSOES', 'JOVENS', 'CRIANCAS', 'SENHORAS', 'SENHORES'];
@@ -104,6 +108,11 @@ export const Finance: React.FC = () => {
         // Fallback se não tiver createdAt (ex: dados legados), usa a data da transação
         return new Date(b.date).getTime() - new Date(a.date).getTime();
     });
+
+  const ITEMS_PER_PAGE = 50;
+  const totalPages = Math.max(1, Math.ceil(churchTransactions.length / ITEMS_PER_PAGE));
+  const safePage = Math.min(currentPage, totalPages);
+  const paginatedTransactions = churchTransactions.slice((safePage - 1) * ITEMS_PER_PAGE, safePage * ITEMS_PER_PAGE);
 
   const canEdit = user?.role !== 'SECRETARIO';
 
@@ -363,9 +372,9 @@ export const Finance: React.FC = () => {
       <div className="bg-white rounded-lg shadow overflow-hidden border border-gray-100">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50"><tr><th className="px-2 py-2 text-left text-[9px] font-bold text-gray-500 uppercase">Data</th><th className="px-2 py-2 text-left text-[9px] font-bold text-gray-500 uppercase">Desc</th><th className="hidden md:table-cell px-2 py-2 text-left text-[9px] font-bold text-gray-500 uppercase">Cat</th><th className="px-2 py-2 text-right text-[9px] font-bold text-gray-500 uppercase">Valor</th><th className="px-1 py-2 text-right text-[9px] font-bold text-gray-500 uppercase">.</th></tr></thead>
+            <thead className="bg-gray-50"><tr><th className="px-2 py-2 text-left text-[9px] font-bold text-gray-500 uppercase">Data</th><th className="px-2 py-2 text-left text-[9px] font-bold text-gray-500 uppercase">Desc</th><th className="hidden md:table-cell px-2 py-2 text-left text-[9px] font-bold text-gray-500 uppercase">Cat</th><th className="px-2 py-2 text-right text-[9px] font-bold text-gray-500 uppercase">Valor</th><th className="px-1 py-2 text-right text-[9px] font-bold text-gray-500 uppercase">Ações</th></tr></thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {churchTransactions.map(txn => {
+              {paginatedTransactions.map(txn => {
                 const [year, month, day] = txn.date.split('-').map(Number);
                 const displayDate = new Date(year, month - 1, day).toLocaleDateString(i18n.language, {day: '2-digit', month: '2-digit'});
                 
@@ -409,6 +418,65 @@ export const Finance: React.FC = () => {
             </tbody>
           </table>
         </div>
+
+        {/* Paginação */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 bg-gray-50">
+            <span className="text-xs text-gray-500">
+              {(safePage - 1) * ITEMS_PER_PAGE + 1}–{Math.min(safePage * ITEMS_PER_PAGE, churchTransactions.length)} de {churchTransactions.length} lançamentos
+            </span>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setCurrentPage(1)}
+                disabled={safePage === 1}
+                className="px-2 py-1 rounded text-xs text-gray-500 hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                «
+              </button>
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={safePage === 1}
+                className="p-1 rounded text-gray-500 hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                <ChevronLeft size={15}/>
+              </button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1)
+                .filter(p => p === 1 || p === totalPages || Math.abs(p - safePage) <= 1)
+                .reduce<(number | '...')[]>((acc, p, idx, arr) => {
+                  if (idx > 0 && typeof arr[idx - 1] === 'number' && (p as number) - (arr[idx - 1] as number) > 1) acc.push('...');
+                  acc.push(p);
+                  return acc;
+                }, [])
+                .map((p, idx) =>
+                  p === '...' ? (
+                    <span key={`ellipsis-${idx}`} className="px-1 text-xs text-gray-400">…</span>
+                  ) : (
+                    <button
+                      key={p}
+                      onClick={() => setCurrentPage(p as number)}
+                      className={`w-7 h-7 rounded text-xs font-bold transition-colors ${safePage === p ? 'bg-brand-orange text-white' : 'text-gray-600 hover:bg-gray-200'}`}
+                    >
+                      {p}
+                    </button>
+                  )
+                )}
+              <button
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={safePage === totalPages}
+                className="p-1 rounded text-gray-500 hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                <ChevronRight size={15}/>
+              </button>
+              <button
+                onClick={() => setCurrentPage(totalPages)}
+                disabled={safePage === totalPages}
+                className="px-2 py-1 rounded text-xs text-gray-500 hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                »
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
