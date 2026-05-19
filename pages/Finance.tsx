@@ -109,7 +109,7 @@ export const Finance: React.FC = () => {
         return new Date(b.date).getTime() - new Date(a.date).getTime();
     });
 
-  const ITEMS_PER_PAGE = 50;
+  const ITEMS_PER_PAGE = 20;
   const totalPages = Math.max(1, Math.ceil(churchTransactions.length / ITEMS_PER_PAGE));
   const safePage = Math.min(currentPage, totalPages);
   const paginatedTransactions = churchTransactions.slice((safePage - 1) * ITEMS_PER_PAGE, safePage * ITEMS_PER_PAGE);
