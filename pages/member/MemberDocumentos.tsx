@@ -4,6 +4,7 @@ import { useMember } from '../../contexts/MemberContext';
 import { LetterHistory } from '../../types';
 import jsPDF from 'jspdf';
 import { loadImageForPDF, addImageToPdf } from '../../utils/pdfImageLoader';
+import { supabase } from '../../services/supabaseClient';
 
 // --- PDF constants (mirror Letters.tsx) ---
 const EDITOR_WIDTH = 595;
@@ -90,10 +91,26 @@ async function generateCertPDF(
   const pdf = new jsPDF('l', 'mm', 'a4');
 
   try {
-    const res = await fetch(
-      `/api/member-cert-template?church_id=${encodeURIComponent(doc.churchId)}&letter_type=${encodeURIComponent(doc.letterType)}`,
-    );
-    const { template, church } = res.ok ? await res.json() : { template: null, church: null };
+    const [{ data: templates }, { data: churches }] = await Promise.all([
+      supabase
+        .from('letter_templates')
+        .select('*')
+        .eq('church_id', doc.churchId)
+        .in('type', [doc.letterType, 'GENERICO'])
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('churches')
+        .select('id, name, address, pastor_name, logo_url')
+        .eq('id', doc.churchId)
+        .limit(1),
+    ]);
+
+    const templateList = Array.isArray(templates) ? templates : [];
+    const template =
+      templateList.find((t: any) => t.type === doc.letterType) ||
+      templateList.find((t: any) => t.type === 'GENERICO') ||
+      null;
+    const church = Array.isArray(churches) && churches.length > 0 ? churches[0] : null;
 
     const churchName    = church?.name       || '';
     const churchAddress = church?.address    || '';

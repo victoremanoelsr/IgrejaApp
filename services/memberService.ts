@@ -121,27 +121,20 @@ export const getMemberCarnets = async (churchId: string): Promise<CarnetTemplate
   return data.map(toAppCarnetTemplate);
 };
 
-// Fetches only permanent certificates (BATISMO, APRESENTACAO) via secure server-side API
-// The service role key stays on the server (vite.config.ts configureServer / production server)
 export const getMemberLetterHistory = async (
   churchId: string,
   memberId: string
 ): Promise<LetterHistory[]> => {
-  try {
-    const res = await fetch(
-      `/api/member-certificates?church_id=${encodeURIComponent(churchId)}&member_id=${encodeURIComponent(memberId)}`
-    );
-    if (!res.ok) {
-      console.error('[getMemberLetterHistory] API error:', res.status);
-      return [];
-    }
-    const data = await res.json();
-    if (!Array.isArray(data)) return [];
-    return data.map(toAppLetterHistory);
-  } catch (e) {
-    console.error('[getMemberLetterHistory] fetch error:', e);
-    return [];
-  }
+  const { data, error } = await supabase
+    .from('letter_history')
+    .select('*')
+    .eq('church_id', churchId)
+    .eq('member_id', memberId)
+    .in('letter_type', ['BATISMO', 'APRESENTACAO'])
+    .order('issued_at', { ascending: false });
+
+  if (error || !data) return [];
+  return data.map(toAppLetterHistory);
 };
 
 export const getMemberCarnetHistory = async (
