@@ -445,7 +445,7 @@ export const AdolescentsPanel: React.FC = () => {
       const filteredReportTransactions = transactions.filter(t => {
           if (t.churchId !== currentChurch?.id) return false;
           if (t.category !== 'ADOLESCENTES') return false;
-          if (t.status !== 'PAGO') return false; 
+          if (t.status !== 'PAGO') return false;
 
           if (reportFilterType === 'MONTH') {
               const tDate = new Date(t.date + 'T12:00:00');
@@ -462,138 +462,131 @@ export const AdolescentsPanel: React.FC = () => {
       const inflows = filteredReportTransactions.filter(t => t.type === 'ENTRADA');
       const outflows = filteredReportTransactions.filter(t => t.type === 'SAIDA');
 
-      const handleGeneratePDF = () => {
-          const doc = new jsPDF();
-          doc.setFontSize(16);
-          doc.text('Relatório - Departamento Adolescentes', 14, 20);
-          doc.setFontSize(10);
-          doc.text(`Igreja: ${currentChurch?.name || ''}`, 14, 30);
-          const filterLabel = reportFilterType === 'MONTH'
-              ? `${new Date(0, repMonth-1).toLocaleString('pt-BR', {month: 'long'})} / ${repYear}`
-              : `${appliedRepStart} a ${appliedRepEnd}`;
-          doc.text(`Período: ${filterLabel}`, 14, 37);
-          doc.text(`Total Entradas: ${formatCurrency(totalIn)}   Total Saídas: ${formatCurrency(totalOut)}   Saldo: ${formatCurrency(repBalance)}`, 14, 44);
+      const applyDateFilter = () => {
+          setAppliedRepStart(repStartDate);
+          setAppliedRepEnd(repEndDate);
+      };
 
-          if (reportViewMode === 'DETAILED') {
+      const generatePDFReport = () => {
+          const doc = new jsPDF();
+          const periodText = reportFilterType === 'MONTH'
+              ? `${repMonth.toString().padStart(2, '0')}/${repYear}`
+              : `${new Date(appliedRepStart).toLocaleDateString()} a ${new Date(appliedRepEnd).toLocaleDateString()}`;
+
+          doc.setFontSize(18);
+          doc.text("Relatório Adolescentes", 14, 20);
+          doc.setFontSize(10);
+          doc.text(`Período: ${periodText}`, 14, 26);
+          doc.text(`Unidade: ${currentChurch?.name}`, 14, 32);
+
+          if (reportViewMode === 'SUMMARY') {
               autoTable(doc, {
-                  startY: 52,
-                  head: [['Data', 'Descrição', 'Tipo', 'Valor']],
-                  body: filteredReportTransactions.map(t => [
-                      new Date(t.date + 'T12:00:00').toLocaleDateString('pt-BR'),
-                      t.description,
-                      t.type === 'ENTRADA' ? 'Entrada' : 'Saída',
-                      formatCurrency(t.amount)
-                  ]),
+                  startY: 40,
+                  head: [['Tipo', 'Valor']],
+                  body: [
+                      ['Entradas', totalIn.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})],
+                      ['Saídas', totalOut.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})],
+                      ['Saldo Final', repBalance.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})]
+                  ]
               });
           } else {
               autoTable(doc, {
-                  startY: 52,
-                  head: [['', 'Total']],
-                  body: [
-                      ['Total Entradas', formatCurrency(totalIn)],
-                      ['Total Saídas', formatCurrency(totalOut)],
-                      ['Saldo', formatCurrency(repBalance)],
-                  ],
+                  startY: 40,
+                  head: [['Data', 'Descrição', 'Tipo', 'Valor']],
+                  body: filteredReportTransactions.map(t => [
+                      new Date(t.date).toLocaleDateString('pt-BR'),
+                      t.description,
+                      t.type,
+                      t.amount.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})
+                  ])
               });
+              const finalY = (doc as any).lastAutoTable.finalY + 10;
+              doc.text(`Total Entradas: ${totalIn.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}`, 14, finalY);
+              doc.text(`Total Saídas: ${totalOut.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}`, 14, finalY + 6);
+              doc.text(`Saldo: ${repBalance.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}`, 14, finalY + 12);
           }
-          doc.save(`relatorio-adolescentes-${Date.now()}.pdf`);
+          doc.save(`Relatorio_Adolescentes_${periodText.replace(/\//g, '-')}.pdf`);
       };
 
       return (
           <div className="space-y-6">
-              <div className="bg-white p-6 rounded-xl shadow border">
-                  <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-                      <h3 className="font-bold text-gray-700 flex items-center"><FileText className="mr-2 text-purple-600"/> Relatórios Adolescentes</h3>
-                      <button onClick={handleGeneratePDF} className="bg-purple-600 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center shadow hover:bg-purple-700 transition-colors">
-                          <Download size={16} className="mr-2"/> Exportar PDF
-                      </button>
-                  </div>
-
-                  <div className="flex flex-wrap gap-3 mb-6 p-4 bg-gray-50 rounded-xl border">
+              <div className="bg-white p-6 rounded-xl shadow-md flex flex-col gap-6 border border-gray-100">
+                  <div className="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-4">
                       <div>
-                          <label className="text-xs font-bold text-gray-500 block mb-1">Filtrar por</label>
-                          <div className="flex gap-2">
-                              <button onClick={() => setReportFilterType('MONTH')} className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${reportFilterType === 'MONTH' ? 'bg-purple-600 text-white border-purple-600' : 'bg-white text-gray-600 border-gray-300 hover:border-purple-400'}`}>Mês</button>
-                              <button onClick={() => setReportFilterType('PERIOD')} className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${reportFilterType === 'PERIOD' ? 'bg-purple-600 text-white border-purple-600' : 'bg-white text-gray-600 border-gray-300 hover:border-purple-400'}`}>Período</button>
-                          </div>
+                          <h2 className="text-2xl font-bold text-gray-800 flex items-center"><FileText className="mr-2 text-brand-orange"/> Relatórios</h2>
+                          <p className="text-gray-500 text-sm">Unidade: <span className="font-semibold">{currentChurch?.name}</span></p>
                       </div>
-                      {reportFilterType === 'MONTH' ? (
-                          <>
-                              <div>
-                                  <label className="text-xs font-bold text-gray-500 block mb-1">Mês</label>
-                                  <select value={repMonth} onChange={e => setRepMonth(parseInt(e.target.value))} className="p-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-purple-500 outline-none">
-                                      {Array.from({length: 12}, (_, i) => <option key={i} value={i+1}>{new Date(0, i).toLocaleString('pt-BR', {month: 'long'})}</option>)}
-                                  </select>
-                              </div>
-                              <div>
-                                  <label className="text-xs font-bold text-gray-500 block mb-1">Ano</label>
-                                  <select value={repYear} onChange={e => setRepYear(parseInt(e.target.value))} className="p-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-purple-500 outline-none">
-                                      <option value={2023}>2023</option><option value={2024}>2024</option><option value={2025}>2025</option><option value={2026}>2026</option>
-                                  </select>
-                              </div>
-                          </>
-                      ) : (
-                          <>
-                              <div>
-                                  <label className="text-xs font-bold text-gray-500 block mb-1">Data Início</label>
-                                  <input type="date" value={repStartDate} onChange={e => setRepStartDate(e.target.value)} className="p-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-purple-500 outline-none"/>
-                              </div>
-                              <div>
-                                  <label className="text-xs font-bold text-gray-500 block mb-1">Data Fim</label>
-                                  <input type="date" value={repEndDate} onChange={e => setRepEndDate(e.target.value)} className="p-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-purple-500 outline-none"/>
-                              </div>
-                              <div className="flex items-end">
-                                  <button onClick={() => { setAppliedRepStart(repStartDate); setAppliedRepEnd(repEndDate); }} className="bg-purple-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-purple-700 transition-colors flex items-center gap-1"><Filter size={12}/> Aplicar</button>
-                              </div>
-                          </>
-                      )}
-                      <div>
-                          <label className="text-xs font-bold text-gray-500 block mb-1">Visualização</label>
-                          <div className="flex gap-2">
-                              <button onClick={() => setReportViewMode('DETAILED')} className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${reportViewMode === 'DETAILED' ? 'bg-purple-600 text-white border-purple-600' : 'bg-white text-gray-600 border-gray-300 hover:border-purple-400'}`}>Detalhado</button>
-                              <button onClick={() => setReportViewMode('SUMMARY')} className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${reportViewMode === 'SUMMARY' ? 'bg-purple-600 text-white border-purple-600' : 'bg-white text-gray-600 border-gray-300 hover:border-purple-400'}`}>Resumo</button>
-                          </div>
+                      <div className="flex bg-gray-100 p-1 rounded-lg">
+                          <button onClick={() => setReportViewMode('DETAILED')} className={`px-4 py-2 rounded-md text-sm font-bold transition-all flex items-center ${reportViewMode === 'DETAILED' ? 'bg-white text-brand-black shadow-sm' : 'text-gray-500 hover:text-gray-800'}`}><FileText size={16} className="mr-2"/> Detalhado</button>
+                          <button onClick={() => setReportViewMode('SUMMARY')} className={`px-4 py-2 rounded-md text-sm font-bold transition-all flex items-center ${reportViewMode === 'SUMMARY' ? 'bg-white text-brand-black shadow-sm' : 'text-gray-500 hover:text-gray-800'}`}><PieChart size={16} className="mr-2"/> Resumido</button>
                       </div>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-4 mb-6">
-                      <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-center">
-                          <p className="text-xs font-bold text-green-600 uppercase">Entradas</p>
-                          <p className="text-xl font-black text-green-700">{formatCurrency(totalIn)}</p>
+                  <div className="flex flex-col md:flex-row gap-3 w-full border-t pt-4">
+                      <div className="flex bg-gray-100 p-1 rounded-lg shrink-0 w-fit h-fit">
+                          <button onClick={() => setReportFilterType('MONTH')} className={`px-3 py-1.5 rounded-md text-sm font-bold transition-all ${reportFilterType === 'MONTH' ? 'bg-white text-brand-black shadow-sm' : 'text-gray-500 hover:text-gray-800'}`}>Mensal</button>
+                          <button onClick={() => setReportFilterType('PERIOD')} className={`px-3 py-1.5 rounded-md text-sm font-bold transition-all ${reportFilterType === 'PERIOD' ? 'bg-white text-brand-black shadow-sm' : 'text-gray-500 hover:text-gray-800'}`}>Por Período</button>
                       </div>
-                      <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-center">
-                          <p className="text-xs font-bold text-red-600 uppercase">Saídas</p>
-                          <p className="text-xl font-black text-red-700">{formatCurrency(totalOut)}</p>
+                      <div className="flex flex-1 gap-2 items-center flex-wrap md:flex-nowrap">
+                          {reportFilterType === 'MONTH' ? (
+                              <>
+                                  <select value={repMonth} onChange={e => setRepMonth(parseInt(e.target.value))} className="p-2 border rounded-lg bg-gray-50 text-sm font-medium w-full md:w-auto h-[42px]">{Array.from({length: 12}, (_, i) => (<option key={i+1} value={i+1}>{new Date(0, i).toLocaleString('pt-BR', { month: 'long' }).toUpperCase()}</option>))}</select>
+                                  <select value={repYear} onChange={e => setRepYear(parseInt(e.target.value))} className="p-2 border rounded-lg bg-gray-50 text-sm font-medium w-full md:w-auto h-[42px]"><option value={2023}>2023</option><option value={2024}>2024</option><option value={2025}>2025</option><option value={2026}>2026</option></select>
+                              </>
+                          ) : (
+                              <div className="flex items-center gap-2 w-full flex-wrap md:flex-nowrap">
+                                  <div className="relative w-full md:w-auto flex-1"><span className="absolute left-2 top-0.5 text-[9px] text-gray-500 font-bold uppercase">De</span><input type="date" className="w-full pt-4 pb-1 px-2 border rounded-lg text-xs font-bold h-[42px]" value={repStartDate} onChange={e => setRepStartDate(e.target.value)}/></div>
+                                  <div className="relative w-full md:w-auto flex-1"><span className="absolute left-2 top-0.5 text-[9px] text-gray-500 font-bold uppercase">Até</span><input type="date" className="w-full pt-4 pb-1 px-2 border rounded-lg text-xs font-bold h-[42px]" value={repEndDate} onChange={e => setRepEndDate(e.target.value)}/></div>
+                                  <button onClick={applyDateFilter} className="bg-brand-orange text-white px-4 h-[42px] rounded-lg font-bold text-sm hover:bg-brand-red flex items-center shadow-lg w-full md:w-auto justify-center"><Search size={16} className="mr-1"/> Pesquisar</button>
+                              </div>
+                          )}
+                          <button onClick={generatePDFReport} className="w-full md:w-auto ml-auto bg-brand-black text-white px-6 h-[42px] rounded-lg font-bold text-sm hover:bg-gray-800 flex items-center justify-center shadow-lg transition-transform hover:scale-105"><Download size={16} className="mr-2"/> Baixar PDF {reportViewMode === 'DETAILED' ? 'Detalhado' : 'Resumido'}</button>
                       </div>
-                      <div className={`border rounded-xl p-4 text-center ${repBalance >= 0 ? 'bg-gray-50 border-gray-200' : 'bg-red-50 border-red-200'}`}>
-                          <p className="text-xs font-bold text-gray-500 uppercase">Saldo</p>
-                          <p className={`text-xl font-black ${repBalance >= 0 ? 'text-gray-800' : 'text-red-700'}`}>{formatCurrency(repBalance)}</p>
-                      </div>
+                  </div>
+              </div>
+
+              <div className="border-t-4 border-brand-orange rounded-t-xl bg-white shadow-lg p-6">
+                  <div className="text-center mb-8">
+                      <h3 className="text-xl font-extrabold text-gray-800 uppercase tracking-wide">RELATÓRIO FINANCEIRO {reportViewMode === 'DETAILED' ? 'DETALHADO' : 'RESUMIDO'}</h3>
+                      <div className="inline-block bg-orange-50 text-brand-orange px-4 py-1 rounded-full text-xs font-bold mt-2 border border-orange-100"><Calendar size={12} className="inline mr-1"/> {reportFilterType === 'MONTH' ? `${repMonth.toString().padStart(2, '0')}/${repYear}` : `${new Date(appliedRepStart).toLocaleDateString()} - ${new Date(appliedRepEnd).toLocaleDateString()}`}</div>
                   </div>
 
                   {reportViewMode === 'DETAILED' ? (
-                      <div className="overflow-x-auto">
-                          <table className="w-full text-sm">
-                              <thead><tr className="bg-gray-50 border-b"><th className="p-3 text-left text-xs font-bold text-gray-500">DATA</th><th className="p-3 text-left text-xs font-bold text-gray-500">DESCRIÇÃO</th><th className="p-3 text-left text-xs font-bold text-gray-500">TIPO</th><th className="p-3 text-right text-xs font-bold text-gray-500">VALOR</th><th className="p-3"></th></tr></thead>
-                              <tbody>
-                                  {filteredReportTransactions.length === 0 && <tr><td colSpan={5} className="text-center py-8 text-gray-400">Nenhum lançamento no período.</td></tr>}
-                                  {filteredReportTransactions.map(t => (
-                                      <tr key={t.id} className="border-b hover:bg-gray-50">
-                                          <td className="p-3 text-gray-600">{new Date(t.date + 'T12:00:00').toLocaleDateString('pt-BR')}</td>
-                                          <td className="p-3 font-medium text-gray-800">{t.description}</td>
-                                          <td className="p-3"><span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${t.type === 'ENTRADA' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{t.type === 'ENTRADA' ? 'Entrada' : 'Saída'}</span></td>
-                                          <td className={`p-3 text-right font-bold ${t.type === 'ENTRADA' ? 'text-green-600' : 'text-red-600'}`}>{formatCurrency(t.amount)}</td>
-                                          <td className="p-3 text-right"><button onClick={() => handleDeleteTransaction(t.id)} className="text-gray-300 hover:text-red-500 transition-colors"><Trash2 size={14}/></button></td>
-                                      </tr>
-                                  ))}
-                              </tbody>
-                          </table>
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                          <div>
+                              <div className="flex items-center mb-4 text-green-700 font-bold border-b pb-2 border-green-100"><TrendingUp className="mr-2"/> Entradas Detalhadas</div>
+                              <div className="space-y-4">
+                                  <div className="border rounded-lg overflow-hidden">
+                                      <div className="bg-green-50 p-3 flex justify-between items-center border-b border-green-100"><span className="font-bold text-green-800 text-sm">Entradas Adolescentes</span><span className="text-xs font-bold text-green-600">Total: {formatCurrency(totalIn)}</span></div>
+                                      <div className="bg-white">
+                                          <table className="w-full text-left"><thead className="bg-gray-50 text-[10px] uppercase text-gray-500 font-bold"><tr><th className="p-2 w-20">Data</th><th className="p-2">Descrição</th><th className="p-2 text-right w-24">Valor</th></tr></thead><tbody className="divide-y divide-gray-100">{inflows.map(t => (<tr key={t.id} className="text-xs hover:bg-gray-50"><td className="p-2 text-gray-500">{new Date(t.date).toLocaleDateString('pt-BR')}</td><td className="p-2 font-medium text-gray-800">{t.description}</td><td className="p-2 text-right font-bold text-green-600">{formatCurrency(t.amount)}</td></tr>))}{inflows.length === 0 && <tr><td colSpan={3} className="p-4 text-center text-gray-400 text-xs">Nenhum registro encontrado.</td></tr>}</tbody></table>
+                                      </div>
+                                  </div>
+                              </div>
+                          </div>
+                          <div>
+                              <div className="flex items-center mb-4 text-red-700 font-bold border-b pb-2 border-red-100"><TrendingDown className="mr-2"/> Saídas Detalhadas</div>
+                              <div className="space-y-4">
+                                  <div className="border rounded-lg overflow-hidden">
+                                      <div className="bg-red-50 p-3 flex justify-between items-center border-b border-red-100"><span className="font-bold text-red-800 text-sm">Saídas Adolescentes</span><span className="text-xs font-bold text-red-600">Total: {formatCurrency(totalOut)}</span></div>
+                                      <div className="bg-white">
+                                          <table className="w-full text-left"><thead className="bg-gray-50 text-[10px] uppercase text-gray-500 font-bold"><tr><th className="p-2 w-20">Data</th><th className="p-2">Descrição</th><th className="p-2 text-right w-24">Valor</th></tr></thead><tbody className="divide-y divide-gray-100">{outflows.map(t => (<tr key={t.id} className="text-xs hover:bg-gray-50"><td className="p-2 text-gray-500">{new Date(t.date).toLocaleDateString('pt-BR')}</td><td className="p-2 font-medium text-gray-800">{t.description}</td><td className="p-2 text-right font-bold text-red-600">{formatCurrency(t.amount)}</td></tr>))}{outflows.length === 0 && <tr><td colSpan={3} className="p-4 text-center text-gray-400 text-xs">Nenhum registro encontrado.</td></tr>}</tbody></table>
+                                      </div>
+                                  </div>
+                              </div>
+                          </div>
                       </div>
                   ) : (
-                      <div className="space-y-3">
-                          <div className="flex justify-between items-center p-4 bg-green-50 rounded-lg border border-green-200"><span className="font-bold text-green-700">Total de Entradas</span><span className="font-black text-green-700 text-lg">{formatCurrency(totalIn)}</span></div>
-                          <div className="flex justify-between items-center p-4 bg-red-50 rounded-lg border border-red-200"><span className="font-bold text-red-700">Total de Saídas</span><span className="font-black text-red-700 text-lg">{formatCurrency(totalOut)}</span></div>
-                          <div className={`flex justify-between items-center p-4 rounded-lg border ${repBalance >= 0 ? 'bg-gray-50 border-gray-200' : 'bg-red-50 border-red-200'}`}><span className="font-bold text-gray-700">Saldo do Período</span><span className={`font-black text-lg ${repBalance >= 0 ? 'text-gray-800' : 'text-red-700'}`}>{formatCurrency(repBalance)}</span></div>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                          <div className="bg-green-50 p-6 rounded-lg border border-green-100"><p className="text-xs font-bold text-green-700 uppercase mb-2">Total de Entradas</p><p className="text-3xl font-black text-green-600">{formatCurrency(totalIn)}</p></div>
+                          <div className="bg-red-50 p-6 rounded-lg border border-red-100"><p className="text-xs font-bold text-red-700 uppercase mb-2">Total de Saídas</p><p className="text-3xl font-black text-red-600">{formatCurrency(totalOut)}</p></div>
+                          <div className="bg-gray-50 p-6 rounded-lg border border-gray-200"><p className="text-xs font-bold text-gray-600 uppercase mb-2">Saldo Final</p><p className={`text-3xl font-black ${repBalance >= 0 ? 'text-gray-800' : 'text-red-600'}`}>{formatCurrency(repBalance)}</p></div>
+                      </div>
+                  )}
+                  {reportViewMode === 'DETAILED' && (
+                      <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
+                          <div className="bg-green-100 p-4 rounded-lg flex justify-between items-center border border-green-200"><span className="font-bold text-green-800 text-sm uppercase">Total Entradas</span><span className="font-black text-green-900 text-lg">{formatCurrency(totalIn)}</span></div>
+                          <div className="bg-red-100 p-4 rounded-lg flex justify-between items-center border border-red-200"><span className="font-bold text-red-800 text-sm uppercase">Total Saídas</span><span className="font-black text-red-900 text-lg">{formatCurrency(totalOut)}</span></div>
                       </div>
                   )}
               </div>
