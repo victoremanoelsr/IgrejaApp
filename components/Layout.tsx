@@ -147,6 +147,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   const isMissionsEntered = location.pathname.startsWith('/missoes') && !!locationState?.entered;
   const isYouthEntered = location.pathname.startsWith('/jovens') && !!locationState?.entered;
   const isChildrenEntered = location.pathname.startsWith('/criancas') && !!locationState?.entered;
+  const isAdolescentsEntered = location.pathname.startsWith('/adolescentes') && !!locationState?.entered;
   const isLadiesEntered = location.pathname.startsWith('/senhoras') && !!locationState?.entered;
   const isMenEntered = location.pathname.startsWith('/senhores') && !!locationState?.entered;
 
@@ -171,6 +172,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   const isMissionsUser = ['PRESIDENTE_MISSOES', 'VICE_MISSOES', 'TESOUREIRO_MISSOES', 'SECRETARIO_MISSOES'].includes(user.role);
   const isYouthUser = ['LIDER_JOVENS', 'TESOUREIRO_JOVENS'].includes(user.role);
   const isChildrenUser = ['LIDER_CRIANCAS', 'TESOUREIRO_CRIANCAS'].includes(user.role);
+  const isAdolescentsUser = ['LIDER_ADOLESCENTES', 'TESOUREIRO_ADOLESCENTES'].includes(user.role);
   const isLadiesUser = ['LIDER_SENHORAS', 'TESOUREIRO_SENHORAS'].includes(user.role);
   const isMenUser = ['LIDER_SENHORES', 'TESOUREIRO_SENHORES'].includes(user.role);
 
@@ -226,6 +228,14 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       { label: t('nav.team'), icon: Users, path: '/criancas', state: { activeTab: 'EQUIPE', entered: true }, roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'LIDER_CRIANCAS'] }
   ];
 
+  const adolescentsMenuItems: MenuItem[] = [
+      { label: 'Dashboard', icon: LayoutDashboard, path: '/adolescentes', state: { activeTab: 'DASHBOARD', entered: true }, roles: ['ALL'] },
+      { label: 'Caixa Adolescentes', icon: DollarSign, path: '/adolescentes', state: { activeTab: 'CAIXA', entered: true }, roles: ['ALL'] },
+      { label: 'Relatórios', icon: FileText, path: '/adolescentes', state: { activeTab: 'RELATORIOS', entered: true }, roles: ['ALL'] },
+      { label: 'Membros', icon: UsersIcon, path: '/adolescentes', state: { activeTab: 'MEMBROS', entered: true }, roles: ['ALL'] },
+      { label: 'Equipe', icon: Users, path: '/adolescentes', state: { activeTab: 'EQUIPE', entered: true }, roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'LIDER_ADOLESCENTES'] }
+  ];
+
   const ladiesMenuItems: MenuItem[] = [
       { label: t('nav.dashboard'), icon: LayoutDashboard, path: '/senhoras', state: { activeTab: 'DASHBOARD', entered: true }, roles: ['ALL'] },
       { label: t('nav.ladiesCash'), icon: DollarSign, path: '/senhoras', state: { activeTab: 'CAIXA', entered: true }, roles: ['ALL'] },
@@ -253,11 +263,13 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   else if (isMissionsUser) itemsToRender = missionsMenuItems;
   else if (isYouthUser) itemsToRender = youthMenuItems;
   else if (isChildrenUser) itemsToRender = childrenMenuItems;
+  else if (isAdolescentsUser) itemsToRender = adolescentsMenuItems;
   else if (isLadiesUser) itemsToRender = ladiesMenuItems;
   else if (isMenUser) itemsToRender = menMenuItems;
   else if (isMissionsEntered) itemsToRender = [...missionsMenuItems, { label: t('common.backToGeneral'), icon: ArrowLeft, path: '/departamentos', roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE'] }, { label: t('common.backToGeneral'), icon: ArrowLeft, path: '/dashboard', roles: ['ALL'] }]; 
   else if (isYouthEntered) itemsToRender = [...youthMenuItems, { label: t('common.backToGeneral'), icon: ArrowLeft, path: '/departamentos', roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE'] }, { label: t('common.backToGeneral'), icon: ArrowLeft, path: '/dashboard', roles: ['ALL'] }];
   else if (isChildrenEntered) itemsToRender = [...childrenMenuItems, { label: t('common.backToGeneral'), icon: ArrowLeft, path: '/departamentos', roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE'] }, { label: t('common.backToGeneral'), icon: ArrowLeft, path: '/dashboard', roles: ['ALL'] }];
+  else if (isAdolescentsEntered) itemsToRender = [...adolescentsMenuItems, { label: t('common.backToGeneral'), icon: ArrowLeft, path: '/departamentos', roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE'] }, { label: t('common.backToGeneral'), icon: ArrowLeft, path: '/dashboard', roles: ['ALL'] }];
   else if (isLadiesEntered) itemsToRender = [...ladiesMenuItems, { label: t('common.backToGeneral'), icon: ArrowLeft, path: '/departamentos', roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE'] }, { label: t('common.backToGeneral'), icon: ArrowLeft, path: '/dashboard', roles: ['ALL'] }];
   else if (isMenEntered) itemsToRender = [...menMenuItems, { label: t('common.backToGeneral'), icon: ArrowLeft, path: '/departamentos', roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE'] }, { label: t('common.backToGeneral'), icon: ArrowLeft, path: '/dashboard', roles: ['ALL'] }];
   else itemsToRender = generalMenuItems;
@@ -278,6 +290,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   if (isMissionsEntered || isMissionsUser) headerColorClass = 'bg-teal-900/30';
   else if (isYouthEntered || isYouthUser) headerColorClass = 'bg-orange-900/30';
   else if (isChildrenEntered || isChildrenUser) headerColorClass = 'bg-blue-900/30';
+  else if (isAdolescentsEntered || isAdolescentsUser) headerColorClass = 'bg-purple-900/30';
   else if (isLadiesEntered || isLadiesUser) headerColorClass = 'bg-pink-900/30';
   else if (isMenEntered || isMenUser) headerColorClass = 'bg-indigo-900/30';
 
@@ -314,6 +327,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                             {isYouthUser || isYouthEntered ? t('nav.depYouth') : 
                              isMissionsUser || isMissionsEntered ? t('nav.depMissions') :
                              isChildrenUser || isChildrenEntered ? t('nav.depChildren') :
+                             isAdolescentsUser || isAdolescentsEntered ? 'DEP. ADOLESCENTES' :
                              isLadiesUser || isLadiesEntered ? t('nav.depLadies') :
                              currentChurch.type}
                         </span>
@@ -341,6 +355,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
               if (isMissionsEntered || isMissionsUser) activeClass = 'bg-gradient-to-r from-teal-600 to-teal-800 text-white shadow-lg';
               if (isYouthEntered || isYouthUser) activeClass = 'bg-gradient-to-r from-orange-500 to-orange-700 text-white shadow-lg';
               if (isChildrenEntered || isChildrenUser) activeClass = 'bg-gradient-to-r from-blue-500 to-blue-700 text-white shadow-lg';
+              if (isAdolescentsEntered || isAdolescentsUser) activeClass = 'bg-gradient-to-r from-purple-500 to-purple-700 text-white shadow-lg';
               if (isLadiesEntered || isLadiesUser) activeClass = 'bg-gradient-to-r from-pink-500 to-pink-700 text-white shadow-lg';
 
               return (

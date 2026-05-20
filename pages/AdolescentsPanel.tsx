@@ -601,146 +601,97 @@ export const AdolescentsPanel: React.FC = () => {
       );
   };
 
-  const renderCaixaTab = () => (
-      <div className="space-y-6">
-          <div className="flex justify-between items-center mb-4">
-              <div className="flex gap-2">
-                  <button onClick={() => { setSubTab('LISTA'); }} className={`px-4 py-2 rounded-lg text-sm font-bold border transition-colors ${subTab === 'LISTA' ? 'bg-purple-600 text-white border-purple-600' : 'bg-white text-gray-600 border-gray-300'}`}><History size={14} className="inline mr-1"/>Histórico</button>
-                  <button onClick={() => { setSubTab('ENTRADA'); setTransType('ENTRADA'); }} className={`px-4 py-2 rounded-lg text-sm font-bold border transition-colors ${subTab === 'ENTRADA' ? 'bg-green-600 text-white border-green-600' : 'bg-white text-gray-600 border-gray-300'}`}><PlusCircle size={14} className="inline mr-1"/>Entrada</button>
-                  <button onClick={() => { setSubTab('SAIDA'); setTransType('SAIDA'); }} className={`px-4 py-2 rounded-lg text-sm font-bold border transition-colors ${subTab === 'SAIDA' ? 'bg-red-600 text-white border-red-600' : 'bg-white text-gray-600 border-gray-300'}`}><MinusCircle size={14} className="inline mr-1"/>Saída</button>
-              </div>
-              {subTab === 'LISTA' && (
-                  <div className="flex items-center gap-2">
-                      <select value={historyMonth} onChange={e => setHistoryMonth(parseInt(e.target.value))} className="p-1.5 border rounded text-sm">
-                          {Array.from({length: 12}, (_, i) => <option key={i} value={i+1}>{new Date(0, i).toLocaleString('pt-BR', {month: 'long'})}</option>)}
-                      </select>
-                      <select value={historyYear} onChange={e => setHistoryYear(parseInt(e.target.value))} className="p-1.5 border rounded text-sm">
-                          <option value={2023}>2023</option><option value={2024}>2024</option><option value={2025}>2025</option><option value={2026}>2026</option>
-                      </select>
-                  </div>
-              )}
-          </div>
-
-          {subTab === 'LISTA' && (
-              <div className="bg-white rounded-xl shadow border overflow-hidden">
-                  <table className="w-full text-sm">
-                      <thead><tr className="bg-gray-50 border-b"><th className="p-3 text-left text-xs font-bold text-gray-500">DATA</th><th className="p-3 text-left text-xs font-bold text-gray-500">DESCRIÇÃO</th><th className="p-3 text-right text-xs font-bold text-gray-500">VALOR</th><th className="p-3"></th></tr></thead>
-                      <tbody>
-                          {historyTransactions.length === 0 && <tr><td colSpan={4} className="text-center py-8 text-gray-400">Nenhum lançamento neste mês.</td></tr>}
-                          {historyTransactions.map(t => (
-                              <tr key={t.id} className="border-b hover:bg-gray-50">
-                                  <td className="p-3 text-gray-600">{new Date(t.date + 'T12:00:00').toLocaleDateString('pt-BR')}</td>
-                                  <td className="p-3 font-medium text-gray-800">{t.description}</td>
-                                  <td className={`p-3 text-right font-bold ${t.type === 'ENTRADA' ? 'text-green-600' : 'text-red-600'}`}>{t.type === 'SAIDA' ? '-' : ''}{formatCurrency(t.amount)}</td>
-                                  <td className="p-3 text-right"><button onClick={() => handleDeleteTransaction(t.id)} className="text-gray-300 hover:text-red-500"><Trash2 size={14}/></button></td>
-                              </tr>
-                          ))}
-                      </tbody>
-                  </table>
-              </div>
-          )}
-
-          {(subTab === 'ENTRADA' || subTab === 'SAIDA') && (
-              <div className="bg-white rounded-xl shadow border p-6 max-w-lg mx-auto">
-                  <h3 className={`font-bold text-lg mb-4 ${subTab === 'ENTRADA' ? 'text-green-700' : 'text-red-700'}`}>
-                      {subTab === 'ENTRADA' ? <><PlusCircle className="inline mr-2"/>Nova Entrada</> : <><MinusCircle className="inline mr-2"/>Nova Saída</>}
-                  </h3>
-                  <form onSubmit={handleTransactionSubmit} className="space-y-4">
-                      <div>
-                          <label className="block text-xs font-bold text-gray-600 mb-1">Valor (R$)</label>
-                          <input required type="number" step="0.01" min="0.01" value={amount} onChange={e => setAmount(e.target.value)} className="w-full p-2.5 border rounded-lg text-sm focus:ring-2 focus:ring-purple-500 outline-none" placeholder="0,00"/>
-                      </div>
-                      <div>
-                          <label className="block text-xs font-bold text-gray-600 mb-1">Descrição</label>
-                          <input type="text" value={desc} onChange={e => setDesc(e.target.value.toUpperCase())} className="w-full p-2.5 border rounded-lg text-sm uppercase focus:ring-2 focus:ring-purple-500 outline-none" placeholder="Descrição..."/>
-                      </div>
-                      <div>
-                          <label className="block text-xs font-bold text-gray-600 mb-1">Data</label>
-                          <input required type="date" value={date} onChange={e => setDate(e.target.value)} className="w-full p-2.5 border rounded-lg text-sm focus:ring-2 focus:ring-purple-500 outline-none"/>
-                      </div>
-                      {subTab === 'SAIDA' && (
-                          <div className="flex items-center gap-2">
-                              <input type="checkbox" id="recurring" checked={isRecurring} onChange={e => setIsRecurring(e.target.checked)} className="rounded"/>
-                              <label htmlFor="recurring" className="text-sm text-gray-600">Despesa fixa (mensal)</label>
-                          </div>
-                      )}
-                      <div>
-                          <label className="block text-xs font-bold text-gray-600 mb-1">Anexo (opcional)</label>
-                          <input type="file" ref={fileInputRef} onChange={handleFileChange} className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-bold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100"/>
-                          {selectedFile && <p className="text-xs text-gray-500 mt-1">Arquivo: {selectedFile.name}</p>}
-                      </div>
-                      <div className="flex gap-3 pt-2">
-                          <button type="submit" disabled={isSubmitting} className={`flex-1 py-2.5 rounded-lg font-bold text-white transition-colors flex items-center justify-center ${subTab === 'ENTRADA' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'} disabled:opacity-60`}>
-                              {isSubmitting ? <Loader size={16} className="animate-spin mr-2"/> : <Save size={16} className="mr-2"/>} Salvar
-                          </button>
-                          <button type="button" onClick={handleCancelForm} className="flex-1 bg-gray-200 text-gray-700 py-2.5 rounded-lg font-bold hover:bg-gray-300 transition-colors">Cancelar</button>
-                      </div>
-                  </form>
-              </div>
-          )}
-      </div>
-  );
-
-  if (viewMode === 'SELECTION') {
-      return (
-          <div className="flex items-center justify-center h-[60vh]">
-              <div className="text-center">
-                  <BookOpen size={64} className="mx-auto text-purple-300 mb-4"/>
-                  <h2 className="text-2xl font-bold text-gray-700 mb-2">Departamento Adolescentes</h2>
-                  <p className="text-gray-500 mb-6">Você não possui acesso a este painel.</p>
-              </div>
-          </div>
-      );
-  }
-
   return (
-      <div className="space-y-6 animate-fade-in">
-          {modal.show && (
-              <div className={`fixed top-4 right-4 z-50 px-6 py-3 rounded-xl shadow-lg font-bold text-white flex items-center gap-2 transition-all ${modal.type === 'success' ? 'bg-green-500' : 'bg-red-500'}`}>
-                  {modal.type === 'success' ? <CheckCircle size={18}/> : <X size={18}/>} {modal.msg}
-              </div>
-          )}
+    <>
+        {modal.show && <div className={`fixed top-4 right-4 z-50 px-6 py-3 rounded-lg shadow-xl text-white font-bold ${modal.type === 'success' ? 'bg-green-600' : 'bg-red-600'}`}>{modal.msg}</div>}
+        
+        <div className="space-y-6">
+            {activeTab === 'DASHBOARD' && renderDashboard()}
+            {activeTab === 'MEMBROS' && renderMembersTab()}
+            {activeTab === 'CAIXA' && (
+                <div className="w-full space-y-3 md:space-y-6">
+                    <div className="flex flex-col md:flex-row gap-2 mb-2 md:mb-8">
+                        <div className="flex-1 flex gap-2">
+                            <button onClick={() => { handleCancelForm(); setSubTab('LISTA'); }} className={`flex-1 py-2 md:py-4 rounded-lg font-bold text-xs md:text-base transition-colors ${subTab === 'LISTA' ? 'bg-brand-black text-white' : 'bg-white text-gray-500 border'}`}>Extrato</button>
+                        </div>
+                        <div className="flex gap-2 flex-1">
+                            <button onClick={() => { setSubTab('ENTRADA'); setTransType('ENTRADA'); handleCancelForm(); setSubTab('ENTRADA'); }} className={`flex-1 py-2 md:py-4 rounded-lg flex justify-center items-center gap-1 font-bold text-xs md:text-base transition-colors ${subTab === 'ENTRADA' ? 'bg-green-600 text-white' : 'bg-white text-green-600 border border-green-200'}`}><PlusCircle size={14}/> Entrada</button>
+                            <button onClick={() => { setSubTab('SAIDA'); setTransType('SAIDA'); handleCancelForm(); setSubTab('SAIDA'); }} className={`flex-1 py-2 md:py-4 rounded-lg flex justify-center items-center gap-1 font-bold text-xs md:text-base transition-colors ${subTab === 'SAIDA' ? 'bg-red-600 text-white' : 'bg-white text-red-600 border border-red-200'}`}><MinusCircle size={14}/> Saída</button>
+                        </div>
+                    </div>
 
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
-              <div>
-                  <h1 className="text-3xl font-bold text-gray-800 flex items-center">
-                      <BookOpen className="mr-3 text-purple-600"/> Departamento Adolescentes
-                  </h1>
-                  <p className="text-gray-500 mt-1">{currentChurch?.name}</p>
-              </div>
-          </div>
+                    {subTab === 'LISTA' && (
+                        <div className="space-y-3 animate-fade-in">
+                            <div className="bg-white p-2 rounded-lg shadow-sm border border-gray-100 flex flex-wrap gap-2 items-center justify-between">
+                                <div className="flex items-center space-x-1 px-3 py-1.5 rounded-lg text-xs font-bold border bg-gray-50 text-gray-600"><Filter size={14}/> <span>Filtros</span></div>
+                                <div className="flex items-center bg-gray-50 rounded border border-gray-200 p-0.5">
+                                    <select value={historyMonth} onChange={e => setHistoryMonth(parseInt(e.target.value))} className="bg-transparent border-none text-xs font-bold text-gray-700 py-1 pl-1 pr-6 cursor-pointer outline-none">{Array.from({length: 12}, (_, i) => (<option key={i+1} value={i+1}>{new Date(0, i).toLocaleString('pt-BR', { month: 'short' }).toUpperCase()}</option>))}</select>
+                                    <select value={historyYear} onChange={e => setHistoryYear(parseInt(e.target.value))} className="bg-transparent border-none text-xs font-bold text-gray-700 py-1 pl-1 pr-6 cursor-pointer outline-none"><option value={2024}>2024</option><option value={2025}>2025</option><option value={2026}>2026</option></select>
+                                </div>
+                            </div>
+                            <div className="bg-white rounded-lg shadow overflow-hidden border border-gray-100">
+                                <div className="overflow-x-auto">
+                                    <table className="min-w-full divide-y divide-gray-200">
+                                        <thead className="bg-gray-50"><tr><th className="px-2 py-2 text-left text-[9px] font-bold text-gray-500 uppercase">Data</th><th className="px-2 py-2 text-left text-[9px] font-bold text-gray-500 uppercase">Desc</th><th className="hidden md:table-cell px-2 py-2 text-left text-[9px] font-bold text-gray-500 uppercase">Cat</th><th className="px-2 py-2 text-right text-[9px] font-bold text-gray-500 uppercase">Valor</th><th className="px-1 py-2 text-right text-[9px] font-bold text-gray-500 uppercase">.</th></tr></thead>
+                                        <tbody className="bg-white divide-y divide-gray-200">
+                                            {historyTransactions.map(t => {
+                                                const [year, month, day] = t.date.split('-').map(Number);
+                                                const displayDate = new Date(year, month - 1, day).toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'});
+                                                return (
+                                                    <tr key={t.id} className="hover:bg-gray-50">
+                                                        <td className="px-2 py-2 text-[10px] text-gray-600 whitespace-nowrap">{displayDate}</td>
+                                                        <td className="px-2 py-2 text-[10px] font-medium text-gray-900 truncate max-w-[100px] md:max-w-none uppercase">{t.description}</td>
+                                                        <td className="hidden md:table-cell px-2 py-2 text-xs"><span className={`px-1 rounded text-[10px] font-bold ${t.type === 'ENTRADA' ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-red-700'}`}>{t.category}</span></td>
+                                                        <td className={`px-2 py-2 text-[10px] font-bold text-right whitespace-nowrap ${t.type === 'ENTRADA' ? 'text-green-600' : 'text-red-600'}`}>{t.type === 'ENTRADA' ? '+' : '-'} {t.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
+                                                        <td className="px-1 py-2 text-right whitespace-nowrap"><button onClick={() => handleDeleteTransaction(t.id)} className="text-gray-400 hover:text-red-600"><Trash2 size={14}/></button></td>
+                                                    </tr>
+                                                );
+                                            })}
+                                            {historyTransactions.length === 0 && <tr><td colSpan={5} className="p-4 text-center text-gray-400 text-xs">Sem lançamentos neste período.</td></tr>}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
-          <div className="border-b border-gray-200">
-              <nav className="-mb-px flex gap-1 overflow-x-auto">
-                  {[
-                      { id: 'DASHBOARD', label: 'Dashboard', icon: LayoutDashboard },
-                      { id: 'CAIXA', label: 'Caixa', icon: DollarSign },
-                      { id: 'MEMBROS', label: 'Membros', icon: Users },
-                      { id: 'RELATORIOS', label: 'Relatórios', icon: FileText },
-                      { id: 'EQUIPE', label: 'Equipe', icon: UserIcon },
-                  ].map(tab => (
-                      <button
-                          key={tab.id}
-                          onClick={() => setActiveTab(tab.id as any)}
-                          className={`flex items-center gap-2 px-4 py-3 text-sm font-bold border-b-2 whitespace-nowrap transition-colors ${
-                              activeTab === tab.id
-                                  ? 'border-purple-600 text-purple-600'
-                                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                          }`}
-                      >
-                          <tab.icon size={16}/> {tab.label}
-                      </button>
-                  ))}
-              </nav>
-          </div>
+                    {subTab === 'ENTRADA' && (
+                        <div className="bg-white rounded-xl shadow-md p-3 md:p-8 animate-fade-in-down">
+                            <h2 className="text-lg md:text-2xl font-bold mb-4 flex items-center">Nova Receita</h2>
+                            <form onSubmit={handleTransactionSubmit} className="space-y-4">
+                                <div><label className="block text-xs md:text-sm font-medium text-gray-700 mb-1">Tipo de Entrada</label><div className="flex gap-2"><button type="button" className="flex-1 py-2 px-1 rounded border text-[10px] md:text-xs font-bold bg-green-600 text-white border-green-600">ENTRADA</button></div></div>
+                                <div><label className="block text-xs md:text-sm font-medium text-gray-700">Descrição (Opcional)</label><input type="text" placeholder="EX: ARRECADAÇÃO EBF" className="mt-1 w-full p-2 border rounded-lg uppercase text-sm focus:ring-brand-orange outline-none" value={desc} onChange={e => setDesc(e.target.value.toUpperCase())} /></div>
+                                <div className="grid grid-cols-2 gap-3"><div><label className="block text-xs md:text-sm font-medium text-gray-700">Valor (R$)</label><input type="number" step="0.01" required className="mt-1 w-full p-2 border rounded-lg font-bold" value={amount} onChange={e => setAmount(e.target.value)} /></div><div><label className="block text-xs md:text-sm font-medium text-gray-700">Data</label><input type="date" required className="mt-1 w-full p-2 border rounded-lg" value={date} onChange={e => setDate(e.target.value)} /></div></div>
+                                <div><label className="block text-xs md:text-sm font-medium text-gray-700">Comprovante</label><div className="mt-1 relative"><input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*,.pdf" className="hidden" id="adol-entry-upload"/><label htmlFor="adol-entry-upload" className={`flex items-center justify-center w-full p-3 border-2 border-dashed rounded-lg cursor-pointer ${selectedFile ? 'bg-orange-50 border-brand-orange' : 'border-gray-300'}`}>{selectedFile ? <span className="text-xs font-bold text-brand-orange truncate">{selectedFile.name}</span> : <span className="text-xs text-gray-500 flex items-center"><Upload size={14} className="mr-1"/> Anexar Arquivo</span>}</label></div></div>
+                                <div className="flex gap-2 pt-2"><button type="button" onClick={handleCancelForm} className="flex-1 text-gray-500 font-bold py-2 border rounded-lg text-xs hover:bg-gray-50">Cancelar</button><button type="submit" disabled={isSubmitting} className="flex-1 py-2 rounded-lg font-bold text-white flex justify-center items-center text-sm bg-green-600 hover:bg-green-700 shadow-md">{isSubmitting ? <Loader className="animate-spin" size={16}/> : 'Salvar'}</button></div>
+                            </form>
+                        </div>
+                    )}
 
-          <div>
-              {activeTab === 'DASHBOARD' && renderDashboard()}
-              {activeTab === 'CAIXA' && renderCaixaTab()}
-              {activeTab === 'MEMBROS' && renderMembersTab()}
-              {activeTab === 'RELATORIOS' && renderReports()}
-              {activeTab === 'EQUIPE' && renderTeamTab()}
-          </div>
-      </div>
+                    {subTab === 'SAIDA' && (
+                        <div className="bg-white rounded-xl shadow-md p-3 md:p-8 animate-fade-in-down">
+                            <h2 className="text-lg md:text-2xl font-bold mb-4 flex items-center">Nova Despesa</h2>
+                            <form onSubmit={handleTransactionSubmit} className="space-y-4">
+                                <div><label className="block text-xs md:text-sm font-medium text-gray-700 mb-1">Categoria da Saída</label><div className="w-full bg-red-600 text-white py-2 px-3 rounded text-xs font-bold text-center uppercase tracking-wider">SAÍDA</div></div>
+                                <div><label className="block text-xs md:text-sm font-medium text-gray-700">Descrição / Motivo</label><input type="text" required placeholder="EX: LANCHE EBF" className="mt-1 w-full p-2 border rounded-lg uppercase text-sm focus:ring-red-500 focus:border-red-500 outline-none" value={desc} onChange={e => setDesc(e.target.value.toUpperCase())} /></div>
+                                <div className="grid grid-cols-2 gap-3"><div><label className="block text-xs md:text-sm font-medium text-gray-700">Valor (R$)</label><input type="number" step="0.01" required className="mt-1 w-full p-2 border rounded-lg font-bold" value={amount} onChange={e => setAmount(e.target.value)} /></div><div><label className="block text-xs md:text-sm font-medium text-gray-700">Data</label><input type="date" required className="mt-1 w-full p-2 border rounded-lg" value={date} onChange={e => setDate(e.target.value)} /></div></div>
+                                <div className="flex items-center p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                                    <div className="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+                                        <input type="checkbox" name="toggle-adol" id="recurring-toggle-adol" className="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer transition-all duration-300" style={{ right: isRecurring ? '0' : '50%', borderColor: isRecurring ? '#3b82f6' : '#9ca3af' }} checked={isRecurring} onChange={e => setIsRecurring(e.target.checked)} />
+                                        <label htmlFor="recurring-toggle-adol" className={`toggle-label block overflow-hidden h-5 rounded-full cursor-pointer ${isRecurring ? 'bg-blue-500' : 'bg-gray-300'}`}></label>
+                                    </div>
+                                    <label htmlFor="recurring-toggle-adol" className="text-xs font-bold text-gray-700 cursor-pointer flex items-center">Marcar como Gasto Fixo</label>
+                                </div>
+                                <div><label className="block text-xs md:text-sm font-medium text-gray-700">Comprovante</label><div className="mt-1 relative"><input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*,.pdf" className="hidden" id="adol-exit-upload"/><label htmlFor="adol-exit-upload" className={`flex items-center justify-center w-full p-3 border-2 border-dashed rounded-lg cursor-pointer ${selectedFile ? 'bg-orange-50 border-brand-orange' : 'border-gray-300'}`}>{selectedFile ? <span className="text-xs font-bold text-brand-orange truncate">{selectedFile.name}</span> : <span className="text-xs text-gray-500 flex items-center"><Upload size={14} className="mr-1"/> Anexar Arquivo</span>}</label></div></div>
+                                <div className="flex gap-2 pt-2"><button type="button" onClick={handleCancelForm} className="flex-1 text-gray-500 font-bold py-2 border rounded-lg text-xs hover:bg-gray-50">Cancelar</button><button type="submit" disabled={isSubmitting} className="flex-1 py-2 rounded-lg font-bold text-white flex justify-center items-center text-sm bg-red-600 hover:bg-red-700 shadow-md">{isSubmitting ? <Loader className="animate-spin" size={16}/> : 'Salvar'}</button></div>
+                            </form>
+                        </div>
+                    )}
+                </div>
+            )}
+            {activeTab === 'RELATORIOS' && renderReports()}
+            {activeTab === 'EQUIPE' && renderTeamTab()}
+        </div>
+    </>
   );
 };
