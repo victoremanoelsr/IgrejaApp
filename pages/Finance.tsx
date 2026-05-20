@@ -80,7 +80,7 @@ export const Finance: React.FC = () => {
 
   const filteredMembers = members.filter(m => m.churchId === viewId && m.name.toLowerCase().includes(searchTerm.toLowerCase()));
   
-  const excludedCategories = ['MISSOES', 'JOVENS', 'CRIANCAS', 'SENHORAS', 'SENHORES'];
+  const excludedCategories = ['MISSOES', 'JOVENS', 'CRIANCAS', 'ADOLESCENTES', 'SENHORAS', 'SENHORES'];
 
   const churchTransactions = transactions
     .filter(t => t.churchId === viewId)

@@ -1,5 +1,5 @@
 
-export type Role = 'SUPER_ADM' | 'PRESIDENTE' | 'VICE_PRESIDENTE' | 'DIRIGENTE' | 'TESOUREIRO' | 'SECRETARIO' | 'PRESIDENTE_MISSOES' | 'VICE_MISSOES' | 'TESOUREIRO_MISSOES' | 'SECRETARIO_MISSOES' | 'LIDER_JOVENS' | 'TESOUREIRO_JOVENS' | 'LIDER_CRIANCAS' | 'TESOUREIRO_CRIANCAS' | 'LIDER_SENHORAS' | 'TESOUREIRO_SENHORAS' | 'LIDER_SENHORES' | 'TESOUREIRO_SENHORES';
+export type Role = 'SUPER_ADM' | 'PRESIDENTE' | 'VICE_PRESIDENTE' | 'DIRIGENTE' | 'TESOUREIRO' | 'SECRETARIO' | 'PRESIDENTE_MISSOES' | 'VICE_MISSOES' | 'TESOUREIRO_MISSOES' | 'SECRETARIO_MISSOES' | 'LIDER_JOVENS' | 'TESOUREIRO_JOVENS' | 'LIDER_CRIANCAS' | 'TESOUREIRO_CRIANCAS' | 'LIDER_ADOLESCENTES' | 'TESOUREIRO_ADOLESCENTES' | 'LIDER_SENHORAS' | 'TESOUREIRO_SENHORAS' | 'LIDER_SENHORES' | 'TESOUREIRO_SENHORES';
 
 export type ChurchType = 'SEDE' | 'CONGREGACAO';
 
@@ -53,9 +53,10 @@ export interface Member {
   churchId: string;
   isTither: boolean;
   isYouth?: boolean; // Jovens
-  isChild?: boolean; // Crianças (Novo)
-  isLady?: boolean;  // Senhoras (Novo)
-  isBrother?: boolean; // Senhores (Novo)
+  isChild?: boolean; // Crianças
+  isAdolescent?: boolean; // Adolescentes
+  isLady?: boolean;  // Senhoras
+  isBrother?: boolean; // Senhores
   baptismDate?: string;
   photo?: string; 
   email?: string; 
@@ -75,7 +76,7 @@ export interface Member {
 }
 
 export type TransactionType = 'ENTRADA' | 'SAIDA';
-export type TransactionCategory = 'DIZIMO' | 'OFERTA' | 'MISSOES' | 'JOVENS' | 'CRIANCAS' | 'SENHORAS' | 'SENHORES' | 'CONSTRUCAO' | 'DESPESA_FIXA' | 'DESPESA_VARIAVEL' | 'OUTROS' | 'ALUGUEL' | 'AGUA' | 'LUZ' | 'INTERNET' | 'SALARIO';
+export type TransactionCategory = 'DIZIMO' | 'OFERTA' | 'MISSOES' | 'JOVENS' | 'CRIANCAS' | 'ADOLESCENTES' | 'SENHORAS' | 'SENHORES' | 'CONSTRUCAO' | 'DESPESA_FIXA' | 'DESPESA_VARIAVEL' | 'OUTROS' | 'ALUGUEL' | 'AGUA' | 'LUZ' | 'INTERNET' | 'SALARIO';
 export type TransactionStatus = 'PAGO' | 'PENDENTE';
 
 export interface Transaction {

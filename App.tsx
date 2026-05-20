@@ -21,6 +21,7 @@ import { Congregations } from './pages/Congregations';
 import { MissionsPanel } from './pages/MissionsPanel';
 import { YouthPanel } from './pages/YouthPanel';
 import { ChildrenPanel } from './pages/ChildrenPanel';
+import { AdolescentsPanel } from './pages/AdolescentsPanel';
 import { LadiesPanel } from './pages/LadiesPanel';
 import { MenPanel } from './pages/MenPanel';
 import { Departments } from './pages/Departments';
@@ -58,12 +59,14 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles?: strin
   const missionsRoles = ['PRESIDENTE_MISSOES', 'VICE_MISSOES', 'TESOUREIRO_MISSOES', 'SECRETARIO_MISSOES'];
   const youthRoles = ['LIDER_JOVENS', 'TESOUREIRO_JOVENS'];
   const childrenRoles = ['LIDER_CRIANCAS', 'TESOUREIRO_CRIANCAS'];
+  const adolescentsRoles = ['LIDER_ADOLESCENTES', 'TESOUREIRO_ADOLESCENTES'];
   const ladiesRoles = ['LIDER_SENHORAS', 'TESOUREIRO_SENHORAS'];
   const menRoles = ['LIDER_SENHORES', 'TESOUREIRO_SENHORES'];
   
   if (missionsRoles.includes(user.role) && window.location.hash !== '#/missoes') return <Navigate to="/missoes" replace />;
   if (youthRoles.includes(user.role) && window.location.hash !== '#/jovens') return <Navigate to="/jovens" replace />;
   if (childrenRoles.includes(user.role) && window.location.hash !== '#/criancas') return <Navigate to="/criancas" replace />;
+  if (adolescentsRoles.includes(user.role) && window.location.hash !== '#/adolescentes') return <Navigate to="/adolescentes" replace />;
   if (ladiesRoles.includes(user.role) && window.location.hash !== '#/senhoras') return <Navigate to="/senhoras" replace />;
   if (menRoles.includes(user.role) && window.location.hash !== '#/senhores') return <Navigate to="/senhores" replace />;
 
@@ -112,6 +115,9 @@ const AppRoutes = () => {
 
       {/* Rota Exclusiva de Crianças */}
       <Route path="/criancas" element={<ProtectedRoute allowedRoles={['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'DIRIGENTE', 'TESOUREIRO', 'SECRETARIO', 'LIDER_CRIANCAS', 'TESOUREIRO_CRIANCAS']}><ChildrenPanel /></ProtectedRoute>} />
+
+      {/* Rota Exclusiva de Adolescentes */}
+      <Route path="/adolescentes" element={<ProtectedRoute allowedRoles={['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'DIRIGENTE', 'TESOUREIRO', 'SECRETARIO', 'LIDER_ADOLESCENTES', 'TESOUREIRO_ADOLESCENTES']}><AdolescentsPanel /></ProtectedRoute>} />
 
       {/* Rota Exclusiva de Senhoras */}
       <Route path="/senhoras" element={<ProtectedRoute allowedRoles={['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'DIRIGENTE', 'TESOUREIRO', 'SECRETARIO', 'LIDER_SENHORAS', 'TESOUREIRO_SENHORAS']}><LadiesPanel /></ProtectedRoute>} />

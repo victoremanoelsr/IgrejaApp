@@ -7,6 +7,7 @@ import {
   Globe, 
   Zap, 
   Baby, 
+  BookOpen,
   Heart, 
   Shield,
   ArrowRight, 
@@ -34,15 +35,26 @@ export const Departments: React.FC = () => {
 
   const departments = [
     {
-      id: 'missoes',
-      title: t('departments.missions'),
-      description: t('departments.missionsDesc'),
-      icon: Globe,
-      path: '/missoes',
-      color: 'bg-teal-600',
-      textColor: 'text-teal-600',
-      bgColor: 'bg-teal-50',
-      borderColor: 'border-teal-200'
+      id: 'criancas',
+      title: t('departments.children'),
+      description: t('departments.childrenDesc'),
+      icon: Baby,
+      path: '/criancas',
+      color: 'bg-blue-500',
+      textColor: 'text-blue-500',
+      bgColor: 'bg-blue-50',
+      borderColor: 'border-blue-200'
+    },
+    {
+      id: 'adolescentes',
+      title: 'Adolescentes',
+      description: 'Gestão do departamento de adolescentes, equipe, caixa e relatórios.',
+      icon: BookOpen,
+      path: '/adolescentes',
+      color: 'bg-purple-600',
+      textColor: 'text-purple-600',
+      bgColor: 'bg-purple-50',
+      borderColor: 'border-purple-200'
     },
     {
       id: 'jovens',
@@ -67,17 +79,6 @@ export const Departments: React.FC = () => {
       borderColor: 'border-pink-200'
     },
     {
-      id: 'criancas',
-      title: t('departments.children'),
-      description: t('departments.childrenDesc'),
-      icon: Baby,
-      path: '/criancas',
-      color: 'bg-blue-500',
-      textColor: 'text-blue-500',
-      bgColor: 'bg-blue-50',
-      borderColor: 'border-blue-200'
-    },
-    {
       id: 'senhores',
       title: t('departments.men'),
       description: t('departments.menDesc'),
@@ -87,7 +88,18 @@ export const Departments: React.FC = () => {
       textColor: 'text-indigo-600',
       bgColor: 'bg-indigo-50',
       borderColor: 'border-indigo-200'
-    }
+    },
+    {
+      id: 'missoes',
+      title: t('departments.missions'),
+      description: t('departments.missionsDesc'),
+      icon: Globe,
+      path: '/missoes',
+      color: 'bg-teal-600',
+      textColor: 'text-teal-600',
+      bgColor: 'bg-teal-50',
+      borderColor: 'border-teal-200'
+    },
   ];
 
   return (
