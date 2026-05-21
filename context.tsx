@@ -436,22 +436,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const digitsOnly = cpf.replace(/\D/g, '');
     const formattedCpf = digitsOnly.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
 
-    // Busca pelo CPF (tenta formato com pontuação e somente dígitos)
-    const { data } = await supabase
+    // Tenta primeiro com CPF só dígitos
+    let { data, error } = await supabase
       .from('profiles')
       .select('id, name, cpf')
-      .or(`cpf.eq.${formattedCpf},cpf.eq.${digitsOnly}`);
+      .eq('cpf', digitsOnly);
+
+    // Se não achou, tenta com CPF formatado (xxx.xxx.xxx-xx)
+    if (!data || data.length === 0) {
+      ({ data, error } = await supabase
+        .from('profiles')
+        .select('id, name, cpf')
+        .eq('cpf', formattedCpf));
+    }
+
+    console.log('[recoverAccount] cpf buscado:', digitsOnly, '/', formattedCpf);
+    console.log('[recoverAccount] resultado banco:', data, 'erro:', error);
 
     if (!data || data.length === 0) return null;
 
-    // Verifica o nome de forma flexível (compara as palavras do nome informado)
+    // Verifica o nome de forma flexível — todas as palavras do input devem estar no nome do banco
     const inputWords = name.trim().toUpperCase().split(/\s+/).filter(Boolean);
     const found = data.find((u: any) => {
       const dbName = (u.name || '').trim().toUpperCase();
-      // Aceita se todas as palavras digitadas estão presentes no nome do banco
       return inputWords.every(w => dbName.includes(w));
     });
 
+    console.log('[recoverAccount] encontrado:', found);
     return found ? found.id : null;
   };
 
