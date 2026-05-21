@@ -212,7 +212,7 @@ export const Dashboard: React.FC = () => {
                     <p className="text-lg sm:text-xl md:text-2xl font-black text-red-600 break-words w-full sm:text-center">{formatCurrency(totalOutGeneral, lang)}</p>
                 </div>
                 <div className="flex flex-col items-start sm:items-center sm:text-center px-3 sm:px-4 py-3 sm:py-0 gap-1">
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('common.balance')} <span className="text-gray-300 font-normal normal-case tracking-normal">(acumulado)</span></p>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('common.balance')}</p>
                     <p className={`text-lg sm:text-xl md:text-2xl font-black break-words w-full sm:text-center ${balanceGeneral >= 0 ? 'text-gray-800' : 'text-red-600'}`}>{formatCurrency(balanceGeneral, lang)}</p>
                 </div>
             </div>
