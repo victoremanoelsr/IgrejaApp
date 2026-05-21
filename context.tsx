@@ -434,35 +434,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const recoverAccount = async (name: string, cpf: string): Promise<string | null> => {
     const digitsOnly = cpf.replace(/\D/g, '');
-    const formattedCpf = digitsOnly.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
 
-    // Tenta primeiro com CPF só dígitos
-    let { data, error } = await supabase
-      .from('profiles')
-      .select('id, name, cpf')
-      .eq('cpf', digitsOnly);
+    // Chama RPC com SECURITY DEFINER — bypassa o RLS para usuários anônimos
+    const { data, error } = await supabase.rpc('find_profile_for_recovery', {
+      input_cpf: digitsOnly,
+    });
 
-    // Se não achou, tenta com CPF formatado (xxx.xxx.xxx-xx)
-    if (!data || data.length === 0) {
-      ({ data, error } = await supabase
-        .from('profiles')
-        .select('id, name, cpf')
-        .eq('cpf', formattedCpf));
+    if (error) {
+      console.error('[recoverAccount] erro RPC:', error);
+      return null;
     }
-
-    console.log('[recoverAccount] cpf buscado:', digitsOnly, '/', formattedCpf);
-    console.log('[recoverAccount] resultado banco:', data, 'erro:', error);
 
     if (!data || data.length === 0) return null;
 
     // Verifica o nome de forma flexível — todas as palavras do input devem estar no nome do banco
     const inputWords = name.trim().toUpperCase().split(/\s+/).filter(Boolean);
-    const found = data.find((u: any) => {
+    const found = (data as any[]).find((u) => {
       const dbName = (u.name || '').trim().toUpperCase();
-      return inputWords.every(w => dbName.includes(w));
+      return inputWords.every((w: string) => dbName.includes(w));
     });
 
-    console.log('[recoverAccount] encontrado:', found);
     return found ? found.id : null;
   };
 
