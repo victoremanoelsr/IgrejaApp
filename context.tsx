@@ -36,7 +36,7 @@ interface AppContextType {
   
   login: (u: string, p: string) => Promise<{user?: User, error?: string, blocked?: boolean}>;
   logout: () => void;
-  recoverAccount: (name: string, cpf: string) => string | null;
+  recoverAccount: (name: string, cpf: string) => Promise<string | null>;
   updateUserCredentials: (id: string, username?: string, password?: string) => Promise<{success: boolean, error?: string}>;
   
   selectChurch: (id: string) => void;
@@ -432,15 +432,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setCurrentChurch(null);
   };
 
-  const recoverAccount = (name: string, cpf: string) => {
-    const normalizedCpf = cpf.replace(/\D/g, '');
+  const recoverAccount = async (name: string, cpf: string): Promise<string | null> => {
     const normalizedName = name.trim().toUpperCase();
-    const found = users.find(u => {
+    const digitsOnly = cpf.replace(/\D/g, '');
+    const formattedCpf = digitsOnly.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+
+    // Query direta ao banco (igual ao fallback do login) — funciona sem autenticação
+    const { data } = await supabase
+      .from('profiles')
+      .select('id, name, cpf')
+      .ilike('name', normalizedName);
+
+    if (!data || data.length === 0) return null;
+
+    const found = data.find((u: any) => {
       const uCpf = (u.cpf || '').replace(/\D/g, '');
-      const uName = (u.name || '').trim().toUpperCase();
-      return uName === normalizedName && uCpf === normalizedCpf;
+      return uCpf === digitsOnly;
     });
-    return found ? found.id : null;
+
+    if (found) return found.id;
+
+    // Tenta também com CPF formatado (caso o banco armazene formatado)
+    const foundFormatted = data.find((u: any) => u.cpf === formattedCpf || u.cpf === digitsOnly);
+    return foundFormatted ? foundFormatted.id : null;
   };
 
   const updateUserCredentials = async (id: string, username?: string, password?: string) => {

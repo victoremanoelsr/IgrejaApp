@@ -112,13 +112,15 @@ export const Login: React.FC = () => {
     setError('Usuário ou senha incorretos.');
   };
 
-  const handleIdentify = (e: React.FormEvent) => {
+  const handleIdentify = async (e: React.FormEvent) => {
     e.preventDefault();
-    const foundUserId = recoverAccount(recoveryName, recoveryCpf);
+    setError('');
+    setIsProcessing(true);
+    const foundUserId = await recoverAccount(recoveryName, recoveryCpf);
+    setIsProcessing(false);
     if (foundUserId) {
       setIdentifiedUserId(foundUserId);
       setStep('RECOVERY_SELECT');
-      setError('');
     } else {
       setError('Dados não encontrados. Verifique nome e CPF.');
     }
@@ -282,7 +284,9 @@ export const Login: React.FC = () => {
 
       <div className="flex gap-2 pt-2">
          <button type="button" onClick={() => setStep('LOGIN')} className="flex-1 py-2.5 px-4 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 text-sm font-medium">Voltar</button>
-         <button type="submit" className="flex-1 py-2.5 px-4 bg-brand-black text-white rounded-lg hover:bg-gray-800 text-sm font-bold shadow-md">Validar</button>
+         <button type="submit" disabled={isProcessing} className="flex-1 py-2.5 px-4 bg-brand-black text-white rounded-lg hover:bg-gray-800 text-sm font-bold shadow-md flex items-center justify-center gap-2 disabled:opacity-60">
+           {isProcessing ? <><Loader size={16} className="animate-spin"/> Verificando...</> : 'Validar'}
+         </button>
       </div>
     </form>
   );
