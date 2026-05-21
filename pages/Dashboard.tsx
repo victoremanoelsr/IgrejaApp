@@ -51,11 +51,14 @@ export const Dashboard: React.FC = () => {
   
   const excludedCategoriesFromGeneral = ['MISSOES', 'JOVENS', 'CRIANCAS', 'SENHORAS', 'SENHORES'];
 
+  const lastDayOfSelectedMonth = new Date(selectedYear, selectedMonth, 0).toISOString().split('T')[0];
+
   const matchesSelectedDate = (dateStr: string) => {
       const [y, m] = dateStr.split('-').map(Number);
       return m === selectedMonth && y === selectedYear;
   };
 
+  // Transações do mês selecionado (para exibir entradas/saídas do mês)
   const generalTransactions = transactions.filter(t => 
       t.churchId === viewId && 
       !t.campaignId &&
@@ -66,7 +69,18 @@ export const Dashboard: React.FC = () => {
 
   const totalInGeneral = generalTransactions.filter(t => t.type === 'ENTRADA').reduce((acc, t) => acc + t.amount, 0);
   const totalOutGeneral = generalTransactions.filter(t => t.type === 'SAIDA').reduce((acc, t) => acc + t.amount, 0);
-  const balanceGeneral = totalInGeneral - totalOutGeneral;
+
+  // Saldo acumulado: todas as transações até o último dia do mês selecionado
+  const cumulativeGeneralTransactions = transactions.filter(t =>
+      t.churchId === viewId &&
+      !t.campaignId &&
+      !excludedCategoriesFromGeneral.includes(t.category) &&
+      t.date <= lastDayOfSelectedMonth &&
+      t.status === 'PAGO'
+  );
+  const cumulativeTotalIn = cumulativeGeneralTransactions.filter(t => t.type === 'ENTRADA').reduce((acc, t) => acc + t.amount, 0);
+  const cumulativeTotalOut = cumulativeGeneralTransactions.filter(t => t.type === 'SAIDA').reduce((acc, t) => acc + t.amount, 0);
+  const balanceGeneral = cumulativeTotalIn - cumulativeTotalOut;
 
   const tithesTransactions = transactions.filter(t => 
       t.churchId === viewId &&
@@ -79,6 +93,7 @@ export const Dashboard: React.FC = () => {
   const activeTithersCount = new Set(tithesTransactions.filter(t => t.memberId).map(t => t.memberId)).size;
   const totalRegisteredTithers = churchMembers.filter(m => m.isTither).length;
 
+  // Missões: entradas/saídas do mês para o gráfico de pizza
   const missionsTransactions = transactions.filter(t => 
       t.churchId === viewId &&
       t.category === 'MISSOES' &&
@@ -87,7 +102,17 @@ export const Dashboard: React.FC = () => {
   );
   const missionsIn = missionsTransactions.filter(t => t.type === 'ENTRADA').reduce((acc, t) => acc + t.amount, 0);
   const missionsOut = missionsTransactions.filter(t => t.type === 'SAIDA').reduce((acc, t) => acc + t.amount, 0);
-  const missionsBalance = missionsIn - missionsOut;
+
+  // Saldo acumulado de Missões
+  const cumulativeMissionsTransactions = transactions.filter(t =>
+      t.churchId === viewId &&
+      t.category === 'MISSOES' &&
+      t.date <= lastDayOfSelectedMonth &&
+      t.status === 'PAGO'
+  );
+  const cumulativeMissionsIn = cumulativeMissionsTransactions.filter(t => t.type === 'ENTRADA').reduce((acc, t) => acc + t.amount, 0);
+  const cumulativeMissionsOut = cumulativeMissionsTransactions.filter(t => t.type === 'SAIDA').reduce((acc, t) => acc + t.amount, 0);
+  const missionsBalance = cumulativeMissionsIn - cumulativeMissionsOut;
 
   const missionsChartData = [
       { name: t('common.income'), value: missionsIn > 0 ? missionsIn : 0, color: '#10b981' },
@@ -187,7 +212,7 @@ export const Dashboard: React.FC = () => {
                     <p className="text-lg sm:text-xl md:text-2xl font-black text-red-600 break-words w-full sm:text-center">{formatCurrency(totalOutGeneral, lang)}</p>
                 </div>
                 <div className="flex flex-col items-start sm:items-center sm:text-center px-3 sm:px-4 py-3 sm:py-0 gap-1">
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('common.balance')}</p>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('common.balance')} <span className="text-gray-300 font-normal normal-case tracking-normal">(acumulado)</span></p>
                     <p className={`text-lg sm:text-xl md:text-2xl font-black break-words w-full sm:text-center ${balanceGeneral >= 0 ? 'text-gray-800' : 'text-red-600'}`}>{formatCurrency(balanceGeneral, lang)}</p>
                 </div>
             </div>
