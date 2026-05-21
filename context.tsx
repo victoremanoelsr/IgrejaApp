@@ -433,7 +433,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const recoverAccount = (name: string, cpf: string) => {
-    const found = users.find(u => u.name === name.toUpperCase() && u.cpf === cpf);
+    const normalizedCpf = cpf.replace(/\D/g, '');
+    const normalizedName = name.trim().toUpperCase();
+    const found = users.find(u => {
+      const uCpf = (u.cpf || '').replace(/\D/g, '');
+      const uName = (u.name || '').trim().toUpperCase();
+      return uName === normalizedName && uCpf === normalizedCpf;
+    });
     return found ? found.id : null;
   };
 
