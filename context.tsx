@@ -433,28 +433,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const recoverAccount = async (name: string, cpf: string): Promise<string | null> => {
-    const normalizedName = name.trim().toUpperCase();
     const digitsOnly = cpf.replace(/\D/g, '');
     const formattedCpf = digitsOnly.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
 
-    // Query direta ao banco (igual ao fallback do login) — funciona sem autenticação
+    // Busca pelo CPF (tenta formato com pontuação e somente dígitos)
     const { data } = await supabase
       .from('profiles')
       .select('id, name, cpf')
-      .ilike('name', normalizedName);
+      .or(`cpf.eq.${formattedCpf},cpf.eq.${digitsOnly}`);
 
     if (!data || data.length === 0) return null;
 
+    // Verifica o nome de forma flexível (compara as palavras do nome informado)
+    const inputWords = name.trim().toUpperCase().split(/\s+/).filter(Boolean);
     const found = data.find((u: any) => {
-      const uCpf = (u.cpf || '').replace(/\D/g, '');
-      return uCpf === digitsOnly;
+      const dbName = (u.name || '').trim().toUpperCase();
+      // Aceita se todas as palavras digitadas estão presentes no nome do banco
+      return inputWords.every(w => dbName.includes(w));
     });
 
-    if (found) return found.id;
-
-    // Tenta também com CPF formatado (caso o banco armazene formatado)
-    const foundFormatted = data.find((u: any) => u.cpf === formattedCpf || u.cpf === digitsOnly);
-    return foundFormatted ? foundFormatted.id : null;
+    return found ? found.id : null;
   };
 
   const updateUserCredentials = async (id: string, username?: string, password?: string) => {
