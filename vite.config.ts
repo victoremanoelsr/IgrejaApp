@@ -8,7 +8,7 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, (process as any).cwd(), '');
 
   const SUPABASE_URL = 'https://tywgekdisyxflcfjwaou.supabase.co';
-  const SERVICE_KEY = env.SUPABASE_SERVICE_ROLE_KEY || 'sb_secret_J7yMyoIsxG5xc8e40qmG2Q_yemLccPp';
+  const SERVICE_KEY = env.SUPABASE_SERVICE_ROLE_KEY || '';
 
   const supabaseFetch = async (path: string) => {
     const response = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {

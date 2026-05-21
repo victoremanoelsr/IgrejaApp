@@ -22,21 +22,17 @@ args = "Start application"
 name = "Start application"
 author = "agent"
 
+[workflows.workflow.metadata]
+outputType = "webview"
+
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "npm run dev"
 waitForPort = 5000
 
-[workflows.workflow.metadata]
-outputType = "webview"
-
 [[ports]]
 localPort = 5000
 externalPort = 80
-
-[[ports]]
-localPort = 5001
-externalPort = 3000
 
 [deployment]
 deploymentTarget = "static"
@@ -46,4 +42,3 @@ publicDir = "dist"
 [userenv]
 
 [userenv.shared]
-SUPABASE_SERVICE_ROLE_KEY = "sb_secret_J7yMyoIsxG5xc8e40qmG2Q_yemLccPp"
