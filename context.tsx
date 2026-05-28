@@ -773,8 +773,37 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const deleteChurch = async (id: string) => {
+      // Collect all church IDs to delete (the church itself + any congregations that are children)
+      const childChurchIds = churches.filter(c => c.parentId === id).map(c => c.id);
+      const allIds = [id, ...childChurchIds];
+
+      // Delete all related records for each church ID before deleting the church rows.
+      // Order matters: child tables first, then parent (churches).
+      for (const cid of allIds) {
+          await supabase.from('transactions').delete().eq('church_id', cid);
+          await supabase.from('members').delete().eq('church_id', cid);
+          await supabase.from('events').delete().eq('church_id', cid);
+          await supabase.from('campaigns').delete().eq('church_id', cid);
+          await supabase.from('minutes').delete().eq('church_id', cid);
+          await supabase.from('fixed_expenses').delete().eq('church_id', cid);
+          await supabase.from('letter_history').delete().eq('church_id', cid);
+          await supabase.from('booklet_settings').delete().eq('church_id', cid);
+          // physical_spaces cascades to inventory_assets automatically
+          await supabase.from('physical_spaces').delete().eq('church_id', cid);
+          // mission_carnet_templates and letter_templates have ON DELETE CASCADE, but delete explicitly to be safe
+          await supabase.from('mission_carnet_templates').delete().eq('church_id', cid);
+          await supabase.from('letter_templates').delete().eq('church_id', cid);
+          // profiles (users) linked to this church
+          await supabase.from('profiles').delete().eq('church_id', cid);
+      }
+
+      // Delete congregations (child churches) first, then the sede
+      for (const cid of childChurchIds) {
+          await supabase.from('churches').delete().eq('id', cid);
+      }
       await supabase.from('churches').delete().eq('id', id);
-      setChurches(churches.filter(c => c.id !== id));
+
+      setChurches(churches.filter(c => c.id !== id && c.parentId !== id));
   };
 
   const uploadChurchLogo = async (file: File) => { return uploadFileToSupabase(file, 'images'); };
