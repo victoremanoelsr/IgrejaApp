@@ -378,18 +378,49 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       profileData = pd;
     }
 
-    // 2. Fallback: login direto na tabela profiles (compatibilidade com usuários não migrados)
+    // 2. Fallback: login via RPC com SECURITY DEFINER (bypassa RLS para usuários sem conta no Auth)
     if (!profileData) {
-      const { data: pd } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('username', u)
-        .eq('password', p)
-        .single();
-      profileData = pd;
+      const { data: rpcData } = await supabase.rpc('login_profile', {
+        p_username: u,
+        p_password: p,
+      });
+      if (rpcData && rpcData.length > 0) {
+        profileData = rpcData[0];
 
-      // Se o auth falhou mas o perfil foi encontrado, garante logout do Supabase Auth
-      if (profileData && authError) {
+        // Auto-migração: cria a conta no Supabase Auth para este usuário
+        // para que futuros logins usem o método seguro (método 1)
+        try {
+          const { data: { session: currentSession } } = await supabase.auth.getSession();
+          const { data: signUpData } = await supabase.auth.signUp({
+            email: `${u}@${EMAIL_DOMAIN}`,
+            password: p,
+          });
+          if (signUpData?.user) {
+            await supabase.from('profiles')
+              .update({ auth_user_id: signUpData.user.id })
+              .eq('id', profileData.id);
+            // Restaura a sessão original se o signUp tiver trocado
+            if (currentSession?.access_token) {
+              await supabase.auth.setSession({
+                access_token: currentSession.access_token,
+                refresh_token: currentSession.refresh_token,
+              }).catch(() => {});
+            } else {
+              // Era anônimo: faz signIn direto com o Auth agora que o usuário existe
+              const { data: signInData } = await supabase.auth.signInWithPassword({
+                email: `${u}@${EMAIL_DOMAIN}`,
+                password: p,
+              });
+              if (signInData?.user) {
+                // profileData já está correto, continua normalmente
+              }
+            }
+          }
+        } catch (_) { /* Falha silenciosa — o login ainda funciona via profileData */ }
+      }
+
+      // Garante logout do Supabase Auth se autenticação prévia falhou
+      if (!profileData && authError) {
         await supabase.auth.signOut().catch(() => {});
       }
     }
@@ -852,8 +883,31 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
 
       const { data, error } = await supabase.from('profiles').insert([payload]).select();
-      if(data) {
-          setUsers([...users, toAppUser(data[0])]);
+      if (data) {
+          const newProfile = data[0];
+
+          // Cria conta no Supabase Auth para que o usuário possa logar pelo método seguro
+          try {
+              const { data: { session: currentSession } } = await supabase.auth.getSession();
+              const { data: signUpData } = await supabase.auth.signUp({
+                  email: `${u.username}@${EMAIL_DOMAIN}`,
+                  password: u.password!,
+              });
+              if (signUpData?.user) {
+                  await supabase.from('profiles')
+                      .update({ auth_user_id: signUpData.user.id })
+                      .eq('id', newProfile.id);
+              }
+              // Restaura a sessão do admin que estava logado
+              if (currentSession?.access_token) {
+                  await supabase.auth.setSession({
+                      access_token: currentSession.access_token,
+                      refresh_token: currentSession.refresh_token,
+                  }).catch(() => {});
+              }
+          } catch (_) { /* Falha silenciosa — usuário ainda pode logar via RPC fallback */ }
+
+          setUsers([...users, toAppUser(newProfile)]);
           return { success: true };
       }
       return { success: false, error: error?.message };
