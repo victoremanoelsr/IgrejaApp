@@ -387,37 +387,44 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (rpcData && rpcData.length > 0) {
         profileData = rpcData[0];
 
-        // Auto-migração: cria conta no Supabase Auth e estabelece sessão ativa
-        // O trigger no banco auto-confirma e-mails @igrejaapp.internal
+        // Auto-migração: cria conta no Auth, confirma o e-mail via RPC e estabelece sessão
         try {
           const { data: { session: currentSession } } = await supabase.auth.getSession();
+
+          // Cria o usuário no Supabase Auth (se já existir, retorna o usuário existente)
           const { data: signUpData } = await supabase.auth.signUp({
             email: `${u}@${EMAIL_DOMAIN}`,
             password: p,
           });
+
           if (signUpData?.user) {
-            // Usa RPC com SECURITY DEFINER para vincular sem precisar de sessão ativa
+            // Confirma o e-mail diretamente via função SECURITY DEFINER no banco
+            // (sem depender de trigger — Supabase bloqueia triggers em auth.users)
+            await supabase.rpc('confirm_internal_user', {
+              p_email: `${u}@${EMAIL_DOMAIN}`,
+            });
+
+            // Vincula auth_user_id ao profile via RPC (bypassa RLS)
             await supabase.rpc('link_profile_to_auth', {
               p_username: u,
               p_auth_user_id: signUpData.user.id,
             });
 
             if (currentSession?.access_token) {
-              // Havia uma sessão admin: restaura ela
+              // Havia sessão admin: restaura ela
               await supabase.auth.setSession({
                 access_token: currentSession.access_token,
                 refresh_token: currentSession.refresh_token,
               }).catch(() => {});
             } else {
-              // Usuário novo logando: o trigger auto-confirmou o e-mail,
-              // então o signIn agora vai funcionar
+              // E-mail agora confirmado — o signIn vai funcionar
               await supabase.auth.signInWithPassword({
                 email: `${u}@${EMAIL_DOMAIN}`,
                 password: p,
               }).catch(() => {});
             }
           }
-        } catch (_) { /* Falha silenciosa — o login ainda funciona via profileData */ }
+        } catch (_) { /* Falha silenciosa — login continua via profileData */ }
       }
 
       // Garante logout do Supabase Auth se autenticação prévia falhou
