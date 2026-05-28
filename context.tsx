@@ -359,17 +359,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const EMAIL_DOMAIN = 'igrejaapp.internal';
 
+  // Deriva uma senha segura para o Supabase Auth a partir do ID do perfil.
+  // O Supabase exige mín. 6 chars — senhas curtas do usuário falhariam no signUp.
+  // A senha real do usuário continua sendo verificada via login_profile (RPC).
+  const buildAuthPassword = (profileId: string) => `IA_${profileId}`;
+
   const login = async (u: string, p: string) => {
     let profileData: any = null;
 
-    // 1. Tenta login via Supabase Auth (método novo, seguro)
-    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+    // 1. Tenta login via Supabase Auth com senha real (usuários já migrados)
+    const { data: authData } = await supabase.auth.signInWithPassword({
       email: `${u}@${EMAIL_DOMAIN}`,
       password: p,
     });
 
     if (authData?.user) {
-      // Busca o perfil vinculado ao auth_user_id
       const { data: pd } = await supabase
         .from('profiles')
         .select('*')
@@ -378,57 +382,70 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       profileData = pd;
     }
 
-    // 2. Fallback: login via RPC com SECURITY DEFINER (bypassa RLS para usuários sem conta no Auth)
+    // 2. Fallback: verifica credenciais via RPC (bypassa RLS)
     if (!profileData) {
       const { data: rpcData } = await supabase.rpc('login_profile', {
         p_username: u,
         p_password: p,
       });
+
       if (rpcData && rpcData.length > 0) {
         profileData = rpcData[0];
+        const authEmail = `${u}@${EMAIL_DOMAIN}`;
+        // Senha derivada do ID: sempre tem 36+ chars, nunca falha no Supabase
+        const authPass = buildAuthPassword(profileData.id);
 
-        // Auto-migração: cria conta no Auth, confirma o e-mail via RPC e estabelece sessão
         try {
           const { data: { session: currentSession } } = await supabase.auth.getSession();
 
-          // Cria o usuário no Supabase Auth (se já existir, retorna o usuário existente)
-          const { data: signUpData } = await supabase.auth.signUp({
-            email: `${u}@${EMAIL_DOMAIN}`,
-            password: p,
+          // Tenta signIn com senha derivada (usuário já foi migrado por este fluxo antes)
+          const { data: existingSignIn } = await supabase.auth.signInWithPassword({
+            email: authEmail,
+            password: authPass,
           });
 
-          if (signUpData?.user) {
-            // Confirma o e-mail diretamente via função SECURITY DEFINER no banco
-            // (sem depender de trigger — Supabase bloqueia triggers em auth.users)
-            await supabase.rpc('confirm_internal_user', {
-              p_email: `${u}@${EMAIL_DOMAIN}`,
-            });
-
-            // Vincula auth_user_id ao profile via RPC (bypassa RLS)
-            await supabase.rpc('link_profile_to_auth', {
-              p_username: u,
-              p_auth_user_id: signUpData.user.id,
-            });
-
-            if (currentSession?.access_token) {
-              // Havia sessão admin: restaura ela
-              await supabase.auth.setSession({
-                access_token: currentSession.access_token,
-                refresh_token: currentSession.refresh_token,
-              }).catch(() => {});
-            } else {
-              // E-mail agora confirmado — o signIn vai funcionar
-              await supabase.auth.signInWithPassword({
-                email: `${u}@${EMAIL_DOMAIN}`,
-                password: p,
+          if (existingSignIn?.user) {
+            // Já existe no Auth com senha derivada — vincula se necessário
+            if (!profileData.auth_user_id) {
+              await supabase.rpc('link_profile_to_auth', {
+                p_username: u,
+                p_auth_user_id: existingSignIn.user.id,
               }).catch(() => {});
             }
+          } else {
+            // Ainda não existe no Auth — cria agora com senha derivada (sempre válida)
+            const { data: signUpData } = await supabase.auth.signUp({
+              email: authEmail,
+              password: authPass,
+            });
+
+            if (signUpData?.user) {
+              // Confirma o e-mail via função SECURITY DEFINER
+              await supabase.rpc('confirm_internal_user', { p_email: authEmail }).catch(() => {});
+              // Vincula auth_user_id ao perfil
+              await supabase.rpc('link_profile_to_auth', {
+                p_username: u,
+                p_auth_user_id: signUpData.user.id,
+              }).catch(() => {});
+              // Agora o e-mail está confirmado — signIn vai funcionar
+              await supabase.auth.signInWithPassword({
+                email: authEmail,
+                password: authPass,
+              }).catch(() => {});
+            }
+          }
+
+          // Se havia sessão de outro usuário (admin), restaura
+          if (currentSession?.access_token) {
+            await supabase.auth.setSession({
+              access_token: currentSession.access_token,
+              refresh_token: currentSession.refresh_token,
+            }).catch(() => {});
           }
         } catch (_) { /* Falha silenciosa — login continua via profileData */ }
       }
 
-      // Garante logout do Supabase Auth se autenticação prévia falhou
-      if (!profileData && authError) {
+      if (!profileData) {
         await supabase.auth.signOut().catch(() => {});
       }
     }
@@ -894,19 +911,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (data) {
           const newProfile = data[0];
 
-          // Cria conta no Supabase Auth para que o usuário possa logar pelo método seguro
+          // Cria conta no Supabase Auth usando senha derivada do ID (sempre tem 36+ chars)
+          // A senha real do usuário não é usada aqui — autenticação real é via login_profile RPC
           try {
               const { data: { session: currentSession } } = await supabase.auth.getSession();
+              const authPass = buildAuthPassword(newProfile.id);
               const { data: signUpData } = await supabase.auth.signUp({
                   email: `${u.username}@${EMAIL_DOMAIN}`,
-                  password: u.password!,
+                  password: authPass,
               });
               if (signUpData?.user) {
-                  // Usa RPC com SECURITY DEFINER para vincular sem depender de RLS
+                  await supabase.rpc('confirm_internal_user', {
+                      p_email: `${u.username}@${EMAIL_DOMAIN}`,
+                  }).catch(() => {});
                   await supabase.rpc('link_profile_to_auth', {
                       p_username: u.username,
                       p_auth_user_id: signUpData.user.id,
-                  });
+                  }).catch(() => {});
               }
               // Restaura a sessão do admin que estava logado
               if (currentSession?.access_token) {
