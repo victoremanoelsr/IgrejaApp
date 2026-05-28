@@ -387,8 +387,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (rpcData && rpcData.length > 0) {
         profileData = rpcData[0];
 
-        // Auto-migração: cria a conta no Supabase Auth para este usuário
-        // para que futuros logins usem o método seguro (método 1)
+        // Auto-migração: cria conta no Supabase Auth e estabelece sessão ativa
+        // O trigger no banco auto-confirma e-mails @igrejaapp.internal
         try {
           const { data: { session: currentSession } } = await supabase.auth.getSession();
           const { data: signUpData } = await supabase.auth.signUp({
@@ -396,24 +396,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             password: p,
           });
           if (signUpData?.user) {
-            await supabase.from('profiles')
-              .update({ auth_user_id: signUpData.user.id })
-              .eq('id', profileData.id);
-            // Restaura a sessão original se o signUp tiver trocado
+            // Usa RPC com SECURITY DEFINER para vincular sem precisar de sessão ativa
+            await supabase.rpc('link_profile_to_auth', {
+              p_username: u,
+              p_auth_user_id: signUpData.user.id,
+            });
+
             if (currentSession?.access_token) {
+              // Havia uma sessão admin: restaura ela
               await supabase.auth.setSession({
                 access_token: currentSession.access_token,
                 refresh_token: currentSession.refresh_token,
               }).catch(() => {});
             } else {
-              // Era anônimo: faz signIn direto com o Auth agora que o usuário existe
-              const { data: signInData } = await supabase.auth.signInWithPassword({
+              // Usuário novo logando: o trigger auto-confirmou o e-mail,
+              // então o signIn agora vai funcionar
+              await supabase.auth.signInWithPassword({
                 email: `${u}@${EMAIL_DOMAIN}`,
                 password: p,
-              });
-              if (signInData?.user) {
-                // profileData já está correto, continua normalmente
-              }
+              }).catch(() => {});
             }
           }
         } catch (_) { /* Falha silenciosa — o login ainda funciona via profileData */ }
@@ -894,9 +895,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                   password: u.password!,
               });
               if (signUpData?.user) {
-                  await supabase.from('profiles')
-                      .update({ auth_user_id: signUpData.user.id })
-                      .eq('id', newProfile.id);
+                  // Usa RPC com SECURITY DEFINER para vincular sem depender de RLS
+                  await supabase.rpc('link_profile_to_auth', {
+                      p_username: u.username,
+                      p_auth_user_id: signUpData.user.id,
+                  });
               }
               // Restaura a sessão do admin que estava logado
               if (currentSession?.access_token) {
