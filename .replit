@@ -42,3 +42,5 @@ publicDir = "dist"
 [userenv]
 
 [userenv.shared]
+VITE_SUPABASE_URL = "https://tywgekdisyxflcfjwaou.supabase.co"
+VITE_SUPABASE_KEY = "sb_publishable_2TlD4zADVSE2MzHe6RR2fQ_L8owAbq_"
