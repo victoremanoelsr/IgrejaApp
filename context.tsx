@@ -398,44 +398,49 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         try {
           const { data: { session: currentSession } } = await supabase.auth.getSession();
 
-          // Tenta signIn com senha derivada (usuário já foi migrado por este fluxo antes)
-          const { data: existingSignIn } = await supabase.auth.signInWithPassword({
+          // Tenta signIn com senha derivada
+          const { data: existingSignIn, error: signInErr } = await supabase.auth.signInWithPassword({
             email: authEmail,
             password: authPass,
           });
 
           if (existingSignIn?.user) {
-            // Já existe no Auth com senha derivada — vincula se necessário
+            // Sessão estabelecida — vincula auth_user_id se ainda estiver NULL
             if (!profileData.auth_user_id) {
               await supabase.rpc('link_profile_to_auth', {
                 p_username: u,
                 p_auth_user_id: existingSignIn.user.id,
               }).catch(() => {});
             }
+          } else if (signInErr?.message?.toLowerCase().includes('email not confirmed')) {
+            // Usuário existe no Auth mas e-mail não foi confirmado
+            // Confirma via SECURITY DEFINER e tenta signIn novamente
+            await supabase.rpc('confirm_internal_user', { p_email: authEmail }).catch(() => {});
+            await supabase.auth.signInWithPassword({ email: authEmail, password: authPass }).catch(() => {});
           } else {
-            // Ainda não existe no Auth — cria agora com senha derivada (sempre válida)
+            // Usuário não existe no Auth — cria agora com senha derivada (36+ chars, sempre válida)
             const { data: signUpData } = await supabase.auth.signUp({
               email: authEmail,
               password: authPass,
             });
 
             if (signUpData?.user) {
-              // Confirma o e-mail via função SECURITY DEFINER
+              // Confirma e-mail imediatamente (caso "Confirm email" esteja ativo no Supabase)
               await supabase.rpc('confirm_internal_user', { p_email: authEmail }).catch(() => {});
-              // Vincula auth_user_id ao perfil
-              await supabase.rpc('link_profile_to_auth', {
-                p_username: u,
-                p_auth_user_id: signUpData.user.id,
-              }).catch(() => {});
+              // Vincula auth_user_id somente se o perfil ainda NÃO tem um
+              // (evita sobrescrever com UUID fake do mecanismo anti-enumeração do Supabase)
+              if (!profileData.auth_user_id) {
+                await supabase.rpc('link_profile_to_auth', {
+                  p_username: u,
+                  p_auth_user_id: signUpData.user.id,
+                }).catch(() => {});
+              }
               // Agora o e-mail está confirmado — signIn vai funcionar
-              await supabase.auth.signInWithPassword({
-                email: authEmail,
-                password: authPass,
-              }).catch(() => {});
+              await supabase.auth.signInWithPassword({ email: authEmail, password: authPass }).catch(() => {});
             }
           }
 
-          // Se havia sessão de outro usuário (admin), restaura
+          // Se havia sessão de outro usuário (admin/super), restaura
           if (currentSession?.access_token) {
             await supabase.auth.setSession({
               access_token: currentSession.access_token,
@@ -906,11 +911,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       // (signUp troca a sessão ativa para o novo usuário — restauramos logo depois)
       let authUserId: string | null = null;
       try {
+          const authEmail = `${u.username}@${EMAIL_DOMAIN}`;
           const { data: signUpData } = await supabase.auth.signUp({
-              email: `${u.username}@${EMAIL_DOMAIN}`,
+              email: authEmail,
               password: authPass,
           });
           authUserId = signUpData?.user?.id ?? null;
+
+          // Se o e-mail não foi confirmado automaticamente (opção "Confirm email" ativa no Supabase),
+          // confirma via RPC SECURITY DEFINER para que o signIn funcione no primeiro login
+          if (authUserId && !signUpData?.session) {
+              await supabase.rpc('confirm_internal_user', { p_email: authEmail }).catch(() => {});
+          }
       } catch (_) {}
 
       // Passo 2: restaura a sessão do admin ANTES de fazer o INSERT
