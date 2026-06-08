@@ -405,8 +405,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           });
 
           if (existingSignIn?.user) {
-            // Sessão estabelecida — vincula auth_user_id se ainda estiver NULL
-            if (!profileData.auth_user_id) {
+            // Sessão estabelecida — corrige auth_user_id se estiver NULL ou divergente
+            // (divergência ocorre quando signUp retornou UUID fake por anti-enumeração do Supabase)
+            if (!profileData.auth_user_id || profileData.auth_user_id !== existingSignIn.user.id) {
               await supabase.rpc('link_profile_to_auth', {
                 p_username: u,
                 p_auth_user_id: existingSignIn.user.id,
@@ -907,21 +908,42 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       // Senha derivada: sempre 36+ chars, nunca falha no Supabase Auth
       const authPass = buildAuthPassword(profileId);
 
-      // Passo 1: cria o usuário no Supabase Auth e captura o auth_user_id
-      // (signUp troca a sessão ativa para o novo usuário — restauramos logo depois)
+      // Passo 1: cria o usuário no Supabase Auth e captura o auth_user_id REAL
       let authUserId: string | null = null;
       try {
           const authEmail = `${u.username}@${EMAIL_DOMAIN}`;
-          const { data: signUpData } = await supabase.auth.signUp({
+
+          // Tenta signIn primeiro — se já existir com senha derivada, pega o UUID real
+          const { data: preSignIn } = await supabase.auth.signInWithPassword({
               email: authEmail,
               password: authPass,
           });
-          authUserId = signUpData?.user?.id ?? null;
 
-          // Se o e-mail não foi confirmado automaticamente (opção "Confirm email" ativa no Supabase),
-          // confirma via RPC SECURITY DEFINER para que o signIn funcione no primeiro login
-          if (authUserId && !signUpData?.session) {
-              await supabase.rpc('confirm_internal_user', { p_email: authEmail }).catch(() => {});
+          if (preSignIn?.user) {
+              // Já existe com senha derivada — usa o UUID real diretamente
+              authUserId = preSignIn.user.id;
+          } else {
+              // Cria novo usuário no Auth
+              const { data: signUpData } = await supabase.auth.signUp({
+                  email: authEmail,
+                  password: authPass,
+              });
+              authUserId = signUpData?.user?.id ?? null;
+
+              // Se e-mail não foi confirmado automaticamente, confirma via RPC
+              if (authUserId && !signUpData?.session) {
+                  await supabase.rpc('confirm_internal_user', { p_email: authEmail }).catch(() => {});
+              }
+
+              // Verifica o UUID real via signIn — evita UUID falso do mecanismo
+              // anti-enumeração do Supabase (que ocorre quando o e-mail já existia)
+              const { data: verifySignIn } = await supabase.auth.signInWithPassword({
+                  email: authEmail,
+                  password: authPass,
+              });
+              if (verifySignIn?.user) {
+                  authUserId = verifySignIn.user.id; // UUID real confirmado
+              }
           }
       } catch (_) {}
 
