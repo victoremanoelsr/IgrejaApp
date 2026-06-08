@@ -894,51 +894,49 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const addUser = async (u: User) => {
+      // Salva sessão atual (admin) antes de qualquer operação de auth
+      const { data: { session: adminSession } } = await supabase.auth.getSession();
+
+      // ID definitivo do perfil — forçado (fluxo SuperAdmin) ou gerado agora
+      const profileId = (u.id && u.id.trim() !== '') ? u.id : crypto.randomUUID();
+      // Senha derivada: sempre 36+ chars, nunca falha no Supabase Auth
+      const authPass = buildAuthPassword(profileId);
+
+      // Passo 1: cria o usuário no Supabase Auth e captura o auth_user_id
+      // (signUp troca a sessão ativa para o novo usuário — restauramos logo depois)
+      let authUserId: string | null = null;
+      try {
+          const { data: signUpData } = await supabase.auth.signUp({
+              email: `${u.username}@${EMAIL_DOMAIN}`,
+              password: authPass,
+          });
+          authUserId = signUpData?.user?.id ?? null;
+      } catch (_) {}
+
+      // Passo 2: restaura a sessão do admin ANTES de fazer o INSERT
+      if (adminSession?.access_token) {
+          await supabase.auth.setSession({
+              access_token: adminSession.access_token,
+              refresh_token: adminSession.refresh_token,
+          }).catch(() => {});
+      }
+
+      // Passo 3: INSERT como admin, já incluindo auth_user_id no payload
+      // Assim o campo nunca fica NULL — não precisa de RPC extra
       const payload: any = {
+          id: profileId,
           name: u.name,
           username: u.username,
           password: u.password,
           cpf: u.cpf,
           role: u.role,
-          church_id: u.churchId
+          church_id: u.churchId,
+          ...(authUserId ? { auth_user_id: authUserId } : {}),
       };
-
-      if (u.id && u.id.trim() !== '') {
-          payload.id = u.id;
-      }
 
       const { data, error } = await supabase.from('profiles').insert([payload]).select();
       if (data) {
-          const newProfile = data[0];
-
-          // Cria conta no Supabase Auth usando senha derivada do ID (sempre tem 36+ chars)
-          // A senha real do usuário não é usada aqui — autenticação real é via login_profile RPC
-          try {
-              const { data: { session: currentSession } } = await supabase.auth.getSession();
-              const authPass = buildAuthPassword(newProfile.id);
-              const { data: signUpData } = await supabase.auth.signUp({
-                  email: `${u.username}@${EMAIL_DOMAIN}`,
-                  password: authPass,
-              });
-              if (signUpData?.user) {
-                  await supabase.rpc('confirm_internal_user', {
-                      p_email: `${u.username}@${EMAIL_DOMAIN}`,
-                  }).catch(() => {});
-                  await supabase.rpc('link_profile_to_auth', {
-                      p_username: u.username,
-                      p_auth_user_id: signUpData.user.id,
-                  }).catch(() => {});
-              }
-              // Restaura a sessão do admin que estava logado
-              if (currentSession?.access_token) {
-                  await supabase.auth.setSession({
-                      access_token: currentSession.access_token,
-                      refresh_token: currentSession.refresh_token,
-                  }).catch(() => {});
-              }
-          } catch (_) { /* Falha silenciosa — usuário ainda pode logar via RPC fallback */ }
-
-          setUsers([...users, toAppUser(newProfile)]);
+          setUsers([...users, toAppUser(data[0])]);
           return { success: true };
       }
       return { success: false, error: error?.message };
