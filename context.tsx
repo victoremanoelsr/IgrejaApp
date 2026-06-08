@@ -823,63 +823,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const addUser = async (u: User) => {
-      // Salva sessão atual (admin) antes de qualquer operação de auth
-      const { data: { session: adminSession } } = await supabase.auth.getSession();
-
-      // ID definitivo do perfil — forçado (fluxo SuperAdmin) ou gerado agora
       const profileId = (u.id && u.id.trim() !== '') ? u.id : crypto.randomUUID();
-      // Senha derivada: sempre 36+ chars, nunca falha no Supabase Auth
-      const authPass = buildAuthPassword(profileId);
 
-      // Passo 1: cria o usuário no Supabase Auth e captura o auth_user_id REAL
-      let authUserId: string | null = null;
-      try {
-          const authEmail = `${u.username}@${EMAIL_DOMAIN}`;
-
-          // Tenta signIn primeiro — se já existir com senha derivada, pega o UUID real
-          const { data: preSignIn } = await supabase.auth.signInWithPassword({
-              email: authEmail,
-              password: authPass,
-          });
-
-          if (preSignIn?.user) {
-              // Já existe com senha derivada — usa o UUID real diretamente
-              authUserId = preSignIn.user.id;
-          } else {
-              // Cria novo usuário no Auth
-              const { data: signUpData } = await supabase.auth.signUp({
-                  email: authEmail,
-                  password: authPass,
-              });
-              authUserId = signUpData?.user?.id ?? null;
-
-              // Se e-mail não foi confirmado automaticamente, confirma via RPC
-              if (authUserId && !signUpData?.session) {
-                  await supabase.rpc('confirm_internal_user', { p_email: authEmail }).catch(() => {});
-              }
-
-              // Verifica o UUID real via signIn — evita UUID falso do mecanismo
-              // anti-enumeração do Supabase (que ocorre quando o e-mail já existia)
-              const { data: verifySignIn } = await supabase.auth.signInWithPassword({
-                  email: authEmail,
-                  password: authPass,
-              });
-              if (verifySignIn?.user) {
-                  authUserId = verifySignIn.user.id; // UUID real confirmado
-              }
-          }
-      } catch (_) {}
-
-      // Passo 2: restaura a sessão do admin ANTES de fazer o INSERT
-      if (adminSession?.access_token) {
-          await supabase.auth.setSession({
-              access_token: adminSession.access_token,
-              refresh_token: adminSession.refresh_token,
-          }).catch(() => {});
-      }
-
-      // Passo 3: INSERT como admin, já incluindo auth_user_id no payload
-      // Assim o campo nunca fica NULL — não precisa de RPC extra
+      // Passo 1: insere o perfil no banco
       const payload: any = {
           id: profileId,
           name: u.name,
@@ -888,15 +834,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           cpf: u.cpf,
           role: u.role,
           church_id: u.churchId,
-          ...(authUserId ? { auth_user_id: authUserId } : {}),
       };
 
       const { data, error } = await supabase.from('profiles').insert([payload]).select();
-      if (data) {
-          setUsers([...users, toAppUser(data[0])]);
-          return { success: true };
-      }
-      return { success: false, error: error?.message };
+      if (!data) return { success: false, error: error?.message };
+
+      // Passo 2: cria/corrige o usuário Auth server-side (SECURITY DEFINER)
+      // Cria o auth.user com senha derivada, confirma e-mail e vincula auth_user_id
+      try { await supabase.rpc('ensure_auth_for_profile', { p_profile_id: profileId }); } catch (_) {}
+
+      setUsers([...users, toAppUser(data[0])]);
+      return { success: true };
   };
 
   const updateUser = async (id: string, u: User) => {
