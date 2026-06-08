@@ -381,7 +381,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     // 2. Garante que o usuário Auth existe com senha derivada
     // (cria se não existe, corrige senha/confirmação se existe — tudo server-side via SECURITY DEFINER)
-    await supabase.rpc('ensure_auth_for_profile', { p_profile_id: profileData.id }).catch(() => {});
+    try { await supabase.rpc('ensure_auth_for_profile', { p_profile_id: profileData.id }); } catch (_) {}
 
     // 3. Estabelece sessão Supabase Auth (necessária para queries com RLS)
     await supabase.auth.signInWithPassword({ email: authEmail, password: authPass }).catch(() => {});
