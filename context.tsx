@@ -365,127 +365,50 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const buildAuthPassword = (profileId: string) => `IA_${profileId}`;
 
   const login = async (u: string, p: string) => {
-    let profileData: any = null;
-
-    // 1. Tenta login via Supabase Auth com senha real (usuários já migrados)
-    const { data: authData } = await supabase.auth.signInWithPassword({
-      email: `${u}@${EMAIL_DOMAIN}`,
-      password: p,
+    // 1. Valida credenciais via RPC SECURITY DEFINER (bypassa RLS)
+    const { data: rpcData } = await supabase.rpc('login_profile', {
+      p_username: u,
+      p_password: p,
     });
 
-    if (authData?.user) {
-      const { data: pd } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('auth_user_id', authData.user.id)
-        .single();
-      profileData = pd;
+    if (!rpcData || rpcData.length === 0) {
+      return { error: 'Credenciais inválidas' };
     }
 
-    // 2. Fallback: verifica credenciais via RPC (bypassa RLS)
-    if (!profileData) {
-      const { data: rpcData } = await supabase.rpc('login_profile', {
-        p_username: u,
-        p_password: p,
-      });
+    const profileData = rpcData[0];
+    const authEmail = `${u}@${EMAIL_DOMAIN}`;
+    const authPass = buildAuthPassword(profileData.id);
 
-      if (rpcData && rpcData.length > 0) {
-        profileData = rpcData[0];
-        const authEmail = `${u}@${EMAIL_DOMAIN}`;
-        // Senha derivada do ID: sempre tem 36+ chars, nunca falha no Supabase
-        const authPass = buildAuthPassword(profileData.id);
+    // 2. Garante que o usuário Auth existe com senha derivada
+    // (cria se não existe, corrige senha/confirmação se existe — tudo server-side via SECURITY DEFINER)
+    await supabase.rpc('ensure_auth_for_profile', { p_profile_id: profileData.id }).catch(() => {});
 
-        try {
-          const { data: { session: currentSession } } = await supabase.auth.getSession();
+    // 3. Estabelece sessão Supabase Auth (necessária para queries com RLS)
+    await supabase.auth.signInWithPassword({ email: authEmail, password: authPass }).catch(() => {});
 
-          // Tenta signIn com senha derivada
-          const { data: existingSignIn, error: signInErr } = await supabase.auth.signInWithPassword({
-            email: authEmail,
-            password: authPass,
-          });
+    // 4. Carrega dados com a sessão estabelecida
+    const appUser = toAppUser(profileData);
+    await fetchData();
 
-          if (existingSignIn?.user) {
-            // Sessão estabelecida — corrige auth_user_id se estiver NULL ou divergente
-            // (divergência ocorre quando signUp retornou UUID fake por anti-enumeração do Supabase)
-            if (!profileData.auth_user_id || profileData.auth_user_id !== existingSignIn.user.id) {
-              await supabase.rpc('link_profile_to_auth', {
-                p_username: u,
-                p_auth_user_id: existingSignIn.user.id,
-              }).catch(() => {});
-            }
-          } else if (signInErr?.message?.toLowerCase().includes('email not confirmed')) {
-            // Usuário existe no Auth mas e-mail não foi confirmado
-            // Confirma via SECURITY DEFINER e tenta signIn novamente
-            await supabase.rpc('confirm_internal_user', { p_email: authEmail }).catch(() => {});
-            await supabase.auth.signInWithPassword({ email: authEmail, password: authPass }).catch(() => {});
-          } else {
-            // Usuário não existe no Auth — cria agora com senha derivada (36+ chars, sempre válida)
-            const { data: signUpData } = await supabase.auth.signUp({
-              email: authEmail,
-              password: authPass,
-            });
-
-            if (signUpData?.user) {
-              // Confirma e-mail imediatamente (caso "Confirm email" esteja ativo no Supabase)
-              await supabase.rpc('confirm_internal_user', { p_email: authEmail }).catch(() => {});
-              // Vincula auth_user_id somente se o perfil ainda NÃO tem um
-              // (evita sobrescrever com UUID fake do mecanismo anti-enumeração do Supabase)
-              if (!profileData.auth_user_id) {
-                await supabase.rpc('link_profile_to_auth', {
-                  p_username: u,
-                  p_auth_user_id: signUpData.user.id,
-                }).catch(() => {});
-              }
-              // Agora o e-mail está confirmado — signIn vai funcionar
-              await supabase.auth.signInWithPassword({ email: authEmail, password: authPass }).catch(() => {});
-            }
-          }
-
-          // Se havia sessão de outro usuário (admin/super), restaura
-          if (currentSession?.access_token) {
-            await supabase.auth.setSession({
-              access_token: currentSession.access_token,
-              refresh_token: currentSession.refresh_token,
-            }).catch(() => {});
-          }
-        } catch (_) { /* Falha silenciosa — login continua via profileData */ }
-      }
-
-      if (!profileData) {
+    if (appUser.role !== 'SUPER_ADM' && appUser.churchId) {
+      const { data: freshChurches } = await supabase.from('churches').select('*');
+      const churchList = freshChurches ? freshChurches.map(toAppChurch) : churches;
+      const blocked = await isChurchBlocked(appUser.churchId, churchList);
+      if (blocked) {
         await supabase.auth.signOut().catch(() => {});
+        return { blocked: true };
       }
     }
 
-    if (profileData) {
-      const appUser = toAppUser(profileData);
-
-      // Recarrega todos os dados agora que o usuário está autenticado
-      // (essencial quando o RLS está ativo — dados anteriores podem estar vazios)
-      await fetchData();
-
-      if (appUser.role !== 'SUPER_ADM' && appUser.churchId) {
-        // Usa a lista de igrejas recém-carregada
-        const { data: freshChurches } = await supabase.from('churches').select('*');
-        const churchList = freshChurches ? freshChurches.map(toAppChurch) : churches;
-        const blocked = await isChurchBlocked(appUser.churchId, churchList);
-        if (blocked) {
-          await supabase.auth.signOut().catch(() => {});
-          return { blocked: true };
-        }
+    setUser(appUser);
+    if (appUser.churchId) {
+      const { data: freshChurches } = await supabase.from('churches').select('*');
+      if (freshChurches) {
+        const church = freshChurches.map(toAppChurch).find(c => c.id === appUser.churchId);
+        if (church) setCurrentChurch(church);
       }
-
-      setUser(appUser);
-      if (appUser.churchId) {
-        const { data: freshChurches } = await supabase.from('churches').select('*');
-        if (freshChurches) {
-          const church = freshChurches.map(toAppChurch).find(c => c.id === appUser.churchId);
-          if (church) setCurrentChurch(church);
-        }
-      }
-      return { user: appUser };
     }
-
-    return { error: 'Credenciais inválidas' };
+    return { user: appUser };
   };
 
   const logout = () => {
