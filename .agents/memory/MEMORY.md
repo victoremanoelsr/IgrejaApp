@@ -1,0 +1,2 @@
+- [Supabase Auth login flow](supabase-auth-login.md) — multi-step fallback login; real-password first, then derived, then signUp+confirm; never simplify to one step only.
+- [Auth user creation](auth-user-creation.md) — addUser inserts profile first, then calls ensure_auth_for_profile RPC; signUp alone unreliable due to anti-enumeration fake UUIDs.
