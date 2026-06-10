@@ -833,19 +833,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const uploadChurchLogo = async (file: File) => { return uploadFileToSupabase(file, 'images'); };
   
   const addCongregation = async (c: Church) => {
-      const { data, error } = await supabase.from('churches').insert([{
-          name: c.name,
-          address: c.address,
-          pastor_name: c.pastorName,
-          type: 'CONGREGACAO',
-          active: true,
-          parent_id: c.parentId
-      }]).select();
-      if(data) {
-          setChurches([...churches, toAppChurch(data[0])]);
-          return data[0].id;
+      const { data, error } = await supabase.rpc('create_congregation', {
+          p_name: c.name,
+          p_address: c.address || '',
+          p_pastor_name: c.pastorName || '',
+          p_parent_id: c.parentId,
+      });
+      if (error) {
+          console.error('[addCongregation] erro:', error);
+          return null;
       }
-      return null;
+      const newId = data as string;
+      const { data: row } = await supabase.from('churches').select('*').eq('id', newId).single();
+      if (row) {
+          setChurches([...churches, toAppChurch(row)]);
+      }
+      return newId;
   };
 
   const toggleChurchStatus = async (id: string) => {
