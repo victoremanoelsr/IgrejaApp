@@ -2,8 +2,9 @@
 import React, { useState, useRef } from 'react';
 import { useApp } from '../context';
 import { 
-  Calendar as CalendarIcon, Plus, Clock, User, MapPin, Image, Upload, X, Loader, 
-  Edit2, Trash2, Save, AlertTriangle, CheckCircle, Info, History
+  Calendar as CalendarIcon, Plus, Clock, User, MapPin, Image, X, Loader, 
+  Edit2, Trash2, Save, AlertTriangle, CheckCircle, Info, History,
+  ChevronLeft, ChevronRight, List, LayoutGrid
 } from 'lucide-react';
 import { Event } from '../types';
 
@@ -25,6 +26,13 @@ export const Events: React.FC = () => {
 
   // Lightbox State
   const [enlargedPhoto, setEnlargedPhoto] = useState<string | null>(null);
+
+  // Calendar State
+  const [viewMode, setViewMode] = useState<'lista' | 'calendario'>('lista');
+  const [calendarDate, setCalendarDate] = useState(() => {
+    const d = new Date(); d.setDate(1); return d;
+  });
+  const [selectedDay, setSelectedDay] = useState<string | null>(null);
 
   // --- CUSTOM CONFIRM/ALERT MODAL STATE ---
   const [modalState, setModalState] = useState<{
@@ -247,11 +255,143 @@ export const Events: React.FC = () => {
     </div>
   );
 
+  // ---- CALENDAR HELPERS ----
+  const WEEK_DAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+  const MONTHS_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+  const toIso = (d: Date) => d.toISOString().split('T')[0];
+
+  const eventsByDay = churchEventsRaw.reduce<Record<string, Event[]>>((acc, ev) => {
+    if (!acc[ev.date]) acc[ev.date] = [];
+    acc[ev.date].push(ev);
+    return acc;
+  }, {});
+
+  const renderCalendar = () => {
+    const year = calendarDate.getFullYear();
+    const month = calendarDate.getMonth();
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const today = toIso(new Date());
+
+    const cells: (number | null)[] = [
+      ...Array(firstDay).fill(null),
+      ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
+    ];
+    while (cells.length % 7 !== 0) cells.push(null);
+
+    const dayEvents = selectedDay ? (eventsByDay[selectedDay] || []) : [];
+
+    return (
+      <div className="space-y-4">
+        {/* Month navigation */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+            <button
+              onClick={() => { setCalendarDate(new Date(year, month - 1, 1)); setSelectedDay(null); }}
+              className="p-2 rounded-lg hover:bg-gray-100 text-gray-600 transition-colors"
+            >
+              <ChevronLeft size={20} />
+            </button>
+            <h2 className="text-lg font-bold text-gray-800">
+              {MONTHS_PT[month]} {year}
+            </h2>
+            <button
+              onClick={() => { setCalendarDate(new Date(year, month + 1, 1)); setSelectedDay(null); }}
+              className="p-2 rounded-lg hover:bg-gray-100 text-gray-600 transition-colors"
+            >
+              <ChevronRight size={20} />
+            </button>
+          </div>
+
+          {/* Week header */}
+          <div className="grid grid-cols-7 border-b border-gray-100">
+            {WEEK_DAYS.map(d => (
+              <div key={d} className="py-2 text-center text-xs font-bold text-gray-400 uppercase tracking-wider">
+                {d}
+              </div>
+            ))}
+          </div>
+
+          {/* Day grid */}
+          <div className="grid grid-cols-7">
+            {cells.map((day, idx) => {
+              if (!day) return <div key={`empty-${idx}`} className="min-h-[72px] border-r border-b border-gray-50 last:border-r-0" />;
+              const iso = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+              const dayEvs = eventsByDay[iso] || [];
+              const isToday = iso === today;
+              const isSelected = iso === selectedDay;
+
+              return (
+                <div
+                  key={iso}
+                  onClick={() => setSelectedDay(isSelected ? null : iso)}
+                  className={`min-h-[72px] p-1.5 border-r border-b border-gray-100 last:border-r-0 cursor-pointer transition-colors
+                    ${isSelected ? 'bg-orange-50 border-brand-orange' : 'hover:bg-gray-50'}
+                    ${idx % 7 === 6 ? 'border-r-0' : ''}
+                  `}
+                >
+                  <div className={`w-7 h-7 flex items-center justify-center rounded-full text-sm font-semibold mb-1 mx-auto
+                    ${isToday ? 'bg-brand-orange text-white' : isSelected ? 'bg-brand-orange/20 text-brand-orange' : 'text-gray-700'}
+                  `}>
+                    {day}
+                  </div>
+                  <div className="space-y-0.5">
+                    {dayEvs.slice(0, 2).map(ev => (
+                      <div
+                        key={ev.id}
+                        className={`text-[10px] font-medium px-1 py-0.5 rounded truncate leading-tight
+                          ${ev.date < today ? 'bg-gray-200 text-gray-500' : 'bg-brand-orange/15 text-brand-orange'}
+                        `}
+                        title={ev.name}
+                      >
+                        {ev.name}
+                      </div>
+                    ))}
+                    {dayEvs.length > 2 && (
+                      <div className="text-[10px] text-gray-400 font-medium pl-1">+{dayEvs.length - 2} mais</div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Selected day events */}
+        {selectedDay && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-2 h-2 rounded-full bg-brand-orange" />
+              <h3 className="font-bold text-gray-700">
+                {new Date(selectedDay + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' })}
+              </h3>
+            </div>
+            {dayEvents.length === 0 ? (
+              <p className="text-gray-400 text-sm text-center py-4">Nenhum evento neste dia.</p>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {dayEvents.map(ev => renderEventCard(ev, ev.date < today))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Legend */}
+        <div className="flex items-center gap-4 text-xs text-gray-400 px-1">
+          <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-brand-orange/15 inline-block" /> Próximo</span>
+          <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-gray-200 inline-block" /> Finalizado</span>
+          <span className="flex items-center gap-1.5"><span className="w-5 h-5 rounded-full bg-brand-orange inline-block" /> Hoje</span>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-6">
       {renderPhotoLightbox()}
 
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center flex-wrap gap-3">
         <div>
             <h1 className="text-3xl font-bold text-gray-800 flex items-center">
             <CalendarIcon className="mr-3 text-brand-orange" /> Agenda da Igreja
@@ -259,12 +399,32 @@ export const Events: React.FC = () => {
             <p className="text-gray-500 text-sm mt-1">{currentChurch?.name}</p>
         </div>
         
-        <button 
-          onClick={() => { handleCancel(); setShowForm(!showForm); }}
-          className="bg-brand-black text-white px-4 py-2 rounded-lg flex items-center hover:bg-gray-800"
-        >
-          <Plus size={20} className="mr-2"/> Novo Evento
-        </button>
+        <div className="flex items-center gap-2">
+          {/* View toggle */}
+          <div className="flex bg-gray-100 rounded-lg p-1 border border-gray-200">
+            <button
+              onClick={() => setViewMode('lista')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors
+                ${viewMode === 'lista' ? 'bg-white shadow text-gray-800' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              <List size={15} /> Lista
+            </button>
+            <button
+              onClick={() => setViewMode('calendario')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors
+                ${viewMode === 'calendario' ? 'bg-white shadow text-gray-800' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              <LayoutGrid size={15} /> Calendário
+            </button>
+          </div>
+
+          <button 
+            onClick={() => { handleCancel(); setShowForm(!showForm); }}
+            className="bg-brand-black text-white px-4 py-2 rounded-lg flex items-center hover:bg-gray-800"
+          >
+            <Plus size={20} className="mr-2"/> Novo Evento
+          </button>
+        </div>
       </div>
 
       {showForm && (
@@ -394,33 +554,38 @@ export const Events: React.FC = () => {
         </div>
       )}
 
-      {/* --- UPCOMING EVENTS LIST --- */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {upcomingEvents.map((event) => renderEventCard(event, false))}
-      </div>
+      {/* --- CALENDAR or LIST VIEW --- */}
+      {viewMode === 'calendario' ? renderCalendar() : (
+        <>
+          {/* --- UPCOMING EVENTS LIST --- */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {upcomingEvents.map((event) => renderEventCard(event, false))}
+          </div>
 
-      {upcomingEvents.length === 0 && pastEvents.length === 0 && (
-           <div className="col-span-full py-16 text-center bg-white rounded-xl border border-dashed border-gray-300">
-               <CalendarIcon size={48} className="mx-auto text-gray-300 mb-3"/>
-               <p className="text-gray-500 font-medium">Nenhum evento agendado.</p>
-           </div>
-      )}
+          {upcomingEvents.length === 0 && pastEvents.length === 0 && (
+              <div className="col-span-full py-16 text-center bg-white rounded-xl border border-dashed border-gray-300">
+                  <CalendarIcon size={48} className="mx-auto text-gray-300 mb-3"/>
+                  <p className="text-gray-500 font-medium">Nenhum evento agendado.</p>
+              </div>
+          )}
 
-      {/* --- SEPARATOR & PAST EVENTS --- */}
-      {pastEvents.length > 0 && (
-        <div className="mt-12">
-            <div className="flex items-center mb-6">
-                <div className="flex-grow border-t border-gray-300"></div>
-                <div className="mx-4 flex items-center text-gray-400 font-bold uppercase text-sm tracking-wider">
-                    <History size={16} className="mr-2"/> Eventos Finalizados
+          {/* --- SEPARATOR & PAST EVENTS --- */}
+          {pastEvents.length > 0 && (
+            <div className="mt-12">
+                <div className="flex items-center mb-6">
+                    <div className="flex-grow border-t border-gray-300"></div>
+                    <div className="mx-4 flex items-center text-gray-400 font-bold uppercase text-sm tracking-wider">
+                        <History size={16} className="mr-2"/> Eventos Finalizados
+                    </div>
+                    <div className="flex-grow border-t border-gray-300"></div>
                 </div>
-                <div className="flex-grow border-t border-gray-300"></div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {pastEvents.map((event) => renderEventCard(event, true))}
+                </div>
             </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {pastEvents.map((event) => renderEventCard(event, true))}
-            </div>
-        </div>
+          )}
+        </>
       )}
 
       {/* GLOBAL CONFIRM/ALERT MODAL */}
