@@ -482,11 +482,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateUserCredentials = async (id: string, username?: string, password?: string) => {
-    const updates: any = {};
-    if (username) updates.username = username;
-    if (password) updates.password = password;
-
-    const { error } = await supabase.from('profiles').update(updates).eq('id', id);
+    const { error } = await supabase.rpc('update_user_credentials', {
+      p_id: id,
+      p_username: username ?? null,
+      p_password: password ?? null,
+    });
     if (error) return { success: false, error: error.message };
 
     // Atualiza também no Supabase Auth (funciona para o usuário logado atualmente)
@@ -499,6 +499,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     } catch (_) { /* Ignora silenciosamente — profiles já foi atualizado */ }
 
+    const updates: any = {};
+    if (username) updates.username = username;
+    if (password) updates.password = password;
     setUsers(users.map(u => u.id === id ? { ...u, ...updates } : u));
     return { success: true };
   };
