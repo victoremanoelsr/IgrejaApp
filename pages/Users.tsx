@@ -4,6 +4,14 @@ import { useApp } from '../context';
 import { User, Role, Member } from '../types';
 import { Search, Plus, Trash2, Edit2, User as UserIcon, Save, X, ShieldCheck, Lock, CheckCircle, AlertTriangle, Info } from 'lucide-react';
 
+const formatCPF = (value: string) => {
+  const d = value.replace(/\D/g, '').slice(0, 11);
+  if (d.length <= 3) return d;
+  if (d.length <= 6) return `${d.slice(0,3)}.${d.slice(3)}`;
+  if (d.length <= 9) return `${d.slice(0,3)}.${d.slice(3,6)}.${d.slice(6)}`;
+  return `${d.slice(0,3)}.${d.slice(3,6)}.${d.slice(6,9)}-${d.slice(9)}`;
+};
+
 export const Users: React.FC = () => {
   const { users, churches, members, user: currentUser, addUser, updateUser, deleteUser, availableChurches } = useApp();
   const [view, setView] = useState<'LIST' | 'FORM'>('LIST');
@@ -103,7 +111,7 @@ export const Users: React.FC = () => {
     setFormData({
       ...formData,
       name: member.name,
-      cpf: member.cpf,
+      cpf: formatCPF(member.cpf || ''),
       birthDate: member.birthDate,
     });
     setShowSuggestions(false);
@@ -140,7 +148,7 @@ export const Users: React.FC = () => {
     setFormData({
       name: user.name,
       username: user.username,
-      cpf: user.cpf,
+      cpf: formatCPF(user.cpf || ''),
       birthDate: user.birthDate || '',
       role: user.role,
       churchId: user.churchId || '',
@@ -432,8 +440,10 @@ export const Users: React.FC = () => {
               type="text" 
               required 
               className="mt-1 block w-full p-2 border rounded-md focus:ring-brand-orange focus:border-brand-orange text-sm"
+              placeholder="000.000.000-00"
+              maxLength={14}
               value={formData.cpf}
-              onChange={e => setFormData({...formData, cpf: e.target.value})}
+              onChange={e => setFormData({...formData, cpf: formatCPF(e.target.value)})}
             />
           </div>
 
