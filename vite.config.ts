@@ -13,7 +13,7 @@ export default defineConfig(({ mode }) => {
         registerType: 'autoUpdate',
         includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
         devOptions: {
-          enabled: true
+          enabled: false
         },
         manifest: {
           name: 'IgrejaApp - Gestão Eclesiástica',
