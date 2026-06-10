@@ -867,6 +867,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const addUser = async (u: User) => {
       const profileId = (u.id && u.id.trim() !== '') ? u.id : crypto.randomUUID();
 
+      // Verifica se o username já existe antes de tentar inserir
+      const { data: existing } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('username', u.username.trim())
+          .maybeSingle();
+      if (existing) {
+          return { success: false, error: `O usuário "${u.username}" já está em uso. Escolha outro nome de usuário.` };
+      }
+
       // Usa RPC SECURITY DEFINER para bypassar RLS no insert de profiles
       const { data: rpcData, error } = await supabase.rpc('create_profile', {
           p_id: profileId,

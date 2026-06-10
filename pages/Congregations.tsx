@@ -198,11 +198,7 @@ export const Congregations: React.FC = () => {
 
         const res = await addUser(newDirigente);
         if (!res.success) {
-            const isDuplicate = res.error && (res.error.includes('duplicate') || res.error.includes('already exists') || res.error.includes('profiles_username_key'));
-            const errMsg = isDuplicate
-                ? `Congregação criada! Porém o usuário "${newCongDirigenteUser}" já existe no sistema. Escolha outro nome de usuário para o dirigente e cadastre-o manualmente em Usuários.`
-                : `Congregação criada, mas houve um erro ao criar o usuário dirigente: ${res.error}`;
-            showAlert("Atenção", errMsg, 'warning');
+            showAlert("Atenção", `Congregação criada! Porém não foi possível criar o usuário dirigente: ${res.error}`, 'warning');
         } else {
             showAlert("Sucesso", `Congregação "${newCongName}" cadastrada com sucesso!`, 'success');
         }
