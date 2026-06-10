@@ -216,12 +216,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     fetchData();
   }, []);
 
+  // Varredura automática a cada 6 horas — bloqueia igrejas inadimplentes sem precisar de login
+  useEffect(() => {
+    const SIX_HOURS = 6 * 60 * 60 * 1000;
+    const interval = setInterval(() => fetchData(), SIX_HOURS);
+    return () => clearInterval(interval);
+  }, []);
+
   const fetchData = async () => {
     const { data: userData } = await supabase.from('profiles').select('*');
     if(userData) setUsers(userData.map(toAppUser));
 
     const { data: churchData } = await supabase.from('churches').select('*');
-    if(churchData) setChurches(churchData.map(toAppChurch));
+    if(churchData) {
+      const mapped = churchData.map(toAppChurch);
+      setChurches(mapped);
+      sweepOverdueChurches(mapped);
+    }
 
     const { data: memberData } = await supabase.from('members').select('*');
     if(memberData) setMembers(memberData.map(toAppMember));
@@ -355,6 +366,40 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     }
     return false;
+  };
+
+  // Varre TODAS as sedes com plano pago e bloqueia as inadimplentes.
+  // Chamado ao carregar dados e a cada 6h enquanto o app estiver aberto.
+  const sweepOverdueChurches = async (churchList: Church[]) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const sedes = churchList.filter(
+      c => c.type === 'SEDE' && c.planType && c.planType !== 'isento' && c.active !== false
+    );
+    for (const sede of sedes) {
+      const dueDay = sede.dueDay ?? 10;
+      const gracePeriod = sede.gracePeriod ?? 5;
+      const months = PLAN_MONTHS_INTERNAL[sede.planType ?? 'mensal'] ?? 1;
+      // Se o último pagamento ainda cobre o ciclo atual, não bloqueia
+      if (sede.lastPaymentDate) {
+        const lastPay = new Date(sede.lastPaymentDate + 'T00:00:00');
+        const nextDueAfterPay = new Date(lastPay.getFullYear(), lastPay.getMonth() + months, dueDay);
+        nextDueAfterPay.setHours(0, 0, 0, 0);
+        if (today <= nextDueAfterPay) continue;
+      }
+      // Calcula data-limite (vencimento + carência) deste mês
+      const graceDate = new Date(today.getFullYear(), today.getMonth(), dueDay + gracePeriod);
+      graceDate.setHours(0, 0, 0, 0);
+      if (today <= graceDate) continue;
+      // Promessa de pagamento ativa mantém o acesso
+      const hasActivePromise = sede.paymentPromiseDate
+        ? new Date(sede.paymentPromiseDate + 'T00:00:00') >= today
+        : false;
+      if (hasActivePromise) continue;
+      // Bloqueia
+      await supabase.from('churches').update({ active: false }).eq('id', sede.id);
+      setChurches(prev => prev.map(c => c.id === sede.id ? { ...c, active: false } : c));
+    }
   };
 
   const EMAIL_DOMAIN = 'igrejaapp.internal';

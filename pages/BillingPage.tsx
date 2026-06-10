@@ -111,7 +111,11 @@ export const BillingPage: React.FC = () => {
     const isInGrace = !isOnTime && today <= graceDate;
     const isLate    = !isOnTime && !isInGrace;
 
-    return { nextDueDate: nextDue, isOnTime, isInGrace, isLate, hasActivePromise, promiseDate };
+    const msPerDay = 1000 * 60 * 60 * 24;
+    const daysUntilDue = isOnTime ? Math.ceil((nextDue.getTime() - today.getTime()) / msPerDay) : null;
+    const daysInGrace  = isInGrace ? Math.ceil((graceDate.getTime() - today.getTime()) / msPerDay) : null;
+
+    return { nextDueDate: nextDue, isOnTime, isInGrace, isLate, hasActivePromise, promiseDate, daysUntilDue, daysInGrace };
   }, [currentChurch?.dueDay, currentChurch?.gracePeriod, currentChurch?.planType, currentChurch?.lastPaymentDate, currentChurch?.paymentPromiseDate]);
 
   // ---- Histórico de faturas DERIVADO do plano cadastrado da igreja ----
@@ -314,6 +318,55 @@ export const BillingPage: React.FC = () => {
           <p className="text-slate-400 text-sm">Gerencie sua assinatura e histórico de faturas</p>
         </div>
       </div>
+
+      {/* Banner de aviso antecipado de vencimento */}
+      {!isIsento && currentChurch?.planType && currentChurch.planType !== 'isento' && (() => {
+        const { isOnTime, isInGrace, isLate, daysUntilDue, daysInGrace, hasActivePromise } = billingStatus;
+        if (isLate && !hasActivePromise) {
+          return (
+            <div className="flex items-start gap-3 bg-red-500/10 border border-red-500/40 rounded-xl px-4 py-3">
+              <AlertCircle size={20} className="text-red-400 mt-0.5 shrink-0" />
+              <div>
+                <p className="text-red-400 font-bold text-sm">Pagamento em atraso — acesso pode ser suspenso</p>
+                <p className="text-red-300/80 text-xs mt-0.5">
+                  O período de carência encerrou. Efetue o pagamento via PIX abaixo para reativar o acesso completo.
+                </p>
+              </div>
+            </div>
+          );
+        }
+        if (isInGrace) {
+          return (
+            <div className="flex items-start gap-3 bg-orange-500/10 border border-orange-500/40 rounded-xl px-4 py-3">
+              <Clock size={20} className="text-orange-400 mt-0.5 shrink-0" />
+              <div>
+                <p className="text-orange-400 font-bold text-sm">
+                  Pagamento vencido — {daysInGrace != null ? `${daysInGrace} dia${daysInGrace !== 1 ? 's' : ''} de carência restante${daysInGrace !== 1 ? 's' : ''}` : 'carência ativa'}
+                </p>
+                <p className="text-orange-300/80 text-xs mt-0.5">
+                  Efetue o pagamento via PIX abaixo para evitar o bloqueio do sistema.
+                </p>
+              </div>
+            </div>
+          );
+        }
+        if (isOnTime && daysUntilDue != null && daysUntilDue <= 5) {
+          return (
+            <div className="flex items-start gap-3 bg-yellow-500/10 border border-yellow-500/40 rounded-xl px-4 py-3">
+              <Info size={20} className="text-yellow-400 mt-0.5 shrink-0" />
+              <div>
+                <p className="text-yellow-400 font-bold text-sm">
+                  Vencimento em {daysUntilDue} dia{daysUntilDue !== 1 ? 's' : ''}
+                </p>
+                <p className="text-yellow-300/80 text-xs mt-0.5">
+                  Realize o pagamento via PIX abaixo para manter o acesso sem interrupções.
+                </p>
+              </div>
+            </div>
+          );
+        }
+        return null;
+      })()}
 
       {/* Plan Status Card */}
       {isIsento ? (
