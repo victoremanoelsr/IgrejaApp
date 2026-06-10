@@ -867,25 +867,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const addUser = async (u: User) => {
       const profileId = (u.id && u.id.trim() !== '') ? u.id : crypto.randomUUID();
 
-      // Passo 1: insere o perfil no banco
-      const payload: any = {
-          id: profileId,
-          name: u.name,
-          username: u.username,
-          password: u.password,
-          cpf: u.cpf,
-          role: u.role,
-          church_id: u.churchId,
-      };
+      // Usa RPC SECURITY DEFINER para bypassar RLS no insert de profiles
+      const { data: rpcData, error } = await supabase.rpc('create_profile', {
+          p_id: profileId,
+          p_name: u.name,
+          p_username: u.username,
+          p_password: u.password || '',
+          p_cpf: u.cpf || '',
+          p_role: u.role,
+          p_church_id: u.churchId,
+      });
 
-      const { data, error } = await supabase.from('profiles').insert([payload]).select();
-      if (!data) return { success: false, error: error?.message };
+      if (error) {
+          console.error('[addUser] erro:', error);
+          return { success: false, error: error.message };
+      }
 
-      // Passo 2: cria/corrige o usuário Auth server-side (SECURITY DEFINER)
-      // Cria o auth.user com senha derivada, confirma e-mail e vincula auth_user_id
+      // Cria/corrige o usuário Auth server-side (SECURITY DEFINER)
       try { await supabase.rpc('ensure_auth_for_profile', { p_profile_id: profileId }); } catch (_) {}
 
-      setUsers([...users, toAppUser(data[0])]);
+      const { data: row } = await supabase.from('profiles').select('*').eq('id', profileId).single();
+      if (row) setUsers([...users, toAppUser(row)]);
       return { success: true };
   };
 
