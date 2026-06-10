@@ -822,10 +822,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
 
       // Delete congregations (child churches) first, then the sede
+      // Uses SECURITY DEFINER RPC to bypass RLS on churches table
       for (const cid of childChurchIds) {
-          await supabase.from('churches').delete().eq('id', cid);
+          await supabase.rpc('delete_church_by_id', { p_church_id: cid });
       }
-      await supabase.from('churches').delete().eq('id', id);
+      await supabase.rpc('delete_church_by_id', { p_church_id: id });
 
       setChurches(churches.filter(c => c.id !== id && c.parentId !== id));
   };
