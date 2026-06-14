@@ -114,10 +114,10 @@ ALTER TABLE churches ADD COLUMN IF NOT EXISTS pix_key TEXT;
 ### Plan Tiers (`types.ts` — `PlanTier`)
 | Tier    | Base Price | Sede Members | Cong. Members | Max Cong. |
 |---------|-----------|--------------|---------------|-----------|
-| Bronze  | R$100/mês | 100          | 50            | 2         |
-| Prata   | R$200/mês | 300          | 100           | 5         |
-| Ouro    | R$350/mês | 700          | 200           | 10        |
-| Diamond | R$500/mês | Ilimitado    | Ilimitado     | Ilimitado |
+| Bronze  | R$200/mês  | 100          | 50            | 2         |
+| Prata   | R$400/mês  | 300          | 100           | 5         |
+| Ouro    | R$700/mês  | 700          | 200           | 10        |
+| Diamond | R$1000/mês | Ilimitado    | Ilimitado     | Ilimitado |
 
 ### Cycle Discounts (`hooks/usePlanLimits.ts` — `CYCLE_DISCOUNTS`)
 - Mensal: 0% · Bimestral: 3% · Trimestral: 7% · Semestral: 10% · Anual: 15%
