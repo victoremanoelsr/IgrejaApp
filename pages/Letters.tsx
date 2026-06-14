@@ -42,7 +42,9 @@ const DraggableLabel: React.FC<DraggableLabelProps> = ({ el, isSelected, onSelec
       '{{data_atual}}': 'Data de Hoje',
       '{{cidade_igreja}}': 'Cidade/Data',
       '{{estado_civil}}': 'Est. Civil',
-      '{{texto_cadastrado}}': 'Texto da Carta'
+      '{{texto_cadastrado}}': 'Texto da Carta',
+      '{{nome_pai}}': 'Nome do Pai',
+      '{{nome_mae}}': 'Nome da Mãe',
   };
 
   const getIcon = (content: string) => {
@@ -91,6 +93,10 @@ export const Letters: React.FC = () => {
     const [roleOrFunction, setRoleOrFunction] = useState('MEMBRO');
     const [disableMember, setDisableMember] = useState(false);
     const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
+    const [fatherSearch, setFatherSearch] = useState('');
+    const [fatherName, setFatherName] = useState('');
+    const [motherSearch, setMotherSearch] = useState('');
+    const [motherName, setMotherName] = useState('');
 
     // EDITOR STATE
     const [templates, setTemplates] = useState<LetterTemplate[]>([]);
@@ -201,7 +207,9 @@ export const Letters: React.FC = () => {
                             .replace(/{{data_nascimento}}/g, new Date(selectedMember.birthDate).toLocaleDateString('pt-BR'))
                             .replace(/{{data_atual}}/g, today.toLocaleDateString('pt-BR'))
                             .replace(/{{cidade_igreja}}/g, fullDate)
-                            .replace(/{{estado_civil}}/g, selectedMember.maritalStatus || '');
+                            .replace(/{{estado_civil}}/g, selectedMember.maritalStatus || '')
+                            .replace(/{{nome_pai}}/g, fatherName || '')
+                            .replace(/{{nome_mae}}/g, motherName || '');
                         // Always use safe fixed margins so text never overflows the page
                         const pageMargin = 15; // mm
                         const safeMaxW   = pdfW_mm - 2 * pageMargin;
@@ -227,7 +235,9 @@ export const Letters: React.FC = () => {
                         .replace('{{data_nascimento}}', new Date(selectedMember.birthDate).toLocaleDateString('pt-BR'))
                         .replace('{{data_atual}}', today.toLocaleDateString('pt-BR'))
                         .replace('{{cidade_igreja}}', fullDate)
-                        .replace('{{estado_civil}}', selectedMember.maritalStatus || '');
+                        .replace('{{estado_civil}}', selectedMember.maritalStatus || '')
+                        .replace('{{nome_pai}}', fatherName || '')
+                        .replace('{{nome_mae}}', motherName || '');
                     doc.setTextColor(el.style.color);
                     doc.setFontSize(el.style.fontSize);
                     doc.setFont("helvetica", el.style.fontWeight === 'bold' ? 'bold' : 'normal');
@@ -296,6 +306,10 @@ export const Letters: React.FC = () => {
         showAlert("Sucesso", "Carta gerada e registrada!", "success");
         setSelectedMember(null);
         setSearchTerm('');
+        setFatherSearch('');
+        setFatherName('');
+        setMotherSearch('');
+        setMotherName('');
     };
 
     // --- EDITOR LOGIC ---
@@ -397,8 +411,12 @@ export const Letters: React.FC = () => {
     };
 
     const wrapperRef = useRef<HTMLDivElement>(null);
+    const fatherWrapperRef = useRef<HTMLDivElement>(null);
+    const motherWrapperRef = useRef<HTMLDivElement>(null);
     const activeMembers = members.filter(m => m.churchId === currentChurch?.id && (m.status || 'ATIVO') === 'ATIVO');
     const memberSuggestions = searchTerm.length < 2 ? [] : activeMembers.filter(m => m.name.toLowerCase().includes(searchTerm.toLowerCase()) || m.cpf.includes(searchTerm));
+    const fatherSuggestions = fatherSearch.length < 2 ? [] : activeMembers.filter(m => m.name.toLowerCase().includes(fatherSearch.toLowerCase()));
+    const motherSuggestions = motherSearch.length < 2 ? [] : activeMembers.filter(m => m.name.toLowerCase().includes(motherSearch.toLowerCase()));
     const filteredTemplates = templates.filter(t => t.churchId === currentChurch?.id && (t.type === letterType || t.type === 'GENERICO'));
 
     const DOC_LABELS: Record<string, string> = {
@@ -457,8 +475,8 @@ export const Letters: React.FC = () => {
                 {/* TOOLBAR: ADICIONAR CAMPOS */}
                 <div className="flex flex-wrap gap-2 mb-2 bg-gray-50 p-2 rounded border items-center">
                     <span className="text-xs font-bold text-gray-400 mr-2">Adicionar Campos:</span>
-                    {['{{nome_membro}}', '{{cpf}}', '{{cargo}}', '{{data_batismo}}', '{{data_nascimento}}', '{{data_atual}}', '{{cidade_igreja}}', '{{estado_civil}}', '{{texto_cadastrado}}'].map(tag => (
-                        <button key={tag} onClick={() => handleAddField(tag)} className={`bg-white border px-2 py-1 rounded text-xs font-bold shadow-sm ${tag === '{{texto_cadastrado}}' ? 'border-orange-300 text-orange-600 hover:bg-orange-50' : 'hover:bg-blue-50 text-blue-700'}`}>
+                    {['{{nome_membro}}', '{{cpf}}', '{{cargo}}', '{{data_batismo}}', '{{data_nascimento}}', '{{data_atual}}', '{{cidade_igreja}}', '{{estado_civil}}', '{{nome_pai}}', '{{nome_mae}}', '{{texto_cadastrado}}'].map(tag => (
+                        <button key={tag} onClick={() => handleAddField(tag)} className={`bg-white border px-2 py-1 rounded text-xs font-bold shadow-sm ${tag === '{{texto_cadastrado}}' ? 'border-orange-300 text-orange-600 hover:bg-orange-50' : tag === '{{nome_pai}}' || tag === '{{nome_mae}}' ? 'border-purple-300 text-purple-700 hover:bg-purple-50' : 'hover:bg-blue-50 text-blue-700'}`}>
                             {tag.replace(/{{|}}/g, '')}
                         </button>
                     ))}
@@ -698,6 +716,57 @@ export const Letters: React.FC = () => {
                                             <p className="text-[10px] text-orange-600 mt-1 font-medium italic">Cadastre um modelo em "Modelos / Timbrado".</p>
                                         )}
                                     </div>
+
+                                    {/* BUSCA NOME DO PAI */}
+                                    <div ref={fatherWrapperRef} className="relative">
+                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Nome do Pai <span className="text-gray-400 font-normal normal-case">(opcional)</span></label>
+                                        <div className="relative">
+                                            <Search className="absolute left-3 top-2.5 text-gray-400" size={16}/>
+                                            <input
+                                                type="text"
+                                                placeholder="Buscar nome do pai..."
+                                                className="w-full pl-9 p-2 border rounded-lg"
+                                                value={fatherSearch}
+                                                onChange={e => { setFatherSearch(e.target.value); setFatherName(e.target.value); }}
+                                                onFocus={() => fatherWrapperRef.current && (fatherWrapperRef.current.style.zIndex = '30')}
+                                                onBlur={() => setTimeout(() => fatherWrapperRef.current && (fatherWrapperRef.current.style.zIndex = ''), 200)}
+                                            />
+                                            {fatherSearch && <button onClick={() => { setFatherSearch(''); setFatherName(''); }} className="absolute right-2 top-2.5 text-gray-400 hover:text-red-500"><X size={14}/></button>}
+                                        </div>
+                                        {fatherSuggestions.length > 0 && (
+                                            <div className="absolute w-full bg-white shadow-lg border rounded-lg mt-1 max-h-48 overflow-y-auto z-30">
+                                                {fatherSuggestions.map(m => (
+                                                    <div key={m.id} onClick={() => { setFatherName(m.name); setFatherSearch(m.name); }} className="p-2 hover:bg-purple-50 cursor-pointer border-b text-sm font-medium">{m.name}</div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* BUSCA NOME DA MÃE */}
+                                    <div ref={motherWrapperRef} className="relative">
+                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Nome da Mãe <span className="text-gray-400 font-normal normal-case">(opcional)</span></label>
+                                        <div className="relative">
+                                            <Search className="absolute left-3 top-2.5 text-gray-400" size={16}/>
+                                            <input
+                                                type="text"
+                                                placeholder="Buscar nome da mãe..."
+                                                className="w-full pl-9 p-2 border rounded-lg"
+                                                value={motherSearch}
+                                                onChange={e => { setMotherSearch(e.target.value); setMotherName(e.target.value); }}
+                                                onFocus={() => motherWrapperRef.current && (motherWrapperRef.current.style.zIndex = '30')}
+                                                onBlur={() => setTimeout(() => motherWrapperRef.current && (motherWrapperRef.current.style.zIndex = ''), 200)}
+                                            />
+                                            {motherSearch && <button onClick={() => { setMotherSearch(''); setMotherName(''); }} className="absolute right-2 top-2.5 text-gray-400 hover:text-red-500"><X size={14}/></button>}
+                                        </div>
+                                        {motherSuggestions.length > 0 && (
+                                            <div className="absolute w-full bg-white shadow-lg border rounded-lg mt-1 max-h-48 overflow-y-auto z-30">
+                                                {motherSuggestions.map(m => (
+                                                    <div key={m.id} onClick={() => { setMotherName(m.name); setMotherSearch(m.name); }} className="p-2 hover:bg-purple-50 cursor-pointer border-b text-sm font-medium">{m.name}</div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+
                                     {letterType === 'MUDANCA' && (
                                         <div className="md:col-span-2 flex items-center p-2 border rounded-lg bg-white cursor-pointer hover:bg-yellow-50">
                                             <input type="checkbox" checked={disableMember} onChange={e => setDisableMember(e.target.checked)} className="h-4 w-4 text-brand-orange"/>
