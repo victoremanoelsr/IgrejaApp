@@ -577,17 +577,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // --- CRUD IMPLEMENTATIONS ---
 
   const addMember = async (m: Member) => {
-    const payload: any = {
+    const basePayload: any = {
       church_id: m.churchId,
       name: m.name,
       cpf: m.cpf,
       birth_date: cleanDate(m.birthDate),
       member_number: m.memberNumber,
       is_tither: m.isTither,
-      is_youth: m.isYouth, 
+      is_youth: m.isYouth,
       is_child: m.isChild,
-      is_adolescent: m.isAdolescent,
-      is_brother: m.isBrother,
       is_lady: m.isLady,
       baptism_date: cleanDate(m.baptismDate),
       photo_url: m.photo,
@@ -595,14 +593,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       phone: m.phone,
       marital_status: m.maritalStatus,
       status: m.status || 'ATIVO',
-      address: m.address 
+      address: m.address
     };
 
-    if (m.id && m.id.trim() !== '') {
-        payload.id = m.id;
-    }
+    if (m.id && m.id.trim() !== '') basePayload.id = m.id;
 
-    const { data, error } = await supabase.from('members').insert([payload]).select();
+    const fullPayload = { ...basePayload, is_adolescent: m.isAdolescent, is_brother: m.isBrother };
+
+    let { data, error } = await supabase.from('members').insert([fullPayload]).select();
+
+    if (error?.code === '42703' || (error && error.message?.includes('column'))) {
+      const fallback = await supabase.from('members').insert([basePayload]).select();
+      data = fallback.data; error = fallback.error;
+    }
 
     if (!error && data) {
       setMembers([...members, toAppMember(data[0])]);
@@ -612,7 +615,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateMember = async (id: string, m: Member) => {
-    const { error } = await supabase.from('members').update({
+    const baseUpdate: any = {
       name: m.name,
       cpf: m.cpf,
       birth_date: cleanDate(m.birthDate),
@@ -620,8 +623,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       is_tither: m.isTither,
       is_youth: m.isYouth,
       is_child: m.isChild,
-      is_adolescent: m.isAdolescent,
-      is_brother: m.isBrother,
       is_lady: m.isLady,
       baptism_date: cleanDate(m.baptismDate),
       photo_url: m.photo,
@@ -630,7 +631,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       marital_status: m.maritalStatus,
       status: m.status,
       address: m.address
-    }).eq('id', id);
+    };
+
+    const fullUpdate = { ...baseUpdate, is_adolescent: m.isAdolescent, is_brother: m.isBrother };
+
+    let { error } = await supabase.from('members').update(fullUpdate).eq('id', id);
+
+    if (error?.code === '42703' || (error && error.message?.includes('column'))) {
+      const fallback = await supabase.from('members').update(baseUpdate).eq('id', id);
+      error = fallback.error;
+    }
 
     if (!error) {
       setMembers(members.map(mem => mem.id === id ? m : mem));
