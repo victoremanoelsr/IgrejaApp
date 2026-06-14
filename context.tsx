@@ -224,7 +224,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, []);
 
   const fetchData = async () => {
-    const { data: userData } = await supabase.from('profiles').select('*').neq('is_active', false);
+    const { data: userData } = await supabase.from('profiles').select('*').or('is_active.is.null,is_active.eq.true');
     if(userData) setUsers(userData.map(toAppUser));
 
     const { data: churchData } = await supabase.from('churches').select('*');
@@ -930,6 +930,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           .from('profiles')
           .select('id')
           .eq('username', u.username.trim())
+          .neq('is_active', false)
           .maybeSingle();
       if (existing) {
           return { success: false, error: `O usuário "${u.username}" já está em uso. Escolha outro nome de usuário.` };
