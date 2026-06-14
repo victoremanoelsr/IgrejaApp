@@ -970,8 +970,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const deleteUser = async (id: string) => {
-      await supabase.from('profiles').delete().eq('id', id);
-      setUsers(users.filter(u => u.id !== id));
+      const { error } = await supabase.rpc('delete_profile', { p_id: id });
+      if (!error) {
+          setUsers(users.filter(u => u.id !== id));
+      } else {
+          console.error('[deleteUser] erro ao excluir:', error.message);
+      }
   };
 
   const addCampaign = async (c: Campaign) => {
