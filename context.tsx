@@ -224,7 +224,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, []);
 
   const fetchData = async () => {
-    const { data: userData } = await supabase.from('profiles').select('*');
+    const { data: userData } = await supabase.from('profiles').select('*').neq('is_active', false);
     if(userData) setUsers(userData.map(toAppUser));
 
     const { data: churchData } = await supabase.from('churches').select('*');
@@ -970,11 +970,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const deleteUser = async (id: string) => {
-      const { error } = await supabase.rpc('delete_profile', { p_id: id });
+      const { error } = await supabase.rpc('deactivate_profile', { p_id: id });
       if (!error) {
           setUsers(users.filter(u => u.id !== id));
       } else {
-          console.error('[deleteUser] erro ao excluir:', error.message);
+          console.error('[deleteUser] erro ao desativar:', error.message);
       }
   };
 
