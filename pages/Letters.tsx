@@ -144,6 +144,12 @@ export const Letters: React.FC = () => {
         }
     };
 
+    // --- HELPER: parseia YYYY-MM-DD sem offset de fuso horário ---
+    const parseLocalDate = (dateStr: string): Date => {
+        const [y, m, d] = dateStr.split('-').map(Number);
+        return new Date(y, m - 1, d);
+    };
+
     // --- HELPER: JUSTIFICAÇÃO INTELIGENTE ---
     const renderJustifiedText = (doc: jsPDF, text: string, x: number, y: number, maxWidth: number, lineHeight?: number) => {
         const lh = lineHeight || doc.getLineHeight() / doc.internal.scaleFactor;
@@ -203,8 +209,8 @@ export const Letters: React.FC = () => {
                             .replace(/{{nome_membro}}/g, selectedMember.name)
                             .replace(/{{cpf}}/g, selectedMember.cpf)
                             .replace(/{{cargo}}/g, roleOrFunction)
-                            .replace(/{{data_batismo}}/g, selectedMember.baptismDate ? new Date(selectedMember.baptismDate).toLocaleDateString('pt-BR') : '-')
-                            .replace(/{{data_nascimento}}/g, new Date(selectedMember.birthDate).toLocaleDateString('pt-BR'))
+                            .replace(/{{data_batismo}}/g, selectedMember.baptismDate ? parseLocalDate(selectedMember.baptismDate).toLocaleDateString('pt-BR') : '-')
+                            .replace(/{{data_nascimento}}/g, parseLocalDate(selectedMember.birthDate).toLocaleDateString('pt-BR'))
                             .replace(/{{data_atual}}/g, today.toLocaleDateString('pt-BR'))
                             .replace(/{{cidade_igreja}}/g, fullDate)
                             .replace(/{{estado_civil}}/g, selectedMember.maritalStatus || '')
@@ -231,8 +237,8 @@ export const Letters: React.FC = () => {
                         .replace('{{nome_membro}}', selectedMember.name)
                         .replace('{{cpf}}', selectedMember.cpf)
                         .replace('{{cargo}}', roleOrFunction)
-                        .replace('{{data_batismo}}', selectedMember.baptismDate ? new Date(selectedMember.baptismDate).toLocaleDateString('pt-BR') : '-')
-                        .replace('{{data_nascimento}}', new Date(selectedMember.birthDate).toLocaleDateString('pt-BR'))
+                        .replace('{{data_batismo}}', selectedMember.baptismDate ? parseLocalDate(selectedMember.baptismDate).toLocaleDateString('pt-BR') : '-')
+                        .replace('{{data_nascimento}}', parseLocalDate(selectedMember.birthDate).toLocaleDateString('pt-BR'))
                         .replace('{{data_atual}}', today.toLocaleDateString('pt-BR'))
                         .replace('{{cidade_igreja}}', fullDate)
                         .replace('{{estado_civil}}', selectedMember.maritalStatus || '')
@@ -255,8 +261,8 @@ export const Letters: React.FC = () => {
         } else {
             const today = new Date();
             const formattedDate = today.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
-            const recommendationTemplate = `A Igreja Evangélica Assembleia de Deus em ${currentChurch.address.split(',')[1]?.trim() || currentChurch.name}, vem por meio desta, recomendar à comunhão dos santos, o(a) irmão(a) ${selectedMember.name}, portador(a) do CPF nº ${selectedMember.cpf}, nascido(a) em ${new Date(selectedMember.birthDate).toLocaleDateString('pt-BR')} e batizado(a) nas águas em ${selectedMember.baptismDate ? new Date(selectedMember.baptismDate).toLocaleDateString('pt-BR') : 'data não registrada'}.\n\nO(A) referido(a) irmão(a) é ${roleOrFunction} em nossa igreja, encontrando-se em plena comunhão e paz conosco. Portanto, o(a) recomendamos para participar de todas as atividades e sacramentos, como membro do corpo de Cristo.\n\nSem mais para o momento, subscrevemo-nos.`;
-            const transferTemplate = `A Igreja Evangélica Assembleia de Deus em ${currentChurch.address.split(',')[1]?.trim() || currentChurch.name}, concede a presente CARTA DE MUDANÇA ao(à) irmão(ã) ${selectedMember.name}, portador(a) do CPF nº ${selectedMember.cpf}, nascido(a) em ${new Date(selectedMember.birthDate).toLocaleDateString('pt-BR')} e batizado(a) nas águas em ${selectedMember.baptismDate ? new Date(selectedMember.baptismDate).toLocaleDateString('pt-BR') : 'data não registrada'}.\n\nO(A) referido(a) irmão(a) esteve em comunhão conosco na função de ${roleOrFunction} e, por motivo de mudança, solicitou seu desligamento de nosso rol de membros.\n\nNada temos que desabone sua conduta moral e espiritual. Portanto, o(a) recomendamos à vossa filiação.\n\nSem mais para o momento, subscrevemo-nos.`;
+            const recommendationTemplate = `A Igreja Evangélica Assembleia de Deus em ${currentChurch.address.split(',')[1]?.trim() || currentChurch.name}, vem por meio desta, recomendar à comunhão dos santos, o(a) irmão(a) ${selectedMember.name}, portador(a) do CPF nº ${selectedMember.cpf}, nascido(a) em ${parseLocalDate(selectedMember.birthDate).toLocaleDateString('pt-BR')} e batizado(a) nas águas em ${selectedMember.baptismDate ? parseLocalDate(selectedMember.baptismDate).toLocaleDateString('pt-BR') : 'data não registrada'}.\n\nO(A) referido(a) irmão(a) é ${roleOrFunction} em nossa igreja, encontrando-se em plena comunhão e paz conosco. Portanto, o(a) recomendamos para participar de todas as atividades e sacramentos, como membro do corpo de Cristo.\n\nSem mais para o momento, subscrevemo-nos.`;
+            const transferTemplate = `A Igreja Evangélica Assembleia de Deus em ${currentChurch.address.split(',')[1]?.trim() || currentChurch.name}, concede a presente CARTA DE MUDANÇA ao(à) irmão(ã) ${selectedMember.name}, portador(a) do CPF nº ${selectedMember.cpf}, nascido(a) em ${parseLocalDate(selectedMember.birthDate).toLocaleDateString('pt-BR')} e batizado(a) nas águas em ${selectedMember.baptismDate ? parseLocalDate(selectedMember.baptismDate).toLocaleDateString('pt-BR') : 'data não registrada'}.\n\nO(A) referido(a) irmão(a) esteve em comunhão conosco na função de ${roleOrFunction} e, por motivo de mudança, solicitou seu desligamento de nosso rol de membros.\n\nNada temos que desabone sua conduta moral e espiritual. Portanto, o(a) recomendamos à vossa filiação.\n\nSem mais para o momento, subscrevemo-nos.`;
             const content = letterType === 'MUDANCA' ? transferTemplate : recommendationTemplate;
             const title = DOC_TITLES[letterType] || 'CARTA';
             if (currentChurch.logoUrl) doc.addImage(currentChurch.logoUrl, 'PNG', 15, 15, 30, 30);
@@ -684,7 +690,7 @@ export const Letters: React.FC = () => {
                                 <div className="flex justify-between items-start mb-4">
                                     <div>
                                         <h3 className="text-xl font-bold text-gray-800 flex items-center"><User className="mr-2"/> {selectedMember.name}</h3>
-                                        <p className="text-xs text-gray-500">Nasc: {new Date(selectedMember.birthDate).toLocaleDateString('pt-BR')} | Batismo: {selectedMember.baptismDate ? new Date(selectedMember.baptismDate).toLocaleDateString('pt-BR') : 'N/A'}</p>
+                                        <p className="text-xs text-gray-500">Nasc: {parseLocalDate(selectedMember.birthDate).toLocaleDateString('pt-BR')} | Batismo: {selectedMember.baptismDate ? parseLocalDate(selectedMember.baptismDate).toLocaleDateString('pt-BR') : 'N/A'}</p>
                                     </div>
                                     <span className="bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded-full"><Check className="inline-block mr-1" size={12}/> Selecionado</span>
                                 </div>
