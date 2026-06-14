@@ -49,7 +49,7 @@ export const Members: React.FC = () => {
 
   const initialFormState = {
     name: '', cpf: '', birthDate: '', memberNumber: '', churchId: viewId || '', 
-    isTither: false, isYouth: false, isChild: false, isLady: false,
+    isTither: false, isYouth: false, isChild: false, isAdolescent: false, isBrother: false, isLady: false,
     baptismDate: '', email: '', phone: '', maritalStatus: 'SOLTEIRO', 
     zipCode: '', street: '', number: '', neighborhood: '', city: '', state: '', country: '', photo: '', status: 'ATIVO' as 'ATIVO' | 'INATIVO' | 'TRANSFERIDO'
   };
@@ -102,7 +102,7 @@ export const Members: React.FC = () => {
     setNewPassword(''); // Reseta senha
     setFormData({
       name: member.name, cpf: member.cpf, birthDate: member.birthDate, memberNumber: member.memberNumber || '', churchId: member.churchId, 
-      isTither: member.isTither, isYouth: member.isYouth || false, isChild: member.isChild || false, isLady: member.isLady || false,
+      isTither: member.isTither, isYouth: member.isYouth || false, isChild: member.isChild || false, isAdolescent: member.isAdolescent || false, isBrother: member.isBrother || false, isLady: member.isLady || false,
       baptismDate: member.baptismDate || '', email: member.email || '', phone: member.phone || '', maritalStatus: member.maritalStatus || 'SOLTEIRO',
       street: member.address.street, number: member.address.number, neighborhood: member.address.neighborhood, city: member.address.city, state: member.address.state || '',
       zipCode: member.address.zipCode, country: member.address.country || 'BRASIL', photo: member.photo || '', status: member.status || 'ATIVO'
@@ -145,7 +145,7 @@ export const Members: React.FC = () => {
 
     const payload: Member = {
       id: editingMemberId || '', name: formData.name.toUpperCase(), cpf: formData.cpf, birthDate: formData.birthDate, memberNumber: formData.memberNumber.toUpperCase(),
-      churchId: formData.churchId, isTither: formData.isTither, isYouth: formData.isYouth, isChild: formData.isChild, isLady: formData.isLady,
+      churchId: formData.churchId, isTither: formData.isTither, isYouth: formData.isYouth, isChild: formData.isChild, isAdolescent: formData.isAdolescent, isBrother: formData.isBrother, isLady: formData.isLady,
       baptismDate: formData.baptismDate, photo: finalPhotoUrl, email: formData.email.toLowerCase(),
       phone: formData.phone, maritalStatus: formData.maritalStatus, status: formData.status, address: {
         street: formData.street.toUpperCase(), number: formData.number.toUpperCase(), neighborhood: formData.neighborhood.toUpperCase(), city: formData.city.toUpperCase(),
@@ -466,7 +466,7 @@ export const Members: React.FC = () => {
              <h3 className="text-sm font-bold text-brand-orange uppercase tracking-wider border-b border-gray-200 pb-2 mb-4 flex items-center">
                 <Users size={16} className="mr-2"/> Grupos & Departamentos
             </h3>
-             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 <label className={`flex items-center p-3 border rounded-lg cursor-pointer transition-all hover:shadow-sm ${formData.isTither ? 'bg-green-50 border-green-300' : 'bg-white border-gray-200'}`}>
                     <input type="checkbox" className="h-4 w-4 text-green-600 rounded focus:ring-green-500" checked={formData.isTither} onChange={e => setFormData({...formData, isTither: e.target.checked})}/>
                     <div className="ml-2">
@@ -482,6 +482,26 @@ export const Members: React.FC = () => {
                             <Zap size={10} className="mr-1"/> Jovens
                         </span>
                         <span className="text-[9px] text-gray-400">União de Jovens</span>
+                    </div>
+                </label>
+
+                <label className={`flex items-center p-3 border rounded-lg cursor-pointer transition-all hover:shadow-sm ${formData.isAdolescent ? 'bg-purple-50 border-purple-300' : 'bg-white border-gray-200'}`}>
+                    <input type="checkbox" className="h-4 w-4 text-purple-600 rounded focus:ring-purple-500" checked={formData.isAdolescent} onChange={e => setFormData({...formData, isAdolescent: e.target.checked})}/>
+                    <div className="ml-2">
+                        <span className={`block text-xs font-bold uppercase flex items-center ${formData.isAdolescent ? 'text-purple-700' : 'text-gray-500'}`}>
+                            <Users size={10} className="mr-1"/> Adolescentes
+                        </span>
+                        <span className="text-[9px] text-gray-400">Depto. Adolescentes</span>
+                    </div>
+                </label>
+
+                <label className={`flex items-center p-3 border rounded-lg cursor-pointer transition-all hover:shadow-sm ${formData.isBrother ? 'bg-indigo-50 border-indigo-300' : 'bg-white border-gray-200'}`}>
+                    <input type="checkbox" className="h-4 w-4 text-indigo-600 rounded focus:ring-indigo-500" checked={formData.isBrother} onChange={e => setFormData({...formData, isBrother: e.target.checked})}/>
+                    <div className="ml-2">
+                        <span className={`block text-xs font-bold uppercase flex items-center ${formData.isBrother ? 'text-indigo-700' : 'text-gray-500'}`}>
+                            <User size={10} className="mr-1"/> Senhores
+                        </span>
+                        <span className="text-[9px] text-gray-400">Soc. de Homens</span>
                     </div>
                 </label>
 

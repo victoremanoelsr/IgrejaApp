@@ -44,6 +44,7 @@ export const toAppMember = (data: any): Member => ({
   isYouth: data.is_youth, 
   isChild: data.is_child,
   isAdolescent: data.is_adolescent,
+  isBrother: data.is_brother,
   isLady: data.is_lady,   
   baptismDate: data.baptism_date || '', 
   photo: data.photo_url, 
