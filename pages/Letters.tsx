@@ -95,8 +95,10 @@ export const Letters: React.FC = () => {
     const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
     const [fatherSearch, setFatherSearch] = useState('');
     const [fatherName, setFatherName] = useState('');
+    const [showFatherDrop, setShowFatherDrop] = useState(false);
     const [motherSearch, setMotherSearch] = useState('');
     const [motherName, setMotherName] = useState('');
+    const [showMotherDrop, setShowMotherDrop] = useState(false);
 
     // EDITOR STATE
     const [templates, setTemplates] = useState<LetterTemplate[]>([]);
@@ -723,7 +725,8 @@ export const Letters: React.FC = () => {
                                         )}
                                     </div>
 
-                                    {/* BUSCA NOME DO PAI */}
+                                    {/* BUSCA NOME DO PAI e MÃE — só para Cert. Apresentação */}
+                                    {letterType === 'APRESENTACAO' && (<>
                                     <div ref={fatherWrapperRef} className="relative">
                                         <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Nome do Pai <span className="text-gray-400 font-normal normal-case">(opcional)</span></label>
                                         <div className="relative">
@@ -733,22 +736,21 @@ export const Letters: React.FC = () => {
                                                 placeholder="Buscar nome do pai..."
                                                 className="w-full pl-9 p-2 border rounded-lg"
                                                 value={fatherSearch}
-                                                onChange={e => { setFatherSearch(e.target.value); setFatherName(e.target.value); }}
-                                                onFocus={() => fatherWrapperRef.current && (fatherWrapperRef.current.style.zIndex = '30')}
-                                                onBlur={() => setTimeout(() => fatherWrapperRef.current && (fatherWrapperRef.current.style.zIndex = ''), 200)}
+                                                onChange={e => { setFatherSearch(e.target.value); setFatherName(e.target.value); setShowFatherDrop(true); }}
+                                                onFocus={() => setShowFatherDrop(true)}
+                                                onBlur={() => setTimeout(() => setShowFatherDrop(false), 200)}
                                             />
-                                            {fatherSearch && <button onClick={() => { setFatherSearch(''); setFatherName(''); }} className="absolute right-2 top-2.5 text-gray-400 hover:text-red-500"><X size={14}/></button>}
+                                            {fatherSearch && <button onClick={() => { setFatherSearch(''); setFatherName(''); setShowFatherDrop(false); }} className="absolute right-2 top-2.5 text-gray-400 hover:text-red-500"><X size={14}/></button>}
                                         </div>
-                                        {fatherSuggestions.length > 0 && (
+                                        {showFatherDrop && fatherSuggestions.length > 0 && (
                                             <div className="absolute w-full bg-white shadow-lg border rounded-lg mt-1 max-h-48 overflow-y-auto z-30">
                                                 {fatherSuggestions.map(m => (
-                                                    <div key={m.id} onClick={() => { setFatherName(m.name); setFatherSearch(m.name); }} className="p-2 hover:bg-purple-50 cursor-pointer border-b text-sm font-medium">{m.name}</div>
+                                                    <div key={m.id} onMouseDown={() => { setFatherName(m.name); setFatherSearch(m.name); setShowFatherDrop(false); }} className="p-2 hover:bg-purple-50 cursor-pointer border-b text-sm font-medium">{m.name}</div>
                                                 ))}
                                             </div>
                                         )}
                                     </div>
 
-                                    {/* BUSCA NOME DA MÃE */}
                                     <div ref={motherWrapperRef} className="relative">
                                         <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Nome da Mãe <span className="text-gray-400 font-normal normal-case">(opcional)</span></label>
                                         <div className="relative">
@@ -758,20 +760,21 @@ export const Letters: React.FC = () => {
                                                 placeholder="Buscar nome da mãe..."
                                                 className="w-full pl-9 p-2 border rounded-lg"
                                                 value={motherSearch}
-                                                onChange={e => { setMotherSearch(e.target.value); setMotherName(e.target.value); }}
-                                                onFocus={() => motherWrapperRef.current && (motherWrapperRef.current.style.zIndex = '30')}
-                                                onBlur={() => setTimeout(() => motherWrapperRef.current && (motherWrapperRef.current.style.zIndex = ''), 200)}
+                                                onChange={e => { setMotherSearch(e.target.value); setMotherName(e.target.value); setShowMotherDrop(true); }}
+                                                onFocus={() => setShowMotherDrop(true)}
+                                                onBlur={() => setTimeout(() => setShowMotherDrop(false), 200)}
                                             />
-                                            {motherSearch && <button onClick={() => { setMotherSearch(''); setMotherName(''); }} className="absolute right-2 top-2.5 text-gray-400 hover:text-red-500"><X size={14}/></button>}
+                                            {motherSearch && <button onClick={() => { setMotherSearch(''); setMotherName(''); setShowMotherDrop(false); }} className="absolute right-2 top-2.5 text-gray-400 hover:text-red-500"><X size={14}/></button>}
                                         </div>
-                                        {motherSuggestions.length > 0 && (
+                                        {showMotherDrop && motherSuggestions.length > 0 && (
                                             <div className="absolute w-full bg-white shadow-lg border rounded-lg mt-1 max-h-48 overflow-y-auto z-30">
                                                 {motherSuggestions.map(m => (
-                                                    <div key={m.id} onClick={() => { setMotherName(m.name); setMotherSearch(m.name); }} className="p-2 hover:bg-purple-50 cursor-pointer border-b text-sm font-medium">{m.name}</div>
+                                                    <div key={m.id} onMouseDown={() => { setMotherName(m.name); setMotherSearch(m.name); setShowMotherDrop(false); }} className="p-2 hover:bg-purple-50 cursor-pointer border-b text-sm font-medium">{m.name}</div>
                                                 ))}
                                             </div>
                                         )}
                                     </div>
+                                    </>)}
 
                                     {letterType === 'MUDANCA' && (
                                         <div className="md:col-span-2 flex items-center p-2 border rounded-lg bg-white cursor-pointer hover:bg-yellow-50">
