@@ -177,7 +177,7 @@ export const Login: React.FC = () => {
 
   const renderLogin = () => (
     <form onSubmit={handleLogin} className="space-y-4">
-      <div className="text-center mb-4">
+      <div className="text-center mb-2">
         <h2 className="text-2xl font-extrabold text-brand-black">Bem-vindo</h2>
         <p className="text-gray-500 text-sm mt-1">Acesse o portal da sua igreja</p>
       </div>
@@ -396,8 +396,8 @@ export const Login: React.FC = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100 py-6 px-4 bg-gradient-to-br from-brand-orange to-brand-red">
       <div className="max-w-sm w-full bg-white p-6 rounded-2xl shadow-2xl space-y-4 transform transition-all">
-        <div className="flex justify-center mb-2">
-           <img src="/logo.png" alt="Logo" className="h-24 w-24 object-contain" />
+        <div className="flex justify-center -mb-2">
+           <img src="/logo.png" alt="Logo" className="h-32 w-32 object-contain" />
         </div>
 
         {step === 'LOGIN' && renderLogin()}
