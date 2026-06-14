@@ -217,7 +217,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       { label: t('nav.booklets'), icon: BookOpen, path: '/jovens', state: { activeTab: 'CARNES', entered: true }, roles: ['ALL'] },
       { label: t('nav.configModel'), icon: Settings, path: '/jovens', state: { activeTab: 'CONFIG_MODELO', entered: true }, roles: ['ALL'] },
       { label: t('nav.members'), icon: UsersIcon, path: '/jovens', state: { activeTab: 'MEMBROS', entered: true }, roles: ['ALL'] },
-      { label: t('nav.team'), icon: Users, path: '/jovens', state: { activeTab: 'EQUIPE', entered: true }, roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'LIDER_JOVENS'] }
+      { label: t('nav.team'), icon: Users, path: '/jovens', state: { activeTab: 'EQUIPE', entered: true }, roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'LIDER_JOVENS', 'TESOUREIRO_JOVENS'] }
   ];
 
   const childrenMenuItems: MenuItem[] = [
