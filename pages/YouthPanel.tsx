@@ -139,7 +139,7 @@ export const YouthPanel: React.FC = () => {
   const navigate = useNavigate();
   
   const isYouthRole = user && (['LIDER_JOVENS', 'TESOUREIRO_JOVENS'].includes(user.role) || ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE'].includes(user.role));
-  const canManageTeam = user && ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'LIDER_JOVENS'].includes(user.role);
+  const canManageTeam = user && ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'LIDER_JOVENS', 'TESOUREIRO_JOVENS'].includes(user.role);
 
   const [viewMode, setViewMode] = useState<'SELECTION' | 'DASHBOARD'>(isYouthRole ? 'DASHBOARD' : 'SELECTION');
   const [activeTab, setActiveTab] = useState<'DASHBOARD' | 'CAIXA' | 'CARNES' | 'CONFIG_MODELO' | 'MEMBROS' | 'RELATORIOS' | 'EQUIPE'>('DASHBOARD');
