@@ -923,18 +923,45 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const addUser = async (u: User) => {
-      const profileId = (u.id && u.id.trim() !== '') ? u.id : crypto.randomUUID();
+      // Verifica se existe perfil DESATIVADO com o mesmo username → reativa em vez de criar novo
+      const { data: deactivated } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('username', u.username.trim())
+          .eq('is_active', false)
+          .maybeSingle();
 
-      // Verifica se o username já existe antes de tentar inserir
+      if (deactivated) {
+          // Reativa o perfil existente com os novos dados
+          const { error: reactivateError } = await supabase.rpc('reactivate_profile', {
+              p_id: deactivated.id,
+              p_name: u.name,
+              p_password: u.password || deactivated.password,
+              p_cpf: u.cpf || deactivated.cpf,
+              p_role: u.role,
+              p_church_id: u.churchId,
+          });
+          if (reactivateError) {
+              console.error('[addUser] erro ao reativar:', reactivateError.message);
+              return { success: false, error: reactivateError.message };
+          }
+          const { data: row } = await supabase.from('profiles').select('*').eq('id', deactivated.id).single();
+          if (row) setUsers([...users, toAppUser(row)]);
+          return { success: true };
+      }
+
+      // Verifica se o username já existe em perfil ATIVO
       const { data: existing } = await supabase
           .from('profiles')
           .select('id')
           .eq('username', u.username.trim())
-          .neq('is_active', false)
+          .or('is_active.is.null,is_active.eq.true')
           .maybeSingle();
       if (existing) {
           return { success: false, error: `O usuário "${u.username}" já está em uso. Escolha outro nome de usuário.` };
       }
+
+      const profileId = (u.id && u.id.trim() !== '') ? u.id : crypto.randomUUID();
 
       // Usa RPC SECURITY DEFINER para bypassar RLS no insert de profiles
       const { data: rpcData, error } = await supabase.rpc('create_profile', {
