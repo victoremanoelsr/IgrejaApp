@@ -217,7 +217,7 @@ export const Letters: React.FC = () => {
                             .replace(/{{nome_pai}}/g, fatherName || '')
                             .replace(/{{nome_mae}}/g, motherName || '');
                         // Always use safe fixed margins so text never overflows the page
-                        const pageMargin = 15; // mm
+                        const pageMargin = isCert ? 30 : 20; // mm — certificados têm margens maiores
                         const safeMaxW   = pdfW_mm - 2 * pageMargin;
                         const textY      = (el.y * scale) + (el.style.fontSize * 0.35);
                         const lh         = doc.getLineHeight() / doc.internal.scaleFactor;
