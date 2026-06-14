@@ -32,6 +32,7 @@
     "@types/node": "^22.19.17",
     "@vitejs/plugin-react": "^5.2.0",
     "adm-zip": "^0.5.17",
+    "sharp": "^0.35.1",
     "typescript": "~5.8.2",
     "vite": "^6.4.2"
   },
