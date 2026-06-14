@@ -1,31 +1,27 @@
 ---
 name: Supabase Auth Login Flow
-description: Fluxo de login com 4 passos — senha real (pré-migração), depois derivada, depois signUp fallback. NUNCA remover o passo da senha real.
+description: Fluxo final de 3 passos — senha derivada, depois signUp fallback. Senha real REMOVIDA após migração SQL que converteu todos os usuários.
 ---
 
 ## The Rule
-A função `login` em `context.tsx` tenta credenciais nesta ordem exata:
+A função `login` em `context.tsx` usa esta ordem:
 
 1. `login_profile` RPC — valida username+password na tabela `profiles` (SECURITY DEFINER, bypassa RLS). Se retornar vazio → rejeita imediatamente.
-2. `signInWithPassword(email, senhaReal)` — para usuários pré-migração cuja conta Auth foi criada com a senha real deles. **NUNCA remover este passo** — sem ele, usuários pré-migração ficam sem dados (currentChurch=null, dashboard em branco).
-3. `signInWithPassword(email, senhaDerivada)` — senha derivada = `IA_<profile_uuid>`. Para usuários criados pelo sistema.
-4. Se tudo falhar: `signUp` → `confirm_internal_user` RPC → `signInWithPassword(derivada)` → `link_profile_to_auth`.
+2. `signInWithPassword(email, senhaDerivada)` — senha derivada = `IA_<profile_uuid>`. Funciona para todos os usuários após a migração SQL `ensure_auth_for_profile`.
+3. Se step 2 falhar (usuário sem conta Auth): `signUp` → `confirm_internal_user` RPC → `signInWithPassword(derivada)` → `link_profile_to_auth`.
 
-**Por que existem dois tipos de usuário:**
-- Pré-migração: conta Auth criada com senha real → passo 2 funciona
-- Novos usuários: conta Auth criada com senha derivada por `ensure_auth_for_profile` → passo 3 funciona
-- Usuários sem conta Auth: criados no passo 4
+**Pré-requisito:** A SQL `ensure-auth-migration.sql` deve ter rodado no Supabase. Ela converte TODOS os auth.users para senha derivada e cria a função `ensure_auth_for_profile`. Sem ela, usuários pré-migração (que tinham senha real no Auth) não conseguem logar via step 2.
 
-**LIÇÃO APRENDIDA:** Remover o passo 2 (senha real) quebra usuários pré-migração — eles logam (profiles valida), mas sem sessão Auth o RLS bloqueia tudo → dashboard em branco com "Selecione uma unidade no menu lateral". O `400` no network tab do passo 2 para usuários novos é cosmético e inofensivo — NÃO é motivo para remover o passo.
+**LIÇÃO APRENDIDA (CRÍTICA):** Remover o step da senha real só é seguro APÓS a SQL de migração ter rodado para todos os perfis. Se removido antes, usuários pré-migração veem dashboard em branco (currentChurch=null) porque a sessão Auth não é estabelecida e o RLS bloqueia todos os dados. O sintoma é: sidebar carrega, conteúdo principal mostra "Selecione uma unidade no menu lateral."
 
 ## RPCs chave (todos SECURITY DEFINER)
 - `login_profile(p_username, p_password)` — valida credenciais, retorna linha do profile
 - `confirm_internal_user(p_email)` — confirma e-mail em auth.users para @igrejaapp.internal
 - `link_profile_to_auth(p_username, p_auth_user_id)` — define auth_user_id em profiles
-- `ensure_auth_for_profile(p_profile_id)` — cria/corrige usuário Auth + define auth_user_id; chamado em `addUser` apenas, NÃO no fluxo de login
+- `ensure_auth_for_profile(p_profile_id)` — cria/corrige usuário Auth com senha derivada; chamado em `addUser` apenas
 
 ## Armadilha anti-enumeração
-`supabase.auth.signUp()` para e-mail existente retorna UUID FALSO. Nunca armazenar o UUID do signUp diretamente em `profiles.auth_user_id` sem verificar via signIn primeiro.
+`supabase.auth.signUp()` para e-mail existente retorna UUID FALSO. Nunca armazenar o UUID do signUp em `profiles.auth_user_id` sem verificar via signIn primeiro.
 
 ## Domínio de e-mail
 Usuários internos usam `username@igrejaapp.internal`.
