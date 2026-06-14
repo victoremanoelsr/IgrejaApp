@@ -424,48 +424,37 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const authEmail = `${u}@${EMAIL_DOMAIN}`;
     const authPass = buildAuthPassword(profileData.id);
 
-    // 2. Tenta signIn com senha real (usuários que têm senha real no Auth — pré-migração)
-    const { data: realSignIn } = await supabase.auth.signInWithPassword({
+    // 2. Tenta signIn com senha derivada
+    const { data: derivedSignIn } = await supabase.auth.signInWithPassword({
       email: authEmail,
-      password: p,
+      password: authPass,
     });
 
-    if (!realSignIn?.user) {
-      // 3. Tenta ensure_auth_for_profile se a função existir (SQL opcional)
-      try { await supabase.rpc('ensure_auth_for_profile', { p_profile_id: profileData.id }); } catch (_) {}
-
-      // 4. Tenta signIn com senha derivada (usuário Auth pode ter sido criado/corrigido acima)
-      const { data: derivedSignIn } = await supabase.auth.signInWithPassword({
+    if (derivedSignIn?.user) {
+      // Corrige auth_user_id se divergente (UUID falso por anti-enumeração)
+      if (!profileData.auth_user_id || profileData.auth_user_id !== derivedSignIn.user.id) {
+        try { await supabase.rpc('link_profile_to_auth', { p_username: u, p_auth_user_id: derivedSignIn.user.id }); } catch (_) {}
+      }
+    } else {
+      // 3. Usuário Auth não existe — cria via signUp, confirma e-mail e faz signIn
+      const { data: signUpData } = await supabase.auth.signUp({
         email: authEmail,
         password: authPass,
       });
 
-      if (derivedSignIn?.user) {
-        // Corrige auth_user_id se divergente (UUID falso por anti-enumeração)
-        if (!profileData.auth_user_id || profileData.auth_user_id !== derivedSignIn.user.id) {
-          try { await supabase.rpc('link_profile_to_auth', { p_username: u, p_auth_user_id: derivedSignIn.user.id }); } catch (_) {}
-        }
-      } else {
-        // 5. Usuário Auth não existe — cria via signUp, confirma e-mail e faz signIn
-        const { data: signUpData } = await supabase.auth.signUp({
+      if (signUpData?.user) {
+        // Confirma e-mail via função SECURITY DEFINER
+        try { await supabase.rpc('confirm_internal_user', { p_email: authEmail }); } catch (_) {}
+
+        // signIn com senha derivada — deve funcionar agora que e-mail está confirmado
+        const { data: finalSignIn } = await supabase.auth.signInWithPassword({
           email: authEmail,
           password: authPass,
         });
 
-        if (signUpData?.user) {
-          // Confirma e-mail via função SECURITY DEFINER (criada pelo SQL inicial)
-          try { await supabase.rpc('confirm_internal_user', { p_email: authEmail }); } catch (_) {}
-
-          // signIn com senha derivada — deve funcionar agora que e-mail está confirmado
-          const { data: finalSignIn } = await supabase.auth.signInWithPassword({
-            email: authEmail,
-            password: authPass,
-          });
-
-          // Vincula auth_user_id ao perfil se ainda não estiver definido
-          if (finalSignIn?.user && !profileData.auth_user_id) {
-            try { await supabase.rpc('link_profile_to_auth', { p_username: u, p_auth_user_id: finalSignIn.user.id }); } catch (_) {}
-          }
+        // Vincula auth_user_id ao perfil se ainda não estiver definido
+        if (finalSignIn?.user && !profileData.auth_user_id) {
+          try { await supabase.rpc('link_profile_to_auth', { p_username: u, p_auth_user_id: finalSignIn.user.id }); } catch (_) {}
         }
       }
     }
