@@ -1,32 +1,34 @@
 ---
 name: Supabase Auth Login Flow
-description: Simplified login flow — derived password only; removed real-password step and ensure_auth_for_profile from login to eliminate 400/404 console errors
+description: Fluxo de login com 4 passos — senha real (pré-migração), depois derivada, depois signUp fallback. NUNCA remover o passo da senha real.
 ---
 
 ## The Rule
-The login function in `context.tsx` uses this exact order:
+A função `login` em `context.tsx` tenta credenciais nesta ordem exata:
 
-1. `login_profile` RPC — validates username+password against `profiles` table (SECURITY DEFINER, bypasses RLS). If returns empty → reject immediately.
-2. `signInWithPassword(email, derivedPassword)` — derived password = `IA_<profile_uuid>`.
-3. If step 2 fails: `signUp` → `confirm_internal_user` RPC → `signInWithPassword(derived)` → `link_profile_to_auth`.
+1. `login_profile` RPC — valida username+password na tabela `profiles` (SECURITY DEFINER, bypassa RLS). Se retornar vazio → rejeita imediatamente.
+2. `signInWithPassword(email, senhaReal)` — para usuários pré-migração cuja conta Auth foi criada com a senha real deles. **NUNCA remover este passo** — sem ele, usuários pré-migração ficam sem dados (currentChurch=null, dashboard em branco).
+3. `signInWithPassword(email, senhaDerivada)` — senha derivada = `IA_<profile_uuid>`. Para usuários criados pelo sistema.
+4. Se tudo falhar: `signUp` → `confirm_internal_user` RPC → `signInWithPassword(derivada)` → `link_profile_to_auth`.
 
-**Why:** The old step 2 (signInWithPassword with real password) always returned 400 for modern users (causing console noise), and the old step 3 (ensure_auth_for_profile in login) returned 404 when the SQL function wasn't deployed (also console noise). Both were removed since the derived-password path handles all users correctly.
+**Por que existem dois tipos de usuário:**
+- Pré-migração: conta Auth criada com senha real → passo 2 funciona
+- Novos usuários: conta Auth criada com senha derivada por `ensure_auth_for_profile` → passo 3 funciona
+- Usuários sem conta Auth: criados no passo 4
 
-**Never** add back a signInWithPassword with the user's real password in the login flow — it causes 400 errors for every user who doesn't have their real password in Supabase Auth.
+**LIÇÃO APRENDIDA:** Remover o passo 2 (senha real) quebra usuários pré-migração — eles logam (profiles valida), mas sem sessão Auth o RLS bloqueia tudo → dashboard em branco com "Selecione uma unidade no menu lateral". O `400` no network tab do passo 2 para usuários novos é cosmético e inofensivo — NÃO é motivo para remover o passo.
 
-## Key RPCs (all SECURITY DEFINER)
-- `login_profile(p_username, p_password)` — validates credentials, returns profile row
-- `confirm_internal_user(p_email)` — confirms email in auth.users for @igrejaapp.internal
-- `link_profile_to_auth(p_username, p_auth_user_id)` — sets auth_user_id in profiles
-- `ensure_auth_for_profile(p_profile_id)` — creates/fixes auth user + sets auth_user_id; called in `addUser` only, NOT in login flow
+## RPCs chave (todos SECURITY DEFINER)
+- `login_profile(p_username, p_password)` — valida credenciais, retorna linha do profile
+- `confirm_internal_user(p_email)` — confirma e-mail em auth.users para @igrejaapp.internal
+- `link_profile_to_auth(p_username, p_auth_user_id)` — define auth_user_id em profiles
+- `ensure_auth_for_profile(p_profile_id)` — cria/corrige usuário Auth + define auth_user_id; chamado em `addUser` apenas, NÃO no fluxo de login
 
-## Anti-enumeration trap
-`supabase.auth.signUp()` for an existing email returns a FAKE UUID (not the real auth user's UUID). Never store the UUID from signUp directly into `profiles.auth_user_id` without verifying via signIn first.
+## Armadilha anti-enumeração
+`supabase.auth.signUp()` para e-mail existente retorna UUID FALSO. Nunca armazenar o UUID do signUp diretamente em `profiles.auth_user_id` sem verificar via signIn primeiro.
 
-**Why:** Supabase's anti-enumeration protection returns a plausible-looking fake UUID. If stored, `auth.uid()` from a real signIn won't match → RLS blocks all data → blank dashboard.
+## Domínio de e-mail
+Usuários internos usam `username@igrejaapp.internal`.
 
-## Email domain
-Internal users use `username@igrejaapp.internal`.
-
-## Derived password formula
-`buildAuthPassword(profileId) = 'IA_' + profileId` — always 39 chars, never fails Supabase's 6-char minimum.
+## Fórmula da senha derivada
+`buildAuthPassword(profileId) = 'IA_' + profileId` — sempre 39 chars, nunca falha o mínimo de 6 chars do Supabase.
