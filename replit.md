@@ -1,5 +1,8 @@
 # IgrejaApp - Church Management System
 
+## User Preferences
+- Responder sempre em português (PT-BR)
+
 ## Overview
 IgrejaApp is a church management system (Portuguese: "Gestão Eclesiástica") built with React, TypeScript, and Vite. It uses Supabase as the backend for authentication and data storage. The app is a PWA (Progressive Web App) with features for managing members, finances, events, campaigns, departments, and more.
 
