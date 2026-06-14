@@ -178,7 +178,7 @@ export const Login: React.FC = () => {
   const renderLogin = () => (
     <form onSubmit={handleLogin} className="space-y-4">
       <div className="text-center mb-2">
-        <div className="flex justify-center -mb-10">
+        <div className="flex justify-center -mb-16">
           <img src="/logo.png" alt="Logo" className="h-40 w-40 object-contain" />
         </div>
         <h2 className="text-2xl font-extrabold text-brand-black">Bem-vindo</h2>
