@@ -397,7 +397,7 @@ export const Login: React.FC = () => {
     <div className="min-h-screen flex items-center justify-center bg-gray-100 py-6 px-4 bg-gradient-to-br from-brand-orange to-brand-red">
       <div className="max-w-sm w-full bg-white p-6 rounded-2xl shadow-2xl space-y-4 transform transition-all">
         <div className="flex justify-center mb-2">
-           <img src="/logo.png" alt="Logo" className="h-20 w-20 object-contain rounded-full shadow-lg" />
+           <img src="/logo.png" alt="Logo" className="h-24 w-24 object-contain" />
         </div>
 
         {step === 'LOGIN' && renderLogin()}
