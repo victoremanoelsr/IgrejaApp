@@ -1,18 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context';
 import { FileText, Download, TrendingUp, TrendingDown, DollarSign, Calendar, PieChart, Search, Filter, Info, ChevronDown, Briefcase } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Transaction } from '../types';
+import { PisPasep } from './PisPasep';
 
 export const Reports: React.FC = () => {
   const { transactions, currentChurch, generateMonthlyFixedExpenses } = useApp();
-  const navigate = useNavigate();
   
   // Filter States
   const [filterType, setFilterType] = useState<'MONTH' | 'PERIOD'>('MONTH');
-  const [reportViewMode, setReportViewMode] = useState<'DETAILED' | 'SUMMARY'>('DETAILED');
+  const [reportViewMode, setReportViewMode] = useState<'DETAILED' | 'SUMMARY' | 'PISPASEP'>('DETAILED');
   
   // Month Mode
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
@@ -242,20 +241,6 @@ export const Reports: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* PIS/PASEP Button */}
-      <div className="bg-gradient-to-r from-blue-800 to-blue-600 rounded-xl p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 shadow-md">
-        <div className="text-white">
-          <h3 className="font-bold text-base flex items-center gap-2"><Briefcase size={18}/> PIS/PASEP sobre Folha de Pagamento</h3>
-          <p className="text-xs text-blue-200 mt-0.5">Módulo completo: cadastro de funcionários, apuração mensal, PDF e integração com o financeiro</p>
-        </div>
-        <button
-          onClick={() => navigate('/pis-pasep')}
-          className="bg-white text-blue-800 font-bold px-5 py-2.5 rounded-lg text-sm hover:bg-blue-50 transition-all shadow-sm shrink-0 flex items-center gap-2"
-        >
-          <Briefcase size={15}/> Acessar Módulo PIS/PASEP
-        </button>
-      </div>
-
       {/* HEADER CONTROLS */}
       <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-200">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
@@ -279,9 +264,16 @@ export const Reports: React.FC = () => {
                 >
                     <PieChart size={14} className="mr-2"/> Resumido
                 </button>
+                <button 
+                    onClick={() => setReportViewMode('PISPASEP')}
+                    className={`px-4 py-2 rounded text-xs font-bold flex items-center transition-all ${reportViewMode === 'PISPASEP' ? 'bg-blue-700 shadow text-white' : 'text-gray-500 hover:text-gray-700'}`}
+                >
+                    <Briefcase size={14} className="mr-2"/> PIS/PASEP
+                </button>
             </div>
         </div>
 
+        {reportViewMode !== 'PISPASEP' && (
         <div className="flex flex-col lg:flex-row gap-4 items-end lg:items-center border-t pt-4">
             {/* Toggle Monthly/Period */}
             <div className="flex bg-gray-100 p-1 rounded-lg shrink-0">
@@ -360,10 +352,13 @@ export const Reports: React.FC = () => {
                 <Download size={16} className="mr-2"/> Baixar PDF {reportViewMode === 'DETAILED' ? 'Detalhado' : ''}
             </button>
         </div>
+        )}
       </div>
 
-      {/* REPORT CONTENT */}
-      <div className="bg-white rounded-xl shadow-lg border-t-4 border-brand-orange overflow-hidden pb-4">
+      {reportViewMode === 'PISPASEP' ? (
+        <PisPasep />
+      ) : (
+        <div className="bg-white rounded-xl shadow-lg border-t-4 border-brand-orange overflow-hidden pb-4">
           <div className="text-center py-6 border-b border-gray-100">
               <h2 className="text-xl font-extrabold text-brand-black uppercase tracking-wider">RELATÓRIO FINANCEIRO {reportViewMode === 'DETAILED' ? 'DETALHADO' : 'RESUMIDO'}</h2>
               <div className="inline-block bg-orange-50 text-brand-orange px-4 py-1 rounded-full text-xs font-bold mt-2 border border-orange-100">
@@ -375,24 +370,19 @@ export const Reports: React.FC = () => {
           <div className="p-6">
               {reportViewMode === 'DETAILED' ? (
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                      {/* Left Column: Entradas */}
                       <div>
                           {renderSectionHeader('Entradas Detalhadas', 'green')}
                           {renderTableBlock('Dízimos', dizimosList, totalDizimos, 'green')}
                           {renderTableBlock('Ofertas', ofertasList, totalOfertas, 'green')}
                           {outrosList.length > 0 && renderTableBlock('Outras Entradas', outrosList, outrosList.reduce((a,b)=>a+b.amount,0), 'green')}
-                          
                           <div className="bg-green-100 p-4 rounded-lg flex justify-between items-center mt-4">
                               <span className="font-bold text-green-800 text-sm uppercase">TOTAL ENTRADAS</span>
                               <span className="font-black text-green-900 text-lg">R$ {totalInPeriod.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
                           </div>
                       </div>
-
-                      {/* Right Column: Saídas */}
                       <div>
                           {renderSectionHeader('Saídas Detalhadas', 'red')}
                           {renderTableBlock('Despesas Gerais', outflowsList, totalOutPeriod, 'red')}
-                          
                           <div className="bg-red-100 p-4 rounded-lg flex justify-between items-center mt-4">
                               <span className="font-bold text-red-800 text-sm uppercase">TOTAL SAÍDAS</span>
                               <span className="font-black text-red-900 text-lg">R$ {totalOutPeriod.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
@@ -417,14 +407,14 @@ export const Reports: React.FC = () => {
               )}
           </div>
           
-          {/* Footer Final Balance (Keep always visible below) */}
           <div className="mx-6 mb-6 p-5 border rounded-xl bg-gray-50 flex justify-between items-center shadow-sm">
               <span className="text-xl font-black text-brand-black uppercase tracking-tight">SALDO</span>
               <span className={`text-3xl font-black ${finalBalance >= 0 ? 'text-brand-black' : 'text-red-600'}`}>
                   R$ {finalBalance.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
               </span>
           </div>
-      </div>
+        </div>
+      )}
     </div>
   );
 };
