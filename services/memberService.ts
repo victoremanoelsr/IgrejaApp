@@ -188,19 +188,18 @@ export const getPublicFinancialData = async (
   month: number,
   year: number
 ): Promise<PublicTransaction[]> => {
-  const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
-  const endDay = new Date(year, month, 0).getDate();
-  const endDate = `${year}-${String(month).padStart(2, '0')}-${String(endDay).padStart(2, '0')}`;
+  // Uses SECURITY DEFINER RPC to bypass RLS — returns only public fields (no personal data)
+  const { data, error } = await supabase.rpc('get_public_financial_data', {
+    p_church_id: churchId,
+    p_month: month,
+    p_year: year,
+  });
 
-  const { data, error } = await supabase
-    .from('transactions')
-    .select('id, date, category, type, amount')
-    .eq('church_id', churchId)
-    .gte('date', startDate)
-    .lte('date', endDate)
-    .order('date', { ascending: false });
-
-  if (error || !data) return [];
+  if (error) {
+    console.error('[getPublicFinancialData] RPC error:', error.message);
+    return [];
+  }
+  if (!data) return [];
 
   return (data as any[]).map((row) => ({
     id: String(row.id),
