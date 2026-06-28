@@ -1,0 +1,139 @@
+Quero que você implemente no meu sistema IGREJA APP uma nova janela dentro do Painel do Membro chamada:
+
+“Prestação de Contas”
+
+ou
+
+“Relatórios Financeiros”
+
+Essa janela deve permitir que os membros da igreja acompanhem a movimentação financeira da igreja de forma transparente, mas sem expor dados pessoais de quem contribuiu.
+
+O sistema já possui uma janela financeira/relatórios no painel administrativo, onde são cadastradas entradas e saídas, como dízimos, ofertas, campanhas, salários, despesas fixas, impostos e outras movimentações. Quero que essa nova janela do Painel do Membro use essas mesmas informações financeiras já cadastradas no sistema, porém em uma versão pública/resumida.
+
+Muito importante:
+
+No Painel do Membro, nunca deve aparecer o nome da pessoa que entregou dízimo, oferta, campanha ou qualquer contribuição.
+
+O relatório do membro deve mostrar apenas:
+
+* Data
+* Categoria
+* Tipo: Entrada ou Saída
+* Valor
+
+Não mostrar:
+
+* Nome do contribuinte
+* CPF
+* Telefone
+* Observações internas
+* Forma de pagamento, caso isso possa identificar a pessoa
+* Qualquer dado pessoal do membro
+
+Exemplo de como deve aparecer para o membro:
+
+Data: 10/06/2026
+Categoria: Dízimo
+Tipo: Entrada
+Valor: R$ 150,00
+
+Data: 12/06/2026
+Categoria: Oferta
+Tipo: Entrada
+Valor: R$ 80,00
+
+Data: 15/06/2026
+Categoria: Salários / Folha de Pagamento
+Tipo: Saída
+Valor: R$ 1.500,00
+
+Data: 25/06/2026
+Categoria: PIS/PASEP sobre Folha
+Tipo: Saída
+Valor: R$ 15,00
+
+Essa tela deve ter um filtro por mês e ano, por exemplo:
+
+Junho/2026
+Julho/2026
+Agosto/2026
+
+Ao selecionar o mês, o sistema deve mostrar um resumo financeiro com:
+
+* Total de entradas
+* Total de saídas
+* Saldo do mês
+* Total por categoria de entrada
+* Total por categoria de saída
+
+Exemplo do resumo:
+
+Entradas do mês: R$ 8.500,00
+Saídas do mês: R$ 5.300,00
+Saldo do mês: R$ 3.200,00
+
+Entradas por categoria:
+
+* Dízimos: R$ 4.000,00
+* Ofertas: R$ 2.000,00
+* Campanhas: R$ 2.500,00
+
+Saídas por categoria:
+
+* Salários / Folha de Pagamento: R$ 1.500,00
+* Energia: R$ 320,00
+* Água: R$ 90,00
+* Impostos / Obrigações Tributárias: R$ 15,00
+* Material de limpeza: R$ 120,00
+
+Abaixo do resumo, criar uma lista ou tabela chamada:
+
+“Movimentações do Mês”
+
+Essa tabela deve mostrar somente:
+
+* Data
+* Categoria
+* Tipo
+* Valor
+
+Não deve mostrar nomes de membros ou contribuintes.
+
+No painel administrativo, o presidente, tesoureiro, secretário ou usuário autorizado pode continuar vendo o relatório completo, com nome da pessoa, detalhes internos e observações. Mas no Painel do Membro, a visualização deve ser protegida e resumida, preservando a ética e a privacidade dos contribuintes.
+
+Também quero que exista uma configuração no painel administrativo para controlar o que será exibido no Painel do Membro.
+
+Criar uma opção em Configurações Financeiras ou Configurações de Relatórios chamada:
+
+“Exibir prestação de contas no Painel do Membro”
+
+Com as opções:
+
+* Ativar ou desativar a visualização para membros
+* Mostrar movimentações detalhadas sem nomes
+* Mostrar apenas resumo por categoria
+* Permitir filtro por mês
+* Permitir exportar/imprimir PDF, se o administrador autorizar
+
+Se o administrador escolher “mostrar apenas resumo por categoria”, o membro verá somente os totais agrupados por categoria, sem ver cada movimentação individual.
+
+Se o administrador escolher “mostrar movimentações detalhadas sem nomes”, o membro verá a lista de movimentações com data, categoria, tipo e valor, mas sem nome de contribuinte.
+
+A janela deve ter layout moderno, limpo e responsivo, seguindo a identidade visual do sistema IGREJA APP, com cores laranja, preto, branco e tons neutros.
+
+O objetivo dessa janela é dar transparência financeira aos membros da igreja, sem expor quem deu dízimo, oferta ou contribuição. A prestação de contas precisa ser ética, segura e integrada ao relatório financeiro oficial já existente no sistema.
+
+Essa nova janela do Painel do Membro deve puxar os dados diretamente do financeiro oficial do sistema, mas ocultando automaticamente os campos sensíveis antes de mostrar ao membro.
+
+Regras importantes:
+
+1. Nunca exibir nome de contribuinte no Painel do Membro.
+2. Nunca exibir CPF, telefone ou dados pessoais.
+3. O painel administrativo continua tendo relatório completo.
+4. O Painel do Membro mostra apenas relatório público/resumido.
+5. A tela deve ter filtro por mês e ano.
+6. Deve mostrar resumo de entradas, saídas e saldo.
+7. Deve mostrar totais por categoria.
+8. Deve permitir, se autorizado pelo administrador, visualizar movimentações com data, categoria, tipo e valor.
+9. As despesas lançadas automaticamente, como salários, PIS/PASEP, despesas fixas e outras saídas, também devem aparecer nessa prestação de contas pública, sem dados pessoais.
+10. Criar controle de permissão para que apenas membros autenticados da igreja vejam essa janela.

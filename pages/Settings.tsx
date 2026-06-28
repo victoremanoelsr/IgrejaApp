@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../context';
-import { Settings as SettingsIcon, Save, Building, Camera, AlertTriangle, CheckCircle, Info, Key } from 'lucide-react';
+import { Settings as SettingsIcon, Save, Building, Camera, AlertTriangle, CheckCircle, Info, Key, BarChart2, Eye, EyeOff, FileDown, Filter } from 'lucide-react';
+import { getPrestacaoConfig, PRESTACAO_CONFIG_KEY, PrestacaoConfig } from './member/MemberPrestacaoContas';
 
 const validatePixKey = (key: string): { valid: boolean; type: string } => {
   const cleaned = key.replace(/\D/g, '');
@@ -29,6 +30,12 @@ export const Settings: React.FC = () => {
   const [pixKey, setPixKey] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+
+  // Prestação de Contas config
+  const [prestConfig, setPrestConfig] = useState<PrestacaoConfig>({
+    enabled: true, showDetail: true, allowPDF: false, showMonthFilter: true,
+  });
+  const [prestSaved, setPrestSaved] = useState(false);
 
   // --- CUSTOM MODAL STATE ---
   const [modalState, setModalState] = useState<{
@@ -68,10 +75,17 @@ export const Settings: React.FC = () => {
       setPastorPhone(currentChurch.pastorPhone || '');
       setMission(currentChurch.missionStatement || '');
       setLogoUrl(currentChurch.logoUrl || '');
-      // Se a igreja ainda não tem PIX cadastrado, pré-preenche com o PIX master configurado pelo dono do sistema.
       setPixKey(currentChurch.pixKey != null ? currentChurch.pixKey.trim() : (systemSettings.masterPixKey?.trim() || ''));
+      setPrestConfig(getPrestacaoConfig(currentChurch.id));
     }
   }, [currentChurch]);
+
+  const handleSavePrestConfig = () => {
+    if (!currentChurch) return;
+    localStorage.setItem(PRESTACAO_CONFIG_KEY + currentChurch.id, JSON.stringify(prestConfig));
+    setPrestSaved(true);
+    setTimeout(() => setPrestSaved(false), 3000);
+  };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0] && currentChurch) {
@@ -297,6 +311,108 @@ export const Settings: React.FC = () => {
                </button>
              </div>
           </form>
+       </div>
+
+       {/* PRESTAÇÃO DE CONTAS CONFIG */}
+       <div className="bg-white p-8 rounded-xl shadow-lg">
+         <div className="flex items-center gap-3 mb-6 pb-4 border-b">
+           <div className="p-2 bg-orange-50 rounded-lg">
+             <BarChart2 size={22} className="text-brand-orange" />
+           </div>
+           <div>
+             <h2 className="text-lg font-bold text-gray-800">Prestação de Contas — Portal do Membro</h2>
+             <p className="text-sm text-gray-500">Configure o que os membros podem ver no relatório financeiro público</p>
+           </div>
+         </div>
+
+         <div className="space-y-4">
+           {/* Toggle: Habilitar */}
+           <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border">
+             <div className="flex items-center gap-3">
+               {prestConfig.enabled ? <Eye size={18} className="text-green-600" /> : <EyeOff size={18} className="text-gray-400" />}
+               <div>
+                 <p className="font-semibold text-gray-800 text-sm">Exibir prestação de contas no Portal do Membro</p>
+                 <p className="text-xs text-gray-500">Se desativado, os membros verão uma tela de "indisponível"</p>
+               </div>
+             </div>
+             <button
+               onClick={() => setPrestConfig(c => ({ ...c, enabled: !c.enabled }))}
+               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${prestConfig.enabled ? 'bg-green-500' : 'bg-gray-300'}`}
+             >
+               <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${prestConfig.enabled ? 'translate-x-6' : 'translate-x-1'}`} />
+             </button>
+           </div>
+
+           {prestConfig.enabled && (
+             <>
+               {/* Toggle: Movimentações detalhadas */}
+               <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border">
+                 <div className="flex items-center gap-3">
+                   <Eye size={18} className="text-blue-500" />
+                   <div>
+                     <p className="font-semibold text-gray-800 text-sm">Mostrar movimentações detalhadas</p>
+                     <p className="text-xs text-gray-500">Membro verá lista com data, categoria, tipo e valor. Se desativado, verá apenas o resumo por categoria.</p>
+                   </div>
+                 </div>
+                 <button
+                   onClick={() => setPrestConfig(c => ({ ...c, showDetail: !c.showDetail }))}
+                   className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${prestConfig.showDetail ? 'bg-blue-500' : 'bg-gray-300'}`}
+                 >
+                   <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${prestConfig.showDetail ? 'translate-x-6' : 'translate-x-1'}`} />
+                 </button>
+               </div>
+
+               {/* Toggle: Filtro por mês */}
+               <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border">
+                 <div className="flex items-center gap-3">
+                   <Filter size={18} className="text-purple-500" />
+                   <div>
+                     <p className="font-semibold text-gray-800 text-sm">Permitir filtro por mês</p>
+                     <p className="text-xs text-gray-500">Membro pode selecionar mês e ano para visualizar</p>
+                   </div>
+                 </div>
+                 <button
+                   onClick={() => setPrestConfig(c => ({ ...c, showMonthFilter: !c.showMonthFilter }))}
+                   className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${prestConfig.showMonthFilter ? 'bg-purple-500' : 'bg-gray-300'}`}
+                 >
+                   <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${prestConfig.showMonthFilter ? 'translate-x-6' : 'translate-x-1'}`} />
+                 </button>
+               </div>
+
+               {/* Toggle: Exportar PDF */}
+               <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border">
+                 <div className="flex items-center gap-3">
+                   <FileDown size={18} className="text-orange-500" />
+                   <div>
+                     <p className="font-semibold text-gray-800 text-sm">Permitir exportação em PDF</p>
+                     <p className="text-xs text-gray-500">Membro poderá baixar o relatório em PDF</p>
+                   </div>
+                 </div>
+                 <button
+                   onClick={() => setPrestConfig(c => ({ ...c, allowPDF: !c.allowPDF }))}
+                   className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${prestConfig.allowPDF ? 'bg-orange-500' : 'bg-gray-300'}`}
+                 >
+                   <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${prestConfig.allowPDF ? 'translate-x-6' : 'translate-x-1'}`} />
+                 </button>
+               </div>
+             </>
+           )}
+
+           {/* Aviso privacidade */}
+           <div className="flex items-start gap-2 bg-blue-50 border border-blue-100 rounded-xl p-4">
+             <Info size={15} className="text-blue-500 shrink-0 mt-0.5" />
+             <p className="text-xs text-blue-700 leading-relaxed">
+               <strong>Privacidade garantida:</strong> O sistema nunca exibe nome de contribuinte, CPF, telefone ou dados pessoais no Portal do Membro. Apenas data, categoria, tipo e valor são visíveis.
+             </p>
+           </div>
+
+           <button
+             onClick={handleSavePrestConfig}
+             className="w-full flex justify-center items-center gap-2 px-6 py-3 bg-brand-orange text-white rounded-lg hover:bg-brand-red transition-colors shadow-lg font-bold active:scale-95"
+           >
+             {prestSaved ? <><CheckCircle size={18} /> Configurações salvas!</> : <><Save size={18} /> Salvar Configurações de Prestação de Contas</>}
+           </button>
+         </div>
        </div>
 
        {/* GLOBAL CONFIRM/ALERT MODAL */}

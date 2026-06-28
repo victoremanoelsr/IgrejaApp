@@ -14,12 +14,14 @@ import {
   Globe,
   ChevronDown,
   Calendar,
+  BarChart2,
 } from 'lucide-react';
 import { NavLink, useNavigate } from 'react-router-dom';
 
 const navItems = [
   { to: '/portal/dashboard', icon: LayoutDashboard, label: 'Início' },
   { to: '/portal/financeiro', icon: DollarSign, label: 'Financeiro' },
+  { to: '/portal/prestacao-contas', icon: BarChart2, label: 'Prestação de Contas' },
   { to: '/portal/carnets', icon: BookOpen, label: 'Carnês' },
   { to: '/portal/eventos', icon: Calendar, label: 'Eventos' },
   { to: '/portal/documentos', icon: FileText, label: 'Documentos' },

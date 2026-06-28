@@ -175,6 +175,42 @@ export const updateMemberUsername = async (
   return { success: true };
 };
 
+export interface PublicTransaction {
+  id: string;
+  date: string;
+  category: string;
+  type: 'ENTRADA' | 'SAIDA';
+  amount: number;
+}
+
+export const getPublicFinancialData = async (
+  churchId: string,
+  month: number,
+  year: number
+): Promise<PublicTransaction[]> => {
+  const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
+  const endDay = new Date(year, month, 0).getDate();
+  const endDate = `${year}-${String(month).padStart(2, '0')}-${String(endDay).padStart(2, '0')}`;
+
+  const { data, error } = await supabase
+    .from('transactions')
+    .select('id, date, category, type, amount')
+    .eq('church_id', churchId)
+    .gte('date', startDate)
+    .lte('date', endDate)
+    .order('date', { ascending: false });
+
+  if (error || !data) return [];
+
+  return (data as any[]).map((row) => ({
+    id: String(row.id),
+    date: String(row.date),
+    category: String(row.category),
+    type: row.type as 'ENTRADA' | 'SAIDA',
+    amount: parseFloat(String(row.amount)) || 0,
+  }));
+};
+
 export const subscribeToMemberTransactions = (
   churchId: string,
   memberId: string,

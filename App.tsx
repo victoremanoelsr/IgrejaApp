@@ -35,6 +35,7 @@ import { MemberDocumentos } from './pages/member/MemberDocumentos';
 import { MemberPerfil } from './pages/member/MemberPerfil';
 import { CarteirinhaDigital } from './pages/member/CarteirinhaDigital';
 import { MemberEventos } from './pages/member/MemberEventos';
+import { MemberPrestacaoContas } from './pages/member/MemberPrestacaoContas';
 import { BlockedPage } from './pages/BlockedPage';
 import { BillingPage } from './pages/BillingPage';
 import { ConfiguracoesSaas } from './pages/ConfiguracoesSaas';
@@ -99,6 +100,7 @@ const AppRoutes = () => {
       <Route path="/portal/perfil" element={<ProtectedMemberRoute><MemberPerfil /></ProtectedMemberRoute>} />
       <Route path="/portal/carteirinha" element={<ProtectedMemberRoute><CarteirinhaDigital /></ProtectedMemberRoute>} />
       <Route path="/portal/eventos" element={<ProtectedMemberRoute><MemberEventos /></ProtectedMemberRoute>} />
+      <Route path="/portal/prestacao-contas" element={<ProtectedMemberRoute><MemberPrestacaoContas /></ProtectedMemberRoute>} />
       <Route path="/portal" element={<Navigate to="/" replace />} />
 
       {/* Super Admin Panel */}
