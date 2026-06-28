@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Relatório PIS/PASEP sobre Folha - Igreja</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f7fa;
+            color: #333;
+            line-height: 1.6;
+        }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        h1 { text-align: center; color: #1a5276; margin-bottom: 10px; }
+        h2 { color: #1a5276; margin: 25px 0 15px; border-bottom: 2px solid #3498db; padding-bottom: 8px; }
+        h3 { color: #2874a6; margin: 20px 0 10px; }
+        .subtitle { text-align: center; color: #666; margin-bottom: 30px; font-size: 14px; }
+
+        .card {
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+            padding: 25px;
+            margin-bottom: 25px;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 15px;
+        }
+
+        .form-group { display: flex; flex-direction: column; }
+        .form-group label {
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 5px;
+            font-size: 13px;
+            text-transform: uppercase;
+        }
+        .form-group input, .form-group select {
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border 0.2s;
+        }
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-primary { background: #1a5276; color: #fff; }
+        .btn-primary:hover { background: #154360; }
+        .btn-success { background: #27ae60; color: #fff; }
+        .btn-success:hover { background: #1e8449; }
+        .btn-danger { background: #e74c3c; color: #fff; }
+        .btn-danger:hover { background: #c0392b; }
+        .btn-warning { background: #f39c12; color: #fff; }
+        .btn-warning:hover { background: #d68910; }
+
+        .actions { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            font-size: 14px;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+        th {
+            background: #1a5276;
+            color: #fff;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 12px;
+        }
+        tr:hover { background: #f8f9fa; }
+        td input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        .totals-box {
+            background: #eaf2f8;
+            border: 1px solid #aed6f1;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        .totals-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        .total-item {
+            background: #fff;
+            padding: 15px;
+            border-radius: 6px;
+            text-align: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        .total-item .label {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+        .total-item .value {
+            font-size: 22px;
+            font-weight: 700;
+            color: #1a5276;
+        }
+        .total-item.highlight .value { color: #e74c3c; }
+
+        .info-box {
+            background: #fef9e7;
+            border-left: 4px solid #f39c12;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 0 6px 6px 0;
+            font-size: 13px;
+        }
+        .info-box strong { color: #d68910; }
+
+        /* PRINT / PDF STYLES */
+        @media print {
+            body { background: #fff; }
+            .no-print { display: none !important; }
+            .container { max-width: 100%; padding: 0; }
+            .card { box-shadow: none; border: 1px solid #ddd; margin-bottom: 15px; page-break-inside: avoid; }
+            h1 { font-size: 20px; }
+            h2 { font-size: 16px; }
+            table { font-size: 12px; }
+            th { background: #1a5276 !important; color: #fff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .totals-box { background: #f8f9fa !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .total-item { box-shadow: none; border: 1px solid #ddd; }
+        }
+
+        .report-header {
+            text-align: center;
+            padding: 30px 20px;
+            background: linear-gradient(135deg, #1a5276 0%, #2980b9 100%);
+            color: #fff;
+            border-radius: 10px;
+            margin-bottom: 25px;
+        }
+        .report-header h1 { color: #fff; margin-bottom: 5px; }
+        .report-header p { opacity: 0.9; font-size: 14px; }
+
+        .signature-area {
+            margin-top: 40px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+        }
+        .signature-box {
+            text-align: center;
+        }
+        .signature-line {
+            border-top: 1px solid #333;
+            margin-top: 60px;
+            padding-top: 10px;
+            font-size: 13px;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .badge-info { background: #d6eaf8; color: #1a5276; }
+        .badge-success { background: #d5f5e3; color: #1e8449; }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+        .empty-state svg { width: 60px; height: 60px; margin-bottom: 15px; opacity: 0.3; }
+    </style>
+</head>
+<body>
+    <div class="container">
+
+        <!-- HEADER -->
+        <div class="report-header no-print">
+            <h1>📋 Relatório PIS/PASEP sobre Folha de Pagamento</h1>
+            <p>Igrejas e Templos de Qualquer Culto — Alíquota 1% sobre a folha</p>
+        </div>
+
+        <!-- SEÇÃO 1: DADOS DA IGREJA -->
+        <div class="card no-print">
+            <h2>1. Dados da Igreja</h2>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Razão Social</label>
+                    <input type="text" id="razao_social" placeholder="Ex: Igreja Evangélica Assembleia de Deus">
+                </div>
+                <div class="form-group">
+                    <label>Nome Fantasia</label>
+                    <input type="text" id="nome_fantasia" placeholder="Ex: Igreja Assembleia de Deus - Jardim das Oliveiras">
+                </div>
+                <div class="form-group">
+                    <label>CNPJ</label>
+                    <input type="text" id="cnpj" placeholder="00.000.000/0000-00" maxlength="18">
+                </div>
+                <div class="form-group">
+                    <label>Endereço Completo</label>
+                    <input type="text" id="endereco" placeholder="Rua, Número, Bairro, Cidade - UF, CEP">
+                </div>
+                <div class="form-group">
+                    <label>Responsável Legal</label>
+                    <input type="text" id="responsavel" placeholder="Nome do Pastor/Presidente">
+                </div>
+                <div class="form-group">
+                    <label>CPF do Responsável</label>
+                    <input type="text" id="cpf_responsavel" placeholder="000.000.000-00" maxlength="14">
+                </div>
+                <div class="form-group">
+                    <label>Contador Responsável</label>
+                    <input type="text" id="contador" placeholder="Nome do contador">
+                </div>
+                <div class="form-group">
+                    <label>CRC</label>
+                    <input type="text" id="crc" placeholder="Número do CRC">
+                </div>
+                <div class="form-group">
+                    <label>Mês/Ano de Competência</label>
+                    <input type="month" id="competencia">
+                </div>
+                <div class="form-group">
+                    <label>Data de Emissão</label>
+                    <input type="date" id="data_emissao">
+                </div>
+            </div>
+        </div>
+
+        <!-- SEÇÃO 2: FUNCIONÁRIOS -->
+        <div class="card no-print">
+            <h2>2. Cadastro de Funcionários</h2>
+            <div class="info-box">
+                <strong>ℹ️ Informação:</strong> Preencha os dados de cada funcionário. O sistema calcula automaticamente o PIS (1%) sobre a base de cálculo de cada um. A base de cálculo corresponde ao total das remunerações pagas, conforme art. 22 da Lei 8.212/1991.
+            </div>
+
+            <div class="form-grid" style="margin-bottom: 15px;">
+                <div class="form-group">
+                    <label>Nome do Funcionário</label>
+                    <input type="text" id="func_nome" placeholder="Nome completo">
+                </div>
+                <div class="form-group">
+                    <label>CPF</label>
+                    <input type="text" id="func_cpf" placeholder="000.000.000-00" maxlength="14">
+                </div>
+                <div class="form-group">
+                    <label>Cargo/Função</label>
+                    <input type="text" id="func_cargo" placeholder="Ex: Secretário, Zelador, Pastor Auxiliar">
+                </div>
+                <div class="form-group">
+                    <label>Salário Base (R$)</label>
+                    <input type="number" id="func_salario" placeholder="0,00" step="0.01" min="0">
+                </div>
+                <div class="form-group">
+                    <label>Outras Verbas (R$)</label>
+                    <input type="number" id="func_outras" placeholder="Gratificações, horas extras, etc." step="0.01" min="0">
+                </div>
+                <div class="form-group">
+                    <label>Verbas Isentas (R$)</label>
+                    <input type="number" id="func_isentas" placeholder="Salário-família, vale-transporte, etc." step="0.01" min="0">
+                </div>
+            </div>
+
+            <button class="btn btn-primary" onclick="adicionarFuncionario()">
+                ➕ Adicionar Funcionário
+            </button>
+
+            <table id="tabela_funcionarios">
+                <thead>
+                    <tr>
+                        <th>Nº</th>
+                        <th>Nome</th>
+                        <th>CPF</th>
+                        <th>Cargo</th>
+                        <th>Salário Base</th>
+                        <th>Outras Verbas</th>
+                        <th>Verbas Isentas</th>
+                        <th>Base Cálculo</th>
+                        <th>PIS (1%)</th>
+                        <th>Ação</th>
+                    </tr>
+                </thead>
+                <tbody id="tbody_funcionarios">
+                    <tr class="empty-row">
+                        <td colspan="10" class="empty-state">
+                            Nenhum funcionário cadastrado. Preencha os campos acima e clique em "Adicionar Funcionário".
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- SEÇÃO 3: TOTAIS -->
+        <div class="card no-print">
+            <h2>3. Resumo e Totais</h2>
+            <div class="totals-box">
+                <div class="totals-grid">
+                    <div class="total-item">
+                        <div class="label">Total de Funcionários</div>
+                        <div class="value" id="total_funcionarios">0</div>
+                    </div>
+                    <div class="total-item">
+                        <div class="label">Total da Folha</div>
+                        <div class="value" id="total_folha">R$ 0,00</div>
+                    </div>
+                    <div class="total-item">
+                        <div class="label">Base de Cálculo PIS</div>
+                        <div class="value" id="total_base">R$ 0,00</div>
+                    </div>
+                    <div class="total-item highlight">
+                        <div class="label">PIS/PASEP Devido (1%)</div>
+                        <div class="value" id="total_pis">R$ 0,00</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="info-box" style="margin-top: 15px;">
+                <strong>📌 Código de Receita DARF:</strong> 8301-02 | <strong>Vencimento:</strong> 25º dia do mês subsequente | <strong>Alíquota:</strong> 1% sobre a base de cálculo da folha
+            </div>
+
+            <div class="actions">
+                <button class="btn btn-success" onclick="gerarRelatorio()">
+                    📄 Gerar Relatório em PDF
+                </button>
+                <button class="btn btn-warning" onclick="limparTudo()">
+                    🗑️ Limpar Tudo
+                </button>
+            </div>
+        </div>
+
+        <!-- RELATÓRIO FINAL (visível apenas na impressão) -->
+        <div id="relatorio_final" style="display: none;">
+            <div style="text-align: center; margin-bottom: 30px; border-bottom: 3px solid #1a5276; padding-bottom: 20px;">
+                <h1 style="color: #1a5276; font-size: 22px; margin-bottom: 5px;">
+                    RELATÓRIO DE APURAÇÃO DO PIS/PASEP SOBRE A FOLHA DE SALÁRIOS
+                </h1>
+                <p style="font-size: 14px; color: #666;">
+                    Igreja: <strong id="rep_razao"></strong> | CNPJ: <strong id="rep_cnpj"></strong>
+                </p>
+                <p style="font-size: 13px; color: #666;">
+                    Competência: <strong id="rep_competencia"></strong> | Emissão: <strong id="rep_data"></strong>
+                </p>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <h3 style="color: #1a5276; font-size: 14px; text-transform: uppercase; border-bottom: 1px solid #ddd; padding-bottom: 5px;">
+                    1. Dados da Entidade
+                </h3>
+                <table style="width: 100%; font-size: 12px; margin-top: 10px;">
+                    <tr><td style="width: 30%; font-weight: bold;">Razão Social:</td><td id="rep_razao2"></td></tr>
+                    <tr><td style="font-weight: bold;">Nome Fantasia:</td><td id="rep_fantasia"></td></tr>
+                    <tr><td style="font-weight: bold;">CNPJ:</td><td id="rep_cnpj2"></td></tr>
+                    <tr><td style="font-weight: bold;">Endereço:</td><td id="rep_endereco"></td></tr>
+                    <tr><td style="font-weight: bold;">Responsável Legal:</td><td id="rep_responsavel"></td></tr>
+                    <tr><td style="font-weight: bold;">CPF Responsável:</td><td id="rep_cpf_resp"></td></tr>
+                    <tr><td style="font-weight: bold;">Contador:</td><td id="rep_contador"></td></tr>
+                    <tr><td style="font-weight: bold;">CRC:</td><td id="rep_crc"></td></tr>
+                </table>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <h3 style="color: #1a5276; font-size: 14px; text-transform: uppercase; border-bottom: 1px solid #ddd; padding-bottom: 5px;">
+                    2. Fundamento Legal
+                </h3>
+                <p style="font-size: 11px; text-align: justify; margin-top: 10px; line-height: 1.8;">
+                    A entidade acima identificada está enquadrada como <strong>templo de qualquer culto</strong>, conforme art. 13, inciso I, da Medida Provisória nº 2.158-35/2001, sendo contribuinte do PIS/PASEP incidente sobre a folha de salários (não sobre a receita). 
+                    Base legal: Lei Complementar nº 7/1970; MP 2.158-35/2001, arts. 13 e 13-A; IN RFB nº 2121/2022, arts. 300 a 305; Lei nº 8.212/1991, art. 22. 
+                    <strong>Alíquota: 1%</strong> sobre a base de cálculo mensal. Código de Receita DARF: <strong>8301-02</strong>.
+                </p>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <h3 style="color: #1a5276; font-size: 14px; text-transform: uppercase; border-bottom: 1px solid #ddd; padding-bottom: 5px;">
+                    3. Detalhamento por Funcionário
+                </h3>
+                <table style="width: 100%; font-size: 11px; border-collapse: collapse; margin-top: 10px;">
+                    <thead>
+                        <tr style="background: #1a5276; color: #fff;">
+                            <th style="padding: 8px; border: 1px solid #1a5276;">Nº</th>
+                            <th style="padding: 8px; border: 1px solid #1a5276;">Nome</th>
+                            <th style="padding: 8px; border: 1px solid #1a5276;">CPF</th>
+                            <th style="padding: 8px; border: 1px solid #1a5276;">Cargo</th>
+                            <th style="padding: 8px; border: 1px solid #1a5276; text-align: right;">Salário Base</th>
+                            <th style="padding: 8px; border: 1px solid #1a5276; text-align: right;">Outras Verbas</th>
+                            <th style="padding: 8px; border: 1px solid #1a5276; text-align: right;">Verbas Isentas</th>
+                            <th style="padding: 8px; border: 1px solid #1a5276; text-align: right;">Base Cálculo</th>
+                            <th style="padding: 8px; border: 1px solid #1a5276; text-align: right;">PIS (1%)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="rep_tbody"></tbody>
+                    <tfoot style="background: #eaf2f8; font-weight: bold;">
+                        <tr>
+                            <td colspan="4" style="padding: 10px; border: 1px solid #ddd; text-align: right;">TOTAIS:</td>
+                            <td style="padding: 10px; border: 1px solid #ddd; text-align: right;" id="rep_total_salario"></td>
+                            <td style="padding: 10px; border: 1px solid #ddd; text-align: right;" id="rep_total_outras"></td>
+                            <td style="padding: 10px; border: 1px solid #ddd; text-align: right;" id="rep_total_isentas"></td>
+                            <td style="padding: 10px; border: 1px solid #ddd; text-align: right;" id="rep_total_base"></td>
+                            <td style="padding: 10px; border: 1px solid #ddd; text-align: right; color: #c0392b;" id="rep_total_pis"></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+
+            <div style="margin-bottom: 20px; background: #f8f9fa; padding: 15px; border-radius: 6px; border: 1px solid #ddd;">
+                <h3 style="color: #1a5276; font-size: 14px; text-transform: uppercase; margin-bottom: 10px;">
+                    4. Resumo do Cálculo
+                </h3>
+                <table style="width: 100%; font-size: 12px;">
+                    <tr>
+                        <td style="width: 60%; font-weight: bold;">Total de Funcionários:</td>
+                        <td id="rep_total_func"></td>
+                    </tr>
+                    <tr>
+                        <td style="font-weight: bold;">Total da Folha de Pagamento:</td>
+                        <td id="rep_total_folha2"></td>
+                    </tr>
+                    <tr>
+                        <td style="font-weight: bold;">Total de Verbas Isentas:</td>
+                        <td id="rep_total_isentas2"></td>
+                    </tr>
+                    <tr>
+                        <td style="font-weight: bold;">Base de Cálculo do PIS/PASEP:</td>
+                        <td id="rep_base_calc"></td>
+                    </tr>
+                    <tr style="font-size: 14px; color: #c0392b;">
+                        <td style="font-weight: bold;">PIS/PASEP Devido (1%):</td>
+                        <td id="rep_pis_devido" style="font-weight: bold;"></td>
+                    </tr>
+                </table>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <h3 style="color: #1a5276; font-size: 14px; text-transform: uppercase; border-bottom: 1px solid #ddd; padding-bottom: 5px;">
+                    5. Prazo e Forma de Recolhimento
+                </h3>
+                <table style="width: 100%; font-size: 11px; margin-top: 10px;">
+                    <tr><td style="width: 30%; font-weight: bold;">Data de Vencimento:</td><td>25º dia do mês subsequente (ou dia útil anterior)</td></tr>
+                    <tr><td style="font-weight: bold;">Forma de Pagamento:</td><td>DARF - Documento de Arrecadação de Receitas Federais</td></tr>
+                    <tr><td style="font-weight: bold;">Código de Receita:</td><td>8301-02</td></tr>
+                    <tr><td style="font-weight: bold;">Competência:</td><td id="rep_competencia2"></td></tr>
+                </table>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <h3 style="color: #1a5276; font-size: 14px; text-transform: uppercase; border-bottom: 1px solid #ddd; padding-bottom: 5px;">
+                    6. Declaração e Assinaturas
+                </h3>
+                <p style="font-size: 11px; text-align: justify; margin: 15px 0; line-height: 1.8;">
+                    Declaro que as informações constantes neste relatório são verdadeiras e refletem fielmente a apuração do PIS/PASEP sobre a folha de salários da entidade acima identificada para o período de competência indicado. 
+                    As remunerações foram apuradas conforme a legislação vigente, observando-se as exclusões previstas em lei.
+                </p>
+                <div class="signature-area" style="margin-top: 50px;">
+                    <div class="signature-box">
+                        <div class="signature-line">
+                            <strong id="rep_ass_resp"></strong><br>
+                            Responsável Legal<br>
+                            CPF: <span id="rep_ass_cpf"></span>
+                        </div>
+                    </div>
+                    <div class="signature-box">
+                        <div class="signature-line">
+                            <strong id="rep_ass_contador"></strong><br>
+                            Contador Responsável<br>
+                            CRC: <span id="rep_ass_crc"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="font-size: 10px; color: #999; text-align: center; margin-top: 40px; border-top: 1px solid #ddd; padding-top: 10px;">
+                Documento gerado automaticamente. Relatório de Apuração do PIS/PASEP sobre Folha de Pagamento — Igreja/Templo de Qualquer Culto.<br>
+                Fundamento: MP 2.158-35/2001, art. 13, inciso I | IN RFB 2121/2022, arts. 300-305 | Alíquota: 1%
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        let funcionarios = [];
+        let contador = 0;
+
+        // Máscaras
+        document.getElementById('cnpj').addEventListener('input', function(e) {
+            let v = e.target.value.replace(/\D/g, '');
+            v = v.replace(/^(\d{2})(\d)/, '$1.$2');
+            v = v.replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3');
+            v = v.replace(/\.(\d{3})(\d)/, '.$1/$2');
+            v = v.replace(/(\d{4})(\d)/, '$1-$2');
+            e.target.value = v.substring(0, 18);
+        });
+
+        document.getElementById('cpf_responsavel').addEventListener('input', function(e) {
+            let v = e.target.value.replace(/\D/g, '');
+            v = v.replace(/^(\d{3})(\d)/, '$1.$2');
+            v = v.replace(/^(\d{3})\.(\d{3})(\d)/, '$1.$2.$3');
+            v = v.replace(/\.(\d{3})(\d{1,2})$/, '.$1-$2');
+            e.target.value = v.substring(0, 14);
+        });
+
+        document.getElementById('func_cpf').addEventListener('input', function(e) {
+            let v = e.target.value.replace(/\D/g, '');
+            v = v.replace(/^(\d{3})(\d)/, '$1.$2');
+            v = v.replace(/^(\d{3})\.(\d{3})(\d)/, '$1.$2.$3');
+            v = v.replace(/\.(\d{3})(\d{1,2})$/, '.$1-$2');
+            e.target.value = v.substring(0, 14);
+        });
+
+        // Data padrão
+        const hoje = new Date();
+        document.getElementById('data_emissao').value = hoje.toISOString().split('T')[0];
+        const mesAtual = hoje.toISOString().slice(0, 7);
+        document.getElementById('competencia').value = mesAtual;
+
+        function formatarMoeda(valor) {
+            return 'R$ ' + parseFloat(valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        function formatarCompetencia(valor) {
+            if (!valor) return '';
+            const [ano, mes] = valor.split('-');
+            const meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+            return meses[parseInt(mes) - 1] + '/' + ano;
+        }
+
+        function adicionarFuncionario() {
+            const nome = document.getElementById('func_nome').value.trim();
+            const cpf = document.getElementById('func_cpf').value.trim();
+            const cargo = document.getElementById('func_cargo').value.trim();
+            const salario = parseFloat(document.getElementById('func_salario').value) || 0;
+            const outras = parseFloat(document.getElementById('func_outras').value) || 0;
+            const isentas = parseFloat(document.getElementById('func_isentas').value) || 0;
+
+            if (!nome) { alert('Informe o nome do funcionário.'); return; }
+            if (salario < 0 || outras < 0 || isentas < 0) { alert('Os valores não podem ser negativos.'); return; }
+
+            const base = salario + outras - isentas;
+            const pis = base * 0.01;
+
+            contador++;
+            funcionarios.push({
+                id: contador,
+                nome, cpf, cargo, salario, outras, isentas, base, pis
+            });
+
+            // Limpar campos
+            document.getElementById('func_nome').value = '';
+            document.getElementById('func_cpf').value = '';
+            document.getElementById('func_cargo').value = '';
+            document.getElementById('func_salario').value = '';
+            document.getElementById('func_outras').value = '';
+            document.getElementById('func_isentas').value = '';
+            document.getElementById('func_nome').focus();
+
+            atualizarTabela();
+            calcularTotais();
+        }
+
+        function removerFuncionario(id) {
+            funcionarios = funcionarios.filter(f => f.id !== id);
+            atualizarTabela();
+            calcularTotais();
+        }
+
+        function atualizarTabela() {
+            const tbody = document.getElementById('tbody_funcionarios');
+            if (funcionarios.length === 0) {
+                tbody.innerHTML = `
+                    <tr class="empty-row">
+                        <td colspan="10" class="empty-state">
+                            Nenhum funcionário cadastrado. Preencha os campos acima e clique em "Adicionar Funcionário".
+                        </td>
+                    </tr>`;
+                return;
+            }
+
+            tbody.innerHTML = funcionarios.map(f => `
+                <tr>
+                    <td>${f.id}</td>
+                    <td>${f.nome}</td>
+                    <td>${f.cpf || '-'}</td>
+                    <td>${f.cargo || '-'}</td>
+                    <td>${formatarMoeda(f.salario)}</td>
+                    <td>${formatarMoeda(f.outras)}</td>
+                    <td>${formatarMoeda(f.isentas)}</td>
+                    <td><strong>${formatarMoeda(f.base)}</strong></td>
+                    <td><strong style="color: #e74c3c;">${formatarMoeda(f.pis)}</strong></td>
+                    <td>
+                        <button class="btn btn-danger" style="padding: 6px 12px; font-size: 12px;" onclick="removerFuncionario(${f.id})">
+                            Remover
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function calcularTotais() {
+            const totalFunc = funcionarios.length;
+            const totalFolha = funcionarios.reduce((s, f) => s + f.salario + f.outras, 0);
+            const totalBase = funcionarios.reduce((s, f) => s + f.base, 0);
+            const totalPIS = funcionarios.reduce((s, f) => s + f.pis, 0);
+
+            document.getElementById('total_funcionarios').textContent = totalFunc;
+            document.getElementById('total_folha').textContent = formatarMoeda(totalFolha);
+            document.getElementById('total_base').textContent = formatarMoeda(totalBase);
+            document.getElementById('total_pis').textContent = formatarMoeda(totalPIS);
+        }
+
+        function limparTudo() {
+            if (!confirm('Tem certeza que deseja limpar todos os dados?')) return;
+            funcionarios = [];
+            contador = 0;
+            document.getElementById('razao_social').value = '';
+            document.getElementById('nome_fantasia').value = '';
+            document.getElementById('cnpj').value = '';
+            document.getElementById('endereco').value = '';
+            document.getElementById('responsavel').value = '';
+            document.getElementById('cpf_responsavel').value = '';
+            document.getElementById('contador').value = '';
+            document.getElementById('crc').value = '';
+            atualizarTabela();
+            calcularTotais();
+        }
+
+        function gerarRelatorio() {
+            if (funcionarios.length === 0) {
+                alert('Adicione pelo menos um funcionário para gerar o relatório.');
+                return;
+            }
+
+            // Preencher dados da igreja no relatório
+            document.getElementById('rep_razao').textContent = document.getElementById('razao_social').value || '[Não informado]';
+            document.getElementById('rep_razao2').textContent = document.getElementById('razao_social').value || '[Não informado]';
+            document.getElementById('rep_fantasia').textContent = document.getElementById('nome_fantasia').value || '[Não informado]';
+            document.getElementById('rep_cnpj').textContent = document.getElementById('cnpj').value || '[Não informado]';
+            document.getElementById('rep_cnpj2').textContent = document.getElementById('cnpj').value || '[Não informado]';
+            document.getElementById('rep_endereco').textContent = document.getElementById('endereco').value || '[Não informado]';
+            document.getElementById('rep_responsavel').textContent = document.getElementById('responsavel').value || '[Não informado]';
+            document.getElementById('rep_cpf_resp').textContent = document.getElementById('cpf_responsavel').value || '[Não informado]';
+            document.getElementById('rep_contador').textContent = document.getElementById('contador').value || '[Não informado]';
+            document.getElementById('rep_crc').textContent = document.getElementById('crc').value || '[Não informado]';
+            document.getElementById('rep_competencia').textContent = formatarCompetencia(document.getElementById('competencia').value);
+            document.getElementById('rep_competencia2').textContent = formatarCompetencia(document.getElementById('competencia').value);
+            document.getElementById('rep_data').textContent = document.getElementById('data_emissao').value ? new Date(document.getElementById('data_emissao').value).toLocaleDateString('pt-BR') : '[Não informado]';
+
+            // Preencher tabela de funcionários no relatório
+            const repTbody = document.getElementById('rep_tbody');
+            repTbody.innerHTML = funcionarios.map((f, i) => `
+                <tr>
+                    <td style="padding: 8px; border: 1px solid #ddd;">${i + 1}</td>
+                    <td style="padding: 8px; border: 1px solid #ddd;">${f.nome}</td>
+                    <td style="padding: 8px; border: 1px solid #ddd;">${f.cpf || '-'}</td>
+                    <td style="padding: 8px; border: 1px solid #ddd;">${f.cargo || '-'}</td>
+                    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${formatarMoeda(f.salario)}</td>
+                    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${formatarMoeda(f.outras)}</td>
+                    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${formatarMoeda(f.isentas)}</td>
+                    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;"><strong>${formatarMoeda(f.base)}</strong></td>
+                    <td style="padding: 8px; border: 1px solid #ddd; text-align: right; color: #c0392b;"><strong>${formatarMoeda(f.pis)}</strong></td>
+                </tr>
+            `).join('');
+
+            // Totais
+            const totalSalario = funcionarios.reduce((s, f) => s + f.salario, 0);
+            const totalOutras = funcionarios.reduce((s, f) => s + f.outras, 0);
+            const totalIsentas = funcionarios.reduce((s, f) => s + f.isentas, 0);
+            const totalBase = funcionarios.reduce((s, f) => s + f.base, 0);
+            const totalPIS = funcionarios.reduce((s, f) => s + f.pis, 0);
+            const totalFolha = totalSalario + totalOutras;
+
+            document.getElementById('rep_total_salario').textContent = formatarMoeda(totalSalario);
+            document.getElementById('rep_total_outras').textContent = formatarMoeda(totalOutras);
+            document.getElementById('rep_total_isentas').textContent = formatarMoeda(totalIsentas);
+            document.getElementById('rep_total_base').textContent = formatarMoeda(totalBase);
+            document.getElementById('rep_total_pis').textContent = formatarMoeda(totalPIS);
+
+            document.getElementById('rep_total_func').textContent = funcionarios.length;
+            document.getElementById('rep_total_folha2').textContent = formatarMoeda(totalFolha);
+            document.getElementById('rep_total_isentas2').textContent = formatarMoeda(totalIsentas);
+            document.getElementById('rep_base_calc').textContent = formatarMoeda(totalBase);
+            document.getElementById('rep_pis_devido').textContent = formatarMoeda(totalPIS);
+
+            // Assinaturas
+            document.getElementById('rep_ass_resp').textContent = document.getElementById('responsavel').value || '_______________________';
+            document.getElementById('rep_ass_cpf').textContent = document.getElementById('cpf_responsavel').value || '_______________________';
+            document.getElementById('rep_ass_contador').textContent = document.getElementById('contador').value || '_______________________';
+            document.getElementById('rep_ass_crc').textContent = document.getElementById('crc').value || '_______________________';
+
+            // Mostrar relatório e imprimir
+            const relatorio = document.getElementById('relatorio_final');
+            relatorio.style.display = 'block';
+
+            setTimeout(() => {
+                window.print();
+                setTimeout(() => {
+                    relatorio.style.display = 'none';
+                }, 500);
+            }, 300);
+        }
+
+        // Enter para adicionar
+        document.querySelectorAll('.form-group input').forEach(input => {
+            input.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') adicionarFuncionario();
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,120 @@
+Quero que você implemente no meu sistema IGREJA APP um módulo completo de PIS/PASEP sobre folha de pagamento, integrado com a janela de relatórios e com o financeiro do sistema.
+
+No menu ou janela de Relatórios, crie um botão principal chamado:
+
+“PIS/PASEP sobre Folha”
+
+Dentro desse botão/módulo, devem existir as seguintes opções:
+
+1. Cadastro de Funcionários
+2. Gerar Relatório PIS/PASEP
+3. Fechar Folha da Competência
+4. Lançar no Financeiro
+5. Histórico de Relatórios Gerados
+
+A ideia é que o usuário não precise preencher todos os dados manualmente todo mês. O sistema deve permitir cadastrar o funcionário uma única vez e depois puxar automaticamente esses dados nos relatórios mensais.
+
+Na tela “Cadastro de Funcionários”, criar os campos:
+
+* Nome completo
+* CPF
+* Cargo/Função
+* Salário base
+* Outras verbas padrão, se houver
+* Verbas isentas padrão, se houver
+* Data de admissão
+* Status do funcionário: Ativo, Afastado ou Desligado
+* Data de desligamento, se houver
+* Observações
+* Igreja/Congregação vinculada
+
+O funcionário ativo deve aparecer automaticamente na folha mensal. Quando o funcionário for desligado, o sistema não deve apagar o cadastro; deve apenas mudar o status para “Desligado”, mantendo o histórico dos meses anteriores.
+
+Na tela “Gerar Relatório PIS/PASEP”, o usuário deve escolher a competência, por exemplo: Junho/2026. O sistema deve buscar automaticamente todos os funcionários ativos naquela competência e preencher a tabela com:
+
+* Nome
+* CPF
+* Cargo
+* Salário base
+* Outras verbas
+* Verbas isentas
+* Base de cálculo
+* PIS/PASEP devido, calculado em 1%
+
+A fórmula de cálculo deve ser:
+
+Base de cálculo = Salário base + Outras verbas - Verbas isentas
+
+PIS/PASEP devido = Base de cálculo x 1%
+
+O sistema deve mostrar um resumo com:
+
+* Total de funcionários
+* Total da folha
+* Total da base de cálculo
+* Total do PIS/PASEP devido
+
+O relatório deve ter opção de gerar PDF/impressão, com layout profissional, semelhante ao modelo HTML já enviado, que contém dados da igreja, dados do contador, fundamento legal, detalhamento por funcionário, resumo do cálculo, prazo de recolhimento e assinaturas.
+
+O sistema também deve permitir salvar a competência mensal. Exemplo:
+
+Folha PIS/PASEP - Junho/2026
+
+Depois de salvar, o sistema deve permitir “Fechar Folha da Competência”. Ao fechar, os dados ficam protegidos contra alteração acidental. Caso precise corrigir, deve existir opção de “Reabrir Competência”.
+
+Integração com o financeiro:
+
+Quando o usuário fechar a folha e clicar em “Lançar no Financeiro”, o sistema deve criar automaticamente as saídas financeiras correspondentes.
+
+Para cada funcionário, criar uma saída no financeiro:
+
+Tipo: Saída
+Categoria: Salários / Folha de Pagamento
+Descrição: Salário - Nome do Funcionário - Competência
+Valor: Salário base + Outras verbas, ou o valor definido na folha
+Data: data escolhida pelo usuário ou data de fechamento da folha
+Competência: mês/ano da folha
+
+Também criar uma saída separada para o imposto:
+
+Tipo: Saída
+Categoria: Impostos / Obrigações Tributárias
+Descrição: PIS/PASEP sobre folha - Competência
+Valor: total do PIS/PASEP devido
+Data: data escolhida pelo usuário ou vencimento configurado
+Competência: mês/ano da folha
+
+Essas saídas devem aparecer automaticamente no Relatório Financeiro Oficial / Prestação de Contas do sistema, junto com as demais entradas e saídas já cadastradas no financeiro.
+
+Muito importante: o sistema deve evitar lançamentos duplicados. Se a folha de uma competência já tiver sido lançada no financeiro, mostrar o aviso:
+
+“Esta competência já foi lançada no financeiro. Deseja reabrir, corrigir ou estornar os lançamentos?”
+
+Criar vínculo entre o relatório PIS/PASEP e os lançamentos financeiros gerados, para que o sistema saiba quais despesas vieram da folha.
+
+Adicionar opções:
+
+* Gerar relatório sem lançar no financeiro
+* Salvar competência
+* Fechar competência
+* Lançar no financeiro
+* Estornar lançamentos financeiros da competência
+* Reabrir competência para correção
+* Exportar/Imprimir PDF
+* Visualizar histórico mensal
+
+No Histórico, mostrar:
+
+* Competência
+* Total de funcionários
+* Total da folha
+* Total do PIS/PASEP
+* Status: Aberta, Fechada ou Lançada no Financeiro
+* Data de geração
+* Botões: Visualizar, Imprimir, Reabrir, Estornar, Lançar no Financeiro
+
+O objetivo é que o módulo PIS/PASEP sobre Folha fique integrado ao sistema financeiro. Assim, quando a igreja gerar a folha do mês, os salários dos funcionários já entram como saída na categoria “Salários / Folha de Pagamento”, e o imposto PIS/PASEP entra como saída na categoria “Impostos / Obrigações Tributárias”. Essas informações devem alimentar automaticamente o relatório oficial de prestação de contas da igreja.
+
+Não quero um módulo separado e isolado. Quero que ele converse com o financeiro e com o relatório oficial já existente no sistema.
+
+Use como base o HTML de relatório PIS/PASEP que já foi enviado, mas melhore a lógica para não depender de preenchimento manual todo mês. O HTML atual calcula funcionário por funcionário, soma salário, outras verbas, verbas isentas, base de cálculo e PIS de 1%, mas agora quero que isso funcione com cadastro permanente de funcionários, histórico mensal e integração automática com o financeiro.
