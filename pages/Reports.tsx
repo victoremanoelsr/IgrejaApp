@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context';
-import { FileText, Download, TrendingUp, TrendingDown, DollarSign, Calendar, PieChart, Search, Filter, Info, ChevronDown } from 'lucide-react';
+import { FileText, Download, TrendingUp, TrendingDown, DollarSign, Calendar, PieChart, Search, Filter, Info, ChevronDown, Briefcase } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Transaction } from '../types';
 
 export const Reports: React.FC = () => {
   const { transactions, currentChurch, generateMonthlyFixedExpenses } = useApp();
+  const navigate = useNavigate();
   
   // Filter States
   const [filterType, setFilterType] = useState<'MONTH' | 'PERIOD'>('MONTH');
@@ -240,6 +242,20 @@ export const Reports: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* PIS/PASEP Button */}
+      <div className="bg-gradient-to-r from-blue-800 to-blue-600 rounded-xl p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 shadow-md">
+        <div className="text-white">
+          <h3 className="font-bold text-base flex items-center gap-2"><Briefcase size={18}/> PIS/PASEP sobre Folha de Pagamento</h3>
+          <p className="text-xs text-blue-200 mt-0.5">Módulo completo: cadastro de funcionários, apuração mensal, PDF e integração com o financeiro</p>
+        </div>
+        <button
+          onClick={() => navigate('/pis-pasep')}
+          className="bg-white text-blue-800 font-bold px-5 py-2.5 rounded-lg text-sm hover:bg-blue-50 transition-all shadow-sm shrink-0 flex items-center gap-2"
+        >
+          <Briefcase size={15}/> Acessar Módulo PIS/PASEP
+        </button>
+      </div>
+
       {/* HEADER CONTROLS */}
       <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-200">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">

@@ -76,7 +76,7 @@ export interface Member {
 }
 
 export type TransactionType = 'ENTRADA' | 'SAIDA';
-export type TransactionCategory = 'DIZIMO' | 'OFERTA' | 'MISSOES' | 'JOVENS' | 'CRIANCAS' | 'ADOLESCENTES' | 'SENHORAS' | 'SENHORES' | 'CONSTRUCAO' | 'DESPESA_FIXA' | 'DESPESA_VARIAVEL' | 'OUTROS' | 'ALUGUEL' | 'AGUA' | 'LUZ' | 'INTERNET' | 'SALARIO';
+export type TransactionCategory = 'DIZIMO' | 'OFERTA' | 'MISSOES' | 'JOVENS' | 'CRIANCAS' | 'ADOLESCENTES' | 'SENHORAS' | 'SENHORES' | 'CONSTRUCAO' | 'DESPESA_FIXA' | 'DESPESA_VARIAVEL' | 'OUTROS' | 'ALUGUEL' | 'AGUA' | 'LUZ' | 'INTERNET' | 'SALARIO' | 'IMPOSTO';
 export type TransactionStatus = 'PAGO' | 'PENDENTE';
 
 export interface Transaction {

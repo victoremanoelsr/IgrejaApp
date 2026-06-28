@@ -38,6 +38,7 @@ import { MemberEventos } from './pages/member/MemberEventos';
 import { BlockedPage } from './pages/BlockedPage';
 import { BillingPage } from './pages/BillingPage';
 import { ConfiguracoesSaas } from './pages/ConfiguracoesSaas';
+import { PisPasep } from './pages/PisPasep';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles?: string[] }> = ({ children, allowedRoles }) => {
   const { user, currentChurch, churches } = useApp();
@@ -139,6 +140,7 @@ const AppRoutes = () => {
       <Route path="/congregacoes" element={<ProtectedRoute allowedRoles={['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE']}><Congregations /></ProtectedRoute>} />
       <Route path="/infraestrutura" element={<ProtectedRoute allowedRoles={['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'DIRIGENTE', 'TESOUREIRO', 'SECRETARIO']}><Infrastructure /></ProtectedRoute>} />
       <Route path="/faturamento" element={<ProtectedRoute allowedRoles={['PRESIDENTE', 'VICE_PRESIDENTE', 'TESOUREIRO']}><BillingPage /></ProtectedRoute>} />
+      <Route path="/pis-pasep" element={<ProtectedRoute allowedRoles={['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'DIRIGENTE', 'TESOUREIRO', 'SECRETARIO']}><PisPasep /></ProtectedRoute>} />
     </Routes>
   );
 };
