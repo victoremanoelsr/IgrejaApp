@@ -270,77 +270,84 @@ export const MemberPrestacaoContas: React.FC = () => {
 
   return (
     <div className="space-y-6 pb-10">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-3">
-            <BarChart2 size={26} className="text-orange-400" />
-            Prestação de Contas
-          </h1>
-          <p className="text-gray-400 text-sm mt-1">
-            Transparência financeira — dados sem identificação pessoal
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2 flex-wrap">
-          {/* Aviso de privacidade */}
-          <div className="flex items-center gap-1.5 bg-gray-800/70 border border-gray-700 rounded-lg px-3 py-1.5">
-            <Info size={13} className="text-orange-400 shrink-0" />
-            <span className="text-[11px] text-gray-400">Sem dados pessoais</span>
+      {/* Header card */}
+      <div className="bg-gradient-to-r from-gray-800 to-gray-900 border border-gray-700 rounded-2xl p-5 shadow-lg">
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-3 mb-1">
+              <div className="p-2 bg-orange-500/20 rounded-xl">
+                <BarChart2 size={22} className="text-orange-400" />
+              </div>
+              <h1 className="text-2xl font-extrabold text-white tracking-tight">
+                Prestação de Contas
+              </h1>
+            </div>
+            <p className="text-gray-400 text-sm ml-[52px]">
+              Transparência financeira — dados sem identificação pessoal
+            </p>
           </div>
 
-          {config.showMonthFilter && (
-            <>
-              <div className="relative">
-                <select
-                  value={month}
-                  onChange={(e) => setMonth(Number(e.target.value))}
-                  className="appearance-none bg-gray-800 border border-gray-700 text-white text-sm rounded-lg pl-3 pr-8 py-2 outline-none focus:border-orange-500"
-                >
-                  {MONTHS.map((m, i) => (
-                    <option key={i + 1} value={i + 1}>{m}</option>
-                  ))}
-                </select>
-                <ChevronDown size={14} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-              </div>
-              <div className="relative">
-                <select
-                  value={year}
-                  onChange={(e) => setYear(Number(e.target.value))}
-                  className="appearance-none bg-gray-800 border border-gray-700 text-white text-sm rounded-lg pl-3 pr-8 py-2 outline-none focus:border-orange-500"
-                >
-                  {years.map((y) => (
-                    <option key={y} value={y}>{y}</option>
-                  ))}
-                </select>
-                <ChevronDown size={14} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-              </div>
-            </>
-          )}
+          <div className="flex items-center gap-2 flex-wrap ml-[52px] sm:ml-0">
+            {config.showMonthFilter && (
+              <>
+                <div className="relative">
+                  <select
+                    value={month}
+                    onChange={(e) => setMonth(Number(e.target.value))}
+                    className="appearance-none bg-gray-700/80 border border-gray-600 text-white text-sm font-medium rounded-xl pl-3 pr-8 py-2.5 outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500/40 transition-all"
+                  >
+                    {MONTHS.map((m, i) => (
+                      <option key={i + 1} value={i + 1}>{m}</option>
+                    ))}
+                  </select>
+                  <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                </div>
+                <div className="relative">
+                  <select
+                    value={year}
+                    onChange={(e) => setYear(Number(e.target.value))}
+                    className="appearance-none bg-gray-700/80 border border-gray-600 text-white text-sm font-medium rounded-xl pl-3 pr-8 py-2.5 outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500/40 transition-all"
+                  >
+                    {years.map((y) => (
+                      <option key={y} value={y}>{y}</option>
+                    ))}
+                  </select>
+                  <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                </div>
+              </>
+            )}
 
-          {config.allowPDF && (
+            {config.allowPDF && (
+              <button
+                onClick={handlePDF}
+                className="flex items-center gap-2 bg-orange-600 hover:bg-orange-500 text-white text-sm font-bold px-4 py-2.5 rounded-xl transition-all active:scale-95 shadow"
+              >
+                <Download size={15} /> PDF
+              </button>
+            )}
+
             <button
-              onClick={handlePDF}
-              className="flex items-center gap-2 bg-orange-600 hover:bg-orange-500 text-white text-sm font-bold px-4 py-2 rounded-lg transition-all active:scale-95"
+              onClick={loadData}
+              disabled={isLoading}
+              title="Atualizar dados"
+              className="p-2.5 bg-gray-700/80 border border-gray-600 rounded-xl text-gray-300 hover:text-white hover:border-orange-500 transition-all"
             >
-              <Download size={15} /> PDF
+              <RefreshCw size={15} className={isLoading ? 'animate-spin' : ''} />
             </button>
-          )}
-
-          <button
-            onClick={loadData}
-            disabled={isLoading}
-            className="p-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-400 hover:text-white hover:border-orange-500 transition-all"
-          >
-            <RefreshCw size={15} className={isLoading ? 'animate-spin' : ''} />
-          </button>
+          </div>
         </div>
-      </div>
 
-      {/* Período ativo */}
-      <div className="flex items-center gap-2 text-sm text-gray-400">
-        <Calendar size={15} className="text-orange-400" />
-        <span>Período: <strong className="text-white">{MONTHS[month - 1]} / {year}</strong></span>
+        {/* Período + badge privacidade */}
+        <div className="flex items-center gap-3 mt-4 pt-4 border-t border-gray-700/50">
+          <div className="flex items-center gap-1.5 text-sm text-gray-300">
+            <Calendar size={14} className="text-orange-400" />
+            <span>Período: <strong className="text-white font-bold">{MONTHS[month - 1]} / {year}</strong></span>
+          </div>
+          <div className="ml-auto flex items-center gap-1.5 bg-green-900/30 border border-green-700/40 rounded-lg px-3 py-1">
+            <Info size={12} className="text-green-400 shrink-0" />
+            <span className="text-[11px] text-green-300 font-medium">Sem dados pessoais</span>
+          </div>
+        </div>
       </div>
 
       {isLoading ? (
