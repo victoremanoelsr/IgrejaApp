@@ -13,14 +13,17 @@ ALTER TABLE churches ADD COLUMN IF NOT EXISTS last_payment_date DATE;
 -- (sem nome de contribuinte, CPF ou dados pessoais)
 -- Execute no SQL Editor do Supabase
 -- =============================================================
+-- Remove versão antiga caso exista
+DROP FUNCTION IF EXISTS get_public_financial_data(UUID, INT, INT);
+
 CREATE OR REPLACE FUNCTION get_public_financial_data(
   p_church_id UUID,
   p_month     INT,
   p_year      INT
 )
 RETURNS TABLE (
-  id       UUID,
-  date     DATE,
+  id       TEXT,
+  date     TEXT,
   category TEXT,
   type     TEXT,
   amount   NUMERIC
@@ -38,14 +41,14 @@ BEGIN
 
   RETURN QUERY
     SELECT
-      t.id,
-      t.date,
+      t.id::TEXT,
+      t.date::TEXT,
       t.category::TEXT,
       t.type::TEXT,
-      t.amount
+      t.amount::NUMERIC
     FROM transactions t
     WHERE t.church_id = p_church_id
-      AND t.date BETWEEN v_start AND v_end
+      AND t.date::DATE BETWEEN v_start AND v_end
     ORDER BY t.date DESC;
 END;
 $$;
