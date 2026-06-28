@@ -41,6 +41,25 @@ const defaultConfig: PrestacaoConfig = {
   showMonthFilter: true,
 };
 
+// Categories always visible (general church operations)
+const GENERAL_CATEGORIES = new Set([
+  'DIZIMO', 'OFERTA', 'MISSOES',
+  'CONSTRUCAO', 'DESPESA_FIXA', 'DESPESA_VARIAVEL', 'OUTROS',
+  'ALUGUEL', 'AGUA', 'LUZ', 'INTERNET', 'SALARIO', 'IMPOSTO',
+]);
+
+// Department categories — only visible when member has the matching flag
+const DEPT_CATEGORY_FLAGS: Record<string, keyof typeof DEPT_FLAG_KEYS> = {
+  JOVENS:       'isYouth',
+  CRIANCAS:     'isChild',
+  ADOLESCENTES: 'isAdolescent',
+  SENHORAS:     'isLady',
+  SENHORES:     'isBrother',
+};
+const DEPT_FLAG_KEYS = {
+  isYouth: true, isChild: true, isAdolescent: true, isLady: true, isBrother: true,
+};
+
 const CATEGORY_LABELS: Record<string, string> = {
   DIZIMO: 'Dízimo',
   OFERTA: 'Oferta',
@@ -100,14 +119,24 @@ export const MemberPrestacaoContas: React.FC = () => {
     setIsLoading(true);
     setHasError(false);
     try {
-      const data = await getPublicFinancialData(session.churchId, month, year);
-      setTransactions(data);
+      const raw = await getPublicFinancialData(session.churchId, month, year);
+      const member = session.member as any;
+
+      // Filter: always show general categories; department categories only if member has the flag
+      const filtered = raw.filter((t) => {
+        if (GENERAL_CATEGORIES.has(t.category)) return true;
+        const flag = DEPT_CATEGORY_FLAGS[t.category];
+        if (!flag) return false; // unknown category — hide
+        return member[flag] === true;
+      });
+
+      setTransactions(filtered);
     } catch {
       setHasError(true);
     } finally {
       setIsLoading(false);
     }
-  }, [session?.churchId, month, year, config.enabled]);
+  }, [session?.churchId, session?.member, month, year, config.enabled]);
 
   useEffect(() => {
     loadData();

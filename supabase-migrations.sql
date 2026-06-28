@@ -13,46 +13,45 @@ ALTER TABLE churches ADD COLUMN IF NOT EXISTS last_payment_date DATE;
 -- (sem nome de contribuinte, CPF ou dados pessoais)
 -- Execute no SQL Editor do Supabase
 -- =============================================================
--- Remove versão antiga caso exista
-DROP FUNCTION IF EXISTS get_public_financial_data(UUID, INT, INT);
+-- Remove TODAS as versões anteriores desta função (qualquer assinatura)
+DO $$
+DECLARE r RECORD;
+BEGIN
+  FOR r IN
+    SELECT oid::regprocedure AS sig
+    FROM pg_proc
+    WHERE proname = 'get_public_financial_data'
+      AND pronamespace = 'public'::regnamespace
+  LOOP
+    EXECUTE 'DROP FUNCTION IF EXISTS ' || r.sig;
+  END LOOP;
+END $$;
 
-CREATE OR REPLACE FUNCTION get_public_financial_data(
+-- Cria função usando SETOF json (sem declaração de tipos — zero conflito)
+CREATE FUNCTION get_public_financial_data(
   p_church_id UUID,
   p_month     INT,
   p_year      INT
 )
-RETURNS TABLE (
-  id       TEXT,
-  date     TEXT,
-  category TEXT,
-  type     TEXT,
-  amount   NUMERIC
-)
-LANGUAGE plpgsql
+RETURNS SETOF json
+LANGUAGE sql
 SECURITY DEFINER
 SET search_path = public
 AS $$
-DECLARE
-  v_start DATE;
-  v_end   DATE;
-BEGIN
-  v_start := make_date(p_year, p_month, 1);
-  v_end   := (v_start + INTERVAL '1 month' - INTERVAL '1 day')::DATE;
-
-  RETURN QUERY
-    SELECT
-      t.id::TEXT,
-      t.date::TEXT,
-      t.category::TEXT,
-      t.type::TEXT,
-      t.amount::NUMERIC
-    FROM transactions t
-    WHERE t.church_id = p_church_id
-      AND t.date::DATE BETWEEN v_start AND v_end
-    ORDER BY t.date DESC;
-END;
+  SELECT json_build_object(
+    'id',       t.id::TEXT,
+    'date',     t.date::TEXT,
+    'category', t.category::TEXT,
+    'type',     t.type::TEXT,
+    'amount',   t.amount::NUMERIC
+  )
+  FROM transactions t
+  WHERE t.church_id = p_church_id
+    AND t.date::DATE >= make_date(p_year, p_month, 1)
+    AND t.date::DATE <  make_date(p_year, p_month, 1) + INTERVAL '1 month'
+  ORDER BY t.date DESC;
 $$;
 
--- Permite que qualquer usuário (incluindo anônimo) execute esta função
+-- Libera acesso para usuários anônimos (Portal do Membro não usa auth do Supabase)
 GRANT EXECUTE ON FUNCTION get_public_financial_data(UUID, INT, INT) TO anon;
 GRANT EXECUTE ON FUNCTION get_public_financial_data(UUID, INT, INT) TO authenticated;
