@@ -259,7 +259,7 @@ export const MenPanel: React.FC = () => {
 
           <div className="grid grid-cols-12 gap-6">
               
-              <div className="col-span-12 md:col-span-4 bg-white rounded-xl shadow-sm border-l-4 border-brand-black p-6 flex items-center justify-between relative overflow-hidden">
+              <div onClick={() => setActiveTab('MEMBROS')} className="col-span-12 md:col-span-4 bg-white rounded-xl shadow-sm border-l-4 border-brand-black p-6 flex items-center justify-between relative overflow-hidden cursor-pointer hover:-translate-y-1 hover:shadow-lg transition-all duration-200 group">
                   <div className="z-10">
                       <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Total de Senhores</p>
                       <p className="text-4xl font-extrabold text-gray-800 mt-2">{totalMen}</p>
@@ -272,7 +272,7 @@ export const MenPanel: React.FC = () => {
                   </div>
               </div>
 
-              <div className="col-span-12 md:col-span-8 bg-white rounded-xl shadow-sm border-l-4 border-blue-500 p-6 flex flex-col justify-center relative overflow-hidden">
+              <div onClick={() => setActiveTab('CAIXA')} className="col-span-12 md:col-span-8 bg-white rounded-xl shadow-sm border-l-4 border-blue-500 p-6 flex flex-col justify-center relative overflow-hidden cursor-pointer hover:-translate-y-1 hover:shadow-lg transition-all duration-200 group">
                   <div className="grid grid-cols-3 gap-4 divide-x divide-gray-100 z-10">
                       <div className="text-center px-2 md:px-4">
                           <p className="text-[10px] md:text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Entradas</p>

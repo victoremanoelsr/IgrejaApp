@@ -793,9 +793,9 @@ export const MissionsPanel: React.FC = () => {
                   </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                  <div className="bg-white p-6 rounded-xl shadow border-l-4 border-green-500"><p className="text-xs text-gray-500 font-bold uppercase">ENTRADAS</p><p className="text-2xl font-black text-green-600">{formatCurrency(monthlyIn)}</p></div>
-                  <div className="bg-white p-6 rounded-xl shadow border-l-4 border-red-500"><p className="text-xs text-gray-500 font-bold uppercase">SAÍDAS</p><p className="text-2xl font-black text-red-600">{formatCurrency(monthlyOut)}</p></div>
-                  <div className="bg-white p-6 rounded-xl shadow border-l-4 border-gray-800"><p className="text-xs text-gray-500 font-bold uppercase">SALDO</p><p className="text-2xl font-black text-gray-800">{formatCurrency(currentBalance)}</p></div>
+                  <div onClick={() => setActiveTab('LANCAMENTOS')} className="bg-white p-6 rounded-xl shadow border-l-4 border-green-500 cursor-pointer hover:-translate-y-1 hover:shadow-lg transition-all duration-200"><p className="text-xs text-gray-500 font-bold uppercase">ENTRADAS</p><p className="text-2xl font-black text-green-600">{formatCurrency(monthlyIn)}</p></div>
+                  <div onClick={() => setActiveTab('LANCAMENTOS')} className="bg-white p-6 rounded-xl shadow border-l-4 border-red-500 cursor-pointer hover:-translate-y-1 hover:shadow-lg transition-all duration-200"><p className="text-xs text-gray-500 font-bold uppercase">SAÍDAS</p><p className="text-2xl font-black text-red-600">{formatCurrency(monthlyOut)}</p></div>
+                  <div onClick={() => setActiveTab('LANCAMENTOS')} className="bg-white p-6 rounded-xl shadow border-l-4 border-gray-800 cursor-pointer hover:-translate-y-1 hover:shadow-lg transition-all duration-200"><p className="text-xs text-gray-500 font-bold uppercase">SALDO</p><p className="text-2xl font-black text-gray-800">{formatCurrency(currentBalance)}</p></div>
               </div>
               <div className="bg-white p-6 rounded-xl shadow border border-gray-200">
                   <h3 className="font-bold text-gray-700 mb-4 flex items-center"><Globe className="mr-2 text-teal-600"/> Fluxo de Caixa Mensal ({new Date(0, dashMonth-1).toLocaleString('pt-BR', {month: 'long'}).toUpperCase()} / {dashYear})</h3>
