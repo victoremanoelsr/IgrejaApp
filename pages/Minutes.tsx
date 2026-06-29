@@ -3,7 +3,7 @@ import React, { useState, useRef } from 'react';
 import { useApp } from '../context';
 import { 
     FileText, Plus, Download, Calendar, ShieldAlert, Upload, Loader, X, 
-    Eye, Trash2, Edit2, AlertTriangle, CheckCircle, Info, Save, Paperclip, Files
+    Eye, Trash2, Edit2, AlertTriangle, CheckCircle, Info, Save, Paperclip, Files, Search
 } from 'lucide-react';
 import { Minute } from '../types';
 
@@ -20,6 +20,7 @@ export const Minutes: React.FC = () => {
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Custom Modal State (Confirmation)
   const [modalState, setModalState] = useState<{
@@ -68,6 +69,14 @@ export const Minutes: React.FC = () => {
   // Isolate by Current Church (like other pages)
   const viewId = currentChurch?.id;
   const churchMinutes = minutes.filter(m => m.churchId === viewId).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  const filteredMinutes = churchMinutes.filter(m => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.trim().toLowerCase();
+    const titleMatch = m.title.toLowerCase().includes(q);
+    const dateMatch = new Date(m.date).toLocaleDateString('pt-BR').includes(q);
+    return titleMatch || dateMatch;
+  });
 
   // Verificação de Permissão: Tesoureiro só pode ver
   const canEdit = user?.role !== 'TESOUREIRO';
@@ -335,6 +344,26 @@ export const Minutes: React.FC = () => {
         </div>
       )}
 
+      {/* BUSCA */}
+      <div className="relative">
+        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+        <input
+          type="text"
+          placeholder="Buscar por título ou data (ex: 15/06/2025)"
+          className="w-full pl-9 pr-9 py-2 border border-gray-200 rounded-lg text-sm bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-orange"
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+        />
+        {searchQuery && (
+          <button
+            onClick={() => setSearchQuery('')}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+          >
+            <X size={14} />
+          </button>
+        )}
+      </div>
+
       {/* LISTA COMPACTA */}
       <div className="bg-white rounded-lg shadow overflow-hidden border border-gray-100">
         <table className="min-w-full divide-y divide-gray-200">
@@ -347,7 +376,7 @@ export const Minutes: React.FC = () => {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {churchMinutes.map((minute) => (
+            {filteredMinutes.map((minute) => (
               <tr 
                 key={minute.id} 
                 className="hover:bg-gray-50 cursor-pointer group transition-colors"
@@ -398,9 +427,11 @@ export const Minutes: React.FC = () => {
                 </td>
               </tr>
             ))}
-            {churchMinutes.length === 0 && (
+            {filteredMinutes.length === 0 && (
               <tr>
-                <td colSpan={4} className="px-6 py-8 text-center text-xs text-gray-500">Nenhuma ata registrada nesta unidade.</td>
+                <td colSpan={4} className="px-6 py-8 text-center text-xs text-gray-500">
+                  {searchQuery ? `Nenhuma ata encontrada para "${searchQuery}".` : 'Nenhuma ata registrada nesta unidade.'}
+                </td>
               </tr>
             )}
           </tbody>
