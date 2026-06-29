@@ -621,13 +621,6 @@ export const MissionsPanel: React.FC = () => {
           }
       } 
 
-      await addTransaction({ 
-          id: '', churchId: currentChurch.id, type: 'ENTRADA', category: 'MISSOES', 
-          amount: parseFloat(bookletAmount), date: emissionDate, 
-          description: `CARNÊ MISSÕES ${bookletYear} - ${member.name}`, 
-          memberId: member.id, responsibleUserId: user?.id || '', status: 'PENDENTE' 
-      });
-      
       doc.save(`CARNE_MISSOES_${member.name.replace(/\s+/g, '_')}_${bookletYear}.pdf`); 
       setIsGenerating(false);
       showFeedback("Carnê gerado!"); 
