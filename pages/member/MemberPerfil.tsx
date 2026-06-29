@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useMember } from '../../contexts/MemberContext';
 import { useTranslation } from 'react-i18next';
 import { formatDate } from '../../i18n';
 import { updateMemberPassword, updateMemberUsername } from '../../services/memberService';
 import {
   User, Lock, Eye, EyeOff, CheckCircle, AlertCircle,
-  LogOut, Phone, Mail, MapPin, Loader, X, AtSign, Shield,
+  LogOut, Phone, Mail, MapPin, Loader, X, AtSign, Shield, Camera,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -126,7 +126,7 @@ const ChangeUsernameModal: React.FC<{ memberId: string; currentUsername?: string
 
 /* ─── Main ─── */
 export const MemberPerfil: React.FC = () => {
-  const { session, logout } = useMember();
+  const { session, logout, updateMemberPhoto } = useMember();
   const { t, i18n } = useTranslation();
   const lang = i18n.language;
   const navigate = useNavigate();
@@ -135,6 +135,10 @@ export const MemberPerfil: React.FC = () => {
   const [showFirstAccessAlert, setShowFirstAccessAlert] = useState(false);
   const [passwordChanged, setPasswordChanged] = useState(false);
   const [usernameChanged, setUsernameChanged] = useState<string | null>(null);
+  const [photoUploading, setPhotoUploading] = useState(false);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const [photoSuccess, setPhotoSuccess] = useState(false);
+  const photoInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (session?.isFirstAccess && !passwordChanged) setShowFirstAccessAlert(true);
@@ -146,6 +150,39 @@ export const MemberPerfil: React.FC = () => {
   const handleLogout = () => { logout(); navigate('/'); };
   const handlePasswordSuccess = () => { setShowChangePassword(false); setShowFirstAccessAlert(false); setPasswordChanged(true); };
   const handleUsernameSuccess = (u: string) => { setShowChangeUsername(false); setUsernameChanged(u); };
+
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    // Always reset input so the same file can be re-selected
+    if (photoInputRef.current) photoInputRef.current.value = '';
+    if (!file) return;
+
+    setPhotoError(null);
+    setPhotoSuccess(false);
+
+    // Validate: image only, max 5MB
+    if (!file.type.startsWith('image/')) {
+      setPhotoError('Selecione um arquivo de imagem válido (JPG, PNG, etc.).');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setPhotoError('A imagem deve ter no máximo 5MB.');
+      return;
+    }
+
+    setPhotoUploading(true);
+    try {
+      const result = await updateMemberPhoto(file);
+      if (result.success) {
+        setPhotoSuccess(true);
+        setTimeout(() => setPhotoSuccess(false), 3000);
+      } else {
+        setPhotoError(result.error || 'Erro ao atualizar foto.');
+      }
+    } finally {
+      setPhotoUploading(false);
+    }
+  };
 
   const initials = member.name.split(' ').filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('');
 
@@ -199,15 +236,54 @@ export const MemberPerfil: React.FC = () => {
         </div>
       )}
 
+      {/* Photo feedback */}
+      {photoSuccess && (
+        <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-lg p-3">
+          <CheckCircle size={14} className="text-green-500 shrink-0" />
+          <p className="text-green-700 text-xs font-semibold">Foto atualizada com sucesso!</p>
+        </div>
+      )}
+      {photoError && (
+        <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg p-3">
+          <AlertCircle size={13} className="text-red-500 shrink-0" />
+          <p className="text-red-600 text-xs">{photoError}</p>
+        </div>
+      )}
+
       {/* Profile Header */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 text-center">
-        {member.photo ? (
-          <img src={member.photo} alt={member.name} className="w-20 h-20 rounded-full object-cover border-4 border-orange-200 mx-auto mb-3" />
-        ) : (
-          <div className="w-20 h-20 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center mx-auto mb-3">
-            <span className="text-white text-2xl font-bold">{initials}</span>
-          </div>
-        )}
+        {/* Hidden file input */}
+        <input
+          ref={photoInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handlePhotoChange}
+        />
+
+        {/* Avatar with camera overlay */}
+        <div className="relative w-20 h-20 mx-auto mb-3">
+          {member.photo ? (
+            <img src={member.photo} alt={member.name} className="w-20 h-20 rounded-full object-cover border-4 border-orange-200" />
+          ) : (
+            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center">
+              <span className="text-white text-2xl font-bold">{initials}</span>
+            </div>
+          )}
+          {/* Camera button overlay */}
+          <button
+            onClick={() => photoInputRef.current?.click()}
+            disabled={photoUploading}
+            title="Alterar foto"
+            className="absolute bottom-0 right-0 w-7 h-7 bg-orange-500 hover:bg-orange-600 disabled:bg-orange-300 rounded-full flex items-center justify-center shadow-md border-2 border-white transition-colors"
+          >
+            {photoUploading
+              ? <Loader size={13} className="text-white animate-spin" />
+              : <Camera size={13} className="text-white" />
+            }
+          </button>
+        </div>
+
         <h2 className="text-gray-800 font-bold text-lg">{member.name}</h2>
         <p className="text-gray-500 text-xs">{session.church.name}</p>
         {member.memberNumber && (

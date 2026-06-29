@@ -30,6 +30,7 @@ interface MemberContextType {
   refreshContributions: () => Promise<void>;
   refreshLetterHistory: () => Promise<void>;
   refreshCarnetHistory: () => Promise<void>;
+  updateMemberPhoto: (file: File) => Promise<{ success: boolean; error?: string }>;
 }
 
 const MemberContext = createContext<MemberContextType | undefined>(undefined);
@@ -273,6 +274,42 @@ export const MemberProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setCurrentMonthTithes(tithes);
   };
 
+  const updateMemberPhoto = async (file: File): Promise<{ success: boolean; error?: string }> => {
+    if (!session) return { success: false, error: 'Sessão não encontrada.' };
+    try {
+      // 1. Upload to Supabase storage
+      const fileExt = file.name.split('.').pop();
+      const fileName = `member_${session.member.id}_${Date.now()}.${fileExt}`;
+      const { error: uploadError } = await supabase.storage
+        .from('images')
+        .upload(fileName, file, { upsert: true });
+      if (uploadError) return { success: false, error: uploadError.message };
+
+      const { data: urlData } = supabase.storage.from('images').getPublicUrl(fileName);
+      const photoUrl = urlData.publicUrl;
+
+      // 2. Update member record in DB
+      const { error: dbError } = await supabase
+        .from('members')
+        .update({ photo_url: photoUrl })
+        .eq('id', session.member.id);
+      if (dbError) return { success: false, error: dbError.message };
+
+      // 3. Update session in state + storage so photo shows immediately
+      const updatedSession: MemberSession = {
+        ...session,
+        member: { ...session.member, photo: photoUrl },
+      };
+      saveSession(updatedSession);
+      setSession(updatedSession);
+      sessionRef.current = updatedSession;
+
+      return { success: true };
+    } catch (e: any) {
+      return { success: false, error: e.message || 'Erro desconhecido.' };
+    }
+  };
+
   return (
     <MemberContext.Provider
       value={{
@@ -290,6 +327,7 @@ export const MemberProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         refreshContributions,
         refreshLetterHistory,
         refreshCarnetHistory,
+        updateMemberPhoto,
       }}
     >
       {children}
