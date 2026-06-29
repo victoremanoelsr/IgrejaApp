@@ -75,7 +75,7 @@ export const Settings: React.FC = () => {
       setPastorPhone(currentChurch.pastorPhone || '');
       setMission(currentChurch.missionStatement || '');
       setLogoUrl(currentChurch.logoUrl || '');
-      setPixKey(currentChurch.pixKey != null ? currentChurch.pixKey.trim() : (systemSettings.masterPixKey?.trim() || ''));
+      setPixKey(currentChurch.pixKey?.trim() || '');
       setPrestConfig(getPrestacaoConfig(currentChurch.id));
     }
   }, [currentChurch]);
