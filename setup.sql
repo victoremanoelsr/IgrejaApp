@@ -139,4 +139,41 @@ BEGIN
     END IF;
 END $;
 
+-- ================================================================
+-- Portal do Membro: Ofertas de Campanhas cadastradas no nome do membro
+-- Função com SECURITY DEFINER para bypassar RLS (membro usa chave anon)
+-- ================================================================
+CREATE OR REPLACE FUNCTION get_member_campaign_contributions(
+  p_church_id UUID,
+  p_member_name TEXT
+)
+RETURNS SETOF json
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $
+  SELECT json_build_object(
+    'id',           t.id::TEXT,
+    'church_id',    t.church_id::TEXT,
+    'campaign_id',  t.campaign_id::TEXT,
+    'type',         t.type,
+    'category',     t.category,
+    'amount',       t.amount,
+    'date',         t.date::TEXT,
+    'description',  t.description,
+    'status',       COALESCE(t.status, 'PAGO'),
+    'member_id',    NULL,
+    'responsible_user_id', NULL
+  )
+  FROM transactions t
+  WHERE t.church_id = p_church_id
+    AND t.campaign_id IS NOT NULL
+    AND t.type = 'ENTRADA'
+    AND t.description = ('DOAÇÃO: ' || UPPER(p_member_name))
+  ORDER BY t.date DESC;
+$;
+
+GRANT EXECUTE ON FUNCTION get_member_campaign_contributions(UUID, TEXT) TO anon;
+GRANT EXECUTE ON FUNCTION get_member_campaign_contributions(UUID, TEXT) TO authenticated;
+
 NOTIFY pgrst, 'reload schema';

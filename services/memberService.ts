@@ -88,24 +88,19 @@ export const getMemberContributions = async (
 };
 
 // Busca doações de campanhas registradas exatamente no nome do membro
+// Usa RPC com SECURITY DEFINER para bypassar RLS (portal do membro usa chave anon)
 export const getMemberCampaignContributions = async (
   churchId: string,
   memberName: string
 ): Promise<Transaction[]> => {
-  // Descriptions are stored as "DOAÇÃO: NOME_MEMBRO" (uppercase, exact)
-  const exactDescription = `DOAÇÃO: ${memberName.toUpperCase()}`;
-
-  const { data, error } = await supabase
-    .from('transactions')
-    .select('*')
-    .eq('church_id', churchId)
-    .not('campaign_id', 'is', null)
-    .eq('type', 'ENTRADA')
-    .eq('description', exactDescription)
-    .order('date', { ascending: false });
+  const { data, error } = await supabase.rpc('get_member_campaign_contributions', {
+    p_church_id: churchId,
+    p_member_name: memberName,
+  });
 
   if (error || !data) return [];
-  return (data as any[]).map(toAppTransaction);
+  const rows: any[] = Array.isArray(data) ? data : [];
+  return rows.map(toAppTransaction);
 };
 
 export const getMemberCurrentMonthTithes = async (
