@@ -267,10 +267,17 @@ export const Finance: React.FC = () => {
           ) : (
              <div>
                 <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1">{t('finance.category')}</label>
-                <div className="flex gap-2 mb-3">
-                    {['DESPESA_VARIAVEL'].map(cat => (
-                        <button type="button" key={cat} onClick={() => { setCategory(cat as TransactionCategory); setDescription(''); }} className={`flex-1 py-2 px-1 rounded border text-[10px] font-bold ${category === cat ? 'bg-brand-red text-white' : 'bg-white text-gray-600'}`}>
-                            ADM GERAL / DESPESA
+                <div className="grid grid-cols-3 gap-2 mb-3">
+                    {[
+                      { cat: 'LUZ', label: 'Energia' },
+                      { cat: 'SALARIO', label: 'Salário' },
+                      { cat: 'DESPESA_VARIAVEL', label: 'Ajuda de Custo' },
+                      { cat: 'ALUGUEL', label: 'Aluguel' },
+                      { cat: 'AGUA', label: 'Água' },
+                      { cat: 'OUTROS', label: 'Outros' },
+                    ].map(({ cat, label }) => (
+                        <button type="button" key={cat} onClick={() => { setCategory(cat as TransactionCategory); setDescription(cat !== 'DESPESA_VARIAVEL' && cat !== 'OUTROS' ? label.toUpperCase() : ''); }} className={`py-2 px-1 rounded border text-[10px] font-bold transition-colors ${category === cat ? 'bg-brand-red text-white border-brand-red' : 'bg-white text-gray-600 border-gray-300'}`}>
+                            {label}
                         </button>
                     ))}
                 </div>
@@ -511,7 +518,7 @@ export const Finance: React.FC = () => {
              {canEdit && (
                <div className="flex gap-2 flex-1">
                 <button onClick={() => { setActiveTab('ENTRADA'); setEditingTransactionId(null); setCategory(''); clearMemberSelection(); setSelectedFile(null); }} className={`flex-1 py-2 md:py-4 rounded-lg flex justify-center items-center gap-1 font-bold text-xs md:text-base ${activeTab === 'ENTRADA' ? 'bg-green-600 text-white' : 'bg-white text-green-600 border border-green-200'}`}><PlusCircle size={14} /> {t('finance.income')}</button>
-                <button onClick={() => { setActiveTab('SAIDA'); setEditingTransactionId(null); setCategory('DESPESA_VARIAVEL'); setDescription(''); setSelectedFile(null); setIsRecurring(false); setMissionRecipient(''); }} className={`flex-1 py-2 md:py-4 rounded-lg flex justify-center items-center gap-1 font-bold text-xs md:text-base ${activeTab === 'SAIDA' ? 'bg-brand-red text-white' : 'bg-white text-brand-red border border-red-200'}`}><MinusCircle size={14} /> {t('finance.expense')}</button>
+                <button onClick={() => { setActiveTab('SAIDA'); setEditingTransactionId(null); setCategory(''); setDescription(''); setSelectedFile(null); setIsRecurring(false); setMissionRecipient(''); }} className={`flex-1 py-2 md:py-4 rounded-lg flex justify-center items-center gap-1 font-bold text-xs md:text-base ${activeTab === 'SAIDA' ? 'bg-brand-red text-white' : 'bg-white text-brand-red border border-red-200'}`}><MinusCircle size={14} /> {t('finance.expense')}</button>
                </div>
              )}
            </div>
