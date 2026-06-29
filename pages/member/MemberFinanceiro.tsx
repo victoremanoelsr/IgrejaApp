@@ -1,20 +1,8 @@
 import React, { useState } from 'react';
 import { useMember } from '../../contexts/MemberContext';
+import { useTranslation } from 'react-i18next';
+import { formatCurrency, formatDate } from '../../i18n';
 import { TrendingUp, Wallet, Filter, FileDown, ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
-
-const formatCurrency = (value: number) =>
-  value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-
-const formatDate = (dateStr: string) => {
-  if (!dateStr) return '';
-  const [year, month, day] = dateStr.split('-');
-  return `${day}/${month}/${year}`;
-};
-
-const categoryLabel: Record<string, string> = {
-  DIZIMO: 'Dízimo',
-  OFERTA: 'Oferta',
-};
 
 type FilterType = 'TODOS' | 'DIZIMO' | 'OFERTA';
 
@@ -24,9 +12,15 @@ const Skeleton: React.FC<{ className?: string }> = ({ className = '' }) => (
 
 export const MemberFinanceiro: React.FC = () => {
   const { contributions, currentMonthTithes, isLoading } = useMember();
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language;
+
   const [filter, setFilter] = useState<FilterType>('TODOS');
   const currentYear = new Date().getFullYear();
   const [selectedYear, setSelectedYear] = useState(currentYear);
+
+  const categoryLabel = (cat: string) =>
+    t(`memberPortal.categoryLabel.${cat}`, { defaultValue: cat });
 
   const minYear = contributions.length > 0
     ? Math.min(...contributions.map(t => parseInt(t.date?.split('-')[0] || String(currentYear))))
@@ -46,10 +40,11 @@ export const MemberFinanceiro: React.FC = () => {
   const total = filtered.reduce((s, t) => s + t.amount, 0);
 
   const handleExportYear = () => {
+    const csvHeaders = t('memberPortal.financial.csvHeaders');
     const lines = [
-      'Data,Tipo,Valor,Descrição',
+      csvHeaders,
       ...yearContribs.map(
-        (t) => `${formatDate(t.date)},${categoryLabel[t.category] || t.category},${t.amount.toFixed(2)},${t.description || ''}`
+        (t) => `${formatDate(t.date, lang)},${categoryLabel(t.category)},${t.amount.toFixed(2)},${t.description || ''}`
       ),
     ];
     const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
@@ -64,8 +59,8 @@ export const MemberFinanceiro: React.FC = () => {
   return (
     <div className="space-y-5 max-w-2xl">
       <div>
-        <h1 className="text-2xl font-bold text-gray-800">Histórico Financeiro</h1>
-        <p className="text-gray-500 text-sm mt-1">Suas contribuições registradas</p>
+        <h1 className="text-2xl font-bold text-gray-800">{t('memberPortal.financial.title')}</h1>
+        <p className="text-gray-500 text-sm mt-1">{t('memberPortal.financial.subtitle')}</p>
       </div>
 
       {/* Dízimo do Mês */}
@@ -74,8 +69,10 @@ export const MemberFinanceiro: React.FC = () => {
       ) : (
         <div className="bg-gradient-to-br from-orange-50 to-orange-100 border border-orange-200 rounded-2xl p-4 flex items-center justify-between shadow-sm">
           <div>
-            <p className="text-orange-500 text-[11px] font-bold uppercase tracking-wider mb-1">Dízimo do Mês</p>
-            <p className="text-orange-600 text-2xl font-extrabold">{formatCurrency(currentMonthTithes)}</p>
+            <p className="text-orange-500 text-[11px] font-bold uppercase tracking-wider mb-1">
+              {t('memberPortal.financial.titheOfMonth')}
+            </p>
+            <p className="text-orange-600 text-2xl font-extrabold">{formatCurrency(currentMonthTithes, lang)}</p>
           </div>
           <div className="w-12 h-12 rounded-xl bg-orange-200 flex items-center justify-center">
             <TrendingUp size={22} className="text-orange-600" />
@@ -97,7 +94,9 @@ export const MemberFinanceiro: React.FC = () => {
           <Calendar size={15} className="text-orange-400" />
           <span className="text-gray-800 font-bold text-base">{selectedYear}</span>
           {selectedYear === currentYear && (
-            <span className="text-[10px] bg-orange-100 text-orange-500 font-bold px-2 py-0.5 rounded-full">Ano Atual</span>
+            <span className="text-[10px] bg-orange-100 text-orange-500 font-bold px-2 py-0.5 rounded-full">
+              {t('memberPortal.financial.currentYear')}
+            </span>
           )}
         </div>
 
@@ -119,15 +118,15 @@ export const MemberFinanceiro: React.FC = () => {
         <div className="grid grid-cols-2 gap-3">
           <div className="bg-white rounded-xl shadow-sm border border-green-100 p-4 text-center">
             <p className="text-gray-400 text-[10px] font-semibold uppercase tracking-wider mb-1">
-              Total Dízimos {selectedYear}
+              {t('memberPortal.financial.totalTithes')} {selectedYear}
             </p>
-            <p className="text-green-600 text-lg font-extrabold">{formatCurrency(yearTithes)}</p>
+            <p className="text-green-600 text-lg font-extrabold">{formatCurrency(yearTithes, lang)}</p>
           </div>
           <div className="bg-white rounded-xl shadow-sm border border-blue-100 p-4 text-center">
             <p className="text-gray-400 text-[10px] font-semibold uppercase tracking-wider mb-1">
-              Total Ofertas {selectedYear}
+              {t('memberPortal.financial.totalOfferings')} {selectedYear}
             </p>
-            <p className="text-blue-600 text-lg font-extrabold">{formatCurrency(yearOfferings)}</p>
+            <p className="text-blue-600 text-lg font-extrabold">{formatCurrency(yearOfferings, lang)}</p>
           </div>
         </div>
       )}
@@ -146,12 +145,12 @@ export const MemberFinanceiro: React.FC = () => {
                   : 'bg-white border border-gray-200 text-gray-500 hover:text-gray-700'
               }`}
             >
-              {f === 'TODOS' ? 'Todos' : categoryLabel[f]}
+              {f === 'TODOS' ? t('memberPortal.financial.allCategories') : categoryLabel(f)}
             </button>
           ))}
         </div>
         {yearContribs.length > 0 && (
-          <button onClick={handleExportYear} className="text-gray-400 hover:text-orange-500 transition-colors" title={`Exportar ${selectedYear}`}>
+          <button onClick={handleExportYear} className="text-gray-400 hover:text-orange-500 transition-colors" title={`${t('memberPortal.financial.exportReport')} ${selectedYear}`}>
             <FileDown size={16} />
           </button>
         )}
@@ -167,8 +166,8 @@ export const MemberFinanceiro: React.FC = () => {
           <Wallet size={32} className="text-gray-300 mx-auto mb-3" />
           <p className="text-gray-400 text-sm">
             {yearContribs.length === 0
-              ? `Nenhuma contribuição em ${selectedYear}.`
-              : 'Nenhuma contribuição nesta categoria.'}
+              ? `${t('memberPortal.financial.noContributionsYear')} ${selectedYear}.`
+              : t('memberPortal.financial.noContributions')}
           </p>
         </div>
       ) : (
@@ -183,9 +182,9 @@ export const MemberFinanceiro: React.FC = () => {
                 </div>
                 <div>
                   <p className="text-gray-800 text-sm font-semibold">
-                    {categoryLabel[txn.category] || txn.category}
+                    {categoryLabel(txn.category)}
                   </p>
-                  <p className="text-gray-400 text-xs">{formatDate(txn.date)}</p>
+                  <p className="text-gray-400 text-xs">{formatDate(txn.date, lang)}</p>
                   {txn.description && (
                     <p className="text-gray-300 text-[10px] truncate max-w-[160px]">{txn.description}</p>
                   )}
@@ -193,7 +192,7 @@ export const MemberFinanceiro: React.FC = () => {
               </div>
               <div className="text-right">
                 <p className={`font-bold text-sm ${txn.category === 'DIZIMO' ? 'text-green-600' : 'text-blue-600'}`}>
-                  {formatCurrency(txn.amount)}
+                  {formatCurrency(txn.amount, lang)}
                 </p>
                 {txn.status && (
                   <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full ${
@@ -210,8 +209,8 @@ export const MemberFinanceiro: React.FC = () => {
 
       {filtered.length > 0 && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 flex justify-between items-center">
-          <span className="text-gray-500 text-xs font-semibold">Total ({filtered.length} registros)</span>
-          <span className="text-gray-800 font-bold text-sm">{formatCurrency(total)}</span>
+          <span className="text-gray-500 text-xs font-semibold">{t('common.total')} ({filtered.length})</span>
+          <span className="text-gray-800 font-bold text-sm">{formatCurrency(total, lang)}</span>
         </div>
       )}
 
@@ -221,7 +220,7 @@ export const MemberFinanceiro: React.FC = () => {
           className="w-full flex items-center justify-center gap-2 bg-white hover:bg-gray-50 border border-gray-200 text-gray-600 font-semibold py-3 rounded-xl transition-all text-sm shadow-sm"
         >
           <FileDown size={16} />
-          Exportar Relatório {selectedYear}
+          {t('memberPortal.financial.exportReport')} {selectedYear}
         </button>
       )}
     </div>

@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useMember } from '../../contexts/MemberContext';
+import { useTranslation } from 'react-i18next';
+import { formatDate } from '../../i18n';
 import { updateMemberPassword, updateMemberUsername } from '../../services/memberService';
 import {
   User, Lock, Eye, EyeOff, CheckCircle, AlertCircle,
@@ -7,14 +9,9 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
-const formatDate = (dateStr: string) => {
-  if (!dateStr) return '';
-  const [year, month, day] = dateStr.split('-');
-  return `${day}/${month}/${year}`;
-};
-
 /* ─── Change Password Modal ─── */
 const ChangePasswordModal: React.FC<{ memberId: string; onClose: () => void; onSuccess: () => void }> = ({ memberId, onClose, onSuccess }) => {
+  const { t } = useTranslation();
   const [newPass, setNewPass] = useState('');
   const [confirmPass, setConfirmPass] = useState('');
   const [showNew, setShowNew] = useState(false);
@@ -25,31 +22,31 @@ const ChangePasswordModal: React.FC<{ memberId: string; onClose: () => void; onS
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    if (newPass.length < 6) { setError('A senha deve ter pelo menos 6 caracteres.'); return; }
-    if (newPass !== confirmPass) { setError('As senhas não conferem.'); return; }
+    if (newPass.length < 6) { setError(t('memberPortal.profile.passwordTooShort')); return; }
+    if (newPass !== confirmPass) { setError(t('memberPortal.profile.passwordsDontMatch')); return; }
     setLoading(true);
     const result = await updateMemberPassword(memberId, newPass);
     setLoading(false);
     if (result.success) onSuccess();
-    else setError(result.error || 'Erro ao atualizar a senha.');
+    else setError(result.error || t('memberPortal.profile.errorUpdatePassword'));
   };
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div className="bg-white border border-gray-200 rounded-xl p-5 w-full max-w-md shadow-xl">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-gray-800 font-semibold">Criar Nova Senha</h3>
+          <h3 className="text-gray-800 font-semibold">{t('memberPortal.profile.newPasswordModal')}</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors"><X size={18} /></button>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           {[
-            { label: 'Nova Senha', value: newPass, setter: setNewPass, show: showNew, toggle: () => setShowNew(!showNew) },
-            { label: 'Confirmar Senha', value: confirmPass, setter: setConfirmPass, show: showConfirm, toggle: () => setShowConfirm(!showConfirm) },
+            { label: t('memberPortal.profile.newPassword'), value: newPass, setter: setNewPass, show: showNew, toggle: () => setShowNew(!showNew) },
+            { label: t('memberPortal.profile.confirmPassword'), value: confirmPass, setter: setConfirmPass, show: showConfirm, toggle: () => setShowConfirm(!showConfirm) },
           ].map(({ label, value, setter, show, toggle }) => (
             <div key={label}>
               <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5 tracking-wider">{label}</label>
               <div className="relative">
-                <input type={show ? 'text' : 'password'} value={value} onChange={(e) => setter(e.target.value)} placeholder="Mínimo 6 caracteres"
+                <input type={show ? 'text' : 'password'} value={value} onChange={(e) => setter(e.target.value)} placeholder={t('memberPortal.profile.minChars')}
                   className="w-full pl-3 pr-10 py-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-400/40 focus:border-orange-400 text-sm" required />
                 <button type="button" onClick={toggle} className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600">
                   {show ? <EyeOff size={15} /> : <Eye size={15} />}
@@ -65,7 +62,7 @@ const ChangePasswordModal: React.FC<{ memberId: string; onClose: () => void; onS
           )}
           <button type="submit" disabled={loading}
             className="w-full flex items-center justify-center gap-2 py-3 bg-orange-500 hover:bg-orange-600 disabled:bg-orange-300 text-white font-semibold rounded-lg transition-all text-sm">
-            {loading ? <Loader size={15} className="animate-spin" /> : 'Salvar Nova Senha'}
+            {loading ? <Loader size={15} className="animate-spin" /> : t('memberPortal.profile.savePassword')}
           </button>
         </form>
       </div>
@@ -75,6 +72,7 @@ const ChangePasswordModal: React.FC<{ memberId: string; onClose: () => void; onS
 
 /* ─── Change Username Modal ─── */
 const ChangeUsernameModal: React.FC<{ memberId: string; currentUsername?: string; onClose: () => void; onSuccess: (u: string) => void }> = ({ memberId, currentUsername, onClose, onSuccess }) => {
+  const { t } = useTranslation();
   const [newUser, setNewUser] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -82,33 +80,33 @@ const ChangeUsernameModal: React.FC<{ memberId: string; currentUsername?: string
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    if (newUser.trim().length < 3) { setError('O usuário deve ter pelo menos 3 caracteres.'); return; }
+    if (newUser.trim().length < 3) { setError(t('memberPortal.profile.usernameTooShort')); return; }
     setLoading(true);
     const result = await updateMemberUsername(memberId, newUser.trim());
     setLoading(false);
     if (result.success) onSuccess(newUser.trim());
-    else setError(result.error || 'Erro ao atualizar o usuário.');
+    else setError(result.error || t('memberPortal.profile.errorUpdateUsername'));
   };
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div className="bg-white border border-gray-200 rounded-xl p-5 w-full max-w-md shadow-xl">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-gray-800 font-semibold">Alterar Usuário de Acesso</h3>
+          <h3 className="text-gray-800 font-semibold">{t('memberPortal.profile.changeUsernameModal')}</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors"><X size={18} /></button>
         </div>
         {currentUsername && (
-          <p className="text-xs text-gray-500 mb-4">Atual: <span className="font-semibold text-gray-700">{currentUsername}</span></p>
+          <p className="text-xs text-gray-500 mb-4">{t('memberPortal.profile.currentLabel')} <span className="font-semibold text-gray-700">{currentUsername}</span></p>
         )}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5 tracking-wider">Novo Usuário</label>
+            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5 tracking-wider">{t('memberPortal.profile.newUsername')}</label>
             <div className="relative">
               <AtSign size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input type="text" value={newUser} onChange={(e) => setNewUser(e.target.value)} placeholder="Mínimo 3 caracteres"
+              <input type="text" value={newUser} onChange={(e) => setNewUser(e.target.value)} placeholder={t('memberPortal.profile.minUserChars')}
                 className="w-full pl-9 pr-3 py-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-400/40 focus:border-orange-400 text-sm" required />
             </div>
-            <p className="text-[11px] text-gray-400 mt-1">Após salvar, use este usuário para entrar no portal.</p>
+            <p className="text-[11px] text-gray-400 mt-1">{t('memberPortal.profile.afterSaveUsername')}</p>
           </div>
           {error && (
             <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg p-3">
@@ -118,7 +116,7 @@ const ChangeUsernameModal: React.FC<{ memberId: string; currentUsername?: string
           )}
           <button type="submit" disabled={loading}
             className="w-full flex items-center justify-center gap-2 py-3 bg-orange-500 hover:bg-orange-600 disabled:bg-orange-300 text-white font-semibold rounded-lg transition-all text-sm">
-            {loading ? <Loader size={15} className="animate-spin" /> : 'Salvar Usuário'}
+            {loading ? <Loader size={15} className="animate-spin" /> : t('memberPortal.profile.saveUsername')}
           </button>
         </form>
       </div>
@@ -129,6 +127,8 @@ const ChangeUsernameModal: React.FC<{ memberId: string; currentUsername?: string
 /* ─── Main ─── */
 export const MemberPerfil: React.FC = () => {
   const { session, logout } = useMember();
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language;
   const navigate = useNavigate();
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [showChangeUsername, setShowChangeUsername] = useState(false);
@@ -149,6 +149,15 @@ export const MemberPerfil: React.FC = () => {
 
   const initials = member.name.split(' ').filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('');
 
+  const profileFields = [
+    { icon: User, label: t('memberPortal.profile.cpf'), value: member.cpf ? member.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : '—' },
+    { icon: User, label: t('memberPortal.profile.birthDate'), value: formatDate(member.birthDate, lang) },
+    { icon: Shield, label: t('memberPortal.profile.baptismDate'), value: member.baptismDate ? formatDate(member.baptismDate, lang) : '—' },
+    { icon: Mail, label: t('memberPortal.profile.email'), value: member.email || '—' },
+    { icon: Phone, label: t('memberPortal.profile.phone'), value: member.phone || '—' },
+    { icon: MapPin, label: t('memberPortal.profile.city'), value: member.address?.city ? `${member.address.city} / ${member.address.state}` : '—' },
+  ];
+
   return (
     <div className="space-y-6 max-w-2xl">
       {showFirstAccessAlert && (
@@ -156,18 +165,18 @@ export const MemberPerfil: React.FC = () => {
           <div className="flex items-start gap-3">
             <AlertCircle size={18} className="text-amber-500 shrink-0 mt-0.5" />
             <div className="flex-1">
-              <p className="text-amber-700 text-sm font-semibold">Primeiro Acesso</p>
+              <p className="text-amber-700 text-sm font-semibold">{t('memberPortal.profile.firstAccess')}</p>
               <p className="text-amber-600 text-xs mt-1 leading-relaxed">
-                Você está usando sua data de nascimento como senha. Recomendamos criar uma senha personalizada.
+                {t('memberPortal.profile.firstAccessDesc')}
               </p>
               <div className="flex gap-2 mt-3">
                 <button onClick={() => setShowChangePassword(true)}
                   className="flex-1 bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold py-2 rounded-lg transition-all">
-                  Criar minha senha
+                  {t('memberPortal.profile.createPassword')}
                 </button>
                 <button onClick={() => setShowFirstAccessAlert(false)}
                   className="px-3 py-2 border border-amber-300 text-amber-600 text-xs font-medium rounded-lg hover:bg-amber-100 transition-all">
-                  Depois
+                  {t('memberPortal.profile.later')}
                 </button>
               </div>
             </div>
@@ -178,14 +187,14 @@ export const MemberPerfil: React.FC = () => {
       {passwordChanged && (
         <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-lg p-3">
           <CheckCircle size={14} className="text-green-500 shrink-0" />
-          <p className="text-green-700 text-xs font-semibold">Senha atualizada com sucesso!</p>
+          <p className="text-green-700 text-xs font-semibold">{t('memberPortal.profile.passwordUpdated')}</p>
         </div>
       )}
       {usernameChanged && (
         <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-lg p-3">
           <CheckCircle size={14} className="text-green-500 shrink-0" />
           <p className="text-green-700 text-xs font-semibold">
-            Usuário alterado para <span className="font-bold">{usernameChanged}</span>. Use-o no próximo acesso.
+            {t('memberPortal.profile.usernameChangedMsg')} <span className="font-bold">{usernameChanged}</span>. {t('memberPortal.profile.useOnNextAccess')}
           </p>
         </div>
       )}
@@ -201,7 +210,9 @@ export const MemberPerfil: React.FC = () => {
         )}
         <h2 className="text-gray-800 font-bold text-lg">{member.name}</h2>
         <p className="text-gray-500 text-xs">{session.church.name}</p>
-        {member.memberNumber && <p className="text-gray-400 text-xs mt-0.5">Nº {member.memberNumber}</p>}
+        {member.memberNumber && (
+          <p className="text-gray-400 text-xs mt-0.5">{t('memberPortal.profile.memberNumber')} {member.memberNumber}</p>
+        )}
         <div className="flex justify-center mt-2">
           <span className={`px-3 py-1 rounded-full text-xs font-bold ${
             member.status === 'ATIVO'
@@ -215,15 +226,8 @@ export const MemberPerfil: React.FC = () => {
 
       {/* Details */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 space-y-3">
-        <h3 className="text-gray-700 text-sm font-semibold">Dados Cadastrais</h3>
-        {[
-          { icon: User, label: 'CPF', value: member.cpf ? member.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : '—' },
-          { icon: User, label: 'Data de Nascimento', value: formatDate(member.birthDate) },
-          { icon: Shield, label: 'Data de Batismo', value: member.baptismDate ? formatDate(member.baptismDate) : '—' },
-          { icon: Mail, label: 'E-mail', value: member.email || '—' },
-          { icon: Phone, label: 'Telefone', value: member.phone || '—' },
-          { icon: MapPin, label: 'Cidade', value: member.address?.city ? `${member.address.city} / ${member.address.state}` : '—' },
-        ].map(({ icon: Icon, label, value }) => (
+        <h3 className="text-gray-700 text-sm font-semibold">{t('memberPortal.profile.personalData')}</h3>
+        {profileFields.map(({ icon: Icon, label, value }) => (
           <div key={label} className="flex items-center gap-3">
             <div className="w-7 h-7 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center shrink-0">
               <Icon size={12} className="text-gray-500" />
@@ -244,9 +248,11 @@ export const MemberPerfil: React.FC = () => {
             <AtSign size={14} className="text-orange-500" />
           </div>
           <div>
-            <p className="text-gray-800 text-sm font-semibold">Alterar Usuário</p>
+            <p className="text-gray-800 text-sm font-semibold">{t('memberPortal.profile.changeUsername')}</p>
             <p className="text-gray-400 text-xs">
-              {usernameChanged || member.memberUsername ? `Atual: ${usernameChanged || member.memberUsername}` : 'Defina um usuário personalizado'}
+              {usernameChanged || member.memberUsername
+                ? `${t('memberPortal.profile.currentLabel')} ${usernameChanged || member.memberUsername}`
+                : t('memberPortal.profile.customizeUsername')}
             </p>
           </div>
         </button>
@@ -257,8 +263,8 @@ export const MemberPerfil: React.FC = () => {
             <Lock size={14} className="text-orange-500" />
           </div>
           <div>
-            <p className="text-gray-800 text-sm font-semibold">Alterar Senha</p>
-            <p className="text-gray-400 text-xs">Crie uma senha personalizada</p>
+            <p className="text-gray-800 text-sm font-semibold">{t('memberPortal.profile.changePassword')}</p>
+            <p className="text-gray-400 text-xs">{t('memberPortal.profile.customizePassword')}</p>
           </div>
         </button>
 
@@ -268,8 +274,8 @@ export const MemberPerfil: React.FC = () => {
             <LogOut size={14} className="text-red-500" />
           </div>
           <div>
-            <p className="text-red-500 text-sm font-semibold">Sair do Portal</p>
-            <p className="text-gray-400 text-xs">Encerrar sessão</p>
+            <p className="text-red-500 text-sm font-semibold">{t('memberPortal.profile.logout')}</p>
+            <p className="text-gray-400 text-xs">{t('memberPortal.profile.endSession')}</p>
           </div>
         </button>
       </div>

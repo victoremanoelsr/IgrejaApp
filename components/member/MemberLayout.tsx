@@ -18,14 +18,14 @@ import {
 } from 'lucide-react';
 import { NavLink, useNavigate } from 'react-router-dom';
 
-const navItems = [
-  { to: '/portal/dashboard', icon: LayoutDashboard, label: 'Início' },
-  { to: '/portal/financeiro', icon: DollarSign, label: 'Financeiro' },
-  { to: '/portal/prestacao-contas', icon: BarChart2, label: 'Prestação de Contas' },
-  { to: '/portal/carnets', icon: BookOpen, label: 'Carnês' },
-  { to: '/portal/eventos', icon: Calendar, label: 'Eventos' },
-  { to: '/portal/documentos', icon: FileText, label: 'Documentos' },
-  { to: '/portal/perfil', icon: User, label: 'Perfil' },
+const navItemDefs = [
+  { to: '/portal/dashboard', icon: LayoutDashboard, key: 'memberPortal.nav.home' },
+  { to: '/portal/financeiro', icon: DollarSign, key: 'memberPortal.nav.financial' },
+  { to: '/portal/prestacao-contas', icon: BarChart2, key: 'memberPortal.nav.accountability' },
+  { to: '/portal/carnets', icon: BookOpen, key: 'memberPortal.nav.carnets' },
+  { to: '/portal/eventos', icon: Calendar, key: 'memberPortal.nav.events' },
+  { to: '/portal/documentos', icon: FileText, key: 'memberPortal.nav.documents' },
+  { to: '/portal/perfil', icon: User, key: 'memberPortal.nav.profile' },
 ];
 
 interface MemberLayoutProps {
@@ -34,7 +34,7 @@ interface MemberLayoutProps {
 
 export const MemberLayout: React.FC<MemberLayoutProps> = ({ children }) => {
   const { session, logout } = useMember();
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
 
   const [isMobileOpen, setIsMobileOpen] = useState(false);
@@ -135,12 +135,12 @@ export const MemberLayout: React.FC<MemberLayoutProps> = ({ children }) => {
         {/* Nav items */}
         <div className="flex-1 overflow-y-auto py-4 overflow-x-hidden">
           <nav className="space-y-1 px-3">
-            {navItems.map(({ to, icon: Icon, label }) => (
+            {navItemDefs.map(({ to, icon: Icon, key }) => (
               <NavLink
                 key={to}
                 to={to}
                 onClick={() => setIsMobileOpen(false)}
-                title={!isExpanded ? label : ''}
+                title={!isExpanded ? t(key) : ''}
                 className={({ isActive }) =>
                   `flex items-center px-3 py-3 rounded-lg transition-all whitespace-nowrap group ${
                     isActive
@@ -162,7 +162,7 @@ export const MemberLayout: React.FC<MemberLayoutProps> = ({ children }) => {
                         isExpanded ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4 w-0 hidden'
                       }`}
                     >
-                      {label}
+                      {t(key)}
                     </span>
                   </>
                 )}
@@ -269,7 +269,7 @@ export const MemberLayout: React.FC<MemberLayoutProps> = ({ children }) => {
             className={`flex items-center w-full mt-3 px-3 py-2 text-red-400 hover:text-white hover:bg-red-600/20 rounded-lg transition-all duration-200 group ${
               !isExpanded ? 'justify-center px-0' : ''
             }`}
-            title={!isExpanded ? 'Sair do Sistema' : ''}
+            title={!isExpanded ? t('common.logout') : ''}
           >
             <LogOut size={20} className="shrink-0 group-hover:scale-110 transition-transform" />
             <span
@@ -277,7 +277,7 @@ export const MemberLayout: React.FC<MemberLayoutProps> = ({ children }) => {
                 isExpanded ? 'opacity-100' : 'opacity-0 w-0 hidden'
               }`}
             >
-              Sair do Sistema
+              {t('common.logout')}
             </span>
           </button>
         </div>

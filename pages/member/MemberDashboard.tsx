@@ -1,5 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useMember } from '../../contexts/MemberContext';
+import { useTranslation } from 'react-i18next';
+import { formatCurrency, formatDate } from '../../i18n';
 import {
   TrendingUp,
   Copy,
@@ -16,23 +18,6 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
-const formatCurrency = (value: number) =>
-  value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-
-const formatDate = (dateStr: string) => {
-  if (!dateStr) return '';
-  const [year, month, day] = dateStr.split('-');
-  return `${day}/${month}/${year}`;
-};
-
-const categoryLabel: Record<string, string> = {
-  DIZIMO: 'Dízimo',
-  OFERTA: 'Oferta',
-};
-
-const monthName = () =>
-  new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
-
 const versiculos = [
   { texto: 'Tudo posso naquele que me fortalece.', referencia: 'Filipenses 4:13' },
   { texto: 'O Senhor é o meu pastor e nada me faltará.', referencia: 'Salmos 23:1' },
@@ -45,21 +30,30 @@ const versiculos = [
   { texto: 'Não andem ansiosos por coisa alguma, mas em tudo, pela oração, apresentem seus pedidos a Deus.', referencia: 'Filipenses 4:6' },
 ];
 
-const getHourGreeting = () => {
-  const hour = new Date().getHours();
-  if (hour < 12) return 'Bom dia';
-  if (hour < 18) return 'Boa tarde';
-  return 'Boa noite';
-};
-
 const Skeleton: React.FC<{ className?: string }> = ({ className = '' }) => (
   <div className={`animate-pulse bg-gray-200 rounded-xl ${className}`} />
 );
 
 export const MemberDashboard: React.FC = () => {
   const { session, contributions, currentMonthTithes, upcomingEvents, isLoading } = useMember();
+  const { t, i18n } = useTranslation();
   const [copied, setCopied] = useState(false);
   const navigate = useNavigate();
+
+  const lang = i18n.language;
+
+  const getHourGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return t('memberPortal.dashboard.greetingMorning');
+    if (hour < 18) return t('memberPortal.dashboard.greetingAfternoon');
+    return t('memberPortal.dashboard.greetingEvening');
+  };
+
+  const monthName = () =>
+    new Date().toLocaleDateString(lang, { month: 'long', year: 'numeric' });
+
+  const categoryLabel = (cat: string) =>
+    t(`memberPortal.categoryLabel.${cat}`, { defaultValue: cat });
 
   const versiculoDoDia = useMemo(() => {
     const idx = new Date().getDate() % versiculos.length;
@@ -78,7 +72,7 @@ export const MemberDashboard: React.FC = () => {
   const handlePrayerRequest = () => {
     const rawPhone = church.sedePastorPhone?.replace(/\D/g, '') || '';
     if (!rawPhone) {
-      alert('A SEDE ainda não cadastrou o WhatsApp do Pastor Presidente. Procure a secretaria da igreja.');
+      alert(t('memberPortal.dashboard.noPastorPhone'));
       return;
     }
     const pastorTitle = church.sedePastorName ? `Pr. ${church.sedePastorName}` : 'Pastor';
@@ -102,19 +96,19 @@ export const MemberDashboard: React.FC = () => {
 
   const quickActions = [
     {
-      label: 'Carnês',
+      label: t('memberPortal.dashboard.carnets'),
       icon: BookOpen,
       color: 'from-emerald-500 to-teal-600',
       action: () => navigate('/portal/carnets'),
     },
     {
-      label: 'Financeiro',
+      label: t('memberPortal.nav.financial'),
       icon: DollarSign,
       color: 'from-orange-500 to-red-600',
       action: () => navigate('/portal/financeiro'),
     },
     {
-      label: 'Eventos',
+      label: t('memberPortal.dashboard.events'),
       icon: Calendar,
       color: 'from-blue-500 to-cyan-600',
       action: () => navigate('/portal/eventos'),
@@ -137,7 +131,7 @@ export const MemberDashboard: React.FC = () => {
               }`}
             >
               <span className="w-1.5 h-1.5 rounded-full bg-current" />
-              Membro {member.status}
+              {t('memberPortal.dashboard.memberStatus')} {member.status}
             </span>
           )}
         </div>
@@ -155,18 +149,17 @@ export const MemberDashboard: React.FC = () => {
         <div className="flex items-center gap-2 mb-2">
           <Sparkles size={12} className="text-amber-500" />
           <span className="text-amber-600 text-[10px] font-bold uppercase tracking-widest">
-            Versículo do Dia
+            {t('memberPortal.dashboard.verseOfDay')}
           </span>
         </div>
         <p className="text-gray-700 text-sm leading-relaxed italic">"{versiculoDoDia.texto}"</p>
         <p className="text-gray-400 text-[11px] mt-2 font-semibold">— {versiculoDoDia.referencia}</p>
       </div>
 
-      {/* Tithe Card — dois estados: convite (sem dízimo) ou confirmação (com dízimo) */}
+      {/* Tithe Card */}
       {isLoading ? (
         <Skeleton className="h-44" />
       ) : currentMonthTithes > 0 ? (
-        // Estado pós-pagamento: tesoureiro já lançou o dízimo do mês corrente.
         <div className="relative bg-slate-900 border border-emerald-500/25 rounded-2xl p-5 overflow-hidden shadow-xl">
           <div className="absolute -top-10 -right-10 w-40 h-40 bg-emerald-500/10 rounded-full blur-2xl" />
           <div className="relative">
@@ -175,14 +168,15 @@ export const MemberDashboard: React.FC = () => {
                 <CheckCheck size={14} className="text-emerald-400" />
               </div>
               <span className="text-emerald-300 text-[10px] font-bold uppercase tracking-widest">
-                Contribuição registrada
+                {t('memberPortal.dashboard.contributionRegistered')}
               </span>
             </div>
             <p className="text-slate-300 text-sm">
-              Sua contribuição de <span className="text-white font-semibold capitalize">{monthName()}</span>:
+              {t('memberPortal.dashboard.yourContributionOf')}{' '}
+              <span className="text-white font-semibold capitalize">{monthName()}</span>:
             </p>
             <p className="text-white text-4xl font-extrabold tracking-tight mt-1">
-              {formatCurrency(currentMonthTithes)}
+              {formatCurrency(currentMonthTithes, lang)}
             </p>
             <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-800">
               <p className="text-slate-500 text-xs italic">"O Senhor ama quem dá com alegria." — 2 Co 9:7</p>
@@ -190,13 +184,12 @@ export const MemberDashboard: React.FC = () => {
                 onClick={() => navigate('/portal/financeiro')}
                 className="flex items-center gap-1 text-emerald-400 hover:text-emerald-300 text-xs font-semibold transition-colors shrink-0 ml-2"
               >
-                Histórico <ArrowUpRight size={12} />
+                {t('memberPortal.dashboard.history')} <ArrowUpRight size={12} />
               </button>
             </div>
           </div>
         </div>
       ) : (
-        // Estado inicial: nenhum dízimo registrado neste mês — convite à fidelidade.
         <div className="relative bg-slate-900 border border-slate-700 rounded-2xl p-5 overflow-hidden shadow-xl">
           <div className="absolute -top-12 -right-12 w-40 h-40 bg-orange-500/10 rounded-full blur-2xl" />
           <div className="absolute -bottom-12 -left-12 w-32 h-32 bg-amber-500/10 rounded-full blur-2xl" />
@@ -206,15 +199,15 @@ export const MemberDashboard: React.FC = () => {
                 <HeartHandshake size={14} className="text-orange-400" />
               </div>
               <span className="text-orange-300 text-[10px] font-bold uppercase tracking-widest">
-                Dízimo de {monthName()}
+                {t('memberPortal.dashboard.titheOf')} <span className="capitalize">{monthName()}</span>
               </span>
             </div>
 
             <p className="text-white text-lg font-bold leading-snug">
-              Sua fidelidade edifica a Casa de Deus.
+              {t('memberPortal.dashboard.titheLoyalty')}
             </p>
             <p className="text-slate-400 text-xs mt-1.5 leading-relaxed">
-              Contribua quando o Espírito tocar o seu coração — você define o valor diretamente no app do seu banco.
+              {t('memberPortal.dashboard.contributeWhenSpirit')}
             </p>
 
             {church.pixKey ? (
@@ -227,14 +220,14 @@ export const MemberDashboard: React.FC = () => {
                 }`}
               >
                 {copied ? (
-                  <><CheckCheck size={16} />Chave PIX copiada!</>
+                  <><CheckCheck size={16} />{t('memberPortal.dashboard.pixKeyCopied')}</>
                 ) : (
-                  <><Copy size={16} />Copiar Chave PIX</>
+                  <><Copy size={16} />{t('memberPortal.dashboard.copyPixKey')}</>
                 )}
               </button>
             ) : (
               <div className="mt-5 w-full text-center text-xs text-slate-500 bg-slate-800/40 border border-slate-700 rounded-xl py-3">
-                A igreja ainda não cadastrou uma chave PIX.
+                {t('memberPortal.dashboard.noPix')}
               </div>
             )}
           </div>
@@ -243,7 +236,7 @@ export const MemberDashboard: React.FC = () => {
 
       {/* Quick Actions */}
       <div>
-        <h2 className="text-sm font-semibold text-gray-700 mb-3">Atalhos Rápidos</h2>
+        <h2 className="text-sm font-semibold text-gray-700 mb-3">{t('memberPortal.dashboard.quickShortcuts')}</h2>
         <div className="grid grid-cols-4 gap-3">
           {quickActions.map(({ label, icon: Icon, color, action }) => (
             <button
@@ -267,13 +260,13 @@ export const MemberDashboard: React.FC = () => {
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
             <Wallet size={14} className="text-orange-500" />
-            Atividade Recente
+            {t('memberPortal.dashboard.recentActivity')}
           </h2>
           <button
             onClick={() => navigate('/portal/financeiro')}
             className="text-orange-500 text-xs flex items-center gap-0.5 hover:text-orange-600 transition-colors"
           >
-            Ver tudo <ChevronRight size={12} />
+            {t('memberPortal.dashboard.viewAll')} <ChevronRight size={12} />
           </button>
         </div>
 
@@ -284,7 +277,7 @@ export const MemberDashboard: React.FC = () => {
         ) : recentContributions.length === 0 ? (
           <div className="bg-slate-900 rounded-2xl shadow-sm border border-slate-700 p-10 text-center">
             <Wallet size={28} className="text-slate-600 mx-auto mb-2" />
-            <p className="text-slate-400 text-sm">Nenhuma contribuição registrada ainda.</p>
+            <p className="text-slate-400 text-sm">{t('memberPortal.dashboard.noContributions')}</p>
           </div>
         ) : (
           <div className="space-y-2">
@@ -298,12 +291,12 @@ export const MemberDashboard: React.FC = () => {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-white text-sm font-semibold truncate">
-                    {categoryLabel[txn.category] || txn.category}
+                    {categoryLabel(txn.category)}
                   </p>
-                  <p className="text-slate-500 text-[11px] mt-0.5">{formatDate(txn.date)}</p>
+                  <p className="text-slate-500 text-[11px] mt-0.5">{formatDate(txn.date, lang)}</p>
                 </div>
                 <span className="text-emerald-400 text-sm font-extrabold shrink-0">
-                  {formatCurrency(txn.amount)}
+                  {formatCurrency(txn.amount, lang)}
                 </span>
               </div>
             ))}
@@ -316,7 +309,7 @@ export const MemberDashboard: React.FC = () => {
         <div id="eventos-section">
           <h2 className="text-sm font-semibold text-gray-700 flex items-center gap-2 mb-3">
             <Calendar size={14} className="text-orange-500" />
-            Próximos Eventos
+            {t('memberPortal.dashboard.upcomingEvents')}
           </h2>
           <div className="space-y-2">
             {upcomingEvents.map((event) => (
@@ -328,7 +321,7 @@ export const MemberDashboard: React.FC = () => {
                   <p className="text-gray-800 text-xs font-semibold truncate">{event.name}</p>
                   <p className="text-gray-400 text-[10px] flex items-center gap-1 mt-0.5">
                     <Clock size={10} />
-                    {formatDate(event.date)} às {event.time}
+                    {formatDate(event.date, lang)} {t('memberPortal.events.at')} {event.time}
                     {event.location && ` · ${event.location}`}
                   </p>
                 </div>
@@ -347,11 +340,11 @@ export const MemberDashboard: React.FC = () => {
           <HeartHandshake size={14} className="text-violet-500" />
         </div>
         <div className="flex-1">
-          <p className="text-gray-800 text-sm font-semibold">Pedido de Oração</p>
+          <p className="text-gray-800 text-sm font-semibold">{t('memberPortal.dashboard.prayerRequest')}</p>
           <p className="text-gray-400 text-xs">
             {church.sedePastorPhone
-              ? `Envie um pedido ao Pr. ${(church.sedePastorName || 'Presidente').split(' ')[0]} via WhatsApp`
-              : 'Envie um pedido ao seu pastor'}
+              ? `${t('memberPortal.dashboard.sendPrayerRequest')} (Pr. ${(church.sedePastorName || 'Presidente').split(' ')[0]})`
+              : t('memberPortal.dashboard.sendPrayerRequest')}
           </p>
         </div>
         <ChevronRight size={16} className="text-gray-300 shrink-0" />

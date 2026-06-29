@@ -1,24 +1,22 @@
 import React from 'react';
 import { useMember } from '../../contexts/MemberContext';
+import { useTranslation } from 'react-i18next';
+import { formatDate } from '../../i18n';
 import { Calendar, Clock, MapPin, CalendarX } from 'lucide-react';
-
-const formatDate = (dateStr: string) => {
-  if (!dateStr) return '';
-  const [year, month, day] = dateStr.split('-');
-  return `${day}/${month}/${year}`;
-};
-
-const formatDayMonth = (dateStr: string) => {
-  if (!dateStr) return { day: '', month: '' };
-  const date = new Date(dateStr + 'T00:00:00');
-  return {
-    day: String(date.getDate()).padStart(2, '0'),
-    month: date.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '').toUpperCase(),
-  };
-};
 
 export const MemberEventos: React.FC = () => {
   const { upcomingEvents, isLoading } = useMember();
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language;
+
+  const formatDayMonth = (dateStr: string) => {
+    if (!dateStr) return { day: '', month: '' };
+    const date = new Date(dateStr + 'T00:00:00');
+    return {
+      day: String(date.getDate()).padStart(2, '0'),
+      month: date.toLocaleDateString(lang, { month: 'short' }).replace('.', '').toUpperCase(),
+    };
+  };
 
   const now = new Date();
   now.setHours(0, 0, 0, 0);
@@ -29,8 +27,8 @@ export const MemberEventos: React.FC = () => {
   return (
     <div className="space-y-6 max-w-2xl">
       <div>
-        <h1 className="text-2xl font-bold text-gray-800">Eventos</h1>
-        <p className="text-gray-500 text-sm mt-0.5">Agenda da sua igreja</p>
+        <h1 className="text-2xl font-bold text-gray-800">{t('memberPortal.events.title')}</h1>
+        <p className="text-gray-500 text-sm mt-0.5">{t('memberPortal.events.subtitle')}</p>
       </div>
 
       {isLoading ? (
@@ -44,15 +42,15 @@ export const MemberEventos: React.FC = () => {
           <div className="w-16 h-16 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center mb-4">
             <CalendarX size={28} className="text-blue-400" />
           </div>
-          <p className="text-gray-700 font-semibold">Nenhum evento cadastrado</p>
-          <p className="text-gray-400 text-sm mt-1">Fique atento às novidades da sua igreja.</p>
+          <p className="text-gray-700 font-semibold">{t('memberPortal.events.noEvents')}</p>
+          <p className="text-gray-400 text-sm mt-1">{t('memberPortal.events.stayTuned')}</p>
         </div>
       ) : (
         <>
           {upcoming.length > 0 && (
             <div>
               <h2 className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">
-                Próximos Eventos
+                {t('memberPortal.events.upcomingEvents')}
               </h2>
               <div className="space-y-3">
                 {upcoming.map((event) => {
@@ -81,7 +79,7 @@ export const MemberEventos: React.FC = () => {
                           <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1.5">
                             <span className="text-gray-400 text-[11px] flex items-center gap-1">
                               <Clock size={10} />
-                              {formatDate(event.date)} às {event.time}
+                              {formatDate(event.date, lang)} {t('memberPortal.events.at')} {event.time}
                             </span>
                             {event.location && (
                               <span className="text-gray-400 text-[11px] flex items-center gap-1">
@@ -92,7 +90,7 @@ export const MemberEventos: React.FC = () => {
                           </div>
                           {event.responsibleName && (
                             <p className="text-gray-400 text-[11px] mt-1">
-                              Resp.: {event.responsibleName}
+                              {t('memberPortal.events.responsible')} {event.responsibleName}
                             </p>
                           )}
                         </div>
@@ -107,7 +105,7 @@ export const MemberEventos: React.FC = () => {
           {past.length > 0 && (
             <div>
               <h2 className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">
-                Eventos Passados
+                {t('memberPortal.events.pastEvents')}
               </h2>
               <div className="space-y-3">
                 {past.map((event) => {
@@ -136,7 +134,7 @@ export const MemberEventos: React.FC = () => {
                           <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1.5">
                             <span className="text-gray-400 text-[11px] flex items-center gap-1">
                               <Clock size={10} />
-                              {formatDate(event.date)} às {event.time}
+                              {formatDate(event.date, lang)} {t('memberPortal.events.at')} {event.time}
                             </span>
                             {event.location && (
                               <span className="text-gray-400 text-[11px] flex items-center gap-1">
