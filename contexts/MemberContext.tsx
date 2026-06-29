@@ -4,6 +4,7 @@ import {
   MemberSession,
   loginAsMember,
   getMemberContributions,
+  getMemberCampaignContributions,
   getMemberCurrentMonthTithes,
   getMemberUpcomingEvents,
   getMemberCarnets,
@@ -18,6 +19,7 @@ const SESSION_KEY = 'member_session';
 interface MemberContextType {
   session: MemberSession | null;
   contributions: Transaction[];
+  campaignContributions: Transaction[];
   currentMonthTithes: number;
   upcomingEvents: Event[];
   carnets: CarnetTemplate[];
@@ -61,6 +63,7 @@ const saveSession = (session: MemberSession | null) => {
 export const MemberProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [session, setSession] = useState<MemberSession | null>(loadSession);
   const [contributions, setContributions] = useState<Transaction[]>([]);
+  const [campaignContributions, setCampaignContributions] = useState<Transaction[]>([]);
   const [currentMonthTithes, setCurrentMonthTithes] = useState(0);
   const [upcomingEvents, setUpcomingEvents] = useState<Event[]>([]);
   const [carnets, setCarnets] = useState<CarnetTemplate[]>([]);
@@ -76,13 +79,15 @@ export const MemberProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const fetchMemberData = async (s: MemberSession) => {
     setIsLoading(true);
     try {
-      const [contribs, tithes, events, carnetList] = await Promise.all([
+      const [contribs, campaignContribs, tithes, events, carnetList] = await Promise.all([
         getMemberContributions(s.churchId, s.member.id),
+        getMemberCampaignContributions(s.churchId, s.member.name),
         getMemberCurrentMonthTithes(s.churchId, s.member.id),
         getMemberUpcomingEvents(s.churchId),
         getMemberCarnets(s.churchId),
       ]);
       setContributions(contribs);
+      setCampaignContributions(campaignContribs);
       setCurrentMonthTithes(tithes);
       setUpcomingEvents(events);
       setCarnets(carnetList);
@@ -256,6 +261,7 @@ export const MemberProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     saveSession(null);
     setSession(null);
     setContributions([]);
+    setCampaignContributions([]);
     setCurrentMonthTithes(0);
     setUpcomingEvents([]);
     setCarnets([]);
@@ -266,11 +272,13 @@ export const MemberProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const refreshContributions = async () => {
     if (!session) return;
-    const [contribs, tithes] = await Promise.all([
+    const [contribs, campaignContribs, tithes] = await Promise.all([
       getMemberContributions(session.churchId, session.member.id),
+      getMemberCampaignContributions(session.churchId, session.member.name),
       getMemberCurrentMonthTithes(session.churchId, session.member.id),
     ]);
     setContributions(contribs);
+    setCampaignContributions(campaignContribs);
     setCurrentMonthTithes(tithes);
   };
 
@@ -315,6 +323,7 @@ export const MemberProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       value={{
         session,
         contributions,
+        campaignContributions,
         currentMonthTithes,
         upcomingEvents,
         carnets,

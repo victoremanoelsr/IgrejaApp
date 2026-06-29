@@ -87,6 +87,27 @@ export const getMemberContributions = async (
   return limit ? mapped.slice(0, limit) : mapped;
 };
 
+// Busca doações de campanhas registradas exatamente no nome do membro
+export const getMemberCampaignContributions = async (
+  churchId: string,
+  memberName: string
+): Promise<Transaction[]> => {
+  // Descriptions are stored as "DOAÇÃO: NOME_MEMBRO" (uppercase, exact)
+  const exactDescription = `DOAÇÃO: ${memberName.toUpperCase()}`;
+
+  const { data, error } = await supabase
+    .from('transactions')
+    .select('*')
+    .eq('church_id', churchId)
+    .not('campaign_id', 'is', null)
+    .eq('type', 'ENTRADA')
+    .eq('description', exactDescription)
+    .order('date', { ascending: false });
+
+  if (error || !data) return [];
+  return (data as any[]).map(toAppTransaction);
+};
+
 export const getMemberCurrentMonthTithes = async (
   churchId: string,
   memberId: string
