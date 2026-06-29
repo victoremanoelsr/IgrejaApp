@@ -8,7 +8,7 @@ import {
   PlusCircle, MinusCircle, Search, CheckCircle, ShieldAlert, X, 
   Paperclip, ExternalLink, Trash2, Upload, Loader, Filter, 
   Calendar, Edit2, AlertTriangle, Info, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Globe,
-  Receipt, PlayCircle, Save, RefreshCw, Clock, MessageCircle, CloudOff
+  Receipt, PlayCircle, Save, RefreshCw, Clock, MessageCircle, CloudOff, Tag
 } from 'lucide-react';
 import { sendWhatsApp, treasuryMessage } from '../utils/whatsapp';
 
@@ -45,6 +45,9 @@ export const Finance: React.FC = () => {
   
   const [isRecurring, setIsRecurring] = useState(false);
 
+  const [showCategoryPopover, setShowCategoryPopover] = useState(false);
+  const categoryPopoverRef = useRef<HTMLDivElement>(null);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedMemberId, setSelectedMemberId] = useState('');
@@ -77,6 +80,18 @@ export const Finance: React.FC = () => {
 
   // Volta para página 1 ao mudar filtros
   useEffect(() => { setCurrentPage(1); }, [filterMonth, filterYear, filterType, viewId]);
+
+  // Fecha popover de categoria ao clicar fora
+  useEffect(() => {
+    if (!showCategoryPopover) return;
+    const handler = (e: MouseEvent) => {
+      if (categoryPopoverRef.current && !categoryPopoverRef.current.contains(e.target as Node)) {
+        setShowCategoryPopover(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showCategoryPopover]);
 
   const filteredMembers = members.filter(m => m.churchId === viewId && m.name.toLowerCase().includes(searchTerm.toLowerCase()));
   
@@ -266,32 +281,63 @@ export const Finance: React.FC = () => {
             </div>
           ) : (
              <div>
-                <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1">{t('finance.category')}</label>
-                <div className="grid grid-cols-3 gap-2 mb-3">
-                    {[
-                      { cat: 'LUZ', label: 'Energia' },
-                      { cat: 'SALARIO', label: 'Salário' },
-                      { cat: 'DESPESA_VARIAVEL', label: 'Ajuda de Custo' },
-                      { cat: 'ALUGUEL', label: 'Aluguel' },
-                      { cat: 'AGUA', label: 'Água' },
-                      { cat: 'OUTROS', label: 'Outros' },
-                    ].map(({ cat, label }) => (
-                        <button type="button" key={cat} onClick={() => { setCategory(cat as TransactionCategory); setDescription(cat !== 'DESPESA_VARIAVEL' && cat !== 'OUTROS' ? label.toUpperCase() : ''); }} className={`py-2 px-1 rounded border text-[10px] font-bold transition-colors ${category === cat ? 'bg-brand-red text-white border-brand-red' : 'bg-white text-gray-600 border-gray-300'}`}>
-                            {label}
-                        </button>
-                    ))}
-                </div>
-               
-               <div>
+               <div ref={categoryPopoverRef} className="relative">
+                 <div className="flex items-center justify-between mb-1">
                    <label className="block text-xs md:text-sm font-medium text-gray-700">Descrição</label>
-                   <input 
-                       type="text" 
-                       required 
-                       placeholder="EX: CONTA DE LUZ" 
-                       className="mt-1 w-full p-2 border rounded-lg uppercase text-sm" 
-                       value={description} 
-                       onChange={e => setDescription(e.target.value.toUpperCase())} 
-                   />
+                   <button
+                     type="button"
+                     onClick={() => setShowCategoryPopover(v => !v)}
+                     className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border transition-colors ${category ? 'bg-brand-red text-white border-brand-red' : 'bg-white text-gray-500 border-gray-300 hover:border-brand-red hover:text-brand-red'}`}
+                   >
+                     <Tag size={10} />
+                     {category
+                       ? [
+                           { cat: 'LUZ', label: 'Energia' },
+                           { cat: 'SALARIO', label: 'Salário' },
+                           { cat: 'DESPESA_VARIAVEL', label: 'Ajuda de Custo' },
+                           { cat: 'ALUGUEL', label: 'Aluguel' },
+                           { cat: 'AGUA', label: 'Água' },
+                           { cat: 'OUTROS', label: 'Outros' },
+                         ].find(i => i.cat === category)?.label ?? category
+                       : 'Categoria'}
+                     <ChevronDown size={10} className={`transition-transform ${showCategoryPopover ? 'rotate-180' : ''}`} />
+                   </button>
+                 </div>
+
+                 {showCategoryPopover && (
+                   <div className="absolute right-0 top-8 z-50 bg-white border border-gray-200 rounded-xl shadow-xl p-2 flex flex-wrap gap-2 w-64">
+                     {[
+                       { cat: 'LUZ', label: 'Energia' },
+                       { cat: 'SALARIO', label: 'Salário' },
+                       { cat: 'DESPESA_VARIAVEL', label: 'Ajuda de Custo' },
+                       { cat: 'ALUGUEL', label: 'Aluguel' },
+                       { cat: 'AGUA', label: 'Água' },
+                       { cat: 'OUTROS', label: 'Outros' },
+                     ].map(({ cat, label }) => (
+                       <button
+                         type="button"
+                         key={cat}
+                         onClick={() => {
+                           setCategory(cat as TransactionCategory);
+                           setDescription(cat !== 'DESPESA_VARIAVEL' && cat !== 'OUTROS' ? label.toUpperCase() : '');
+                           setShowCategoryPopover(false);
+                         }}
+                         className={`px-3 py-1.5 rounded-full text-[11px] font-bold border transition-colors ${category === cat ? 'bg-brand-red text-white border-brand-red' : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-red-50 hover:border-brand-red hover:text-brand-red'}`}
+                       >
+                         {label}
+                       </button>
+                     ))}
+                   </div>
+                 )}
+
+                 <input
+                   type="text"
+                   required
+                   placeholder="EX: CONTA DE LUZ"
+                   className="mt-1 w-full p-2 border rounded-lg uppercase text-sm"
+                   value={description}
+                   onChange={e => setDescription(e.target.value.toUpperCase())}
+                 />
                </div>
              </div>
           )}
