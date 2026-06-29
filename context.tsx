@@ -216,6 +216,43 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     fetchData();
   }, []);
 
+  // Real-time sync: member table changes (photo, data) reflected immediately in admin panel
+  useEffect(() => {
+    const channel = supabase
+      .channel('members-realtime')
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'members' },
+        (payload) => {
+          if (payload.new) {
+            setMembers(prev => {
+              const exists = prev.some(m => m.id === payload.new.id);
+              if (exists) {
+                return prev.map(m => m.id === payload.new.id ? toAppMember(payload.new as any) : m);
+              }
+              // Member not yet in state (startup race) — append it
+              return [...prev, toAppMember(payload.new as any)];
+            });
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'members' },
+        (payload) => {
+          if (payload.new) {
+            setMembers(prev => {
+              if (prev.some(m => m.id === payload.new.id)) return prev;
+              return [...prev, toAppMember(payload.new as any)];
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, []);
+
   // Varredura automática a cada 6 horas — bloqueia igrejas inadimplentes sem precisar de login
   useEffect(() => {
     const SIX_HOURS = 6 * 60 * 60 * 1000;

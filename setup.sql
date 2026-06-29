@@ -126,6 +126,17 @@ BEGIN
         ALTER TABLE churches ADD COLUMN pix_key TEXT;
     END IF;
 
-END $$;
+END $;
+
+-- Habilitar Realtime para a tabela members (foto e dados sincronizam em tempo real)
+DO $
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_publication_tables
+        WHERE pubname = 'supabase_realtime' AND tablename = 'members'
+    ) THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE members;
+    END IF;
+END $;
 
 NOTIFY pgrst, 'reload schema';
