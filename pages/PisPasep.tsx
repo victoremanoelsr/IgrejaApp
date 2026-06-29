@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useApp } from '../context';
+import { supabase } from '../services/supabaseClient';
 import {
   Users, Plus, Edit2, Trash2, FileText, DollarSign, CheckCircle,
   AlertTriangle, Clock, RotateCcw, Download, ChevronLeft, Eye,
@@ -78,22 +79,90 @@ const calcEntry = (e: Pick<PayrollPeriodEntry, 'baseSalary'|'otherBenefits'|'exe
   return { calculationBase: base, pisDue: base * 0.01 };
 };
 
-// ─── localStorage helpers ─────────────────────────────────────────────────────
+// ─── Supabase helpers ─────────────────────────────────────────────────────────
 
-const employeesKey = (cid: string) => `pispasep_employees_${cid}`;
-const periodsKey = (cid: string) => `pispasep_periods_${cid}`;
+const mapEmpFromDB = (r: any): PayrollEmployee => ({
+  id:             r.id,
+  churchId:       r.church_id,
+  name:           r.name,
+  cpf:            r.cpf || '',
+  role:           r.role || '',
+  baseSalary:     Number(r.base_salary) || 0,
+  otherBenefits:  Number(r.other_benefits) || 0,
+  exemptBenefits: Number(r.exempt_benefits) || 0,
+  admissionDate:  r.admission_date || '',
+  status:         r.status || 'ATIVO',
+  dismissalDate:  r.dismissal_date || undefined,
+  observations:   r.observations || undefined,
+  createdAt:      r.created_at || new Date().toISOString(),
+});
 
-const loadEmployees = (cid: string): PayrollEmployee[] => {
-  try { return JSON.parse(localStorage.getItem(employeesKey(cid)) || '[]'); } catch { return []; }
+const mapPeriodFromDB = (r: any): PayrollPeriod => ({
+  id:                     r.id,
+  churchId:               r.church_id,
+  competencia:            r.competencia,
+  entries:                r.entries || [],
+  totalEmployees:         Number(r.total_employees) || 0,
+  totalPayroll:           Number(r.total_payroll) || 0,
+  totalBase:              Number(r.total_base) || 0,
+  totalPis:               Number(r.total_pis) || 0,
+  status:                 r.status || 'ABERTA',
+  financialTransactionIds: r.financial_transaction_ids || [],
+  accountantName:         r.accountant_name || undefined,
+  accountantCrc:          r.accountant_crc || undefined,
+  launchDate:             r.launch_date || undefined,
+  createdAt:              r.created_at || new Date().toISOString(),
+  closedAt:               r.closed_at || undefined,
+  launchedAt:             r.launched_at || undefined,
+});
+
+const fetchEmployeesFromDB = async (cid: string): Promise<PayrollEmployee[]> => {
+  const { data, error } = await supabase
+    .from('payroll_employees')
+    .select('*')
+    .eq('church_id', cid)
+    .order('name');
+  if (error) { console.error('[fetchEmployees]', error.message); return []; }
+  return (data || []).map(mapEmpFromDB);
 };
-const saveEmployees = (cid: string, data: PayrollEmployee[]) =>
-  localStorage.setItem(employeesKey(cid), JSON.stringify(data));
 
-const loadPeriods = (cid: string): PayrollPeriod[] => {
-  try { return JSON.parse(localStorage.getItem(periodsKey(cid)) || '[]'); } catch { return []; }
+const fetchPeriodsFromDB = async (cid: string): Promise<PayrollPeriod[]> => {
+  const { data, error } = await supabase
+    .from('payroll_periods')
+    .select('*')
+    .eq('church_id', cid)
+    .order('competencia', { ascending: false });
+  if (error) { console.error('[fetchPeriods]', error.message); return []; }
+  return (data || []).map(mapPeriodFromDB);
 };
-const savePeriods = (cid: string, data: PayrollPeriod[]) =>
-  localStorage.setItem(periodsKey(cid), JSON.stringify(data));
+
+const upsertPeriodToDB = async (period: PayrollPeriod): Promise<PayrollPeriod | null> => {
+  const row: any = {
+    church_id:                period.churchId,
+    competencia:              period.competencia,
+    entries:                  period.entries,
+    total_employees:          period.totalEmployees,
+    total_payroll:            period.totalPayroll,
+    total_base:               period.totalBase,
+    total_pis:                period.totalPis,
+    status:                   period.status,
+    financial_transaction_ids: period.financialTransactionIds || [],
+    accountant_name:          period.accountantName || null,
+    accountant_crc:           period.accountantCrc || null,
+    launch_date:              period.launchDate || null,
+    closed_at:                period.closedAt || null,
+    launched_at:              period.launchedAt || null,
+  };
+  // If we already have a real UUID, include it so we UPDATE instead of INSERT
+  if (period.id && period.id.length === 36) row.id = period.id;
+  const { data, error } = await supabase
+    .from('payroll_periods')
+    .upsert(row, { onConflict: 'church_id,competencia' })
+    .select()
+    .single();
+  if (error) { console.error('[upsertPeriod]', error.message); return null; }
+  return mapPeriodFromDB(data);
+};
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -156,47 +225,48 @@ export const PisPasep: React.FC = () => {
   // ─── Load ───
   useEffect(() => {
     if (!cid) return;
-    setEmployees(loadEmployees(cid));
-    setPeriods(loadPeriods(cid));
+    fetchEmployeesFromDB(cid).then(setEmployees);
+    fetchPeriodsFromDB(cid).then(setPeriods);
   }, [cid]);
 
   // ─── When competência changes, load or init period ───
   useEffect(() => {
     if (!cid) return;
-    const fresh = loadPeriods(cid);
-    const existing = fresh.find(p => p.competencia === selectedCompetencia);
-    if (existing) {
-      setCurrentPeriod(existing);
-      setEditingEntries(existing.entries.map(e => ({ ...e })));
-      setAccountantName(existing.accountantName || '');
-      setAccountantCrc(existing.accountantCrc || '');
-    } else {
-      setCurrentPeriod(null);
-      // Pre-populate with active employees
-      const emps = loadEmployees(cid);
-      const activeEmps = emps.filter(e => e.status === 'ATIVO');
-      const entries: PayrollPeriodEntry[] = activeEmps.map(e => {
-        const { calculationBase, pisDue } = calcEntry(e);
-        return {
-          employeeId: e.id,
-          employeeName: e.name,
-          cpf: e.cpf,
-          role: e.role,
-          baseSalary: e.baseSalary,
-          otherBenefits: e.otherBenefits,
-          exemptBenefits: e.exemptBenefits,
-          calculationBase,
-          pisDue,
-        };
-      });
-      setEditingEntries(entries);
-      setAccountantName('');
-      setAccountantCrc('');
-    }
+    fetchPeriodsFromDB(cid).then(fresh => {
+      const existing = fresh.find(p => p.competencia === selectedCompetencia);
+      if (existing) {
+        setCurrentPeriod(existing);
+        setEditingEntries(existing.entries.map(e => ({ ...e })));
+        setAccountantName(existing.accountantName || '');
+        setAccountantCrc(existing.accountantCrc || '');
+      } else {
+        setCurrentPeriod(null);
+        fetchEmployeesFromDB(cid).then(emps => {
+          const activeEmps = emps.filter(e => e.status === 'ATIVO');
+          const entries: PayrollPeriodEntry[] = activeEmps.map(e => {
+            const { calculationBase, pisDue } = calcEntry(e);
+            return {
+              employeeId: e.id,
+              employeeName: e.name,
+              cpf: e.cpf,
+              role: e.role,
+              baseSalary: e.baseSalary,
+              otherBenefits: e.otherBenefits,
+              exemptBenefits: e.exemptBenefits,
+              calculationBase,
+              pisDue,
+            };
+          });
+          setEditingEntries(entries);
+        });
+        setAccountantName('');
+        setAccountantCrc('');
+      }
+    });
   }, [selectedCompetencia, cid]);
 
-  const refreshPeriods = useCallback(() => {
-    const fresh = loadPeriods(cid);
+  const refreshPeriods = useCallback(async () => {
+    const fresh = await fetchPeriodsFromDB(cid);
     setPeriods(fresh);
     const updated = fresh.find(p => p.competencia === selectedCompetencia);
     setCurrentPeriod(updated || null);
@@ -222,18 +292,39 @@ export const PisPasep: React.FC = () => {
     setShowEmpModal(true);
   };
 
-  const saveEmp = () => {
+  const saveEmp = async () => {
     if (!empForm.name?.trim()) { alert('Informe o nome do funcionário.'); return; }
     if (!empForm.role?.trim()) { alert('Informe o cargo/função.'); return; }
-    const list = loadEmployees(cid);
+
+    const row = {
+      church_id:       cid,
+      name:            empForm.name!.trim(),
+      cpf:             empForm.cpf || '',
+      role:            empForm.role!.trim(),
+      base_salary:     empForm.baseSalary || 0,
+      other_benefits:  empForm.otherBenefits || 0,
+      exempt_benefits: empForm.exemptBenefits || 0,
+      admission_date:  empForm.admissionDate || null,
+      status:          empForm.status || 'ATIVO',
+      dismissal_date:  empForm.dismissalDate || null,
+      observations:    empForm.observations || null,
+    };
+
     if (editingEmpId) {
-      const idx = list.findIndex(e => e.id === editingEmpId);
-      if (idx >= 0) list[idx] = { ...list[idx], ...empForm } as PayrollEmployee;
+      const { error } = await supabase
+        .from('payroll_employees')
+        .update(row)
+        .eq('id', editingEmpId);
+      if (error) { alert('Erro ao salvar funcionário: ' + error.message); return; }
     } else {
-      list.push({ ...empForm, id: uid(), churchId: cid, createdAt: new Date().toISOString() } as PayrollEmployee);
+      const { error } = await supabase
+        .from('payroll_employees')
+        .insert(row);
+      if (error) { alert('Erro ao salvar funcionário: ' + error.message); return; }
     }
-    saveEmployees(cid, list);
-    setEmployees(list);
+
+    const updated = await fetchEmployeesFromDB(cid);
+    setEmployees(updated);
     setShowEmpModal(false);
     setEmpForm({});
     setEditingEmpId(null);
@@ -241,10 +332,13 @@ export const PisPasep: React.FC = () => {
 
   const deleteEmp = (id: string) => {
     setConfirmMsg('Excluir este funcionário? O histórico dos períodos gerados não será afetado.');
-    setConfirmAction(() => () => {
-      const list = loadEmployees(cid).filter(e => e.id !== id);
-      saveEmployees(cid, list);
-      setEmployees(list);
+    setConfirmAction(() => async () => {
+      const { error } = await supabase
+        .from('payroll_employees')
+        .delete()
+        .eq('id', id);
+      if (error) { alert('Erro ao excluir: ' + error.message); return; }
+      setEmployees(prev => prev.filter(e => e.id !== id));
       setConfirmAction(null);
     });
   };
@@ -284,11 +378,10 @@ export const PisPasep: React.FC = () => {
   };
 
   // ─── Save period (open) ───
-  const savePeriod = () => {
+  const savePeriod = async () => {
     if (editingEntries.length === 0) { alert('Adicione pelo menos um funcionário à folha.'); return; }
-    const all = loadPeriods(cid);
     const period: PayrollPeriod = {
-      id: currentPeriod?.id || uid(),
+      id: currentPeriod?.id || '',
       churchId: cid,
       competencia: selectedCompetencia,
       entries: editingEntries,
@@ -305,10 +398,9 @@ export const PisPasep: React.FC = () => {
       accountantName,
       accountantCrc,
     };
-    const idx = all.findIndex(p => p.id === period.id);
-    if (idx >= 0) all[idx] = period; else all.unshift(period);
-    savePeriods(cid, all);
-    refreshPeriods();
+    const saved = await upsertPeriodToDB(period);
+    if (!saved) { alert('Erro ao salvar folha. Tente novamente.'); return; }
+    await refreshPeriods();
     alert('✅ Folha salva com sucesso!');
   };
 
@@ -316,14 +408,21 @@ export const PisPasep: React.FC = () => {
   const closePeriod = () => {
     if (!currentPeriod) { savePeriod(); return; }
     setConfirmMsg(`Fechar a folha de ${fmtCompetencia(selectedCompetencia)}? Após fechada, os dados ficam protegidos contra alteração.`);
-    setConfirmAction(() => () => {
-      const all = loadPeriods(cid);
-      const idx = all.findIndex(p => p.id === currentPeriod.id);
-      if (idx >= 0) {
-        all[idx] = { ...all[idx], status: 'FECHADA', closedAt: new Date().toISOString(), entries: editingEntries, totalEmployees, totalPayroll, totalBase, totalPis, accountantName, accountantCrc };
-        savePeriods(cid, all);
-      }
-      refreshPeriods();
+    setConfirmAction(() => async () => {
+      const updated: PayrollPeriod = {
+        ...currentPeriod,
+        status: 'FECHADA',
+        closedAt: new Date().toISOString(),
+        entries: editingEntries,
+        totalEmployees,
+        totalPayroll,
+        totalBase,
+        totalPis,
+        accountantName,
+        accountantCrc,
+      };
+      await upsertPeriodToDB(updated);
+      await refreshPeriods();
       setConfirmAction(null);
     });
   };
@@ -332,14 +431,17 @@ export const PisPasep: React.FC = () => {
   const reopenPeriod = () => {
     if (!currentPeriod) return;
     setConfirmMsg(`Reabrir a folha de ${fmtCompetencia(selectedCompetencia)}? Os dados poderão ser editados novamente.`);
-    setConfirmAction(() => () => {
-      const all = loadPeriods(cid);
-      const idx = all.findIndex(p => p.id === currentPeriod.id);
-      if (idx >= 0) {
-        all[idx] = { ...all[idx], status: 'ABERTA', closedAt: undefined, launchedAt: undefined, financialTransactionIds: undefined, launchDate: undefined };
-        savePeriods(cid, all);
-      }
-      refreshPeriods();
+    setConfirmAction(() => async () => {
+      const updated: PayrollPeriod = {
+        ...currentPeriod,
+        status: 'ABERTA',
+        closedAt: undefined,
+        launchedAt: undefined,
+        financialTransactionIds: undefined,
+        launchDate: undefined,
+      };
+      await upsertPeriodToDB(updated);
+      await refreshPeriods();
       setConfirmAction(null);
     });
   };
@@ -385,13 +487,14 @@ export const PisPasep: React.FC = () => {
       ids.push(taxT.id);
 
       // Update period status
-      const all = loadPeriods(cid);
-      const idx = all.findIndex(p => p.id === currentPeriod.id);
-      if (idx >= 0) {
-        all[idx] = { ...all[idx], status: 'LANCADA', launchedAt: new Date().toISOString(), financialTransactionIds: ids, launchDate };
-        savePeriods(cid, all);
-      }
-      refreshPeriods();
+      await upsertPeriodToDB({
+        ...currentPeriod,
+        status: 'LANCADA',
+        launchedAt: new Date().toISOString(),
+        financialTransactionIds: ids,
+        launchDate,
+      });
+      await refreshPeriods();
       setShowLaunchModal(false);
       alert(`✅ Lançamentos realizados com sucesso!\n${currentPeriod.entries.length} salários + 1 PIS/PASEP lançados no financeiro.`);
     } catch (err) {
@@ -405,13 +508,15 @@ export const PisPasep: React.FC = () => {
   const estornarPeriod = (p: PayrollPeriod) => {
     setConfirmMsg(`Estornar os lançamentos financeiros de ${fmtCompetencia(p.competencia)}? Os lançamentos serão removidos do financeiro e a folha será reaberta para correção.`);
     setConfirmAction(() => async () => {
-      const all = loadPeriods(cid);
-      const idx = all.findIndex(pp => pp.id === p.id);
-      if (idx >= 0) {
-        all[idx] = { ...all[idx], status: 'ABERTA', launchedAt: undefined, financialTransactionIds: undefined, launchDate: undefined, closedAt: undefined };
-        savePeriods(cid, all);
-      }
-      refreshPeriods();
+      await upsertPeriodToDB({
+        ...p,
+        status: 'ABERTA',
+        launchedAt: undefined,
+        financialTransactionIds: undefined,
+        launchDate: undefined,
+        closedAt: undefined,
+      });
+      await refreshPeriods();
       setConfirmAction(null);
       alert('Lançamentos estornados. A folha foi reaberta para correção.\nAtenção: remova manualmente os lançamentos no Financeiro se necessário.');
     });
@@ -785,11 +890,7 @@ export const PisPasep: React.FC = () => {
                     <RotateCcw size={13}/> Reabrir
                   </button>
                   <button
-                    onClick={() => {
-                      const all = loadPeriods(cid);
-                      const found = all.find(p => p.id === currentPeriod?.id);
-                      if (found) setShowLaunchModal(true);
-                    }}
+                    onClick={() => { if (currentPeriod) setShowLaunchModal(true); }}
                     className="flex items-center gap-1.5 px-4 py-2 bg-green-600 text-white rounded-lg text-xs font-bold hover:bg-green-700 transition-all shadow-sm"
                   >
                     <Send size={13}/> Lançar no Financeiro

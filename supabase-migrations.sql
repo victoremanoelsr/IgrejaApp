@@ -55,3 +55,70 @@ $$;
 -- Libera acesso para usuários anônimos (Portal do Membro não usa auth do Supabase)
 GRANT EXECUTE ON FUNCTION get_public_financial_data(UUID, INT, INT) TO anon;
 GRANT EXECUTE ON FUNCTION get_public_financial_data(UUID, INT, INT) TO authenticated;
+
+-- =============================================================
+-- PIS/PASEP — Tabelas de Funcionários e Períodos de Folha
+-- Execute no SQL Editor do Supabase
+-- =============================================================
+
+CREATE TABLE IF NOT EXISTS payroll_employees (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  church_id    UUID NOT NULL REFERENCES churches(id) ON DELETE CASCADE,
+  name         TEXT NOT NULL,
+  cpf          TEXT DEFAULT '',
+  role         TEXT DEFAULT '',
+  base_salary  NUMERIC(12,2) DEFAULT 0,
+  other_benefits NUMERIC(12,2) DEFAULT 0,
+  exempt_benefits NUMERIC(12,2) DEFAULT 0,
+  admission_date DATE,
+  status       TEXT DEFAULT 'ATIVO',
+  dismissal_date DATE,
+  observations TEXT,
+  created_at   TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE payroll_employees ENABLE ROW LEVEL SECURITY;
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE tablename = 'payroll_employees' AND policyname = 'Enable all access for payroll_employees'
+  ) THEN
+    CREATE POLICY "Enable all access for payroll_employees"
+      ON payroll_employees FOR ALL USING (true) WITH CHECK (true);
+  END IF;
+END $$;
+
+-- ──────────────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS payroll_periods (
+  id                       UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  church_id                UUID NOT NULL REFERENCES churches(id) ON DELETE CASCADE,
+  competencia              TEXT NOT NULL,
+  entries                  JSONB NOT NULL DEFAULT '[]',
+  total_employees          INT DEFAULT 0,
+  total_payroll            NUMERIC(12,2) DEFAULT 0,
+  total_base               NUMERIC(12,2) DEFAULT 0,
+  total_pis                NUMERIC(12,2) DEFAULT 0,
+  status                   TEXT DEFAULT 'ABERTA',
+  financial_transaction_ids JSONB DEFAULT '[]',
+  accountant_name          TEXT,
+  accountant_crc           TEXT,
+  launch_date              DATE,
+  created_at               TIMESTAMPTZ DEFAULT NOW(),
+  closed_at                TIMESTAMPTZ,
+  launched_at              TIMESTAMPTZ,
+  UNIQUE (church_id, competencia)
+);
+
+ALTER TABLE payroll_periods ENABLE ROW LEVEL SECURITY;
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE tablename = 'payroll_periods' AND policyname = 'Enable all access for payroll_periods'
+  ) THEN
+    CREATE POLICY "Enable all access for payroll_periods"
+      ON payroll_periods FOR ALL USING (true) WITH CHECK (true);
+  END IF;
+END $$;
