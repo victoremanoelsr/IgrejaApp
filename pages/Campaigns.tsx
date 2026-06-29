@@ -13,7 +13,7 @@ type ViewMode = 'DASHBOARD' | 'LANCAMENTOS' | 'HISTORICO' | 'EDITAR';
 
 export const Campaigns: React.FC = () => {
   const { 
-    campaigns, transactions, user, currentChurch,
+    campaigns, transactions, user, currentChurch, members,
     addCampaign, updateCampaign, deleteCampaign, 
     addTransaction, deleteTransaction 
   } = useApp();
@@ -141,6 +141,34 @@ export const Campaigns: React.FC = () => {
     const [transPerson, setTransPerson] = useState(''); 
     const [transDesc, setTransDesc] = useState('');
 
+    // --- Member Autocomplete State ---
+    const [memberSuggestions, setMemberSuggestions] = useState<string[]>([]);
+    const [showSuggestions, setShowSuggestions] = useState(false);
+
+    const churchMembers = members
+      .filter(m => m.churchId === currentChurch?.id && m.status !== 'INATIVO' && m.status !== 'TRANSFERIDO')
+      .map(m => m.name.toUpperCase())
+      .sort();
+
+    const handleDonorInput = (value: string) => {
+      const upper = value.toUpperCase();
+      setTransPerson(upper);
+      if (upper.length >= 2) {
+        const filtered = churchMembers.filter(n => n.includes(upper));
+        setMemberSuggestions(filtered.slice(0, 6));
+        setShowSuggestions(filtered.length > 0);
+      } else {
+        setShowSuggestions(false);
+        setMemberSuggestions([]);
+      }
+    };
+
+    const selectMemberSuggestion = (name: string) => {
+      setTransPerson(name);
+      setShowSuggestions(false);
+      setMemberSuggestions([]);
+    };
+
     // --- Edit Campaign State ---
     const [editName, setEditName] = useState(selectedCampaign.name);
     const [editGoal, setEditGoal] = useState(selectedCampaign.goal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
@@ -167,8 +195,9 @@ export const Campaigns: React.FC = () => {
         return;
       }
 
+      const donorLabel = transPerson.trim() || 'NÃO IDENTIFICADO';
       const descriptionFinal = transType === 'ENTRADA' 
-        ? `DOAÇÃO: ${transPerson}` 
+        ? `DOAÇÃO: ${donorLabel}` 
         : `${transDesc} (RETIRADO POR: ${transPerson})`;
 
       const newT: Transaction = {
@@ -385,9 +414,34 @@ export const Campaigns: React.FC = () => {
                  </div>
 
                  {transType === 'ENTRADA' ? (
-                   <div>
-                     <label className="block text-xs font-bold text-gray-500 uppercase">Nome do Doador</label>
-                     <input required type="text" placeholder="EX: IRMÃO JOÃO" className="w-full p-2 border rounded uppercase" value={transPerson} onChange={e => setTransPerson(e.target.value.toUpperCase())} />
+                   <div className="relative">
+                     <label className="block text-xs font-bold text-gray-500 uppercase">
+                       Nome do Doador
+                       <span className="ml-2 text-gray-400 font-normal normal-case">(opcional — pode ser alguém de fora da igreja)</span>
+                     </label>
+                     <input
+                       type="text"
+                       placeholder="EX: IRMÃO JOÃO"
+                       autoComplete="off"
+                       className="w-full p-2 border rounded uppercase mt-1"
+                       value={transPerson}
+                       onChange={e => handleDonorInput(e.target.value)}
+                       onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+                       onFocus={() => transPerson.length >= 2 && memberSuggestions.length > 0 && setShowSuggestions(true)}
+                     />
+                     {showSuggestions && (
+                       <ul className="absolute z-20 w-full bg-white border border-gray-200 rounded-lg shadow-lg mt-1 max-h-48 overflow-y-auto">
+                         {memberSuggestions.map((name, idx) => (
+                           <li
+                             key={`${name}-${idx}`}
+                             onMouseDown={() => selectMemberSuggestion(name)}
+                             className="px-3 py-2 text-sm cursor-pointer hover:bg-orange-50 hover:text-brand-orange font-medium border-b last:border-0"
+                           >
+                             {name}
+                           </li>
+                         ))}
+                       </ul>
+                     )}
                    </div>
                  ) : (
                    <>
