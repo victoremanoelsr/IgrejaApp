@@ -79,6 +79,49 @@ const calcEntry = (e: Pick<PayrollPeriodEntry, 'baseSalary'|'otherBenefits'|'exe
   return { calculationBase: base, pisDue: base * 0.01 };
 };
 
+// ─── Input masks ──────────────────────────────────────────────────────────────
+
+const maskCPF = (v: string): string => {
+  const d = v.replace(/\D/g, '').slice(0, 11);
+  return d
+    .replace(/(\d{3})(\d)/, '$1.$2')
+    .replace(/(\d{3})(\d)/, '$1.$2')
+    .replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+};
+
+/** Formata número como "1.234,56" */
+const displayBRL = (n: number): string =>
+  n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+/** Converte dígitos digitados (estilo centavos) em número */
+const parseCurrency = (raw: string): number => {
+  const digits = raw.replace(/\D/g, '');
+  return digits ? parseInt(digits, 10) / 100 : 0;
+};
+
+/** Input controlado de valor monetário em BRL */
+interface CurrencyInputProps {
+  label: string;
+  value: number;
+  onChange: (n: number) => void;
+  className?: string;
+}
+const CurrencyInput: React.FC<CurrencyInputProps> = ({ label, value, onChange, className }) => (
+  <div className={className}>
+    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">{label}</label>
+    <div className="relative">
+      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 select-none">R$</span>
+      <input
+        type="text"
+        inputMode="numeric"
+        value={displayBRL(value)}
+        onChange={e => onChange(parseCurrency(e.target.value))}
+        className="w-full border border-gray-200 rounded-lg pl-9 pr-3 py-2.5 text-sm text-right font-mono outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-100"
+      />
+    </div>
+  </div>
+);
+
 // ─── Supabase helpers ─────────────────────────────────────────────────────────
 
 const mapEmpFromDB = (r: any): PayrollEmployee => ({
@@ -1105,43 +1148,73 @@ export const PisPasep: React.FC = () => {
         <Modal title={editingEmpId ? 'Editar Funcionário' : 'Cadastrar Funcionário'} onClose={() => setShowEmpModal(false)}>
           <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {[
-                { label: 'Nome completo *', key: 'name', type: 'text', placeholder: 'Nome do funcionário' },
-                { label: 'CPF', key: 'cpf', type: 'text', placeholder: '000.000.000-00' },
-                { label: 'Cargo / Função *', key: 'role', type: 'text', placeholder: 'Ex: Secretário, Zelador' },
-                { label: 'Data de Admissão', key: 'admissionDate', type: 'date', placeholder: '' },
-              ].map(({ label, key, type, placeholder }) => (
-                <div key={key}>
-                  <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">{label}</label>
-                  <input
-                    type={type}
-                    placeholder={placeholder}
-                    value={(empForm as any)[key] || ''}
-                    onChange={e => setEmpForm(f => ({ ...f, [key]: e.target.value }))}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-100"
-                  />
-                </div>
-              ))}
+              {/* Nome */}
+              <div>
+                <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Nome completo *</label>
+                <input
+                  type="text"
+                  placeholder="Nome do funcionário"
+                  value={empForm.name || ''}
+                  onChange={e => setEmpForm(f => ({ ...f, name: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-100"
+                />
+              </div>
+
+              {/* CPF com máscara */}
+              <div>
+                <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">CPF</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="000.000.000-00"
+                  value={empForm.cpf || ''}
+                  onChange={e => setEmpForm(f => ({ ...f, cpf: maskCPF(e.target.value) }))}
+                  maxLength={14}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm font-mono tracking-widest outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-100"
+                />
+              </div>
+
+              {/* Cargo */}
+              <div>
+                <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Cargo / Função *</label>
+                <input
+                  type="text"
+                  placeholder="Ex: Secretário, Zelador"
+                  value={empForm.role || ''}
+                  onChange={e => setEmpForm(f => ({ ...f, role: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-100"
+                />
+              </div>
+
+              {/* Data de admissão */}
+              <div>
+                <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Data de Admissão</label>
+                <input
+                  type="date"
+                  value={empForm.admissionDate || ''}
+                  onChange={e => setEmpForm(f => ({ ...f, admissionDate: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-100"
+                />
+              </div>
             </div>
 
+            {/* Campos de valor com máscara R$ */}
             <div className="grid grid-cols-3 gap-3">
-              {[
-                { label: 'Salário Base (R$)', key: 'baseSalary' },
-                { label: 'Outras Verbas (R$)', key: 'otherBenefits' },
-                { label: 'Verbas Isentas (R$)', key: 'exemptBenefits' },
-              ].map(({ label, key }) => (
-                <div key={key}>
-                  <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">{label}</label>
-                  <input
-                    type="number"
-                    min={0}
-                    step={0.01}
-                    value={(empForm as any)[key] ?? 0}
-                    onChange={e => setEmpForm(f => ({ ...f, [key]: parseFloat(e.target.value) || 0 }))}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm outline-none focus:border-blue-500"
-                  />
-                </div>
-              ))}
+              <CurrencyInput
+                label="Salário Base (R$)"
+                value={empForm.baseSalary || 0}
+                onChange={v => setEmpForm(f => ({ ...f, baseSalary: v }))}
+              />
+              <CurrencyInput
+                label="Outras Verbas (R$)"
+                value={empForm.otherBenefits || 0}
+                onChange={v => setEmpForm(f => ({ ...f, otherBenefits: v }))}
+              />
+              <CurrencyInput
+                label="Verbas Isentas (R$)"
+                value={empForm.exemptBenefits || 0}
+                onChange={v => setEmpForm(f => ({ ...f, exemptBenefits: v }))}
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
