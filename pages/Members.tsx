@@ -215,6 +215,8 @@ export const Members: React.FC = () => {
                     {viewingMember.isYouth && <span className="text-[9px] bg-orange-100 text-orange-700 px-2 py-0.5 rounded font-bold">JOVENS</span>}
                     {viewingMember.isLady && <span className="text-[9px] bg-pink-100 text-pink-700 px-2 py-0.5 rounded font-bold">SENHORAS</span>}
                     {viewingMember.isChild && <span className="text-[9px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-bold">INFANTIL</span>}
+                    {viewingMember.isAdolescent && <span className="text-[9px] bg-purple-100 text-purple-700 px-2 py-0.5 rounded font-bold">ADOLESCENTES</span>}
+                    {viewingMember.isBrother && <span className="text-[9px] bg-gray-100 text-gray-700 px-2 py-0.5 rounded font-bold">SENHORES</span>}
                 </div>
 
                 {canModify && <button onClick={() => { setViewingMember(null); handleEdit(viewingMember); }} className="mt-3 text-xs bg-white hover:bg-gray-50 border border-gray-300 px-3 py-1 rounded shadow-sm transition-colors text-gray-700 font-bold flex items-center"><Edit2 size={12} className="mr-1"/> {isSelf ? 'Editar Meu Perfil' : 'Editar Dados'}</button>}
@@ -304,6 +306,8 @@ export const Members: React.FC = () => {
                           {member.isYouth && <span className="bg-orange-100 text-orange-800 px-1.5 rounded text-[9px] font-bold border border-orange-200">JOVENS</span>}
                           {member.isLady && <span className="bg-pink-100 text-pink-800 px-1.5 rounded text-[9px] font-bold border border-pink-200">SENHORAS</span>}
                           {member.isChild && <span className="bg-blue-100 text-blue-800 px-1.5 rounded text-[9px] font-bold border border-blue-200">INFANTIL</span>}
+                          {member.isAdolescent && <span className="bg-purple-100 text-purple-800 px-1.5 rounded text-[9px] font-bold border border-purple-200">ADOLESCENTES</span>}
+                          {member.isBrother && <span className="bg-gray-100 text-gray-800 px-1.5 rounded text-[9px] font-bold border border-gray-300">SENHORES</span>}
                       </div>
                     </div>
                   </div>
