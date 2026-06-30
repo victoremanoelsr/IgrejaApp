@@ -186,10 +186,18 @@ export const renderElementsToPDF = async (
       const xMM = el.x * scale;
       const yMM = currentY + el.y * scale + fontSize * 0.35;
 
-      const isStub = xMM < STUB_BOUNDARY_MM;
-      const maxW   = isStub ? STUB_BOUNDARY_MM - xMM - 1.5 : 210 - xMM - 2;
+      const isStub      = xMM < STUB_BOUNDARY_MM;
+      const isRightAlign = el.style?.textAlign === 'right';
 
-      if (isStub) {
+      if (isStub && isRightAlign) {
+        // Elemento com alinhamento à direita no canhoto (ex: número da parcela).
+        // Ancora o texto à direita da área do canhoto, sem splitTextToSize,
+        // garantindo que nunca colida com a linha pontilhada de corte.
+        doc.text(text, STUB_BOUNDARY_MM - 2, yMM, { align: 'right' });
+      } else if (isStub) {
+        // Elementos comuns do canhoto (nome, valor, mês): usa quebra de linha
+        // para não ultrapassar a linha de corte.
+        const maxW = STUB_BOUNDARY_MM - xMM - 1.5;
         const lineHeightMM = fontSize * 0.352778 * 1.25;
         const lines: string[] = doc.splitTextToSize(text, maxW);
         lines.forEach((line: string, i: number) => {
