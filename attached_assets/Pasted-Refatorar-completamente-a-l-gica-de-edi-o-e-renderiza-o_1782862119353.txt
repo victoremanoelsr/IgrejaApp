@@ -1,0 +1,29 @@
+Refatorar completamente a lógica de edição e renderização de modelos de documentos (cartas e certificados) na janela de Relatórios para fixar o container principal de texto e organizar o comportamento das tags dinâmicas.
+
+Por favor, ajusta o código (React/JS/CSS) aplicando rigorosamente as seguintes diretrizes:
+
+1. Presença Fixa e Centralização Absoluta da Tag {{texto_cadastrado}} (Eixo X/Y no Ponto Zero)
+Comportamento: O utilizador NÃO deve clicar para adicionar a tag {{texto_cadastrado}}. Ela deve sempre aparecer por padrão no Preview do documento, quer seja um modelo de carta (A4 vertical) ou de certificado (A4 horizontal).
+
+Estilização (CSS): Esta tag funciona como o container principal do texto variável do documento. Ela deve ser renderizada exatamente no centro absoluto da folha (ponto zero dos eixos X e Y).
+
+Aplica uma estilização CSS robusta (utilizando Flexbox com justify-content: center; align-items: center; ou posicionamento absoluto top: 50%; left: 50%; transform: translate(-50%, -50%);) para garantir que todo o conteúdo digitado nela fique perfeitamente centralizado na folha, tanto na horizontal quanto na vertical.
+
+2. Comportamento das Demais Tags (Seleção e Inserção)
+Ao clicar em qualquer outra tag do menu lateral (como {{nome_membro}}, {{data_atual}}, etc.), ela NÃO deve ir para o Preview.
+
+Ela deve ser inserida exclusivamente dentro do campo de texto "Texto Modelo", exatamente na posição onde o cursor do utilizador estiver a piscar.
+
+No Preview, estas tags que estão dentro do "Texto Modelo" devem ser processadas e substituídas pelo conteúdo real correspondente (ex: exibindo "João Silva" em vez do código bruto {{nome_membro}}).
+
+3. Visibilidade Permanente do Campo "Texto Modelo"
+Como a tag {{texto_cadastrado}} agora é um elemento fixo, obrigatório e nativo no centro do documento, o campo de entrada "Texto Modelo" deve estar sempre visível na ecrã de edição.
+
+O utilizador usará este campo como o seu editor principal para escrever o texto que ocupará o centro do certificado ou da carta.
+
+4. Limpeza e Renderização do Preview Inicial
+Ao abrir a janela de edição de um modelo, o Preview deve carregar o design visual de fundo do documento (bordas, imagens de fundo, etc.) mostrando o marcador {{texto_cadastrado}} posicionado no centro absoluto.
+
+Qualquer outra tag presente deve ser processada com dados de teste reais para visualização, garantindo que nenhuma tag bruta/em código (exceto o indicador do texto cadastrado) apareça solta no Preview.
+
+Por favor, refaz a lógica do componente responsável por esta view para aplicar esta centralização absoluta no eixo X/Y para o bloco de {{texto_cadastrado}} e alinhar o evento de clique das outras tags direcionando-as para o input correspondente.

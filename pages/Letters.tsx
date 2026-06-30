@@ -17,11 +17,15 @@ const CERT_TYPES            = ['BATISMO', 'APRESENTACAO'] as const;
 type CertType = typeof CERT_TYPES[number];
 const isCertType = (t: string): t is CertType => CERT_TYPES.includes(t as CertType);
 
-const DEFAULT_TAGS: LayoutElement[] = [
-    { id: 'tag_nome', type: 'tag', content: '{{nome_membro}}', x: 50, y: 100, width: 150, style: { fontSize: 12, color: '#000000', fontWeight: 'bold', textAlign: 'left' } },
-    { id: 'tag_cargo', type: 'tag', content: '{{cargo}}', x: 50, y: 120, width: 150, style: { fontSize: 12, color: '#000000', fontWeight: 'normal', textAlign: 'left' } },
-    { id: 'tag_data', type: 'tag', content: '{{data_atual}}', x: 100, y: 200, width: 300, style: { fontSize: 12, color: '#000000', fontWeight: 'normal', textAlign: 'center' } },
-];
+const DEFAULT_TEXTO_ELEMENT: LayoutElement = {
+    id: 'tag_texto_cadastrado',
+    type: 'text',
+    content: '{{texto_cadastrado}}',
+    x: 40,
+    y: Math.round(EDITOR_HEIGHT * 0.25),
+    width: EDITOR_WIDTH - 80,
+    style: { fontSize: 12, color: '#000000', fontWeight: 'normal', textAlign: 'justify' }
+};
 
 interface DraggableLabelProps {
   el: LayoutElement;
@@ -107,11 +111,14 @@ export const Letters: React.FC = () => {
     const [templateType, setTemplateType] = useState<'RECOMENDACAO' | 'MUDANCA' | 'BATISMO' | 'APRESENTACAO' | 'GENERICO'>('RECOMENDACAO');
     const [templateRecommendationText, setTemplateRecommendationText] = useState('');
     const [templateChangeText, setTemplateChangeText] = useState('');
-    const [layoutElements, setLayoutElements] = useState<LayoutElement[]>(DEFAULT_TAGS);
+    const [layoutElements, setLayoutElements] = useState<LayoutElement[]>([{ ...DEFAULT_TEXTO_ELEMENT }]);
     const [backgroundUrl, setBackgroundUrl] = useState<string | undefined>(undefined);
     const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
     const [isSavingTemplate, setIsSavingTemplate] = useState(false);
     const bgInputRef = useRef<HTMLInputElement>(null);
+    const recTextareaRef = useRef<HTMLTextAreaElement>(null);
+    const changeTextareaRef = useRef<HTMLTextAreaElement>(null);
+    const [activeTextareaKey, setActiveTextareaKey] = useState<'recommendation' | 'change'>('recommendation');
 
     const [modalState, setModalState] = useState<{
         isOpen: boolean; title: string; message: string; variant: 'danger' | 'warning' | 'success' | 'info'; showCancel: boolean; onConfirm?: () => void;
@@ -144,6 +151,40 @@ export const Letters: React.FC = () => {
             const match = data.find(t => t.type === letterType || t.type === 'GENERICO');
             if (match) setSelectedTemplateId(match.id);
         }
+    };
+
+    const processTextForPreview = (text: string): string => {
+        if (!text.trim()) return '';
+        const today = new Date();
+        return text
+            .replace(/{{nome_membro}}/g, 'NOME DO MEMBRO')
+            .replace(/{{cpf}}/g, '000.000.000-00')
+            .replace(/{{cargo}}/g, 'MEMBRO')
+            .replace(/{{data_batismo}}/g, '01/01/2000')
+            .replace(/{{data_nascimento}}/g, '01/01/2000')
+            .replace(/{{data_atual}}/g, today.toLocaleDateString('pt-BR'))
+            .replace(/{{cidade_igreja}}/g, `Local, ${today.toLocaleDateString('pt-BR')}`)
+            .replace(/{{estado_civil}}/g, 'CASADO(A)')
+            .replace(/{{nome_pai}}/g, 'NOME DO PAI')
+            .replace(/{{nome_mae}}/g, 'NOME DA MÃE');
+    };
+
+    const insertTagAtCursor = (tag: string) => {
+        const isRec = activeTextareaKey === 'recommendation';
+        const taRef = isRec ? recTextareaRef : changeTextareaRef;
+        const ta = taRef.current;
+        const current = isRec ? templateRecommendationText : templateChangeText;
+        const setter = isRec ? setTemplateRecommendationText : setTemplateChangeText;
+        if (!ta) { setter(current + tag); return; }
+        const start = ta.selectionStart ?? current.length;
+        const end = ta.selectionEnd ?? current.length;
+        setter(current.substring(0, start) + tag + current.substring(end));
+        setTimeout(() => {
+            ta.focus();
+            const np = start + tag.length;
+            ta.selectionStart = np;
+            ta.selectionEnd = np;
+        }, 10);
     };
 
     // --- HELPER: parseia YYYY-MM-DD sem offset de fuso horário ---
@@ -199,7 +240,7 @@ export const Letters: React.FC = () => {
             const today = new Date();
             const fullDate = `${currentChurch.address.split(',')[1]?.trim() || currentChurch.name}, ${today.getDate()} de ${today.toLocaleString('pt-BR', { month: 'long' })} de ${today.getFullYear()}`;
 
-            const elementsToRender = template.layoutJson || DEFAULT_TAGS;
+            const elementsToRender = template.layoutJson || [{ ...DEFAULT_TEXTO_ELEMENT }];
             elementsToRender.forEach(el => {
                 if (el.content === '{{texto_cadastrado}}') {
                     const textContent = letterType === 'MUDANCA' ? (template.changeText || '') : (template.recommendationText || '');
@@ -326,7 +367,7 @@ export const Letters: React.FC = () => {
         setTemplateName('');
         setTemplateType('RECOMENDACAO' as const);
         setBackgroundUrl(undefined);
-        setLayoutElements(DEFAULT_TAGS);
+        setLayoutElements([{ ...DEFAULT_TEXTO_ELEMENT, id: `tag_texto_${Date.now()}` }]);
         setTemplateRecommendationText('');
         setTemplateChangeText('');
         setSelectedElementId(null);
@@ -339,7 +380,9 @@ export const Letters: React.FC = () => {
         setTemplateRecommendationText(t.recommendationText || '');
         setTemplateChangeText(t.changeText || '');
         setBackgroundUrl(t.backgroundUrl);
-        setLayoutElements(t.layoutJson || DEFAULT_TAGS);
+        const layout = t.layoutJson || [];
+        const hasTexto = layout.some(el => el.content === '{{texto_cadastrado}}');
+        setLayoutElements(hasTexto ? layout : [...layout, { ...DEFAULT_TEXTO_ELEMENT, id: `tag_texto_${Date.now()}` }]);
         setSelectedElementId(null);
     };
 
@@ -480,135 +523,175 @@ export const Letters: React.FC = () => {
                     </div>
                 </div>
 
-                {/* TOOLBAR: ADICIONAR CAMPOS */}
-                <div className="flex flex-wrap gap-2 mb-2 bg-gray-50 p-2 rounded border items-center">
-                    <span className="text-xs font-bold text-gray-400 mr-2">Adicionar Campos:</span>
-                    {['{{nome_membro}}', '{{cpf}}', '{{cargo}}', '{{data_batismo}}', '{{data_nascimento}}', '{{data_atual}}', '{{cidade_igreja}}', '{{estado_civil}}', '{{nome_pai}}', '{{nome_mae}}', '{{texto_cadastrado}}'].map(tag => (
-                        <button key={tag} onClick={() => handleAddField(tag)} className={`bg-white border px-2 py-1 rounded text-xs font-bold shadow-sm ${tag === '{{texto_cadastrado}}' ? 'border-orange-300 text-orange-600 hover:bg-orange-50' : tag === '{{nome_pai}}' || tag === '{{nome_mae}}' ? 'border-purple-300 text-purple-700 hover:bg-purple-50' : 'hover:bg-blue-50 text-blue-700'}`}>
-                            {tag.replace(/{{|}}/g, '')}
-                        </button>
-                    ))}
-                    {selectedElementId && (
-                        <button onClick={() => { setLayoutElements(prev => prev.filter(e => e.id !== selectedElementId)); setSelectedElementId(null); }} className="ml-auto text-red-500 hover:bg-red-50 p-1 rounded" title="Remover campo selecionado">
-                            <Trash2 size={16}/>
-                        </button>
-                    )}
-                </div>
+                {/* NOVO LAYOUT: painel esquerdo (tags + textareas) + canvas preview */}
+                <div className="flex gap-4 items-start overflow-x-auto">
 
-                {/* TOOLBAR: FORMATAÇÃO DO CAMPO SELECIONADO */}
-                {selectedElement && (
-                    <div className="flex flex-wrap items-center gap-2 mb-3 bg-blue-50 p-2 rounded border border-blue-100">
-                        <span className="text-[10px] font-bold text-blue-500 uppercase mr-1">Formatar:</span>
-                        <div className="flex items-center gap-1">
-                            <span className="text-[10px] text-gray-400">Largura:</span>
-                            <input
-                                type="number"
-                                className="text-xs p-1 border rounded w-16"
-                                value={selectedElement.width || 0}
-                                onChange={e => updateElementWidth(selectedElement.id, parseInt(e.target.value) || 0)}
-                            />
-                        </div>
-                        <select
-                            className="text-xs p-1 border rounded"
-                            value={selectedElement.style.fontSize}
-                            onChange={e => updateElementStyle(selectedElement.id, { fontSize: parseInt(e.target.value) })}
-                        >
-                            {[8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 32].map(s => <option key={s} value={s}>{s}px</option>)}
-                        </select>
-                        <button
-                            onClick={() => updateElementStyle(selectedElement.id, { fontWeight: selectedElement.style.fontWeight === 'bold' ? 'normal' : 'bold' })}
-                            className={`p-1 border rounded text-xs font-bold w-7 h-7 flex items-center justify-center ${selectedElement.style.fontWeight === 'bold' ? 'bg-blue-600 text-white' : 'bg-white'}`}
-                            title="Negrito"
-                        >B</button>
-                        <div className="flex border rounded overflow-hidden">
-                            {([
-                                { value: 'left', icon: <AlignLeft size={14}/>, title: 'Esquerda' },
-                                { value: 'center', icon: <AlignCenter size={14}/>, title: 'Centralizado' },
-                                { value: 'right', icon: <AlignRight size={14}/>, title: 'Direita' },
-                                { value: 'justify', icon: <AlignJustify size={14}/>, title: 'Justificado' },
-                            ] as const).map(({ value, icon, title }) => (
-                                <button
-                                    key={value}
-                                    onClick={() => updateElementStyle(selectedElement.id, { textAlign: value })}
-                                    className={`p-1 w-7 h-7 flex items-center justify-center border-r last:border-0 ${selectedElement.style.textAlign === value ? 'bg-blue-600 text-white' : 'bg-white hover:bg-gray-50'}`}
-                                    title={title}
-                                >
-                                    {icon}
-                                </button>
-                            ))}
-                        </div>
-                        <input
-                            type="color"
-                            className="w-7 h-7 p-0 border-0 rounded cursor-pointer"
-                            value={selectedElement.style.color}
-                            onChange={e => updateElementStyle(selectedElement.id, { color: e.target.value })}
-                            title="Cor do texto"
-                        />
-                    </div>
-                )}
+                    {/* PAINEL ESQUERDO: inserção de tags e campo de texto */}
+                    <div className="w-72 shrink-0 space-y-3">
 
-                {/* CANVAS A4 */}
-                {(() => {
-                    const isLand = isCertType(templateType);
-                    const canvasH = isLand ? EDITOR_HEIGHT_LAND : EDITOR_HEIGHT;
-                    return (
-                        <div
-                            className="relative border-2 border-gray-300 bg-white overflow-hidden mx-auto shadow-2xl"
-                            style={{ width: `${EDITOR_WIDTH}px`, height: `${canvasH}px` }}
-                            onClick={() => setSelectedElementId(null)}
-                        >
-                            {backgroundUrl && (
-                                <img src={backgroundUrl} className="absolute inset-0 w-full h-full object-cover pointer-events-none" style={{ opacity: 0.85 }} />
-                            )}
-                            {layoutElements.map(el => (
-                                <DraggableLabel key={el.id} el={el} isSelected={selectedElementId === el.id} onSelect={setSelectedElementId} onDragStop={handleDragStop} />
-                            ))}
-                            <div className="absolute bottom-2 right-2 text-[10px] text-gray-400 bg-white/80 px-1 rounded pointer-events-none select-none">
-                                {isLand ? 'A4 Paisagem' : 'A4 Retrato'}
+                        {/* Toolbar de inserção de tags no Texto Modelo */}
+                        <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
+                            <p className="text-[10px] font-bold text-orange-600 uppercase mb-2 flex items-center gap-1">
+                                <Type size={10}/> Inserir Tag no Texto Modelo
+                            </p>
+                            <div className="flex flex-wrap gap-1">
+                                {['{{nome_membro}}','{{cpf}}','{{cargo}}','{{data_batismo}}','{{data_nascimento}}','{{data_atual}}','{{cidade_igreja}}','{{estado_civil}}','{{nome_pai}}','{{nome_mae}}'].map(tag => (
+                                    <button
+                                        key={tag}
+                                        onClick={() => insertTagAtCursor(tag)}
+                                        className="px-2 py-0.5 rounded text-[10px] font-bold border bg-white hover:bg-orange-100 text-orange-700 border-orange-300 transition-colors"
+                                        title={`Inserir ${tag} no Texto Modelo`}
+                                    >
+                                        {tag.replace(/{{|}}/g, '')}
+                                    </button>
+                                ))}
                             </div>
                         </div>
-                    );
-                })()}
 
-                {/* TEXTOS DO MODELO */}
-                <div className="mt-6 bg-gray-50 p-4 border rounded-lg space-y-4">
-                    <div>
-                        <h4 className="font-bold text-gray-700 flex items-center mb-1"><Type size={16} className="mr-2"/> Texto do Modelo</h4>
-                        <p className="text-xs text-gray-500">Este texto aparece onde a tag <b>{'{{texto_cadastrado}}'}</b> for posicionada. Use as tags como <b>{'{{nome_membro}}'}</b>, <b>{'{{data_batismo}}'}</b> etc. dentro do texto.</p>
+                        {/* Formatação do bloco {{texto_cadastrado}} */}
+                        {(() => {
+                            const textoEl = layoutElements.find(el => el.content === '{{texto_cadastrado}}');
+                            if (!textoEl) return null;
+                            return (
+                                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                                    <p className="text-[10px] font-bold text-blue-600 uppercase mb-2">Formatação do Texto Central</p>
+                                    <div className="flex flex-wrap items-center gap-1.5">
+                                        <select className="text-xs p-1 border rounded" value={textoEl.style.fontSize} onChange={e => updateElementStyle(textoEl.id, { fontSize: parseInt(e.target.value) })}>
+                                            {[8,9,10,11,12,14,16,18,20,24].map(s => <option key={s} value={s}>{s}px</option>)}
+                                        </select>
+                                        <button
+                                            onClick={() => updateElementStyle(textoEl.id, { fontWeight: textoEl.style.fontWeight === 'bold' ? 'normal' : 'bold' })}
+                                            className={`p-1 border rounded text-xs font-bold w-7 h-7 flex items-center justify-center ${textoEl.style.fontWeight === 'bold' ? 'bg-blue-600 text-white' : 'bg-white'}`}
+                                        >B</button>
+                                        <div className="flex border rounded overflow-hidden">
+                                            {(['left','center','right','justify'] as const).map(align => {
+                                                const icons = { left: <AlignLeft size={11}/>, center: <AlignCenter size={11}/>, right: <AlignRight size={11}/>, justify: <AlignJustify size={11}/> };
+                                                return (
+                                                    <button key={align} onClick={() => updateElementStyle(textoEl.id, { textAlign: align })} className={`p-1 w-6 h-6 flex items-center justify-center border-r last:border-0 ${textoEl.style.textAlign === align ? 'bg-blue-600 text-white' : 'bg-white hover:bg-gray-50'}`}>
+                                                        {icons[align]}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                        <input type="color" className="w-7 h-7 p-0 border-0 rounded cursor-pointer" value={textoEl.style.color} onChange={e => updateElementStyle(textoEl.id, { color: e.target.value })} title="Cor"/>
+                                        <div className="w-full flex items-center gap-1 mt-1">
+                                            <span className="text-[9px] text-gray-500 shrink-0">Largura:</span>
+                                            <input type="range" min={200} max={EDITOR_WIDTH - 40} value={textoEl.width || EDITOR_WIDTH - 80} onChange={e => updateElementWidth(textoEl.id, parseInt(e.target.value))} className="flex-1 h-1"/>
+                                            <span className="text-[9px] text-gray-500 shrink-0">{textoEl.width || EDITOR_WIDTH - 80}px</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })()}
+
+                        {/* Campo "Texto Modelo" — sempre visível */}
+                        <div className="space-y-2">
+                            <h4 className="font-bold text-gray-700 flex items-center text-sm">
+                                <Type size={14} className="mr-1.5"/> Texto Modelo
+                            </h4>
+                            <p className="text-[10px] text-gray-400 leading-relaxed">
+                                Digite o texto da carta/certificado. Use as tags acima para inserir dados dinâmicos. O texto aparecerá <b>centralizado</b> no documento.
+                            </p>
+
+                            {(templateType !== 'MUDANCA') && (
+                                <div>
+                                    <label className="block text-[10px] font-bold text-gray-600 mb-1">
+                                        {templateType === 'BATISMO' ? 'Cert. Batismo' : templateType === 'APRESENTACAO' ? 'Cert. Apresentação' : templateType === 'GENERICO' ? 'Texto Principal' : 'Carta de Recomendação'}
+                                        {activeTextareaKey === 'recommendation' && <span className="ml-1 text-blue-500 font-normal">← ativo</span>}
+                                    </label>
+                                    <textarea
+                                        ref={recTextareaRef}
+                                        className={`w-full h-44 p-2 border rounded text-xs resize-y transition-colors ${activeTextareaKey === 'recommendation' ? 'border-blue-400 ring-1 ring-blue-200' : 'border-gray-300'}`}
+                                        placeholder={templateType === 'BATISMO' ? 'Certificamos que {{nome_membro}}, nascido(a) em {{data_nascimento}}...' : templateType === 'APRESENTACAO' ? 'Apresentamos o(a) irmão(a) {{nome_membro}}...' : 'A Igreja Evangélica Assembleia de Deus...'}
+                                        value={templateRecommendationText}
+                                        onChange={e => setTemplateRecommendationText(e.target.value)}
+                                        onFocus={() => setActiveTextareaKey('recommendation')}
+                                    />
+                                </div>
+                            )}
+
+                            {(templateType === 'MUDANCA' || templateType === 'GENERICO') && (
+                                <div>
+                                    <label className="block text-[10px] font-bold text-gray-600 mb-1">
+                                        Carta de Mudança
+                                        {activeTextareaKey === 'change' && <span className="ml-1 text-blue-500 font-normal">← ativo</span>}
+                                    </label>
+                                    <textarea
+                                        ref={changeTextareaRef}
+                                        className={`w-full h-44 p-2 border rounded text-xs resize-y transition-colors ${activeTextareaKey === 'change' ? 'border-blue-400 ring-1 ring-blue-200' : 'border-gray-300'}`}
+                                        placeholder="A Igreja Evangélica Assembleia de Deus concede a presente carta de mudança..."
+                                        value={templateChangeText}
+                                        onChange={e => setTemplateChangeText(e.target.value)}
+                                        onFocus={() => setActiveTextareaKey('change')}
+                                    />
+                                </div>
+                            )}
+                        </div>
                     </div>
-                    {/* Texto principal — para todos os tipos exceto MUDANCA puro */}
-                    {(templateType !== 'MUDANCA') && (
-                        <div>
-                            <label className="block text-xs font-bold text-gray-600 mb-2">
-                                {templateType === 'BATISMO' ? 'Texto do Certificado de Batismo' :
-                                 templateType === 'APRESENTACAO' ? 'Texto do Certificado de Apresentação' :
-                                 templateType === 'GENERICO' ? 'Texto Principal (Recomendação / Batismo / Apresentação)' :
-                                 'Texto da Carta de Recomendação'}
-                            </label>
-                            <textarea
-                                className="w-full h-40 p-3 border rounded text-sm resize-y"
-                                placeholder={
-                                    templateType === 'BATISMO' ? 'Certificamos que {{nome_membro}}, nascido(a) em {{data_nascimento}}, foi batizado(a) nas águas...' :
-                                    templateType === 'APRESENTACAO' ? 'Apresentamos o(a) irmão(a) {{nome_membro}}, portador(a) do CPF {{cpf}}...' :
-                                    'A Igreja Evangélica Assembleia de Deus...'
-                                }
-                                value={templateRecommendationText}
-                                onChange={e => setTemplateRecommendationText(e.target.value)}
-                            />
-                        </div>
-                    )}
-                    {/* Texto de Mudança — só aparece quando tipo é MUDANCA ou GENERICO */}
-                    {(templateType === 'MUDANCA' || templateType === 'GENERICO') && (
-                        <div>
-                            <label className="block text-xs font-bold text-gray-600 mb-2">Texto da Carta de Mudança</label>
-                            <textarea
-                                className="w-full h-40 p-3 border rounded text-sm resize-y"
-                                placeholder="A Igreja Evangélica Assembleia de Deus concede a presente carta de mudança..."
-                                value={templateChangeText}
-                                onChange={e => setTemplateChangeText(e.target.value)}
-                            />
-                        </div>
-                    )}
+
+                    {/* CANVAS PREVIEW — {{texto_cadastrado}} sempre centralizado */}
+                    {(() => {
+                        const isLand = isCertType(templateType);
+                        const canvasH = isLand ? EDITOR_HEIGHT_LAND : EDITOR_HEIGHT;
+                        const textoEl = layoutElements.find(el => el.content === '{{texto_cadastrado}}');
+                        const activeText = templateType === 'MUDANCA' ? templateChangeText : templateRecommendationText;
+                        const previewText = processTextForPreview(activeText);
+                        return (
+                            <div className="overflow-x-auto shrink-0">
+                                <div
+                                    className="relative border-2 border-gray-300 bg-white overflow-hidden shadow-2xl"
+                                    style={{ width: `${EDITOR_WIDTH}px`, height: `${canvasH}px` }}
+                                    onClick={() => setSelectedElementId(null)}
+                                >
+                                    {backgroundUrl && (
+                                        <img src={backgroundUrl} className="absolute inset-0 w-full h-full object-cover pointer-events-none" style={{ opacity: 0.85 }} />
+                                    )}
+
+                                    {/* {{texto_cadastrado}}: sempre centrado no eixo X/Y, exibe texto real processado */}
+                                    {textoEl && (
+                                        <div
+                                            style={{
+                                                position: 'absolute',
+                                                top: '50%',
+                                                left: '50%',
+                                                transform: 'translate(-50%, -50%)',
+                                                width: `${textoEl.width || (EDITOR_WIDTH - 80)}px`,
+                                                fontSize: `${textoEl.style.fontSize}px`,
+                                                color: textoEl.style.color,
+                                                fontWeight: textoEl.style.fontWeight,
+                                                textAlign: textoEl.style.textAlign as React.CSSProperties['textAlign'],
+                                                lineHeight: 1.6,
+                                                whiteSpace: 'pre-wrap',
+                                                wordBreak: 'break-word',
+                                                padding: '6px 8px',
+                                                border: '1.5px dashed #93c5fd',
+                                                background: 'rgba(255,255,255,0.72)',
+                                                borderRadius: '2px',
+                                                maxHeight: `${canvasH - 60}px`,
+                                                overflowY: 'auto',
+                                                zIndex: 10,
+                                            }}
+                                        >
+                                            {previewText || (
+                                                <span style={{ color: '#94a3b8', fontStyle: 'italic', fontSize: '11px' }}>
+                                                    O texto do modelo aparecerá aqui centralizado. Digite no campo "Texto Modelo" ao lado.
+                                                </span>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {/* Elementos arrastáveis legacy (não-texto) mantidos por compatibilidade */}
+                                    {layoutElements.filter(el => el.content !== '{{texto_cadastrado}}').map(el => (
+                                        <DraggableLabel key={el.id} el={el} isSelected={selectedElementId === el.id} onSelect={setSelectedElementId} onDragStop={handleDragStop} />
+                                    ))}
+
+                                    <div className="absolute bottom-2 right-2 text-[10px] text-gray-400 bg-white/80 px-1 rounded pointer-events-none select-none">
+                                        {isLand ? 'A4 Paisagem' : 'A4 Retrato'}
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })()}
                 </div>
             </div>
 
