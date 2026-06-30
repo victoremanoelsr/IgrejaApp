@@ -296,11 +296,11 @@ export const MemberProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const { data: urlData } = supabase.storage.from('images').getPublicUrl(fileName);
       const photoUrl = urlData.publicUrl;
 
-      // 2. Update member record in DB
-      const { error: dbError } = await supabase
-        .from('members')
-        .update({ photo_url: photoUrl })
-        .eq('id', session.member.id);
+      // 2. Update member record in DB via RPC (bypasses RLS for anon key)
+      const { error: dbError } = await supabase.rpc('update_member_photo', {
+        p_member_id: session.member.id,
+        p_photo_url: photoUrl,
+      });
       if (dbError) return { success: false, error: dbError.message };
 
       // 3. Update session in state + storage so photo shows immediately

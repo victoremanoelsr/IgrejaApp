@@ -32,6 +32,7 @@ export const MenPanel: React.FC = () => {
   const location = useLocation();
   
   const isMenRole = user && (['LIDER_SENHORES', 'TESOUREIRO_SENHORES'].includes(user.role) || ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE'].includes(user.role));
+  const canAddToTeam = user && ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'DIRIGENTE', 'SECRETARIO', 'LIDER_SENHORES'].includes(user.role);
 
   const [viewMode, setViewMode] = useState<'SELECTION' | 'DASHBOARD'>(isMenRole ? 'DASHBOARD' : 'SELECTION');
   const [activeTab, setActiveTab] = useState<'DASHBOARD' | 'CAIXA' | 'MEMBROS' | 'RELATORIOS' | 'EQUIPE'>('DASHBOARD');
@@ -383,7 +384,7 @@ export const MenPanel: React.FC = () => {
       <div className="bg-white p-6 rounded-xl shadow border">
           <div className="flex justify-between items-center mb-6">
               <h3 className="font-bold text-gray-700 flex items-center text-lg"><Users size={24} className="mr-2 text-blue-600"/> Equipe de Senhores</h3>
-              {teamFormMode === 'LIST' && (
+              {teamFormMode === 'LIST' && canAddToTeam && (
                   <button onClick={() => { setEditingUserId(null); setTeamFormData({ name: '', username: '', password: '', role: 'LIDER_SENHORES', cpf: '' }); setTeamFormMode('EDIT'); }} className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center shadow hover:bg-blue-700 transition-colors">
                       <PlusCircle size={16} className="mr-2"/> Adicionar
                   </button>
@@ -403,10 +404,10 @@ export const MenPanel: React.FC = () => {
                                   <p className="text-xs text-gray-500">@{u.username} • <span className="text-blue-600 font-semibold">{MEN_ROLES.find(r => r.role === u.role)?.label}</span></p>
                               </div>
                           </div>
-                          <div className="flex gap-2">
+                          {canAddToTeam && <div className="flex gap-2">
                               <button onClick={() => { setEditingUserId(u.id); setTeamFormData({name: u.name, username: u.username, password: '', cpf: u.cpf, role: u.role as Role}); setTeamFormMode('EDIT'); }} className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"><Edit2 size={16}/></button>
                               <button onClick={() => deleteUser(u.id)} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"><Trash2 size={16}/></button>
-                          </div>
+                          </div>}
                       </div>
                   ))}
                   {teamUsers.length === 0 && (

@@ -207,7 +207,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       { label: t('nav.missionReports'), icon: FileText, path: '/missoes', state: { activeTab: 'RELATORIOS', entered: true }, roles: ['ALL'] },
       { label: t('nav.generateBooklets'), icon: BookOpen, path: '/missoes', state: { activeTab: 'CARNES', entered: true }, roles: ['ALL'] },
       { label: t('nav.configModel'), icon: Settings, path: '/missoes', state: { activeTab: 'CONFIG_MODELO', entered: true }, roles: ['ALL'] },
-      { label: t('nav.team'), icon: Users, path: '/missoes', state: { activeTab: 'EQUIPE', entered: true }, roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'PRESIDENTE_MISSOES', 'VICE_MISSOES'] }
+      { label: t('nav.team'), icon: Users, path: '/missoes', state: { activeTab: 'EQUIPE', entered: true }, roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'DIRIGENTE', 'SECRETARIO', 'TESOUREIRO', 'PRESIDENTE_MISSOES', 'VICE_MISSOES', 'TESOUREIRO_MISSOES', 'SECRETARIO_MISSOES'] }
   ];
 
   const youthMenuItems: MenuItem[] = [
@@ -217,7 +217,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       { label: t('nav.booklets'), icon: BookOpen, path: '/jovens', state: { activeTab: 'CARNES', entered: true }, roles: ['ALL'] },
       { label: t('nav.configModel'), icon: Settings, path: '/jovens', state: { activeTab: 'CONFIG_MODELO', entered: true }, roles: ['ALL'] },
       { label: t('nav.members'), icon: UsersIcon, path: '/jovens', state: { activeTab: 'MEMBROS', entered: true }, roles: ['ALL'] },
-      { label: t('nav.team'), icon: Users, path: '/jovens', state: { activeTab: 'EQUIPE', entered: true }, roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'LIDER_JOVENS', 'TESOUREIRO_JOVENS'] }
+      { label: t('nav.team'), icon: Users, path: '/jovens', state: { activeTab: 'EQUIPE', entered: true }, roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'DIRIGENTE', 'SECRETARIO', 'TESOUREIRO', 'LIDER_JOVENS', 'TESOUREIRO_JOVENS'] }
   ];
 
   const childrenMenuItems: MenuItem[] = [
@@ -225,7 +225,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       { label: t('nav.childrenCash'), icon: DollarSign, path: '/criancas', state: { activeTab: 'CAIXA', entered: true }, roles: ['ALL'] },
       { label: t('nav.reports'), icon: FileText, path: '/criancas', state: { activeTab: 'RELATORIOS', entered: true }, roles: ['ALL'] },
       { label: t('nav.members'), icon: UsersIcon, path: '/criancas', state: { activeTab: 'MEMBROS', entered: true }, roles: ['ALL'] },
-      { label: t('nav.team'), icon: Users, path: '/criancas', state: { activeTab: 'EQUIPE', entered: true }, roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'LIDER_CRIANCAS'] }
+      { label: t('nav.team'), icon: Users, path: '/criancas', state: { activeTab: 'EQUIPE', entered: true }, roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'DIRIGENTE', 'SECRETARIO', 'TESOUREIRO', 'LIDER_CRIANCAS', 'TESOUREIRO_CRIANCAS'] }
   ];
 
   const adolescentsMenuItems: MenuItem[] = [
@@ -233,7 +233,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       { label: 'Caixa Adolescentes', icon: DollarSign, path: '/adolescentes', state: { activeTab: 'CAIXA', entered: true }, roles: ['ALL'] },
       { label: 'Relatórios', icon: FileText, path: '/adolescentes', state: { activeTab: 'RELATORIOS', entered: true }, roles: ['ALL'] },
       { label: 'Membros', icon: UsersIcon, path: '/adolescentes', state: { activeTab: 'MEMBROS', entered: true }, roles: ['ALL'] },
-      { label: 'Equipe', icon: Users, path: '/adolescentes', state: { activeTab: 'EQUIPE', entered: true }, roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'LIDER_ADOLESCENTES'] }
+      { label: 'Equipe', icon: Users, path: '/adolescentes', state: { activeTab: 'EQUIPE', entered: true }, roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'DIRIGENTE', 'SECRETARIO', 'TESOUREIRO', 'LIDER_ADOLESCENTES', 'TESOUREIRO_ADOLESCENTES'] }
   ];
 
   const ladiesMenuItems: MenuItem[] = [
@@ -241,7 +241,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       { label: t('nav.ladiesCash'), icon: DollarSign, path: '/senhoras', state: { activeTab: 'CAIXA', entered: true }, roles: ['ALL'] },
       { label: t('nav.reports'), icon: FileText, path: '/senhoras', state: { activeTab: 'RELATORIOS', entered: true }, roles: ['ALL'] },
       { label: t('nav.members'), icon: UsersIcon, path: '/senhoras', state: { activeTab: 'MEMBROS', entered: true }, roles: ['ALL'] },
-      { label: t('nav.team'), icon: Users, path: '/senhoras', state: { activeTab: 'EQUIPE', entered: true }, roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'LIDER_SENHORAS'] }
+      { label: t('nav.team'), icon: Users, path: '/senhoras', state: { activeTab: 'EQUIPE', entered: true }, roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'DIRIGENTE', 'SECRETARIO', 'TESOUREIRO', 'LIDER_SENHORAS', 'TESOUREIRO_SENHORAS'] }
   ];
 
   const menMenuItems: MenuItem[] = [
@@ -249,7 +249,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       { label: t('nav.menCash'), icon: DollarSign, path: '/senhores', state: { activeTab: 'CAIXA', entered: true }, roles: ['ALL'] },
       { label: t('nav.reports'), icon: FileText, path: '/senhores', state: { activeTab: 'RELATORIOS', entered: true }, roles: ['ALL'] },
       { label: t('nav.members'), icon: UsersIcon, path: '/senhores', state: { activeTab: 'MEMBROS', entered: true }, roles: ['ALL'] },
-      { label: t('nav.team'), icon: Users, path: '/senhores', state: { activeTab: 'EQUIPE', entered: true }, roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'LIDER_SENHORES'] }
+      { label: t('nav.team'), icon: Users, path: '/senhores', state: { activeTab: 'EQUIPE', entered: true }, roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'DIRIGENTE', 'SECRETARIO', 'TESOUREIRO', 'LIDER_SENHORES', 'TESOUREIRO_SENHORES'] }
   ];
 
   const superAdminMenuItems: MenuItem[] = [

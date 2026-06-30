@@ -176,4 +176,24 @@ $;
 GRANT EXECUTE ON FUNCTION get_member_campaign_contributions(UUID, TEXT) TO anon;
 GRANT EXECUTE ON FUNCTION get_member_campaign_contributions(UUID, TEXT) TO authenticated;
 
+-- ================================================================
+-- Portal do Membro: Atualizar foto de perfil (bypassa RLS)
+-- ================================================================
+CREATE OR REPLACE FUNCTION update_member_photo(
+  p_member_id UUID,
+  p_photo_url TEXT
+)
+RETURNS void
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $
+  UPDATE members
+  SET photo_url = p_photo_url
+  WHERE id = p_member_id;
+$;
+
+GRANT EXECUTE ON FUNCTION update_member_photo(UUID, TEXT) TO anon;
+GRANT EXECUTE ON FUNCTION update_member_photo(UUID, TEXT) TO authenticated;
+
 NOTIFY pgrst, 'reload schema';

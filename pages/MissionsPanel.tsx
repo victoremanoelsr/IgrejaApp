@@ -142,7 +142,11 @@ export const MissionsPanel: React.FC = () => {
   ].includes(user.role);
 
   const canManageTeam = user && [
-      'SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'PRESIDENTE_MISSOES', 'VICE_MISSOES'
+      'SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'DIRIGENTE', 'SECRETARIO', 'TESOUREIRO',
+      'PRESIDENTE_MISSOES', 'VICE_MISSOES', 'TESOUREIRO_MISSOES', 'SECRETARIO_MISSOES'
+  ].includes(user.role);
+  const canAddToTeam = user && [
+      'SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'DIRIGENTE', 'SECRETARIO', 'PRESIDENTE_MISSOES', 'VICE_MISSOES'
   ].includes(user.role);
 
   const [viewMode, setViewMode] = useState<'SELECTION' | 'DASHBOARD'>(isMissionsRole ? 'DASHBOARD' : 'SELECTION');
@@ -966,7 +970,7 @@ export const MissionsPanel: React.FC = () => {
       <div className="bg-white p-6 rounded-xl shadow border">
           <div className="flex justify-between items-center mb-6">
               <h3 className="font-bold text-gray-700 flex items-center text-lg"><Users size={24} className="mr-2 text-teal-600"/> Equipe de Missões</h3>
-              {teamFormMode === 'LIST' && (<button onClick={() => { setEditingUserId(null); setTeamFormData({ name: '', username: '', password: '', role: 'PRESIDENTE_MISSOES', cpf: '' }); setTeamFormMode('EDIT'); }} className="bg-teal-600 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center shadow hover:bg-teal-700 transition-colors"><PlusCircle size={16} className="mr-2"/> Adicionar</button>)}
+              {teamFormMode === 'LIST' && canAddToTeam && (<button onClick={() => { setEditingUserId(null); setTeamFormData({ name: '', username: '', password: '', role: 'PRESIDENTE_MISSOES', cpf: '' }); setTeamFormMode('EDIT'); }} className="bg-teal-600 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center shadow hover:bg-teal-700 transition-colors"><PlusCircle size={16} className="mr-2"/> Adicionar</button>)}
           </div>
           {teamFormMode === 'LIST' ? (
               <div className="space-y-3">
@@ -980,10 +984,10 @@ export const MissionsPanel: React.FC = () => {
                             <p className="text-xs text-gray-500">@{u.username} • <span className="text-teal-600 font-semibold">{MISSIONS_ROLES.find(r => r.role === u.role)?.label}</span></p>
                         </div>
                     </div>
-                    <div className="flex gap-2">
+                    {canAddToTeam && <div className="flex gap-2">
                         <button onClick={() => handleEditTeamMember(u)} className="p-2 text-gray-400 hover:text-teal-600 rounded-full"><Edit2 size={16}/></button>
                         <button onClick={() => handleDeleteTeamMember(u.id)} className="p-2 text-gray-400 hover:text-red-500 rounded-full"><Trash2 size={16}/></button>
-                    </div>
+                    </div>}
                   </div>
                 ))}
               </div>
