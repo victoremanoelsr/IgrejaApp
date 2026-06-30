@@ -628,15 +628,25 @@ export const MissionsPanel: React.FC = () => {
           };
           await renderElementsToPDF(doc, elements, scale, currentY, replacements, imageCache);
 
-          doc.setDrawColor(200, 200, 200);
-          doc.setLineWidth(0.1);
-          doc.rect(0, currentY, 210, 70);
+          const STUB_X_MM_G = TICKET_WIDTH_MM * 0.25;
+          const hasStubLine_G = elements.some(el => el.id.startsWith('stub_'));
 
-          if ((i + 1) % ticketsPerPage !== 0 && (i + 1) < 12) {
+          // Linha pontilhada vertical do canhoto
+          if (hasStubLine_G) {
+              doc.setDrawColor(140, 140, 140);
+              doc.setLineWidth(0.3);
+              (doc as any).setLineDash([1.5, 1.5], 0);
+              doc.line(STUB_X_MM_G, currentY, STUB_X_MM_G, currentY + TICKET_HEIGHT_MM);
+              (doc as any).setLineDash([], 0);
+          }
+
+          // Linha pontilhada horizontal entre folhas (inclusive na quebra de página)
+          if ((i + 1) < 12) {
+              doc.setDrawColor(140, 140, 140);
+              doc.setLineWidth(0.3);
               (doc as any).setLineDash([2, 2], 0);
-              doc.setDrawColor(150, 150, 150);
-              doc.line(0, currentY + 70, 210, currentY + 70);
-              (doc as any).setLineDash([], 0); 
+              doc.line(0, currentY + TICKET_HEIGHT_MM, 210, currentY + TICKET_HEIGHT_MM);
+              (doc as any).setLineDash([], 0);
           }
       } 
 
@@ -716,15 +726,25 @@ export const MissionsPanel: React.FC = () => {
           };
           await renderElementsToPDF(doc, elements, scale, currentY, replacements, imageCache);
 
-          doc.setDrawColor(200, 200, 200);
-          doc.setLineWidth(0.1);
-          doc.rect(0, currentY, 210, 70);
+          const STUB_X_MM_R = TICKET_WIDTH_MM * 0.25;
+          const hasStubLine_R = elements.some(el => el.id.startsWith('stub_'));
 
-          if ((i + 1) % ticketsPerPage !== 0 && (i + 1) < 12) {
+          // Linha pontilhada vertical do canhoto
+          if (hasStubLine_R) {
+              doc.setDrawColor(140, 140, 140);
+              doc.setLineWidth(0.3);
+              (doc as any).setLineDash([1.5, 1.5], 0);
+              doc.line(STUB_X_MM_R, currentY, STUB_X_MM_R, currentY + TICKET_HEIGHT_MM);
+              (doc as any).setLineDash([], 0);
+          }
+
+          // Linha pontilhada horizontal entre folhas (inclusive na quebra de página)
+          if ((i + 1) < 12) {
+              doc.setDrawColor(140, 140, 140);
+              doc.setLineWidth(0.3);
               (doc as any).setLineDash([2, 2], 0);
-              doc.setDrawColor(150, 150, 150);
-              doc.line(0, currentY + 70, 210, currentY + 70);
-              (doc as any).setLineDash([], 0); 
+              doc.line(0, currentY + TICKET_HEIGHT_MM, 210, currentY + TICKET_HEIGHT_MM);
+              (doc as any).setLineDash([], 0);
           }
       }
 

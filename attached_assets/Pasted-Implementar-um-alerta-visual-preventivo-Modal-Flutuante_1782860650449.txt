@@ -1,0 +1,32 @@
+Implementar um alerta visual preventivo (Modal Flutuante) para avisar o administrador quando a assinatura da igreja estiver próxima do vencimento, sem bloquear o uso do sistema antes do prazo.
+
+Por favor, desenvolva essa funcionalidade seguindo as seguintes especificações técnicas e de interface:
+
+1. Lógica de Cálculo e Gatilho (Backend/State)
+O sistema deve verificar a data de vencimento salva no banco de dados para a igreja atual.
+
+Janela de ativação: O modal só deve começar a aparecer quando faltarem 5 dias ou menos para a data de vencimento.
+
+Mensagem Dinâmica: O texto deve calcular a diferença de dias dinamicamente.
+
+Exemplo: Se faltam 5 dias, exibe: "Atenção: Seu sistema será bloqueado em 5 dias."
+
+Se faltam 2 dias, exibe: "Atenção: Seu sistema será bloqueado em 2 dias."
+
+2. Interface e Layout do Modal (Frontend)
+Ao entrar no painel (Dashboard principal), caso a igreja esteja na janela de 5 dias de vencimento, exiba um Modal Flutuante (Popup) centralizado na tela, com um fundo semi-transparente (backdrop) que dê destaque ao aviso.
+
+Elementos Obrigatórios dentro do Modal:
+
+Texto de Alerta: A mensagem dinâmica informando o prazo para o bloqueio.
+
+Botão Principal de Ação: Um botão destacado (ex: "Ir para Pagamentos" ou "Regularizar Agora") que redirecione o usuário diretamente para a janela de faturamento/pagamentos do sistema.
+
+Botão Fechar (X): Um ícone de "X" posicionado exatamente no canto superior direito do card do modal.
+
+3. Regra de Negócio e Persistência (Comportamento)
+Aviso Não-Bloqueante (Soft Warning): Este modal serve apenas como lembrete. Assim que o usuário clicar no botão "X" para fechar, o modal deve desaparecer e o usuário deve conseguir mexer no sistema normalmente, acessando todas as ferramentas sem restrições.
+
+Controle de Exibição (Importante): Para evitar que o modal apareça a cada clique que o usuário der ao navegar entre as páginas do painel, salve esse estado no sessionStorage ou no estado global do app. O modal deve aparecer apenas uma vez por acesso (sessão) ou apenas quando a página inicial for recarregada, e nunca ao navegar entre abas internas.
+
+Por favor, ajuste o componente principal do Dashboard para realizar essa verificação de datas logo no carregamento e renderizar o modal condicionalmente.

@@ -413,14 +413,21 @@ export const YouthPanel: React.FC = () => {
 
       const months = ['JANEIRO', 'FEVEREIRO', 'MARÇO', 'ABRIL', 'MAIO', 'JUNHO', 'JULHO', 'AGOSTO', 'SETEMBRO', 'OUTUBRO', 'NOVEMBRO', 'DEZEMBRO'];
 
+      const ticketsPerPage = 4;
+      const pageHeightMM = 297;
+      const totalTicketsHeight = ticketsPerPage * TICKET_HEIGHT_MM;
+      const marginY = (pageHeightMM - totalTicketsHeight) / 2;
+      const STUB_X_MM = TICKET_WIDTH_MM * 0.25; // 52.5mm
+      const hasStubLine = elements.some(el => el.id.startsWith('stub_'));
+
       for(let i=0; i<12; i++) { 
-          if(i>0 && i%4===0) doc.addPage(); 
-          const currentY = ((297 - (4*70))/2) + ((i % 4) * 70); 
+          if(i>0 && i%ticketsPerPage===0) doc.addPage(); 
+          const currentY = marginY + ((i % ticketsPerPage) * TICKET_HEIGHT_MM);
           
           if(bgData) {
-              addImageToPdf(doc, bgData, 0, currentY, 210, 70);
+              addImageToPdf(doc, bgData, 0, currentY, 210, TICKET_HEIGHT_MM);
           } else {
-              doc.setDrawColor(200); doc.rect(0, currentY, 210, 70); 
+              doc.setDrawColor(200); doc.rect(0, currentY, 210, TICKET_HEIGHT_MM); 
           }
 
           const replacements: Record<string, string> = {
@@ -431,6 +438,24 @@ export const YouthPanel: React.FC = () => {
               '{{n_parcela}}': `${i+1}/12`,
           };
           await renderElementsToPDF(doc, elements, scale, currentY, replacements, imageCache);
+
+          // Linha pontilhada vertical do canhoto
+          if (hasStubLine) {
+              doc.setDrawColor(140, 140, 140);
+              doc.setLineWidth(0.3);
+              (doc as any).setLineDash([1.5, 1.5], 0);
+              doc.line(STUB_X_MM, currentY, STUB_X_MM, currentY + TICKET_HEIGHT_MM);
+              (doc as any).setLineDash([], 0);
+          }
+
+          // Linha pontilhada horizontal entre folhas (inclusive na quebra de página)
+          if ((i + 1) < 12) {
+              doc.setDrawColor(140, 140, 140);
+              doc.setLineWidth(0.3);
+              (doc as any).setLineDash([2, 2], 0);
+              doc.line(0, currentY + TICKET_HEIGHT_MM, 210, currentY + TICKET_HEIGHT_MM);
+              (doc as any).setLineDash([], 0);
+          }
       } 
       doc.save(`Carne_Jovens_${member.name}.pdf`); 
       setIsGenerating(false); 
@@ -456,11 +481,17 @@ export const YouthPanel: React.FC = () => {
       const months = ['JANEIRO', 'FEVEREIRO', 'MARÇO', 'ABRIL', 'MAIO', 'JUNHO', 'JULHO', 'AGOSTO', 'SETEMBRO', 'OUTUBRO', 'NOVEMBRO', 'DEZEMBRO'];
       const elements = templateToUse.layoutJson || REQUIRED_FIELDS;
 
+      const ticketsPerPageR = 4;
+      const pageHeightMMR = 297;
+      const marginYR = (pageHeightMMR - ticketsPerPageR * TICKET_HEIGHT_MM) / 2;
+      const STUB_X_MMR = TICKET_WIDTH_MM * 0.25;
+      const hasStubLineR = elements.some(el => el.id.startsWith('stub_'));
+
       for (let i = 0; i < 12; i++) {
-          if (i > 0 && i % 4 === 0) doc.addPage();
-          const currentY = ((297 - (4*70))/2) + ((i % 4) * 70);
-          if (bgData) addImageToPdf(doc, bgData, 0, currentY, 210, 70);
-          else { doc.setDrawColor(200); doc.rect(0, currentY, 210, 70); }
+          if (i > 0 && i % ticketsPerPageR === 0) doc.addPage();
+          const currentY = marginYR + ((i % ticketsPerPageR) * TICKET_HEIGHT_MM);
+          if (bgData) addImageToPdf(doc, bgData, 0, currentY, 210, TICKET_HEIGHT_MM);
+          else { doc.setDrawColor(200); doc.rect(0, currentY, 210, TICKET_HEIGHT_MM); }
 
           const replacements: Record<string, string> = {
               '{{nome_membro}}': member.name,
@@ -470,6 +501,24 @@ export const YouthPanel: React.FC = () => {
               '{{n_parcela}}': `${i+1}/12`,
           };
           await renderElementsToPDF(doc, elements, scale, currentY, replacements, imageCache);
+
+          // Linha pontilhada vertical do canhoto
+          if (hasStubLineR) {
+              doc.setDrawColor(140, 140, 140);
+              doc.setLineWidth(0.3);
+              (doc as any).setLineDash([1.5, 1.5], 0);
+              doc.line(STUB_X_MMR, currentY, STUB_X_MMR, currentY + TICKET_HEIGHT_MM);
+              (doc as any).setLineDash([], 0);
+          }
+
+          // Linha pontilhada horizontal entre folhas (inclusive na quebra de página)
+          if ((i + 1) < 12) {
+              doc.setDrawColor(140, 140, 140);
+              doc.setLineWidth(0.3);
+              (doc as any).setLineDash([2, 2], 0);
+              doc.line(0, currentY + TICKET_HEIGHT_MM, 210, currentY + TICKET_HEIGHT_MM);
+              (doc as any).setLineDash([], 0);
+          }
       }
       doc.save(`CARNE_COMPLETO_JOVENS_${year}_${member.name}.pdf`);
       showFeedback('Carnê completo baixado!');
