@@ -439,7 +439,7 @@ export const YouthPanel: React.FC = () => {
           };
           await renderElementsToPDF(doc, elements, scale, currentY, replacements, imageCache);
 
-          // Linha pontilhada vertical do canhoto
+          // Linha pontilhada vertical do canhoto (desenhada sobre o fundo de cada folha)
           if (hasStubLine) {
               doc.setDrawColor(140, 140, 140);
               doc.setLineWidth(0.3);
@@ -447,16 +447,25 @@ export const YouthPanel: React.FC = () => {
               doc.line(STUB_X_MM, currentY, STUB_X_MM, currentY + TICKET_HEIGHT_MM);
               (doc as any).setLineDash([], 0);
           }
+      }
 
-          // Linha pontilhada horizontal entre folhas (inclusive na quebra de página)
-          if ((i + 1) < 12) {
-              doc.setDrawColor(140, 140, 140);
-              doc.setLineWidth(0.3);
+      // Segunda passagem: linhas horizontais de corte entre folhas.
+      // Desenhadas após todo o conteúdo para ficarem visíveis sobre os fundos
+      // (o fundo da folha N+1 cobriria a linha desenhada no final da folha N).
+      const totalPdfPages = Math.ceil(12 / ticketsPerPage);
+      for (let pg = 1; pg <= totalPdfPages; pg++) {
+          doc.setPage(pg);
+          const carnetsOnPage = Math.min(ticketsPerPage, 12 - (pg - 1) * ticketsPerPage);
+          for (let j = 0; j < carnetsOnPage - 1; j++) {
+              const lineY = marginY + (j + 1) * TICKET_HEIGHT_MM;
+              doc.setDrawColor(100, 100, 100);
+              doc.setLineWidth(0.4);
               (doc as any).setLineDash([2, 2], 0);
-              doc.line(0, currentY + TICKET_HEIGHT_MM, 210, currentY + TICKET_HEIGHT_MM);
+              doc.line(0, lineY, 210, lineY);
               (doc as any).setLineDash([], 0);
           }
-      } 
+      }
+
       doc.save(`Carne_Jovens_${member.name}.pdf`); 
       setIsGenerating(false); 
       showFeedback('Gerado!'); 
@@ -510,16 +519,23 @@ export const YouthPanel: React.FC = () => {
               doc.line(STUB_X_MMR, currentY, STUB_X_MMR, currentY + TICKET_HEIGHT_MM);
               (doc as any).setLineDash([], 0);
           }
+      }
 
-          // Linha pontilhada horizontal entre folhas (inclusive na quebra de página)
-          if ((i + 1) < 12) {
-              doc.setDrawColor(140, 140, 140);
-              doc.setLineWidth(0.3);
+      // Segunda passagem: linhas horizontais de corte entre folhas
+      const totalPdfPagesR = Math.ceil(12 / ticketsPerPageR);
+      for (let pg = 1; pg <= totalPdfPagesR; pg++) {
+          doc.setPage(pg);
+          const carnetsOnPage = Math.min(ticketsPerPageR, 12 - (pg - 1) * ticketsPerPageR);
+          for (let j = 0; j < carnetsOnPage - 1; j++) {
+              const lineY = marginYR + (j + 1) * TICKET_HEIGHT_MM;
+              doc.setDrawColor(100, 100, 100);
+              doc.setLineWidth(0.4);
               (doc as any).setLineDash([2, 2], 0);
-              doc.line(0, currentY + TICKET_HEIGHT_MM, 210, currentY + TICKET_HEIGHT_MM);
+              doc.line(0, lineY, 210, lineY);
               (doc as any).setLineDash([], 0);
           }
       }
+
       doc.save(`CARNE_COMPLETO_JOVENS_${year}_${member.name}.pdf`);
       showFeedback('Carnê completo baixado!');
   };

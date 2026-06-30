@@ -608,6 +608,9 @@ export const MissionsPanel: React.FC = () => {
       // Preload all image elements (e.g. QR code) once
       const imageCache: Record<string, string | null> = {};
 
+      const STUB_X_MM_G = TICKET_WIDTH_MM * 0.25;
+      const hasStubLine_G = elements.some(el => el.id.startsWith('stub_'));
+
       for (let i = 0; i < 12; i++) { 
           if (i > 0 && i % ticketsPerPage === 0) doc.addPage();
           const currentY = marginY + ((i % ticketsPerPage) * TICKET_HEIGHT_MM);
@@ -628,9 +631,6 @@ export const MissionsPanel: React.FC = () => {
           };
           await renderElementsToPDF(doc, elements, scale, currentY, replacements, imageCache);
 
-          const STUB_X_MM_G = TICKET_WIDTH_MM * 0.25;
-          const hasStubLine_G = elements.some(el => el.id.startsWith('stub_'));
-
           // Linha pontilhada vertical do canhoto
           if (hasStubLine_G) {
               doc.setDrawColor(140, 140, 140);
@@ -639,16 +639,22 @@ export const MissionsPanel: React.FC = () => {
               doc.line(STUB_X_MM_G, currentY, STUB_X_MM_G, currentY + TICKET_HEIGHT_MM);
               (doc as any).setLineDash([], 0);
           }
+      }
 
-          // Linha pontilhada horizontal entre folhas (inclusive na quebra de página)
-          if ((i + 1) < 12) {
-              doc.setDrawColor(140, 140, 140);
-              doc.setLineWidth(0.3);
+      // Segunda passagem: linhas horizontais de corte entre folhas
+      const totalPdfPages_G = Math.ceil(12 / ticketsPerPage);
+      for (let pg = 1; pg <= totalPdfPages_G; pg++) {
+          doc.setPage(pg);
+          const carnetsOnPage = Math.min(ticketsPerPage, 12 - (pg - 1) * ticketsPerPage);
+          for (let j = 0; j < carnetsOnPage - 1; j++) {
+              const lineY = marginY + (j + 1) * TICKET_HEIGHT_MM;
+              doc.setDrawColor(100, 100, 100);
+              doc.setLineWidth(0.4);
               (doc as any).setLineDash([2, 2], 0);
-              doc.line(0, currentY + TICKET_HEIGHT_MM, 210, currentY + TICKET_HEIGHT_MM);
+              doc.line(0, lineY, 210, lineY);
               (doc as any).setLineDash([], 0);
           }
-      } 
+      }
 
       doc.save(`CARNE_MISSOES_${member.name.replace(/\s+/g, '_')}_${bookletYear}.pdf`); 
       setIsGenerating(false);
@@ -706,6 +712,9 @@ export const MissionsPanel: React.FC = () => {
 
       const imageCache: Record<string, string | null> = {};
 
+      const STUB_X_MM_R = TICKET_WIDTH_MM * 0.25;
+      const hasStubLine_R = elements.some(el => el.id.startsWith('stub_'));
+
       for (let i = 0; i < 12; i++) {
           if (i > 0 && i % ticketsPerPage === 0) doc.addPage();
           const currentY = marginY + ((i % ticketsPerPage) * TICKET_HEIGHT_MM);
@@ -726,9 +735,6 @@ export const MissionsPanel: React.FC = () => {
           };
           await renderElementsToPDF(doc, elements, scale, currentY, replacements, imageCache);
 
-          const STUB_X_MM_R = TICKET_WIDTH_MM * 0.25;
-          const hasStubLine_R = elements.some(el => el.id.startsWith('stub_'));
-
           // Linha pontilhada vertical do canhoto
           if (hasStubLine_R) {
               doc.setDrawColor(140, 140, 140);
@@ -737,13 +743,19 @@ export const MissionsPanel: React.FC = () => {
               doc.line(STUB_X_MM_R, currentY, STUB_X_MM_R, currentY + TICKET_HEIGHT_MM);
               (doc as any).setLineDash([], 0);
           }
+      }
 
-          // Linha pontilhada horizontal entre folhas (inclusive na quebra de página)
-          if ((i + 1) < 12) {
-              doc.setDrawColor(140, 140, 140);
-              doc.setLineWidth(0.3);
+      // Segunda passagem: linhas horizontais de corte entre folhas
+      const totalPdfPages_R = Math.ceil(12 / ticketsPerPage);
+      for (let pg = 1; pg <= totalPdfPages_R; pg++) {
+          doc.setPage(pg);
+          const carnetsOnPage = Math.min(ticketsPerPage, 12 - (pg - 1) * ticketsPerPage);
+          for (let j = 0; j < carnetsOnPage - 1; j++) {
+              const lineY = marginY + (j + 1) * TICKET_HEIGHT_MM;
+              doc.setDrawColor(100, 100, 100);
+              doc.setLineWidth(0.4);
               (doc as any).setLineDash([2, 2], 0);
-              doc.line(0, currentY + TICKET_HEIGHT_MM, 210, currentY + TICKET_HEIGHT_MM);
+              doc.line(0, lineY, 210, lineY);
               (doc as any).setLineDash([], 0);
           }
       }
