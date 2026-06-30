@@ -568,15 +568,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
     if (error) return { success: false, error: error.message };
 
-    // Atualiza também no Supabase Auth (funciona para o usuário logado atualmente)
-    try {
-      const authUpdates: any = {};
-      if (password) authUpdates.password = password;
-      if (username) authUpdates.email = `${username}@${EMAIL_DOMAIN}`;
-      if (Object.keys(authUpdates).length > 0) {
-        await supabase.auth.updateUser(authUpdates);
-      }
-    } catch (_) { /* Ignora silenciosamente — profiles já foi atualizado */ }
+    // Nota: supabase.auth.updateUser() só atualiza o usuário logado atualmente,
+    // não o usuário-alvo. A atualização real é feita pelo RPC acima (SECURITY DEFINER).
 
     const updates: any = {};
     if (username) updates.username = username;
