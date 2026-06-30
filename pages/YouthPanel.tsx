@@ -386,7 +386,7 @@ export const YouthPanel: React.FC = () => {
   };
 
   // Booklet
-  const filteredMembersForBooklet = members.filter(m => m.churchId === currentChurch?.id && (m.name.toLowerCase().includes(bookletSearchTerm.toLowerCase()) || m.cpf.includes(bookletSearchTerm)));
+  const filteredMembersForBooklet = members.filter(m => m.churchId === currentChurch?.id && m.isYouth && (m.name.toLowerCase().includes(bookletSearchTerm.toLowerCase()) || m.cpf.includes(bookletSearchTerm)));
   const handleBookletMemberSelect = (m: Member) => { setBookletMemberId(m.id); setBookletSearchTerm(m.name); };
   
   const generateBookletPDF = async () => { 
