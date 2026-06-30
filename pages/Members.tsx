@@ -17,6 +17,8 @@ export const Members: React.FC = () => {
   const { t, i18n } = useTranslation();
   const [view, setView] = useState<'LIST' | 'FORM'>('LIST');
   const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 25;
   const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
   const [isLoadingCep, setIsLoadingCep] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -93,6 +95,9 @@ export const Members: React.FC = () => {
     .filter(m => m.churchId === viewId && (m.name.toLowerCase().includes(searchTerm.toLowerCase()) || m.cpf.includes(searchTerm)))
     .filter(m => (m.status || 'ATIVO') === 'ATIVO') // Exibir apenas membros ativos
     .sort((a, b) => a.name.localeCompare(b.name));
+
+  const totalPages = Math.ceil(filteredMembers.length / ITEMS_PER_PAGE);
+  const pagedMembers = filteredMembers.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
   const handleEdit = (member: Member) => {
     if(!canEdit && member.id !== user?.id) return; // Permite edição se for o próprio usuário
@@ -281,13 +286,13 @@ export const Members: React.FC = () => {
 
       <div className="bg-white p-2 rounded-lg shadow-sm border flex items-center">
         <Search className="text-gray-400 mr-2" size={18} />
-        <input type="text" placeholder={t('members.searchPlaceholder').toUpperCase()} className="flex-1 outline-none text-sm uppercase" value={searchTerm} onChange={e => setSearchTerm(e.target.value.toUpperCase())} />
+        <input type="text" placeholder={t('members.searchPlaceholder').toUpperCase()} className="flex-1 outline-none text-sm uppercase" value={searchTerm} onChange={e => { setSearchTerm(e.target.value.toUpperCase()); setCurrentPage(1); }} />
       </div>
 
       <div className="bg-white rounded-lg shadow overflow-hidden border border-gray-100">
         <table className="min-w-full divide-y divide-gray-200">
           <tbody className="divide-y divide-gray-200">
-            {filteredMembers.map((member) => (
+            {pagedMembers.map((member) => (
               <tr key={member.id} className="hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => setViewingMember(member)}>
                 <td className="px-3 py-2 text-left">
                   <div className="flex items-center">
@@ -339,6 +344,41 @@ export const Members: React.FC = () => {
           </tbody>
         </table>
       </div>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between px-2 py-3">
+          <span className="text-xs text-gray-500">
+            {((currentPage - 1) * ITEMS_PER_PAGE) + 1}–{Math.min(currentPage * ITEMS_PER_PAGE, filteredMembers.length)} de {filteredMembers.length} membros
+          </span>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="px-3 py-1.5 rounded-lg text-xs font-bold border bg-white text-gray-600 disabled:opacity-40 hover:bg-gray-50 transition-colors"
+            >← Ant.</button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1)
+              .filter(p => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1)
+              .reduce<(number | '...')[]>((acc, p, idx, arr) => {
+                if (idx > 0 && (arr[idx - 1] as number) < p - 1) acc.push('...');
+                acc.push(p);
+                return acc;
+              }, [])
+              .map((p, i) =>
+                p === '...'
+                  ? <span key={`e${i}`} className="px-2 text-gray-400 text-xs">…</span>
+                  : <button key={p} onClick={() => setCurrentPage(p as number)}
+                      className={`w-8 h-8 rounded-lg text-xs font-bold border transition-colors ${currentPage === p ? 'bg-brand-orange text-white border-brand-orange' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>
+                      {p}
+                    </button>
+              )}
+            <button
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className="px-3 py-1.5 rounded-lg text-xs font-bold border bg-white text-gray-600 disabled:opacity-40 hover:bg-gray-50 transition-colors"
+            >Próx. →</button>
+          </div>
+        </div>
+      )}
       
       {modalState.isOpen && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
