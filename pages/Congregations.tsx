@@ -57,7 +57,7 @@ export const Congregations: React.FC = () => {
     });
   };
 
-  const showConfirm = (title: string, message: string, onConfirm: () => void, variant: 'warning' | 'danger' = 'warning') => {
+  const showConfirm = (title: string, message: string, onConfirm: () => void | Promise<void>, variant: 'warning' | 'danger' = 'warning') => {
     setModalState({
       isOpen: true,
       title,
@@ -65,8 +65,8 @@ export const Congregations: React.FC = () => {
       variant,
       showCancel: true,
       onConfirm: () => {
-        onConfirm();
         setModalState(prev => ({ ...prev, isOpen: false }));
+        Promise.resolve(onConfirm()).catch(() => {});
       }
     });
   };
@@ -117,7 +117,14 @@ export const Congregations: React.FC = () => {
     showConfirm(
         'Excluir Congregação',
         `ATENÇÃO: Você está prestes a excluir a congregação "${name}".\n\nIsso excluirá:\n1. Todos os dados financeiros e de membros.\n2. O USUÁRIO DO DIRIGENTE vinculado.\n\nEsta ação é irreversível. Deseja continuar?`,
-        () => deleteChurch(id),
+        async () => {
+          try {
+            await deleteChurch(id);
+            showAlert('Congregação excluída', `A congregação "${name}" foi excluída com sucesso.`, 'success');
+          } catch (err: any) {
+            showAlert('Erro ao excluir', err?.message || 'Não foi possível excluir a congregação. Execute o SQL de migração no painel do Supabase e tente novamente.', 'danger');
+          }
+        },
         'danger'
     );
   };

@@ -886,34 +886,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const deleteChurch = async (id: string) => {
       // Collect all church IDs to delete (the church itself + any congregations that are children)
       const childChurchIds = churches.filter(c => c.parentId === id).map(c => c.id);
-      const allIds = [id, ...childChurchIds];
 
-      // Delete all related records for each church ID before deleting the church rows.
-      // Order matters: child tables first, then parent (churches).
-      for (const cid of allIds) {
-          await supabase.from('transactions').delete().eq('church_id', cid);
-          await supabase.from('members').delete().eq('church_id', cid);
-          await supabase.from('events').delete().eq('church_id', cid);
-          await supabase.from('campaigns').delete().eq('church_id', cid);
-          await supabase.from('minutes').delete().eq('church_id', cid);
-          await supabase.from('fixed_expenses').delete().eq('church_id', cid);
-          await supabase.from('letter_history').delete().eq('church_id', cid);
-          await supabase.from('booklet_settings').delete().eq('church_id', cid);
-          // physical_spaces cascades to inventory_assets automatically
-          await supabase.from('physical_spaces').delete().eq('church_id', cid);
-          // mission_carnet_templates and letter_templates have ON DELETE CASCADE, but delete explicitly to be safe
-          await supabase.from('mission_carnet_templates').delete().eq('church_id', cid);
-          await supabase.from('letter_templates').delete().eq('church_id', cid);
-          // profiles (users) linked to this church
-          await supabase.from('profiles').delete().eq('church_id', cid);
-      }
+      // Use SECURITY DEFINER RPC that bypasses RLS and deletes all child records in cascade.
+      // Direct table DELETEs via the client are blocked by RLS when the admin of a sede
+      // tries to delete a congregation (different church_id), leaving orphan FK rows that
+      // cause a 409 Conflict. The RPC handles the full cascade server-side.
 
-      // Delete congregations (child churches) first, then the sede
-      // Uses SECURITY DEFINER RPC to bypass RLS on churches table
+      // Delete congregations (child churches) first, then the sede itself
       for (const cid of childChurchIds) {
-          await supabase.rpc('delete_church_by_id', { p_church_id: cid });
+          const { error } = await supabase.rpc('delete_church_cascade', { p_church_id: cid });
+          if (error) {
+              console.error('[deleteChurch] erro ao excluir congregação filha:', cid, error);
+              throw new Error(`Erro ao excluir congregação: ${error.message}`);
+          }
       }
-      await supabase.rpc('delete_church_by_id', { p_church_id: id });
+
+      const { error } = await supabase.rpc('delete_church_cascade', { p_church_id: id });
+      if (error) {
+          console.error('[deleteChurch] erro ao excluir igreja:', id, error);
+          throw new Error(`Erro ao excluir igreja: ${error.message}`);
+      }
 
       setChurches(churches.filter(c => c.id !== id && c.parentId !== id));
   };
