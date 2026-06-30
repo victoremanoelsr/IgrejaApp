@@ -13,7 +13,10 @@ import {
   Globe,
   TrendingDown,
   MessageCircle,
-  Gift
+  Gift,
+  AlertTriangle,
+  X,
+  CreditCard,
 } from 'lucide-react';
 import { sendWhatsApp, birthdayMessage } from '../utils/whatsapp';
 import { 
@@ -21,19 +24,89 @@ import {
   PieChart, Pie, Cell, LineChart, Line, Legend 
 } from 'recharts';
 
+const PLAN_MONTHS_MAP: Record<string, number> = {
+  mensal: 1, bimestral: 2, trimestral: 3, semestral: 6, anual: 12,
+};
+
 export const Dashboard: React.FC = () => {
-  const { members, transactions, currentChurch, user } = useApp();
+  const { members, transactions, currentChurch, churches, user } = useApp();
   const navigate = useNavigate();
   const { t, i18n } = useTranslation();
 
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [showExpiryWarning, setShowExpiryWarning] = useState(false);
+  const [expiryDaysLeft, setExpiryDaysLeft] = useState(0);
 
   useEffect(() => {
     if (user?.role === 'SUPER_ADM' && !currentChurch) {
       navigate('/admin/dashboard');
     }
   }, [user, currentChurch, navigate]);
+
+  // Verifica proximidade de vencimento da assinatura
+  useEffect(() => {
+    if (!currentChurch || !churches.length) return;
+
+    // Resolve a sede (se for congregação, usa a sede pai)
+    const sede = currentChurch.type === 'CONGREGACAO' && currentChurch.parentId
+      ? churches.find(c => c.id === currentChurch.parentId)
+      : currentChurch;
+
+    if (!sede || !sede.planType || sede.planType === 'isento') return;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayStr = today.toISOString().split('T')[0];
+    const sessionKey = `expiry_warning_dismissed_${sede.id}_${todayStr}`;
+
+    // Não mostra se já foi dispensado hoje nesta sessão
+    if (sessionStorage.getItem(sessionKey)) return;
+
+    const dueDay = sede.dueDay ?? 10;
+    const gracePeriod = sede.gracePeriod ?? 5;
+    const months = PLAN_MONTHS_MAP[sede.planType ?? 'mensal'] ?? 1;
+
+    let expiryDate: Date | null = null;
+
+    // 1. Promessa de pagamento ativa
+    if (sede.paymentPromiseDate) {
+      const promise = new Date(sede.paymentPromiseDate + 'T00:00:00');
+      if (promise >= today) { expiryDate = promise; }
+    }
+
+    // 2. Baseado no último pagamento
+    if (!expiryDate && sede.lastPaymentDate) {
+      const lastPay = new Date(sede.lastPaymentDate + 'T00:00:00');
+      const nextDue = new Date(lastPay.getFullYear(), lastPay.getMonth() + months, dueDay);
+      nextDue.setHours(0, 0, 0, 0);
+      if (nextDue >= today) { expiryDate = nextDue; }
+    }
+
+    // 3. Fallback: dueDay + carência do mês atual
+    if (!expiryDate) {
+      const graceDate = new Date(today.getFullYear(), today.getMonth(), dueDay + gracePeriod);
+      graceDate.setHours(0, 0, 0, 0);
+      expiryDate = graceDate;
+    }
+
+    const msPerDay = 1000 * 60 * 60 * 24;
+    const daysLeft = Math.ceil((expiryDate.getTime() - today.getTime()) / msPerDay);
+
+    if (daysLeft >= 0 && daysLeft <= 5) {
+      setExpiryDaysLeft(daysLeft);
+      setShowExpiryWarning(true);
+    }
+  }, [currentChurch, churches]);
+
+  const handleDismissExpiryWarning = () => {
+    setShowExpiryWarning(false);
+    const today = new Date().toISOString().split('T')[0];
+    const sede = currentChurch?.type === 'CONGREGACAO' && currentChurch?.parentId
+      ? churches.find(c => c.id === currentChurch.parentId)
+      : currentChurch;
+    if (sede) sessionStorage.setItem(`expiry_warning_dismissed_${sede.id}_${today}`, '1');
+  };
 
   if (!currentChurch) {
     return (
@@ -149,6 +222,62 @@ export const Dashboard: React.FC = () => {
 
   return (
     <div className="space-y-8 pb-20 font-sans">
+
+      {/* Modal de aviso de vencimento próximo */}
+      {showExpiryWarning && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="relative bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-fade-in">
+            {/* Botão fechar (X) */}
+            <button
+              onClick={handleDismissExpiryWarning}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 transition-colors"
+              aria-label="Fechar"
+            >
+              <X size={20} />
+            </button>
+
+            {/* Ícone de alerta */}
+            <div className="flex items-center justify-center w-14 h-14 rounded-full bg-amber-100 mx-auto mb-4">
+              <AlertTriangle size={28} className="text-amber-500" />
+            </div>
+
+            {/* Título */}
+            <h2 className="text-xl font-bold text-gray-800 text-center mb-2">
+              Assinatura Próxima do Vencimento
+            </h2>
+
+            {/* Mensagem dinâmica */}
+            <p className="text-center text-gray-600 mb-6">
+              {expiryDaysLeft === 0
+                ? <span className="font-bold text-red-600">⚠️ Atenção: Seu sistema será bloqueado hoje!</span>
+                : expiryDaysLeft === 1
+                ? <span>Atenção: Seu sistema será bloqueado em <span className="font-bold text-red-600">1 dia</span>.</span>
+                : <span>Atenção: Seu sistema será bloqueado em <span className="font-bold text-red-600">{expiryDaysLeft} dias</span>.</span>
+              }
+              <br />
+              <span className="text-sm text-gray-500 mt-1 block">Regularize sua assinatura para continuar usando o sistema sem interrupções.</span>
+            </p>
+
+            {/* Botões */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              <button
+                onClick={() => { handleDismissExpiryWarning(); navigate('/faturamento'); }}
+                className="flex-1 flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-4 rounded-xl transition-all shadow-md hover:shadow-lg"
+              >
+                <CreditCard size={18} />
+                Regularizar Agora
+              </button>
+              <button
+                onClick={handleDismissExpiryWarning}
+                className="flex-1 py-3 px-4 rounded-xl border border-gray-200 text-gray-600 font-semibold hover:bg-gray-50 transition-all"
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* HEADER */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-2">
         <div>
