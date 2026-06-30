@@ -26,7 +26,7 @@ export const AdolescentsPanel: React.FC = () => {
       user, currentChurch, transactions, members, users,
       addTransaction, deleteTransaction, 
       uploadTransactionFile,
-      addUser, updateUser, deleteUser, updateUserCredentials, updateMember,
+      addUser, updateUser, deleteUser, removeFromTeam, updateUserCredentials, updateMember,
       addFixedExpense
   } = useApp();
   const location = useLocation();
@@ -390,7 +390,7 @@ export const AdolescentsPanel: React.FC = () => {
                           </div>
                           {canAddToTeam && <div className="flex gap-2">
                               <button onClick={() => { setEditingUserId(u.id); setTeamFormData({name: u.name, username: u.username, password: '', cpf: u.cpf, role: u.role as Role}); setTeamFormMode('EDIT'); }} className="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-full transition-colors"><Edit2 size={16}/></button>
-                              <button onClick={() => deleteUser(u.id)} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"><Trash2 size={16}/></button>
+                              <button onClick={() => { if(window.confirm(`Remover "${u.name}" da equipe? O cadastro de membro e histórico serão preservados.`)) removeFromTeam(u.id); }} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors" title="Remover da equipe"><Trash2 size={16}/></button>
                           </div>}
                       </div>
                   ))}

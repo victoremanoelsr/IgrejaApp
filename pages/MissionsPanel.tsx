@@ -131,7 +131,7 @@ export const MissionsPanel: React.FC = () => {
       user, currentChurch, transactions, members, users,
       addTransaction, deleteTransaction, 
       uploadBookletBackground, uploadTransactionFile, addFixedExpense,
-      addUser, updateUser, deleteUser, updateUserCredentials,
+      addUser, updateUser, deleteUser, removeFromTeam, updateUserCredentials,
       getCarnetTemplates, addCarnetTemplate, updateCarnetTemplate, deleteCarnetTemplate, setDefaultTemplate
   } = useApp();
   const location = useLocation();
@@ -484,7 +484,7 @@ export const MissionsPanel: React.FC = () => {
       setTeamFormMode('LIST'); setEditingUserId(null); setTeamFormData({ name: '', username: '', password: '', role: 'PRESIDENTE_MISSOES', cpf: '' }); 
   };
   
-  const handleDeleteTeamMember = async (id: string) => { setConfirmModal({ isOpen: true, title: 'Excluir', message: 'Remover membro?', variant: 'danger', onConfirm: async () => { await deleteUser(id); showFeedback('Removido.'); setConfirmModal(prev => ({...prev, isOpen: false})); }}); };
+  const handleDeleteTeamMember = async (id: string, name: string) => { setConfirmModal({ isOpen: true, title: 'Remover da Equipe', message: `Remover "${name}" da equipe de missões? O cadastro de membro e todo o histórico serão preservados.`, variant: 'danger', onConfirm: async () => { const res = await removeFromTeam(id); if(res.success) showFeedback('Membro removido da equipe.'); else showFeedback(res.error || 'Erro ao remover.', 'error'); setConfirmModal(prev => ({...prev, isOpen: false})); }}); };
   
   const handleCancelForm = () => {
     setAmount(''); setDesc(''); setSearchTerm(''); setSelectedMemberId(''); setSelectedFile(null); setMissionRecipient('');
@@ -986,7 +986,7 @@ export const MissionsPanel: React.FC = () => {
                     </div>
                     {canAddToTeam && <div className="flex gap-2">
                         <button onClick={() => handleEditTeamMember(u)} className="p-2 text-gray-400 hover:text-teal-600 rounded-full"><Edit2 size={16}/></button>
-                        <button onClick={() => handleDeleteTeamMember(u.id)} className="p-2 text-gray-400 hover:text-red-500 rounded-full"><Trash2 size={16}/></button>
+                        <button onClick={() => handleDeleteTeamMember(u.id, u.name)} className="p-2 text-gray-400 hover:text-red-500 rounded-full" title="Remover da equipe"><Trash2 size={16}/></button>
                     </div>}
                   </div>
                 ))}

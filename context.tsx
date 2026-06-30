@@ -66,6 +66,7 @@ interface AppContextType {
   addUser: (u: User) => Promise<{success: boolean, error?: string}>;
   updateUser: (id: string, u: User) => Promise<void>;
   deleteUser: (id: string) => Promise<void>;
+  removeFromTeam: (id: string) => Promise<{success: boolean, error?: string}>;
   
   addCampaign: (c: Campaign) => Promise<void>;
   updateCampaign: (id: string, c: Campaign) => Promise<{success: boolean, error?: string}>;
@@ -1028,6 +1029,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
   };
 
+  // Remove a pessoa apenas do cargo no departamento (role = null).
+  // NÃO desativa o perfil, NÃO apaga o membro, NÃO afeta transações históricas.
+  // Use este método nos painéis de departamento em vez de deleteUser.
+  const removeFromTeam = async (id: string): Promise<{success: boolean, error?: string}> => {
+      const { error } = await supabase
+          .from('profiles')
+          .update({ role: null })
+          .eq('id', id);
+      if (error) {
+          console.error('[removeFromTeam] erro ao remover cargo:', error.message);
+          return { success: false, error: error.message };
+      }
+      // Remove do estado local (a person with role=null doesn't appear in any department team filter)
+      setUsers(users.filter(u => u.id !== id));
+      return { success: true };
+  };
+
   const addCampaign = async (c: Campaign) => {
       const payload: any = {
           church_id: c.churchId,
@@ -1344,7 +1362,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     addTransaction, updateTransaction, deleteTransaction, uploadTransactionFile, confirmTransactionPayment,
     addFixedExpense, generateMonthlyFixedExpenses,
     addChurch, updateChurch, deleteChurch, uploadChurchLogo, addCongregation, toggleChurchStatus,
-    addUser, updateUser, deleteUser,
+    addUser, updateUser, deleteUser, removeFromTeam,
     addCampaign, updateCampaign, deleteCampaign,
     addEvent, updateEvent, deleteEvent, uploadEventImage,
     addMinute, updateMinute, deleteMinute, uploadMinuteFile,
