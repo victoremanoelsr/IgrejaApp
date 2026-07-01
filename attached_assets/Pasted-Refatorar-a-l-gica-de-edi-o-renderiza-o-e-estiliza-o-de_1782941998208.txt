@@ -1,0 +1,46 @@
+Refatorar a lógica de edição, renderização e estilização de modelos de documentos na janela de Relatórios. O foco principal é corrigir um erro de layout: o bloco da tag {{texto_cadastrado}} está horizontalmente centralizado (eixo X), mas está posicionado no topo da folha (eixo Y incorreto). Ele deve ficar no centro absoluto da página.
+
+Por favor, aplica rigorosamente as seguintes diretrizes no código (React/JS/CSS):
+
+1. CORREÇÃO CRÍTICA: Centralização Absoluta da Tag {{texto_cadastrado}} (Eixo X e Y)
+O Problema Atual: O texto está a aparecer no topo da página (eixo Y desalinhado).
+
+Comportamento Esperado: A tag {{texto_cadastrado}} deve ser tratada como o container nativo e fixo do texto principal. Ela deve aparecer por padrão no centro exato da folha (tanto na horizontal quanto na vertical), sem que o utilizador precise clicar para a adicionar.
+
+Instruções de Correção CSS:
+
+Garante que o container da folha A4 (pai) tenha propriedades que permitam o alinhamento vertical total (ex: position: relative; ou um layout Flexbox de altura total).
+
+Aplica no elemento ou bloco que processa a tag {{texto_cadastrado}} uma centralização vertical real. Podes usar:
+
+CSS
+/* Opção com Posicionamento Absoluto */
+position: absolute;
+top: 50%;
+left: 50%;
+transform: translate(-50%, -50%);
+width: 80%; /* ou a largura segura para o texto */
+text-align: center;
+Ou garantindo que o container pai use Flexbox com display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 100%;.
+
+O texto digitado deve expandir-se a partir do centro exato da folha para cima e para baixo de forma simétrica.
+
+2. Comportamento das Demais Tags (Seleção e Inserção)
+Ao clicar em qualquer outra tag do menu superior/lateral (como {{nome_membro}}, {{data_atual}}, etc.), ela NÃO deve ser injetada de forma independente no Preview.
+
+Ela deve ser inserida exclusivamente dentro do campo de texto "Texto Modelo", exatamente na posição onde o cursor do utilizador estiver a piscar.
+
+No Preview, as tags contidas dentro do "Texto Modelo" devem ser processadas e substituídas pelos valores reais (ex: exibindo o nome real em vez do código bruto da tag).
+
+3. Visibilidade Permanente do Campo "Texto Modelo"
+Como a tag {{texto_cadastrado}} passa a ser um elemento fixo e obrigatório no centro do documento, o campo de entrada "Texto Modelo" deve estar sempre visível no ecrã de edição.
+
+O utilizador usará este campo de forma contínua para escrever e estruturar o texto que ocupará o centro do documento.
+
+4. Limpeza do Preview Inicial
+Ao abrir a janela de edição, o Preview deve renderizar o design de fundo (papel timbrado, bordas, marcas de água) de forma limpa.
+
+Nenhuma tag em formato de código bruto (ex: {{nome_membro}}) deve aparecer solta ou flutuar diretamente no Preview no momento da abertura. Apenas o texto processado vindo do campo "Texto Modelo" deve ser injetado no centro.
+
+Por favor, refaz a estrutura de estilização e a lógica de clique do componente para garantir o posicionamento no ponto zero absoluto do centro da folha (Eixos X e Y).
+crie mais tag{{estado_civil}},{{nome_pastor_presidente}},{{nacionalidade}},{{naturalidade}},{{rg}}

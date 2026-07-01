@@ -48,6 +48,7 @@ export interface Member {
   id: string;
   name: string;
   cpf: string;
+  rg?: string;
   birthDate: string; 
   memberNumber?: string; 
   churchId: string;
@@ -61,7 +62,9 @@ export interface Member {
   photo?: string; 
   email?: string; 
   phone?: string; 
-  maritalStatus?: string; 
+  maritalStatus?: string;
+  naturalidade?: string;
+  nacionalidade?: string;
   status?: 'ATIVO' | 'INATIVO' | 'TRANSFERIDO';
   memberUsername?: string;
   address: {

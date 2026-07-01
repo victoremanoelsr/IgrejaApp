@@ -49,6 +49,10 @@ const DraggableLabel: React.FC<DraggableLabelProps> = ({ el, isSelected, onSelec
       '{{texto_cadastrado}}': 'Texto da Carta',
       '{{nome_pai}}': 'Nome do Pai',
       '{{nome_mae}}': 'Nome da Mãe',
+      '{{rg}}': 'RG',
+      '{{naturalidade}}': 'Naturalidade',
+      '{{nacionalidade}}': 'Nacionalidade',
+      '{{nome_pastor_presidente}}': 'Pastor Presidente',
   };
 
   const getIcon = (content: string) => {
@@ -159,6 +163,7 @@ export const Letters: React.FC = () => {
         return text
             .replace(/{{nome_membro}}/g, 'NOME DO MEMBRO')
             .replace(/{{cpf}}/g, '000.000.000-00')
+            .replace(/{{rg}}/g, '00.000.000-0')
             .replace(/{{cargo}}/g, 'MEMBRO')
             .replace(/{{data_batismo}}/g, '01/01/2000')
             .replace(/{{data_nascimento}}/g, '01/01/2000')
@@ -166,7 +171,10 @@ export const Letters: React.FC = () => {
             .replace(/{{cidade_igreja}}/g, `Local, ${today.toLocaleDateString('pt-BR')}`)
             .replace(/{{estado_civil}}/g, 'CASADO(A)')
             .replace(/{{nome_pai}}/g, 'NOME DO PAI')
-            .replace(/{{nome_mae}}/g, 'NOME DA MÃE');
+            .replace(/{{nome_mae}}/g, 'NOME DA MÃE')
+            .replace(/{{naturalidade}}/g, 'CIDADE/UF')
+            .replace(/{{nacionalidade}}/g, 'BRASILEIRO(A)')
+            .replace(/{{nome_pastor_presidente}}/g, currentChurch?.pastorName || 'PASTOR PRESIDENTE');
     };
 
     const insertTagAtCursor = (tag: string) => {
@@ -251,6 +259,7 @@ export const Letters: React.FC = () => {
                         let processedText = textContent
                             .replace(/{{nome_membro}}/g, selectedMember.name)
                             .replace(/{{cpf}}/g, selectedMember.cpf)
+                            .replace(/{{rg}}/g, selectedMember.rg || '')
                             .replace(/{{cargo}}/g, roleOrFunction)
                             .replace(/{{data_batismo}}/g, selectedMember.baptismDate ? parseLocalDate(selectedMember.baptismDate).toLocaleDateString('pt-BR') : '-')
                             .replace(/{{data_nascimento}}/g, parseLocalDate(selectedMember.birthDate).toLocaleDateString('pt-BR'))
@@ -258,7 +267,10 @@ export const Letters: React.FC = () => {
                             .replace(/{{cidade_igreja}}/g, fullDate)
                             .replace(/{{estado_civil}}/g, selectedMember.maritalStatus || '')
                             .replace(/{{nome_pai}}/g, fatherName || '')
-                            .replace(/{{nome_mae}}/g, motherName || '');
+                            .replace(/{{nome_mae}}/g, motherName || '')
+                            .replace(/{{naturalidade}}/g, selectedMember.naturalidade || '')
+                            .replace(/{{nacionalidade}}/g, selectedMember.nacionalidade || 'Brasileiro(a)')
+                            .replace(/{{nome_pastor_presidente}}/g, currentChurch?.pastorName || '');
                         // Always use safe fixed margins so text never overflows the page
                         const pageMargin = isCert ? 30 : 20; // mm — certificados têm margens maiores
                         const safeMaxW   = pdfW_mm - 2 * pageMargin;
@@ -279,6 +291,7 @@ export const Letters: React.FC = () => {
                     let text = el.content
                         .replace('{{nome_membro}}', selectedMember.name)
                         .replace('{{cpf}}', selectedMember.cpf)
+                        .replace('{{rg}}', selectedMember.rg || '')
                         .replace('{{cargo}}', roleOrFunction)
                         .replace('{{data_batismo}}', selectedMember.baptismDate ? parseLocalDate(selectedMember.baptismDate).toLocaleDateString('pt-BR') : '-')
                         .replace('{{data_nascimento}}', parseLocalDate(selectedMember.birthDate).toLocaleDateString('pt-BR'))
@@ -286,7 +299,10 @@ export const Letters: React.FC = () => {
                         .replace('{{cidade_igreja}}', fullDate)
                         .replace('{{estado_civil}}', selectedMember.maritalStatus || '')
                         .replace('{{nome_pai}}', fatherName || '')
-                        .replace('{{nome_mae}}', motherName || '');
+                        .replace('{{nome_mae}}', motherName || '')
+                        .replace('{{naturalidade}}', selectedMember.naturalidade || '')
+                        .replace('{{nacionalidade}}', selectedMember.nacionalidade || 'Brasileiro(a)')
+                        .replace('{{nome_pastor_presidente}}', currentChurch?.pastorName || '');
                     doc.setTextColor(el.style.color);
                     doc.setFontSize(el.style.fontSize);
                     doc.setFont("helvetica", el.style.fontWeight === 'bold' ? 'bold' : 'normal');
@@ -535,7 +551,7 @@ export const Letters: React.FC = () => {
                                 <Type size={10}/> Inserir Tag no Texto Modelo
                             </p>
                             <div className="flex flex-wrap gap-1">
-                                {['{{nome_membro}}','{{cpf}}','{{cargo}}','{{data_batismo}}','{{data_nascimento}}','{{data_atual}}','{{cidade_igreja}}','{{estado_civil}}','{{nome_pai}}','{{nome_mae}}'].map(tag => (
+                                {['{{nome_membro}}','{{cpf}}','{{rg}}','{{cargo}}','{{data_batismo}}','{{data_nascimento}}','{{data_atual}}','{{cidade_igreja}}','{{estado_civil}}','{{naturalidade}}','{{nacionalidade}}','{{nome_pastor_presidente}}','{{nome_pai}}','{{nome_mae}}'].map(tag => (
                                     <button
                                         key={tag}
                                         onClick={() => insertTagAtCursor(tag)}
@@ -638,8 +654,9 @@ export const Letters: React.FC = () => {
                         const previewText = processTextForPreview(activeText);
                         return (
                             <div className="overflow-x-auto shrink-0">
+                                {/* Container A4 — Flexbox garante centralização real em X e Y */}
                                 <div
-                                    className="relative border-2 border-gray-300 bg-white overflow-hidden shadow-2xl"
+                                    className="relative border-2 border-gray-300 bg-white overflow-hidden shadow-2xl flex flex-col items-center justify-center"
                                     style={{ width: `${EDITOR_WIDTH}px`, height: `${canvasH}px` }}
                                     onClick={() => setSelectedElementId(null)}
                                 >
@@ -647,14 +664,12 @@ export const Letters: React.FC = () => {
                                         <img src={backgroundUrl} className="absolute inset-0 w-full h-full object-cover pointer-events-none" style={{ opacity: 0.85 }} />
                                     )}
 
-                                    {/* {{texto_cadastrado}}: sempre centrado no eixo X/Y, exibe texto real processado */}
+                                    {/* {{texto_cadastrado}}: elemento flow centrado pelo Flexbox pai — eixo X e Y corretos */}
                                     {textoEl && (
                                         <div
                                             style={{
-                                                position: 'absolute',
-                                                top: '50%',
-                                                left: '50%',
-                                                transform: 'translate(-50%, -50%)',
+                                                position: 'relative',
+                                                zIndex: 10,
                                                 width: `${textoEl.width || (EDITOR_WIDTH - 80)}px`,
                                                 fontSize: `${textoEl.style.fontSize}px`,
                                                 color: textoEl.style.color,
@@ -668,8 +683,7 @@ export const Letters: React.FC = () => {
                                                 background: 'rgba(255,255,255,0.72)',
                                                 borderRadius: '2px',
                                                 maxHeight: `${canvasH - 60}px`,
-                                                overflowY: 'auto',
-                                                zIndex: 10,
+                                                overflow: 'hidden',
                                             }}
                                         >
                                             {previewText || (
