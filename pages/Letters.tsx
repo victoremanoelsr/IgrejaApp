@@ -271,12 +271,19 @@ export const Letters: React.FC = () => {
                             .replace(/{{naturalidade}}/g, selectedMember.naturalidade || '')
                             .replace(/{{nacionalidade}}/g, selectedMember.nacionalidade || 'Brasileiro(a)')
                             .replace(/{{nome_pastor_presidente}}/g, currentChurch?.pastorName || '');
-                        // Always use safe fixed margins so text never overflows the page
-                        const pageMargin = isCert ? 30 : 20; // mm — certificados têm margens maiores
+                        // Margens seguras
+                        const pageMargin = isCert ? 30 : 20;
                         const safeMaxW   = pdfW_mm - 2 * pageMargin;
-                        const textY      = (el.y * scale) + (el.style.fontSize * 0.35);
                         const lh         = doc.getLineHeight() / doc.internal.scaleFactor;
-                        const align      = el.style.textAlign as string;
+                        // Centralização vertical real: estimar altura do bloco de texto
+                        const allLinesEst: string[] = [];
+                        processedText.split('\n').forEach(para => {
+                            if (para.trim() === '') { allLinesEst.push(''); return; }
+                            allLinesEst.push(...doc.splitTextToSize(para, safeMaxW));
+                        });
+                        const blockH   = allLinesEst.length * lh;
+                        const textY    = Math.max(pageMargin + lh, (pdfH_mm - blockH) / 2 + lh);
+                        const align    = el.style.textAlign as string;
                         if (align === 'center') {
                             const centerX = pdfW_mm / 2;
                             const lines   = doc.splitTextToSize(processedText, safeMaxW);
@@ -654,9 +661,9 @@ export const Letters: React.FC = () => {
                         const previewText = processTextForPreview(activeText);
                         return (
                             <div className="overflow-x-auto shrink-0">
-                                {/* Container A4 — Flexbox garante centralização real em X e Y */}
+                                {/* Container A4 */}
                                 <div
-                                    className="relative border-2 border-gray-300 bg-white overflow-hidden shadow-2xl flex flex-col items-center justify-center"
+                                    className="relative border-2 border-gray-300 bg-white overflow-hidden shadow-2xl"
                                     style={{ width: `${EDITOR_WIDTH}px`, height: `${canvasH}px` }}
                                     onClick={() => setSelectedElementId(null)}
                                 >
@@ -664,35 +671,45 @@ export const Letters: React.FC = () => {
                                         <img src={backgroundUrl} className="absolute inset-0 w-full h-full object-cover pointer-events-none" style={{ opacity: 0.85 }} />
                                     )}
 
-                                    {/* {{texto_cadastrado}}: elemento flow centrado pelo Flexbox pai — eixo X e Y corretos */}
-                                    {textoEl && (
-                                        <div
-                                            style={{
-                                                position: 'relative',
-                                                zIndex: 10,
-                                                width: `${textoEl.width || (EDITOR_WIDTH - 80)}px`,
-                                                fontSize: `${textoEl.style.fontSize}px`,
-                                                color: textoEl.style.color,
-                                                fontWeight: textoEl.style.fontWeight,
-                                                textAlign: textoEl.style.textAlign as React.CSSProperties['textAlign'],
-                                                lineHeight: 1.6,
-                                                whiteSpace: 'pre-wrap',
-                                                wordBreak: 'break-word',
-                                                padding: '6px 8px',
-                                                border: '1.5px dashed #93c5fd',
-                                                background: 'rgba(255,255,255,0.72)',
-                                                borderRadius: '2px',
-                                                maxHeight: `${canvasH - 60}px`,
-                                                overflow: 'hidden',
-                                            }}
-                                        >
-                                            {previewText || (
-                                                <span style={{ color: '#94a3b8', fontStyle: 'italic', fontSize: '11px' }}>
-                                                    O texto do modelo aparecerá aqui centralizado. Digite no campo "Texto Modelo" ao lado.
-                                                </span>
-                                            )}
-                                        </div>
-                                    )}
+                                    {/* Camada de centralização absoluta — eixo X e Y garantidos */}
+                                    <div style={{
+                                        position: 'absolute',
+                                        top: 0, left: 0, right: 0, bottom: 0,
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        zIndex: 10,
+                                        pointerEvents: 'none',
+                                    }}>
+                                        {textoEl && (
+                                            <div
+                                                style={{
+                                                    pointerEvents: 'auto',
+                                                    width: `${textoEl.width || (EDITOR_WIDTH - 80)}px`,
+                                                    fontSize: `${textoEl.style.fontSize}px`,
+                                                    color: textoEl.style.color,
+                                                    fontWeight: textoEl.style.fontWeight,
+                                                    textAlign: textoEl.style.textAlign as React.CSSProperties['textAlign'],
+                                                    lineHeight: 1.6,
+                                                    whiteSpace: 'pre-wrap',
+                                                    wordBreak: 'break-word',
+                                                    padding: '6px 8px',
+                                                    border: '1.5px dashed #93c5fd',
+                                                    background: 'rgba(255,255,255,0.72)',
+                                                    borderRadius: '2px',
+                                                    maxHeight: `${canvasH - 60}px`,
+                                                    overflow: 'hidden',
+                                                }}
+                                            >
+                                                {previewText || (
+                                                    <span style={{ color: '#94a3b8', fontStyle: 'italic', fontSize: '11px' }}>
+                                                        O texto do modelo aparecerá aqui centralizado. Digite no campo "Texto Modelo" ao lado.
+                                                    </span>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
 
                                     {/* Elementos arrastáveis legacy (não-texto) mantidos por compatibilidade */}
                                     {layoutElements.filter(el => el.content !== '{{texto_cadastrado}}').map(el => (
