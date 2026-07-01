@@ -4,7 +4,7 @@ import { supabase } from './services/supabaseClient';
 import { 
   User, Church, Member, Transaction, Campaign, Event, Minute, 
   FixedExpense, LetterHistory, BookletSettings, CarnetTemplate, LetterTemplate,
-  PhysicalSpace, Asset, SystemSettings
+  PhysicalSpace, Asset, SystemSettings, CarnetHistoryRecord
 } from './types';
 import { 
   toAppUser, toAppChurch, toAppMember, toAppTransaction, 
@@ -95,6 +95,11 @@ interface AppContextType {
   updateCarnetTemplate: (id: string, t: Partial<CarnetTemplate>) => Promise<{success: boolean, error?: string}>;
   deleteCarnetTemplate: (id: string) => Promise<void>;
   setDefaultTemplate: (id: string, churchId: string, category: string) => Promise<void>;
+
+  // Carnet History (log de geração — não entra no financeiro)
+  addCarnetHistory: (record: Omit<CarnetHistoryRecord, 'id' | 'generatedAt'>) => Promise<void>;
+  getCarnetHistory: (churchId: string, category?: string) => Promise<CarnetHistoryRecord[]>;
+  deleteCarnetHistory: (id: string) => Promise<void>;
   
   // Letter Template Logic
   getLetterTemplates: (churchId: string) => Promise<LetterTemplate[]>;
@@ -1211,9 +1216,45 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const setDefaultTemplate = async (id: string, churchId: string, category: string) => {
-      // Unset default only for the specific category
       await supabase.from('mission_carnet_templates').update({ is_default: false }).eq('church_id', churchId).eq('category', category);
       await supabase.from('mission_carnet_templates').update({ is_default: true }).eq('id', id);
+  };
+
+  // --- CARNET HISTORY CRUD ---
+  const addCarnetHistory = async (record: Omit<CarnetHistoryRecord, 'id' | 'generatedAt'>) => {
+      await supabase.from('carnet_history').insert([{
+          church_id:     record.churchId,
+          member_id:     record.memberId || null,
+          member_name:   record.memberName,
+          amount:        record.amount,
+          year:          record.year,
+          category:      record.category,
+          template_name: record.templateName || null,
+          generated_by:  record.generatedBy || null,
+      }]);
+  };
+
+  const getCarnetHistory = async (churchId: string, category?: string): Promise<CarnetHistoryRecord[]> => {
+      let query = supabase.from('carnet_history').select('*').eq('church_id', churchId).order('generated_at', { ascending: false });
+      if (category) query = query.eq('category', category);
+      const { data } = await query;
+      if (!data) return [];
+      return data.map((r: any): CarnetHistoryRecord => ({
+          id:           r.id,
+          churchId:     r.church_id,
+          memberId:     r.member_id,
+          memberName:   r.member_name,
+          amount:       Number(r.amount),
+          year:         r.year,
+          category:     r.category,
+          templateName: r.template_name,
+          generatedBy:  r.generated_by,
+          generatedAt:  r.generated_at,
+      }));
+  };
+
+  const deleteCarnetHistory = async (id: string) => {
+      await supabase.from('carnet_history').delete().eq('id', id);
   };
 
   // --- LETTER TEMPLATE CRUD ---
@@ -1369,6 +1410,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     addLetterHistory, deleteLetterHistory, getBookletSettings, saveBookletSettings, uploadBookletBackground,
     // New Exports
     getCarnetTemplates, addCarnetTemplate, updateCarnetTemplate, deleteCarnetTemplate, setDefaultTemplate,
+    addCarnetHistory, getCarnetHistory, deleteCarnetHistory,
     getLetterTemplates, addLetterTemplate, updateLetterTemplate, deleteLetterTemplate,
     // Infrastructure
     physicalSpaces, assets,

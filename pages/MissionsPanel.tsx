@@ -13,7 +13,7 @@ import {
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer 
 } from 'recharts';
-import { Transaction, LayoutElement, Member, User, Role, CarnetTemplate, CarnetBackgroundStyle } from '../types';
+import { Transaction, LayoutElement, Member, User, Role, CarnetTemplate, CarnetBackgroundStyle, CarnetHistoryRecord } from '../types';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import Draggable, { DraggableData } from 'react-draggable';
@@ -132,7 +132,8 @@ export const MissionsPanel: React.FC = () => {
       addTransaction, deleteTransaction, 
       uploadBookletBackground, uploadTransactionFile, addFixedExpense,
       addUser, updateUser, deleteUser, removeFromTeam, updateUserCredentials,
-      getCarnetTemplates, addCarnetTemplate, updateCarnetTemplate, deleteCarnetTemplate, setDefaultTemplate
+      getCarnetTemplates, addCarnetTemplate, updateCarnetTemplate, deleteCarnetTemplate, setDefaultTemplate,
+      addCarnetHistory, getCarnetHistory, deleteCarnetHistory
   } = useApp();
   const location = useLocation();
   const navigate = useNavigate();
@@ -205,6 +206,9 @@ export const MissionsPanel: React.FC = () => {
   const [historyMonth, setHistoryMonth] = useState(new Date().getMonth() + 1);
   const [historyYear, setHistoryYear] = useState(new Date().getFullYear());
   const [historySearch, setHistorySearch] = useState('');
+  const [carnetHistoryRecords, setCarnetHistoryRecords] = useState<CarnetHistoryRecord[]>([]);
+  const [carnetHistorySearch, setCarnetHistorySearch] = useState('');
+  const [carnetHistoryYear, setCarnetHistoryYear] = useState(new Date().getFullYear());
   
   const [showHistoryFilters, setShowHistoryFilters] = useState(false);
   const [historyFilterType, setHistoryFilterType] = useState<'TODOS' | 'ENTRADA' | 'SAIDA'>('TODOS');
@@ -249,6 +253,7 @@ export const MissionsPanel: React.FC = () => {
       
       if (currentChurch) {
           loadTemplates();
+          loadCarnetHistory();
       }
   }, [currentChurch, location, isMissionsRole]);
 
@@ -279,13 +284,17 @@ export const MissionsPanel: React.FC = () => {
   const loadTemplates = async () => {
       if(!currentChurch) return;
       const loaded = await getCarnetTemplates(currentChurch.id);
-      // Filter by MISSOES category
       const filtered = loaded.filter(t => t.category === 'MISSOES');
       setTemplates(filtered);
-      
       const def = filtered.find(t => t.isDefault);
       if(def && !selectedGenTemplateId) setSelectedGenTemplateId(def.id);
       else if(filtered.length > 0 && !selectedGenTemplateId) setSelectedGenTemplateId(filtered[0].id);
+  };
+
+  const loadCarnetHistory = async () => {
+      if (!currentChurch) return;
+      const records = await getCarnetHistory(currentChurch.id, 'MISSOES');
+      setCarnetHistoryRecords(records);
   };
 
   const showFeedback = (msg: string, type: 'success'|'error'|'info' = 'success') => {
@@ -657,8 +666,19 @@ export const MissionsPanel: React.FC = () => {
       }
 
       doc.save(`CARNE_MISSOES_${member.name.replace(/\s+/g, '_')}_${bookletYear}.pdf`); 
+      await addCarnetHistory({
+          churchId: currentChurch.id,
+          memberId: member.id,
+          memberName: member.name,
+          amount: parseFloat(bookletAmount),
+          year: bookletYear,
+          category: 'MISSOES',
+          templateName: templateToUse.name,
+          generatedBy: user?.name || user?.email || '',
+      });
+      await loadCarnetHistory();
       setIsGenerating(false);
-      showFeedback("Carnê gerado!"); 
+      showFeedback("Carnê gerado e registrado no histórico!"); 
   };
 
   const handleReprintCarnet = async (t: Transaction) => {
@@ -1316,7 +1336,55 @@ export const MissionsPanel: React.FC = () => {
                         
                         {/* Histórico */}
                         <div className="bg-white p-6 rounded-xl shadow border">
-                            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-4"><h3 className="font-bold text-gray-700 flex items-center"><History className="mr-2" /> Histórico de Carnês Gerados</h3><div className="flex gap-2"><div className="flex items-center bg-gray-50 border rounded p-1"><Calendar size={14} className="text-gray-400 ml-2 mr-1"/><select value={historyMonth} onChange={(e) => setHistoryMonth(Number(e.target.value))} className="bg-transparent text-sm font-bold text-gray-700 outline-none cursor-pointer">{Array.from({length: 12}, (_, i) => (<option key={i+1} value={i+1}>{new Date(0, i).toLocaleString('pt-BR', {month: 'short'}).toUpperCase()}</option>))}</select><select value={historyYear} onChange={(e) => setHistoryYear(Number(e.target.value))} className="bg-transparent text-sm font-bold text-gray-700 outline-none ml-2 border-l pl-2 cursor-pointer">{[2023,2024,2025,2026,2027].map(y => <option key={y} value={y}>{y}</option>)}</select></div></div></div><div className="relative mb-4"><input type="text" className="w-full p-2 pl-8 border rounded text-sm uppercase" placeholder="Filtrar por nome..." value={historySearch} onChange={(e) => setHistorySearch(e.target.value.toUpperCase())} /><Search className="absolute left-2.5 top-2.5 text-gray-400" size={16}/></div><div className="overflow-x-auto max-h-80 scrollbar-thin scrollbar-thumb-gray-300"><table className="w-full text-sm text-left"><thead className="bg-gray-50 text-gray-500 font-bold uppercase text-xs sticky top-0"><tr><th className="px-3 py-2">Emissão</th><th className="px-3 py-2">Membro / Descrição</th><th className="px-3 py-2 text-right">Valor</th><th className="px-3 py-2 text-center">Ações</th></tr></thead><tbody>{historyTransactions.map(t => { const tDate = new Date(t.date + 'T12:00:00'); const memberName = members.find(m => m.id === t.memberId)?.name || 'N/A'; return (<tr key={t.id} className="border-b last:border-0 hover:bg-gray-50"><td className="px-3 py-2 whitespace-nowrap text-gray-600">{tDate.getDate().toString().padStart(2, '0')}/{ (tDate.getMonth() + 1).toString().padStart(2, '0') }</td><td className="px-3 py-2"><div className="font-bold text-gray-800 text-xs">{memberName}</div><div className="text-[10px] text-gray-500">{t.description}</div></td><td className="px-3 py-2 text-right font-bold text-gray-700">R$ {t.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td><td className="px-3 py-2 text-center"><div className="flex items-center justify-center gap-2"><button onClick={() => handleReprintCarnet(t)} className="text-blue-500 hover:text-blue-700 p-1 rounded hover:bg-blue-50 transition-colors" title="Baixar Carnê Completo"><Download size={14}/></button><button onClick={() => handleDeleteTransaction(t.id)} className="text-gray-400 hover:text-red-600 p-1 rounded hover:bg-red-50 transition-colors" title="Excluir Lançamento"><Trash2 size={14}/></button></div></td></tr>); })}{historyTransactions.length === 0 && (<tr><td colSpan={4} className="text-center py-6 text-gray-400 text-xs">Nenhum registro encontrado para este período.</td></tr>)}</tbody></table></div>
+                            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-4">
+                                <h3 className="font-bold text-gray-700 flex items-center"><History className="mr-2" size={18}/> Histórico de Carnês Gerados</h3>
+                                <div className="flex items-center gap-2">
+                                    <button onClick={loadCarnetHistory} className="p-1 text-gray-400 hover:text-blue-600 transition-colors" title="Atualizar"><RefreshCw size={14}/></button>
+                                    <select value={carnetHistoryYear} onChange={(e) => setCarnetHistoryYear(Number(e.target.value))} className="bg-gray-50 border rounded text-sm font-bold text-gray-700 px-2 py-1 cursor-pointer">
+                                        {[2023,2024,2025,2026,2027].map(y => <option key={y} value={y}>{y}</option>)}
+                                    </select>
+                                </div>
+                            </div>
+                            <div className="relative mb-4">
+                                <input type="text" className="w-full p-2 pl-8 border rounded text-sm uppercase" placeholder="Filtrar por nome..." value={carnetHistorySearch} onChange={(e) => setCarnetHistorySearch(e.target.value.toUpperCase())} />
+                                <Search className="absolute left-2.5 top-2.5 text-gray-400" size={16}/>
+                            </div>
+                            <div className="overflow-x-auto max-h-80 scrollbar-thin scrollbar-thumb-gray-300">
+                                <table className="w-full text-sm text-left">
+                                    <thead className="bg-gray-50 text-gray-500 font-bold uppercase text-xs sticky top-0">
+                                        <tr>
+                                            <th className="px-3 py-2">Gerado em</th>
+                                            <th className="px-3 py-2">Membro</th>
+                                            <th className="px-3 py-2 text-center">Ano</th>
+                                            <th className="px-3 py-2 text-right">Valor/mês</th>
+                                            <th className="px-3 py-2">Gerado por</th>
+                                            <th className="px-3 py-2 text-center">Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {carnetHistoryRecords
+                                            .filter(r => r.year === carnetHistoryYear && (carnetHistorySearch === '' || r.memberName.toUpperCase().includes(carnetHistorySearch)))
+                                            .map(r => {
+                                                const dt = new Date(r.generatedAt);
+                                                return (
+                                                    <tr key={r.id} className="border-b last:border-0 hover:bg-gray-50">
+                                                        <td className="px-3 py-2 whitespace-nowrap text-gray-600 text-xs">{dt.toLocaleDateString('pt-BR')} {dt.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})}</td>
+                                                        <td className="px-3 py-2 font-bold text-gray-800 text-xs">{r.memberName}</td>
+                                                        <td className="px-3 py-2 text-center text-gray-600 text-xs">{r.year}</td>
+                                                        <td className="px-3 py-2 text-right font-bold text-gray-700">R$ {r.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
+                                                        <td className="px-3 py-2 text-[10px] text-gray-500">{r.generatedBy || '-'}</td>
+                                                        <td className="px-3 py-2 text-center">
+                                                            <button onClick={async () => { await deleteCarnetHistory(r.id); await loadCarnetHistory(); }} className="text-gray-400 hover:text-red-600 p-1 rounded hover:bg-red-50 transition-colors" title="Remover do histórico"><Trash2 size={14}/></button>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        {carnetHistoryRecords.filter(r => r.year === carnetHistoryYear && (carnetHistorySearch === '' || r.memberName.toUpperCase().includes(carnetHistorySearch))).length === 0 && (
+                                            <tr><td colSpan={6} className="text-center py-6 text-gray-400 text-xs">Nenhum carnê gerado em {carnetHistoryYear}.</td></tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 )}

@@ -122,3 +122,29 @@ DO $$ BEGIN
       ON payroll_periods FOR ALL USING (true) WITH CHECK (true);
   END IF;
 END $$;
+
+-- carnet_history: log de cada carnê gerado (não entra no financeiro)
+CREATE TABLE IF NOT EXISTS carnet_history (
+    id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    church_id     UUID NOT NULL REFERENCES churches(id) ON DELETE CASCADE,
+    member_id     UUID REFERENCES members(id) ON DELETE SET NULL,
+    member_name   TEXT NOT NULL,
+    amount        NUMERIC(10,2) NOT NULL,
+    year          INT NOT NULL,
+    category      TEXT NOT NULL DEFAULT 'MISSOES',
+    template_name TEXT,
+    generated_by  TEXT,
+    generated_at  TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE carnet_history ENABLE ROW LEVEL SECURITY;
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE tablename = 'carnet_history' AND policyname = 'Enable all access for carnet_history'
+  ) THEN
+    CREATE POLICY "Enable all access for carnet_history"
+      ON carnet_history FOR ALL USING (true) WITH CHECK (true);
+  END IF;
+END $$;

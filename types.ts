@@ -160,6 +160,19 @@ export interface CarnetTemplate {
   createdAt?: string;
 }
 
+export interface CarnetHistoryRecord {
+  id: string;
+  churchId: string;
+  memberId?: string;
+  memberName: string;
+  amount: number;
+  year: number;
+  category: string;
+  templateName?: string;
+  generatedBy?: string;
+  generatedAt: string;
+}
+
 // NOVO: Template de Carta
 export interface LetterTemplate {
   id: string;
