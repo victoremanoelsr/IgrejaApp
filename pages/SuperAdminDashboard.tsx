@@ -157,7 +157,7 @@ export const SuperAdminDashboard: React.FC = () => {
       planTier: unifiedForm.planType !== 'isento' ? unifiedForm.planTier : undefined,
       dueDay: unifiedForm.planType !== 'isento' ? unifiedForm.dueDay : undefined,
       gracePeriod: unifiedForm.gracePeriod,
-      pixKey: systemSettings.masterPixKey?.trim() || undefined,
+      pixKey: undefined,
     });
 
     if (!churchResult.success || !churchResult.id) {
@@ -661,7 +661,7 @@ export const SuperAdminDashboard: React.FC = () => {
                               ...church,
                               planTier: church.planTier ?? 'bronze',
                               // Se a igreja ainda não possui PIX, abre com o PIX master pré-preenchido.
-                              pixKey: church.pixKey?.trim() || systemSettings.masterPixKey?.trim() || '',
+                              pixKey: church.pixKey?.trim() || '',
                             })}
                             className="p-1.5 bg-blue-50 text-blue-600 rounded hover:bg-blue-100 transition-colors"
                             title="Editar"
