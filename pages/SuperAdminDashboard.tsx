@@ -58,7 +58,6 @@ export const SuperAdminDashboard: React.FC = () => {
     planTier: 'bronze' as PlanTier,
     dueDay: 10,
     gracePeriod: 5,
-    pixKey: '',
   });
 
   // State for Edit Church Modal
@@ -138,7 +137,7 @@ export const SuperAdminDashboard: React.FC = () => {
   const resetUnifiedForm = () => setUnifiedForm({
     churchName: '', churchCnpj: '', churchAddress: '',
     pastorName: '', pastorCpf: '', pastorEmail: '', pastorPassword: '',
-    planType: 'isento', planTier: 'bronze', dueDay: 10, gracePeriod: 5, pixKey: '',
+    planType: 'isento', planTier: 'bronze', dueDay: 10, gracePeriod: 5,
   });
 
   const handleSaveUnified = async (e: React.FormEvent) => {
@@ -158,7 +157,7 @@ export const SuperAdminDashboard: React.FC = () => {
       planTier: unifiedForm.planType !== 'isento' ? unifiedForm.planTier : undefined,
       dueDay: unifiedForm.planType !== 'isento' ? unifiedForm.dueDay : undefined,
       gracePeriod: unifiedForm.gracePeriod,
-      pixKey: unifiedForm.pixKey || systemSettings.masterPixKey?.trim() || undefined,
+      pixKey: systemSettings.masterPixKey?.trim() || undefined,
     });
 
     if (!churchResult.success || !churchResult.id) {
@@ -415,10 +414,6 @@ export const SuperAdminDashboard: React.FC = () => {
                     <div>
                       <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Dias de Carência</label>
                       <input type="number" min={0} max={30} className="w-full p-2 border rounded text-sm" value={unifiedForm.gracePeriod} onChange={e => setUnifiedForm({...unifiedForm, gracePeriod: parseInt(e.target.value) ?? 5})} />
-                    </div>
-                    <div className={unifiedForm.planType !== 'isento' ? '' : 'md:col-span-2'}>
-                      <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Chave PIX</label>
-                      <input type="text" className="w-full p-2 border rounded text-sm" placeholder="Chave PIX da igreja" value={unifiedForm.pixKey} onChange={e => setUnifiedForm({...unifiedForm, pixKey: e.target.value})} />
                     </div>
                   </div>
                 </div>
