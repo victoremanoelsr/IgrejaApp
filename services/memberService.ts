@@ -154,11 +154,32 @@ export const getMemberLetterHistory = async (
 };
 
 export const getMemberCarnetHistory = async (
-  _churchId: string,
-  _memberId: string
+  churchId: string,
+  memberId: string
 ): Promise<Transaction[]> => {
-  // Carnet history via realtime from subscribeToMemberTransactions; no separate query needed
-  return [];
+  const { data, error } = await supabase
+    .from('carnet_history')
+    .select('*')
+    .eq('church_id', churchId)
+    .eq('member_id', memberId)
+    .order('generated_at', { ascending: false });
+
+  if (error || !data) return [];
+
+  return data.map((r: any) => ({
+    id: r.id,
+    churchId: r.church_id,
+    memberId: r.member_id,
+    category: r.category ?? 'MISSOES',
+    // description shown in MemberCarnets.tsx
+    description: `${r.template_name ? r.template_name + ' — ' : ''}Carnê ${r.year ?? ''}`.trim(),
+    // date used for display
+    date: r.generated_at ?? r.created_at ?? new Date().toISOString(),
+    amount: r.amount ?? 0,
+    type: 'ENTRADA' as const,
+    paymentMethod: '',
+    createdAt: r.generated_at,
+  }));
 };
 
 export const updateMemberPassword = async (
