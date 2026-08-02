@@ -1,0 +1,54 @@
+Quero refatorar completamente o fluxo de cadastro de novas igrejas no Painel Admin. Atualmente, o processo é fragmentado (cria-se a igreja, depois o pastor, e depois é preciso editar para definir o plano). Quero unificar tudo num único formulário/card de "Cadastrar Nova Igreja Sede".
+
+Por favor, reconstrói a interface e a lógica de salvamento para funcionar num único clique, seguindo esta estrutura:
+
+1. Interface do Formulário Unificado (UI)
+Cria um modal ou uma página com um formulário dividido visualmente em 3 secções claras dentro do mesmo card:
+
+Secção 1: Dados da Igreja Sede
+
+Nome da Igreja (text)
+
+CNPJ (text)
+
+Endereço (text)
+
+Secção 2: Cadastro do Pastor Presidente
+
+Nome Completo (text)
+
+CPF (text)
+
+E-mail/Login de Primeiro Acesso (email)
+
+Senha de Primeiro Acesso (password)
+
+Secção 3: Plano e Configurações de Cobrança
+
+Ciclo de Cobrança (Select): Opções entre Isento, Mensal, Bimestral, Trimestral, Semestral ou Anual.
+
+Tier do Plano (Select): Opções baseadas nos nossos planos (Bronze, Prata, Ouro, Diamond).
+
+Dia de Vencimento (number): Campo para definir o dia do mês.
+
+Dias de Carência (number): Campo para definir os dias de tolerância.
+
+Chave PIX (text): Campo para a chave da igreja.
+
+2. Lógica de Salvamento no Back-end (Transação / Fluxo do Botão "Salvar")
+Quando o utilizador clicar no botão único "Salvar e Gerar Igreja", o sistema deve executar os seguintes passos na API do Supabase em ordem cronológica, usando apenas chamadas nativas do cliente (supabase.from e supabase.auth):
+
+Passo 1: Criar a Igreja -> Insere os dados da Secção 1 na tabela de igrejas/sedes e recupera o church_id gerado.
+
+Passo 2: Configurar o Plano -> Pega no church_id gerado e insere imediatamente os dados da Secção 3 na tabela de configurações/planos (associando o Tier, Ciclo, Vencimento, Carência, etc., para que a igreja já nasça com os preços e limites corretos).
+
+Passo 3: Criar o Utilizador do Pastor -> Usa o supabase.auth.signUp com o e-mail e senha da Secção 2 para criar a conta de autenticação.
+
+Passo 4: Criar o Perfil do Pastor -> Pega no ID de autenticação gerado (UUID) e cria o registo na tabela de profiles ou usuarios, preenchendo o Nome, CPF, definindo a role como 'pastor_presidente' (ou a role master do sistema) e vinculando-o ao church_id.
+
+3. Validações Necessárias
+Garante que o botão de "Salvar" só fica ativo se os campos obrigatórios (Nome da igreja, nome do pastor, usuário, senha e seleção de plano) estiverem preenchidos.
+
+Se algum passo falhar (por exemplo, se o e-mail do pastor já existir), exibe um alerta amigável e impede a criação incompleta.
+
+Ajusta os ficheiros correspondentes às views de administração e rotas de criação para refletir este novo fluxo unificado.

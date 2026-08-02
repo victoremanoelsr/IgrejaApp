@@ -39,15 +39,30 @@ export const SuperAdminDashboard: React.FC = () => {
   const { churches, members, selectChurch, toggleChurchStatus, addChurch, addUser, addMember, deleteChurch, updateChurch, confirmChurchPayment, systemSettings } = useApp();
   const navigate = useNavigate();
   
-  const [showChurchForm, setShowChurchForm] = useState(false);
-  const [showPresidentForm, setShowPresidentForm] = useState(false);
-  
+  const [showUnifiedForm, setShowUnifiedForm] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Unified form state — 3 sections
+  const [unifiedForm, setUnifiedForm] = useState({
+    // Section 1: Church
+    churchName: '',
+    churchCnpj: '',
+    churchAddress: '',
+    // Section 2: Pastor
+    pastorName: '',
+    pastorCpf: '',
+    pastorEmail: '',
+    pastorPassword: '',
+    // Section 3: Plan
+    planType: 'isento' as PlanType,
+    planTier: 'bronze' as PlanTier,
+    dueDay: 10,
+    gracePeriod: 5,
+    pixKey: '',
+  });
+
   // State for Edit Church Modal
   const [editingChurch, setEditingChurch] = useState<Church | null>(null);
-
-  // Forms State
-  const [newChurch, setNewChurch] = useState({ name: '', address: '', pastorName: '', cnpj: '' });
-  const [newPresident, setNewPresident] = useState({ name: '', username: '', cpf: '', churchId: '', password: '' });
 
   // --- CUSTOM MODAL STATE ---
   const [modalState, setModalState] = useState<{
@@ -120,23 +135,79 @@ export const SuperAdminDashboard: React.FC = () => {
     navigate('/dashboard'); 
   };
 
-  const handleAddChurch = (e: React.FormEvent) => {
+  const resetUnifiedForm = () => setUnifiedForm({
+    churchName: '', churchCnpj: '', churchAddress: '',
+    pastorName: '', pastorCpf: '', pastorEmail: '', pastorPassword: '',
+    planType: 'isento', planTier: 'bronze', dueDay: 10, gracePeriod: 5, pixKey: '',
+  });
+
+  const handleSaveUnified = async (e: React.FormEvent) => {
     e.preventDefault();
-    const church: Church = {
+    setIsSaving(true);
+
+    // Passo 1: Criar a Igreja com todos os dados de plano já embutidos
+    const churchResult = await addChurch({
       id: '',
-      ...newChurch,
-      name: newChurch.name.toUpperCase(),
-      address: newChurch.address.toUpperCase(),
-      pastorName: newChurch.pastorName.toUpperCase(),
+      name: unifiedForm.churchName.toUpperCase(),
+      address: unifiedForm.churchAddress.toUpperCase(),
+      pastorName: unifiedForm.pastorName.toUpperCase(),
+      cnpj: unifiedForm.churchCnpj,
       active: true,
       type: 'SEDE',
-      // Pré-preenche a chave PIX da nova igreja com o PIX master do sistema (caso configurado).
-      pixKey: systemSettings.masterPixKey?.trim() || undefined,
-    };
-    addChurch(church);
-    setShowChurchForm(false);
-    setNewChurch({ name: '', address: '', pastorName: '', cnpj: '' });
-    showAlert('Sucesso', 'Igreja Sede cadastrada com sucesso!', 'success');
+      planType: unifiedForm.planType,
+      planTier: unifiedForm.planType !== 'isento' ? unifiedForm.planTier : undefined,
+      dueDay: unifiedForm.planType !== 'isento' ? unifiedForm.dueDay : undefined,
+      gracePeriod: unifiedForm.gracePeriod,
+      pixKey: unifiedForm.pixKey || systemSettings.masterPixKey?.trim() || undefined,
+    });
+
+    if (!churchResult.success || !churchResult.id) {
+      setIsSaving(false);
+      showAlert('Erro ao criar Igreja', `Não foi possível cadastrar a sede: ${churchResult.error}`, 'danger');
+      return;
+    }
+
+    const churchId = churchResult.id;
+
+    // Passo 2: Criar o Usuário do Pastor (login)
+    const sharedId = generateUUID();
+    const userResult = await addUser({
+      id: sharedId,
+      name: unifiedForm.pastorName.toUpperCase(),
+      username: unifiedForm.pastorEmail,
+      cpf: unifiedForm.pastorCpf,
+      password: unifiedForm.pastorPassword,
+      churchId,
+      role: 'PRESIDENTE',
+    });
+
+    if (!userResult.success) {
+      setIsSaving(false);
+      showAlert(
+        'Igreja criada — Erro no Pastor',
+        `A sede foi criada, mas houve erro ao criar o acesso do pastor:\n${userResult.error}\n\nAdicione o pastor manualmente pela opção "Cadastrar PR Presidente".`,
+        'warning'
+      );
+      setShowUnifiedForm(false);
+      resetUnifiedForm();
+      return;
+    }
+
+    // Passo 3: Criar o Membro vinculado ao Pastor
+    await addMember({
+      id: sharedId,
+      churchId,
+      name: unifiedForm.pastorName.toUpperCase(),
+      cpf: unifiedForm.pastorCpf,
+      isTither: true,
+      birthDate: '',
+      address: { street: '', number: '', neighborhood: '', city: '', state: '', zipCode: '' },
+    });
+
+    setIsSaving(false);
+    setShowUnifiedForm(false);
+    resetUnifiedForm();
+    showAlert('Igreja Criada com Sucesso!', `A sede "${unifiedForm.churchName.toUpperCase()}" foi cadastrada com plano, acesso e perfil do pastor configurados.`, 'success');
   };
 
   const handleUpdateChurch = async (e: React.FormEvent) => {
@@ -194,73 +265,6 @@ export const SuperAdminDashboard: React.FC = () => {
     );
   };
 
-  const handleAddPresident = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!newPresident.churchId) {
-        showAlert("Erro", "É obrigatório selecionar a Igreja para vincular o Presidente.", 'warning');
-        return;
-    }
-
-    // 1. Gerar um UUID único que será usado tanto para o Perfil (Login) quanto para o Membro
-    const sharedId = generateUUID();
-    
-    // 2. Criar o Usuário de Login na tabela 'profiles'
-    const userPayload: UserType = {
-      id: sharedId, // ID Forçado
-      ...newPresident,
-      name: newPresident.name.toUpperCase(),
-      role: 'PRESIDENTE' 
-    };
-
-    // 3. Criar o Registro de Membro na tabela 'members'
-    // Isso permite que o pastor edite seus próprios dados (foto, endereço, etc)
-    const memberPayload: Member = {
-      id: sharedId, // ID Forçado (Vínculo de Identidade)
-      churchId: newPresident.churchId,
-      name: newPresident.name.toUpperCase(),
-      cpf: newPresident.cpf,
-      isTither: true, // Pastores presidentes geralmente são dizimistas
-      birthDate: '', // Será completado depois pelo pastor
-      address: {
-        street: '',
-        number: '',
-        neighborhood: '',
-        city: '',
-        state: '',
-        zipCode: ''
-      }
-    };
-
-    // Executa a criação do usuário
-    const userResult = await addUser(userPayload);
-    
-    if (!userResult.success) {
-        showAlert("Erro ao criar usuário", `${userResult.error}\n\nVerifique se o login já existe.`, 'danger');
-        return; 
-    }
-
-    // Executa a criação do membro (falha aqui não deve impedir o login, mas avisamos)
-    const memberResult = await addMember(memberPayload);
-    if (!memberResult.success) {
-       console.error("Erro ao criar registro de membro para o pastor:", memberResult.error);
-       // Não paramos o fluxo, pois o login foi criado. O pastor pode ser adicionado como membro depois manualmente se falhar.
-    }
-
-    // 4. Atualiza o nome do pastor na igreja (Visual)
-    if (newPresident.churchId) {
-        const churchToUpdate = churches.find(c => c.id === newPresident.churchId);
-        if (churchToUpdate) {
-            await updateChurch(churchToUpdate.id, {
-                pastorName: newPresident.name.toUpperCase()
-            });
-        }
-    }
-
-    setShowPresidentForm(false);
-    setNewPresident({ name: '', username: '', cpf: '', churchId: '', password: '' });
-    showAlert('Sucesso', 'Pastor Presidente cadastrado! Ele já possui acesso ao sistema e registro na lista de membros para autogestão.', 'success');
-  };
 
   return (
     <div className="space-y-4">
@@ -291,55 +295,153 @@ export const SuperAdminDashboard: React.FC = () => {
         <div className="absolute right-0 top-0 h-full w-1/2 bg-gradient-to-l from-brand-dark to-transparent opacity-50 pointer-events-none"></div>
       </div>
 
-      {/* Action Buttons - COMPACTO */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <button 
-          onClick={() => setShowChurchForm(true)}
-          className="p-4 bg-white border border-dashed border-gray-300 rounded-lg flex items-center justify-center hover:border-brand-orange hover:bg-orange-50 transition-all group shadow-sm"
+      {/* Action Button — Unified */}
+      <div>
+        <button
+          onClick={() => { resetUnifiedForm(); setShowUnifiedForm(true); }}
+          className="w-full p-4 bg-white border border-dashed border-gray-300 rounded-lg flex items-center justify-center hover:border-brand-orange hover:bg-orange-50 transition-all group shadow-sm"
         >
           <div className="bg-brand-black text-white p-2 rounded-full mr-3 group-hover:scale-110 transition-transform">
             <Plus size={18}/>
           </div>
           <div className="text-left">
             <h3 className="font-bold text-sm text-gray-800">Cadastrar Nova Igreja Sede</h3>
-            <p className="text-xs text-gray-500">Adicionar nova sede à rede</p>
-          </div>
-        </button>
-
-        <button 
-          onClick={() => setShowPresidentForm(true)}
-          className="p-4 bg-white border border-dashed border-gray-300 rounded-lg flex items-center justify-center hover:border-brand-orange hover:bg-orange-50 transition-all group shadow-sm"
-        >
-          <div className="bg-brand-black text-white p-2 rounded-full mr-3 group-hover:scale-110 transition-transform">
-            <UserPlus size={18}/>
-          </div>
-          <div className="text-left">
-            <h3 className="font-bold text-sm text-gray-800">Cadastrar PR Presidente</h3>
-            <p className="text-xs text-gray-500">Criar acesso principal e perfil</p>
+            <p className="text-xs text-gray-500">Igreja + Pastor Presidente + Plano — tudo em um único formulário</p>
           </div>
         </button>
       </div>
 
-      {/* Forms Modals */}
-      {showChurchForm && (
-        <div className="bg-white p-6 rounded-xl shadow-lg border-l-4 border-brand-orange animate-fade-in-down">
-          <h3 className="text-lg font-bold mb-4">Nova Igreja Sede</h3>
-          <form onSubmit={handleAddChurch} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <input required placeholder="NOME DA IGREJA" className="p-2 border rounded uppercase text-sm" value={newChurch.name} onChange={e => setNewChurch({...newChurch, name: e.target.value.toUpperCase()})} />
-            <input 
-              placeholder="CNPJ" 
-              className="p-2 border rounded text-sm" 
-              value={newChurch.cnpj} 
-              maxLength={18}
-              onChange={e => setNewChurch({...newChurch, cnpj: formatCNPJ(e.target.value)})} 
-            />
-            <input required placeholder="ENDEREÇO" className="p-2 border rounded uppercase text-sm" value={newChurch.address} onChange={e => setNewChurch({...newChurch, address: e.target.value.toUpperCase()})} />
-            <input required placeholder="NOME DO PASTOR" className="p-2 border rounded uppercase text-sm" value={newChurch.pastorName} onChange={e => setNewChurch({...newChurch, pastorName: e.target.value.toUpperCase()})} />
-            <div className="md:col-span-2 flex justify-end space-x-2">
-              <button type="button" onClick={() => setShowChurchForm(false)} className="px-4 py-2 text-gray-500 text-sm">Cancelar</button>
-              <button type="submit" className="px-4 py-2 bg-brand-orange text-white rounded text-sm font-bold">Salvar</button>
+      {/* Modal Unificado — Nova Igreja Sede */}
+      {showUnifiedForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[92vh] overflow-y-auto animate-fade-in-down">
+            <div className="h-1.5 bg-brand-orange rounded-t-xl"/>
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                  <Building size={20} className="text-brand-orange"/> Cadastrar Nova Igreja Sede
+                </h3>
+                <button onClick={() => setShowUnifiedForm(false)} className="text-gray-400 hover:text-gray-600 text-xl font-bold">✕</button>
+              </div>
+
+              <form onSubmit={handleSaveUnified} className="space-y-6">
+
+                {/* SEÇÃO 1 — Dados da Igreja */}
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="w-5 h-5 rounded-full bg-brand-orange text-white text-[10px] font-bold flex items-center justify-center shrink-0">1</span>
+                    <span className="text-xs font-bold text-gray-600 uppercase tracking-wide">Dados da Igreja Sede</span>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="md:col-span-2">
+                      <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Nome da Igreja *</label>
+                      <input required className="w-full p-2 border rounded text-sm uppercase" placeholder="Ex: AD EM SÃO PAULO" value={unifiedForm.churchName} onChange={e => setUnifiedForm({...unifiedForm, churchName: e.target.value.toUpperCase()})} />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500 uppercase mb-1">CNPJ</label>
+                      <input className="w-full p-2 border rounded text-sm" placeholder="00.000.000/0001-00" maxLength={18} value={unifiedForm.churchCnpj} onChange={e => setUnifiedForm({...unifiedForm, churchCnpj: formatCNPJ(e.target.value)})} />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Endereço *</label>
+                      <input required className="w-full p-2 border rounded text-sm uppercase" placeholder="Rua, Nº — Cidade/UF" value={unifiedForm.churchAddress} onChange={e => setUnifiedForm({...unifiedForm, churchAddress: e.target.value.toUpperCase()})} />
+                    </div>
+                  </div>
+                </div>
+
+                <hr className="border-gray-100"/>
+
+                {/* SEÇÃO 2 — Pastor Presidente */}
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-bold flex items-center justify-center shrink-0">2</span>
+                    <span className="text-xs font-bold text-gray-600 uppercase tracking-wide">Cadastro do Pastor Presidente</span>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="md:col-span-2">
+                      <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Nome Completo *</label>
+                      <input required className="w-full p-2 border rounded text-sm uppercase" placeholder="NOME DO PASTOR" value={unifiedForm.pastorName} onChange={e => setUnifiedForm({...unifiedForm, pastorName: e.target.value.toUpperCase()})} />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500 uppercase mb-1">CPF</label>
+                      <input className="w-full p-2 border rounded text-sm" placeholder="000.000.000-00" maxLength={14} value={unifiedForm.pastorCpf} onChange={e => setUnifiedForm({...unifiedForm, pastorCpf: formatCPF(e.target.value)})} />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500 uppercase mb-1">E-mail / Login *</label>
+                      <input required type="email" className="w-full p-2 border rounded text-sm" placeholder="pastor@email.com" value={unifiedForm.pastorEmail} onChange={e => setUnifiedForm({...unifiedForm, pastorEmail: e.target.value})} />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Senha de Primeiro Acesso *</label>
+                      <input required type="password" className="w-full p-2 border rounded text-sm" placeholder="Mínimo 6 caracteres" minLength={6} value={unifiedForm.pastorPassword} onChange={e => setUnifiedForm({...unifiedForm, pastorPassword: e.target.value})} />
+                    </div>
+                  </div>
+                </div>
+
+                <hr className="border-gray-100"/>
+
+                {/* SEÇÃO 3 — Plano */}
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="w-5 h-5 rounded-full bg-emerald-600 text-white text-[10px] font-bold flex items-center justify-center shrink-0">3</span>
+                    <span className="text-xs font-bold text-gray-600 uppercase tracking-wide">Plano e Configurações de Cobrança</span>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Ciclo de Cobrança *</label>
+                      <select required className="w-full p-2 border rounded text-sm" value={unifiedForm.planType} onChange={e => setUnifiedForm({...unifiedForm, planType: e.target.value as PlanType})}>
+                        <option value="isento">Isento</option>
+                        <option value="mensal">Mensal</option>
+                        <option value="bimestral">Bimestral</option>
+                        <option value="trimestral">Trimestral</option>
+                        <option value="semestral">Semestral</option>
+                        <option value="anual">Anual</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Tier do Plano</label>
+                      <select className="w-full p-2 border rounded text-sm" value={unifiedForm.planTier} disabled={unifiedForm.planType === 'isento'} onChange={e => setUnifiedForm({...unifiedForm, planTier: e.target.value as PlanTier})}>
+                        <option value="bronze">Bronze — até 100 membros, 2 cong.</option>
+                        <option value="prata">Prata — até 300 membros, 5 cong.</option>
+                        <option value="ouro">Ouro — até 700 membros, 10 cong.</option>
+                        <option value="diamond">Diamond — ilimitado</option>
+                      </select>
+                      {unifiedForm.planType === 'isento' && <p className="text-[10px] text-gray-400 mt-1">Igrejas isentas têm acesso ilimitado.</p>}
+                    </div>
+                    {unifiedForm.planType !== 'isento' && (
+                      <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Dia de Vencimento</label>
+                        <input type="number" min={1} max={28} className="w-full p-2 border rounded text-sm" value={unifiedForm.dueDay} onChange={e => setUnifiedForm({...unifiedForm, dueDay: parseInt(e.target.value) || 10})} />
+                      </div>
+                    )}
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Dias de Carência</label>
+                      <input type="number" min={0} max={30} className="w-full p-2 border rounded text-sm" value={unifiedForm.gracePeriod} onChange={e => setUnifiedForm({...unifiedForm, gracePeriod: parseInt(e.target.value) ?? 5})} />
+                    </div>
+                    <div className={unifiedForm.planType !== 'isento' ? '' : 'md:col-span-2'}>
+                      <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Chave PIX</label>
+                      <input type="text" className="w-full p-2 border rounded text-sm" placeholder="Chave PIX da igreja" value={unifiedForm.pixKey} onChange={e => setUnifiedForm({...unifiedForm, pixKey: e.target.value})} />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Botões */}
+                <div className="flex justify-end gap-3 pt-2 border-t border-gray-100">
+                  <button type="button" onClick={() => setShowUnifiedForm(false)} className="px-4 py-2 text-gray-500 text-sm hover:text-gray-700">Cancelar</button>
+                  <button
+                    type="submit"
+                    disabled={isSaving || !unifiedForm.churchName || !unifiedForm.churchAddress || !unifiedForm.pastorName || !unifiedForm.pastorEmail || !unifiedForm.pastorPassword}
+                    className="px-6 py-2 bg-brand-orange text-white rounded-lg text-sm font-bold hover:bg-brand-red disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  >
+                    {isSaving ? (
+                      <><span className="animate-spin inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full"/><span>Salvando...</span></>
+                    ) : (
+                      <><Plus size={15}/><span>Salvar e Gerar Igreja</span></>
+                    )}
+                  </button>
+                </div>
+
+              </form>
             </div>
-          </form>
+          </div>
         </div>
       )}
 
@@ -469,41 +571,6 @@ export const SuperAdminDashboard: React.FC = () => {
         </div>
       )}
 
-      {showPresidentForm && (
-        <div className="bg-white p-6 rounded-xl shadow-lg border-l-4 border-brand-orange animate-fade-in-down">
-          <h3 className="text-lg font-bold mb-4">Novo Presidente</h3>
-          <form onSubmit={handleAddPresident} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <input required placeholder="NOME COMPLETO" className="p-2 border rounded uppercase text-sm" value={newPresident.name} onChange={e => setNewPresident({...newPresident, name: e.target.value.toUpperCase()})} />
-            <input 
-              required 
-              placeholder="CPF" 
-              className="p-2 border rounded text-sm" 
-              value={newPresident.cpf} 
-              maxLength={14}
-              onChange={e => setNewPresident({...newPresident, cpf: formatCPF(e.target.value)})} 
-            />
-            <input required placeholder="Login" className="p-2 border rounded text-sm" value={newPresident.username} onChange={e => setNewPresident({...newPresident, username: e.target.value})} />
-            
-            <input 
-              required 
-              type="text" 
-              placeholder="Senha" 
-              className="p-2 border rounded text-sm" 
-              value={newPresident.password} 
-              onChange={e => setNewPresident({...newPresident, password: e.target.value})} 
-            />
-
-            <select required className="p-2 border rounded md:col-span-2 text-sm" value={newPresident.churchId} onChange={e => setNewPresident({...newPresident, churchId: e.target.value})}>
-              <option value="">Selecione a Igreja</option>
-              {churches.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
-            <div className="md:col-span-2 flex justify-end space-x-2">
-              <button type="button" onClick={() => setShowPresidentForm(false)} className="px-4 py-2 text-gray-500 text-sm">Cancelar</button>
-              <button type="submit" className="px-4 py-2 bg-brand-orange text-white rounded text-sm font-bold">Salvar e Vincular</button>
-            </div>
-          </form>
-        </div>
-      )}
 
       {/* Super Vision Module - COMPACT LIST */}
       <div className="bg-white rounded-lg shadow border border-gray-100 overflow-hidden">

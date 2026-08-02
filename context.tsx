@@ -56,7 +56,7 @@ interface AppContextType {
   addFixedExpense: (f: FixedExpense) => Promise<string | undefined>;
   generateMonthlyFixedExpenses: (churchId: string, start: string, end: string) => Promise<void>;
   
-  addChurch: (c: Church) => Promise<void>;
+  addChurch: (c: Church) => Promise<{success: boolean, id?: string, error?: string}>;
   updateChurch: (id: string, data: Partial<Church>) => Promise<{success: boolean, error?: string}>;
   deleteChurch: (id: string) => Promise<void>;
   uploadChurchLogo: (file: File) => Promise<string | null>;
@@ -830,7 +830,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       // Logic to check and generate transactions from fixed expenses
   };
 
-  const addChurch = async (c: Church) => {
+  const addChurch = async (c: Church): Promise<{success: boolean, id?: string, error?: string}> => {
       const payload: any = {
           name: c.name,
           address: c.address,
@@ -844,9 +844,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (c.id && c.id.trim() !== '') {
           payload.id = c.id;
       }
+      if (c.planType)    payload.plan_type    = c.planType;
+      if (c.planTier)    payload.plan_tier    = c.planTier;
+      if (c.dueDay)      payload.due_day      = c.dueDay;
+      if (c.gracePeriod !== undefined) payload.grace_period = c.gracePeriod;
+      if (c.pixKey)      payload.pix_key      = c.pixKey;
 
-      const { data } = await supabase.from('churches').insert([payload]).select();
-      if(data) setChurches([...churches, toAppChurch(data[0])]);
+      const { data, error } = await supabase.from('churches').insert([payload]).select();
+      if (error) return { success: false, error: error.message };
+      if (data) setChurches(prev => [...prev, toAppChurch(data[0])]);
+      return { success: true, id: data?.[0]?.id };
   };
 
   const updateChurch = async (id: string, d: Partial<Church>) => {
