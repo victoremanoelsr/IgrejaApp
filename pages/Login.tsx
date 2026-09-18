@@ -142,7 +142,7 @@ export const Login: React.FC = () => {
         setNewUsername('');
       }, 3000);
     } else {
-      setError('Erro ao atualizar usuário: ' + res.error);
+      setError(res.error || 'Erro ao atualizar usuário.');
     }
   };
 
@@ -169,7 +169,7 @@ export const Login: React.FC = () => {
         setShowConfirmPass(false);
       }, 3000);
     } else {
-      setError('Erro ao atualizar senha: ' + res.error);
+      setError(res.error || 'Erro ao atualizar senha.');
     }
   };
 

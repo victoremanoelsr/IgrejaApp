@@ -188,7 +188,11 @@ export const Users: React.FC = () => {
     };
 
     if (editingUserId) {
-      updateUser(editingUserId, payload);
+      const res = await updateUser(editingUserId, payload);
+      if (!res.success) {
+        showAlert("Erro", `Erro ao atualizar: ${res.error || 'Falha ao salvar alterações.'}`, 'danger');
+        return;
+      }
       showAlert("Sucesso", "Usuário atualizado com sucesso!", 'success');
     } else {
       const res = await addUser(payload);

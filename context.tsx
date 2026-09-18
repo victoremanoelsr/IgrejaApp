@@ -64,7 +64,7 @@ interface AppContextType {
   toggleChurchStatus: (id: string) => Promise<void>;
   
   addUser: (u: User) => Promise<{success: boolean, error?: string}>;
-  updateUser: (id: string, u: User) => Promise<void>;
+  updateUser: (id: string, u: User) => Promise<{success: boolean, error?: string}>;
   deleteUser: (id: string) => Promise<void>;
   removeFromTeam: (id: string) => Promise<{success: boolean, error?: string}>;
   
@@ -566,13 +566,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return found ? found.id : null;
   };
 
-  const updateUserCredentials = async (id: string, username?: string, password?: string) => {
-    const { error } = await supabase.rpc('update_user_credentials', {
+  const updateUserCredentials = async (id: string, username?: string, password?: string): Promise<{success: boolean, error?: string}> => {
+    const { data, error } = await supabase.rpc('update_user_credentials', {
       p_id: id,
       p_username: username ?? null,
       p_password: password ?? null,
     });
     if (error) return { success: false, error: error.message };
+    if (data && typeof data === 'object' && (data as any).success === false) {
+      return { success: false, error: (data as any).error || 'Erro ao atualizar credenciais.' };
+    }
 
     // Nota: supabase.auth.updateUser() só atualiza o usuário logado atualmente,
     // não o usuário-alvo. A atualização real é feita pelo RPC acima (SECURITY DEFINER).
@@ -1022,14 +1025,76 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return { success: true };
   };
 
-  const updateUser = async (id: string, u: User) => {
-      await supabase.from('profiles').update({
+  const updateUser = async (id: string, u: User): Promise<{success: boolean, error?: string}> => {
+      // 1. Tenta via RPC update_profile_admin (bypassa RLS e sincroniza auth e profiles)
+      const { data: rpcData, error: rpcError } = await supabase.rpc('update_profile_admin', {
+          p_id: id,
+          p_name: u.name,
+          p_username: u.username,
+          p_role: u.role,
+          p_church_id: u.churchId || null,
+          p_cpf: u.cpf || null,
+          p_birth_date: u.birthDate || null,
+          p_password: (u.password && u.password.trim() !== '') ? u.password : null
+      });
+
+      if (!rpcError && rpcData) {
+          if ((rpcData as any).success === false) {
+              return { success: false, error: (rpcData as any).error || 'Erro ao atualizar usuário.' };
+          }
+          const { data: row } = await supabase.from('profiles').select('*').eq('id', id).single();
+          if (row) {
+              setUsers(users.map(us => us.id === id ? toAppUser(row) : us));
+          } else {
+              setUsers(users.map(us => us.id === id ? { ...us, ...u } : us));
+          }
+          return { success: true };
+      }
+
+      console.error('[updateUser] RPC update_profile_admin falhou:', rpcError?.message);
+
+      // Fallback para update direto caso a RPC não esteja disponível
+      const updatePayload: any = {
           name: u.name,
           username: u.username,
           role: u.role,
           church_id: u.churchId
-      }).eq('id', id);
-      setUsers(users.map(us => us.id === id ? u : us));
+      };
+      if (u.cpf !== undefined) updatePayload.cpf = u.cpf;
+      if (u.birthDate !== undefined && u.birthDate !== '') updatePayload.birth_date = cleanDate(u.birthDate);
+      if (u.password && u.password.trim() !== '') updatePayload.password = u.password;
+
+      let { data: updatedRows, error } = await supabase.from('profiles').update(updatePayload).eq('id', id).select();
+      if (error && (error.message?.includes('birth_date') || error.message?.includes('cpf'))) {
+          const basicPayload: any = {
+              name: u.name,
+              username: u.username,
+              role: u.role,
+              church_id: u.churchId
+          };
+          if (u.password && u.password.trim() !== '') basicPayload.password = u.password;
+          const retryRes = await supabase.from('profiles').update(basicPayload).eq('id', id).select();
+          error = retryRes.error;
+          updatedRows = retryRes.data;
+      }
+
+      if (error) {
+          console.error('[updateUser] erro:', error.message);
+          return { success: false, error: error.message };
+      }
+
+      if (!updatedRows || updatedRows.length === 0) {
+          const errMsg = rpcError?.message || 'Permissão negada ou função não encontrada no Supabase.';
+          console.error('[updateUser] Nenhuma linha atualizada:', errMsg);
+          return { success: false, error: errMsg };
+      }
+
+      if (u.password && u.password.trim() !== '') {
+          await updateUserCredentials(id, u.username, u.password);
+      }
+
+      setUsers(users.map(us => us.id === id ? toAppUser(updatedRows[0]) : us));
+      return { success: true };
   };
 
   const deleteUser = async (id: string) => {
