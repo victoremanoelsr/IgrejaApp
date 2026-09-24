@@ -127,14 +127,43 @@ export const getMemberUpcomingEvents = async (churchId: string): Promise<Event[]
   return rows.map(toAppEvent);
 };
 
-export const getMemberCarnets = async (churchId: string): Promise<CarnetTemplate[]> => {
+export const getMemberCarnets = async (churchId: string, parentId?: string): Promise<CarnetTemplate[]> => {
+  // 1. Tenta RPC SECURITY DEFINER caso exista no banco
+  try {
+    const { data: rpcData, error: rpcError } = await supabase.rpc('get_member_carnet_templates', {
+      p_church_id: churchId
+    });
+    if (!rpcError && rpcData && Array.isArray(rpcData) && rpcData.length > 0) {
+      return rpcData.map(toAppCarnetTemplate);
+    }
+  } catch (_) {}
+
+  // 2. Tenta buscar pelo churchId do membro ou da sede (parentId)
+  const churchIds = [churchId];
+  if (parentId && parentId !== churchId) churchIds.push(parentId);
+
   const { data, error } = await supabase
     .from('mission_carnet_templates')
     .select('*')
-    .eq('church_id', churchId);
+    .in('church_id', churchIds)
+    .order('is_default', { ascending: false });
 
-  if (error || !data) return [];
-  return data.map(toAppCarnetTemplate);
+  if (!error && data && data.length > 0) {
+    return data.map(toAppCarnetTemplate);
+  }
+
+  // 3. Fallback: se templates estiverem registrados na sede ou em outro church_id
+  const { data: anyData } = await supabase
+    .from('mission_carnet_templates')
+    .select('*')
+    .order('is_default', { ascending: false })
+    .limit(10);
+
+  if (anyData && anyData.length > 0) {
+    return anyData.map(toAppCarnetTemplate);
+  }
+
+  return [];
 };
 
 export const getMemberLetterHistory = async (

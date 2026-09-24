@@ -323,7 +323,7 @@ export const SuperAdminDashboard: React.FC = () => {
                 <button onClick={() => setShowUnifiedForm(false)} className="text-gray-400 hover:text-gray-600 text-xl font-bold">✕</button>
               </div>
 
-              <form onSubmit={handleSaveUnified} className="space-y-6">
+              <form onSubmit={handleSaveUnified} autoComplete="off" className="space-y-6">
 
                 {/* SEÇÃO 1 — Dados da Igreja */}
                 <div>
@@ -365,12 +365,31 @@ export const SuperAdminDashboard: React.FC = () => {
                       <input className="w-full p-2 border rounded text-sm" placeholder="000.000.000-00" maxLength={14} value={unifiedForm.pastorCpf} onChange={e => setUnifiedForm({...unifiedForm, pastorCpf: formatCPF(e.target.value)})} />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-gray-500 uppercase mb-1">E-mail / Login *</label>
-                      <input required type="email" className="w-full p-2 border rounded text-sm" placeholder="pastor@email.com" value={unifiedForm.pastorEmail} onChange={e => setUnifiedForm({...unifiedForm, pastorEmail: e.target.value})} />
+                      <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Usuário (Login) *</label>
+                      <input 
+                        required 
+                        type="text" 
+                        autoComplete="off"
+                        name="new_pastor_login"
+                        className="w-full p-2 border rounded text-sm" 
+                        placeholder="Ex: victor ou pr.silva" 
+                        value={unifiedForm.pastorEmail} 
+                        onChange={e => setUnifiedForm({...unifiedForm, pastorEmail: e.target.value})} 
+                      />
                     </div>
                     <div className="md:col-span-2">
                       <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Senha de Primeiro Acesso *</label>
-                      <input required type="password" className="w-full p-2 border rounded text-sm" placeholder="Mínimo 6 caracteres" minLength={6} value={unifiedForm.pastorPassword} onChange={e => setUnifiedForm({...unifiedForm, pastorPassword: e.target.value})} />
+                      <input 
+                        required 
+                        type="password" 
+                        autoComplete="new-password"
+                        name="new_pastor_pass"
+                        className="w-full p-2 border rounded text-sm" 
+                        placeholder="Mínimo 4 caracteres" 
+                        minLength={4} 
+                        value={unifiedForm.pastorPassword} 
+                        onChange={e => setUnifiedForm({...unifiedForm, pastorPassword: e.target.value})} 
+                      />
                     </div>
                   </div>
                 </div>

@@ -6,15 +6,24 @@ import { useApp } from '../context';
 
 export const BlockedPage: React.FC = () => {
   const navigate = useNavigate();
-  const { systemSettings, logout, user } = useApp();
+  const { systemSettings, logout, user, churches, currentChurch } = useApp();
 
   const salesPhone = (systemSettings.salesPhone || '').replace(/\D+/g, '');
   const supportEmail = systemSettings.supportEmail?.trim();
 
   const handleWhatsApp = () => {
-    const msg = encodeURIComponent(
-      'Olá! Minha igreja está com o acesso ao IgrejaApp suspenso por pagamento pendente. Quero regularizar.'
-    );
+    const church = currentChurch || churches.find(c => c.id === user?.churchId);
+    const churchInfo = church?.name ? ` da igreja *${church.name}*` : '';
+    const userGreeting = user?.name ? `Sou ${user.name}${churchInfo}.` : (churchInfo ? `Falo${churchInfo}.` : '');
+
+    const textParts = [
+      'Olá!',
+      userGreeting,
+      'Nosso acesso ao sistema IgrejaApp está bloqueado por pagamento pendente.',
+      'Poderia me enviar a chave PIX e o valor para fazermos o pagamento e liberar o sistema, por favor?'
+    ].filter(Boolean);
+
+    const msg = encodeURIComponent(textParts.join('\n\n'));
     const url = salesPhone
       ? `https://wa.me/${salesPhone}?text=${msg}`
       : `https://wa.me/?text=${msg}`;
@@ -76,7 +85,7 @@ export const BlockedPage: React.FC = () => {
             className="flex items-center justify-center gap-2 py-3 px-5 bg-green-600 hover:bg-green-500 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-green-900/30"
           >
             <MessageCircle size={18} />
-            Falar com Vendas (WhatsApp)
+            Falar com Financeiro (WhatsApp)
           </motion.button>
 
           {supportEmail && (

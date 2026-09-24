@@ -197,7 +197,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     { label: t('nav.infrastructure'), icon: Building2, path: '/infraestrutura', roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'DIRIGENTE', 'TESOUREIRO', 'SECRETARIO'] },
     { label: t('nav.reports'), icon: FileText, path: '/relatorios', roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'DIRIGENTE', 'TESOUREIRO', 'SECRETARIO'] },
     { label: t('nav.users'), icon: ShieldCheck, path: '/usuarios', roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'DIRIGENTE'] },
-    { label: t('nav.settings'), icon: Settings, path: '/configuracoes', roles: ['SUPER_ADM', 'PRESIDENTE', 'DIRIGENTE'] },
+    { label: t('nav.settings'), icon: Settings, path: '/configuracoes', roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'TESOUREIRO', 'DIRIGENTE'] },
     { label: 'Pagamentos do Sistema', icon: CreditCard, path: '/faturamento', roles: ['PRESIDENTE', 'VICE_PRESIDENTE', 'TESOUREIRO'] },
   ];
 

@@ -229,6 +229,12 @@ export interface LetterHistory {
     birthDate: string;
     roleOrFunction: string; // e.g., "MEMBRO", "OBREIRO"
     cpf: string;
+    rg?: string;
+    maritalStatus?: string;
+    nacionalidade?: string;
+    naturalidade?: string;
+    fatherName?: string;
+    motherName?: string;
   };
 }
 

@@ -425,6 +425,19 @@ export const Members: React.FC = () => {
             </div>
             <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
             <p className="text-xs text-gray-400 mt-2 font-medium">Toque para alterar a foto</p>
+            {(selectedFile || formData.photo) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedFile(null);
+                  setFormData(prev => ({ ...prev, photo: '' }));
+                  if (fileInputRef.current) fileInputRef.current.value = '';
+                }}
+                className="mt-1 text-[11px] text-red-500 hover:text-red-700 font-semibold transition-colors"
+              >
+                Remover foto
+              </button>
+            )}
         </div>
 
         {/* ÁREA DE SEGURANÇA (VISÍVEL APENAS PARA O PRÓPRIO USUÁRIO) */}

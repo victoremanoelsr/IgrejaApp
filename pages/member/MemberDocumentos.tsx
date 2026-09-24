@@ -67,19 +67,26 @@ const renderJustifiedText = (
 const buildReplacements = (
   snap: LetterHistory['memberDataSnapshot'],
   fullDate: string,
+  churchPastor?: string,
 ) => ({
-  '{{nome_membro}}': snap.name || '',
-  '{{cpf}}': snap.cpf || '',
-  '{{cargo}}': snap.roleOrFunction || '',
-  '{{data_batismo}}': snap.baptismDate
+  '{{nome_membro}}': snap?.name || '',
+  '{{cpf}}': snap?.cpf || '',
+  '{{rg}}': snap?.rg || '',
+  '{{cargo}}': snap?.roleOrFunction || '',
+  '{{data_batismo}}': snap?.baptismDate
     ? new Date(snap.baptismDate).toLocaleDateString('pt-BR')
     : '-',
-  '{{data_nascimento}}': snap.birthDate
+  '{{data_nascimento}}': snap?.birthDate
     ? new Date(snap.birthDate).toLocaleDateString('pt-BR')
     : '-',
   '{{data_atual}}': new Date().toLocaleDateString('pt-BR'),
   '{{cidade_igreja}}': fullDate,
-  '{{estado_civil}}': '',
+  '{{estado_civil}}': snap?.maritalStatus || '',
+  '{{nome_pastor_presidente}}': churchPastor || '',
+  '{{nacionalidade}}': snap?.nacionalidade || 'Brasileiro(a)',
+  '{{naturalidade}}': snap?.naturalidade || '',
+  '{{nome_pai}}': snap?.fatherName || '',
+  '{{nome_mae}}': snap?.motherName || '',
 });
 
 async function generateCertPDF(
@@ -120,7 +127,7 @@ async function generateCertPDF(
     const city = churchAddress.split(',')[1]?.trim() || churchName;
     const today = new Date();
     const fullDate = `${city}, ${today.getDate()} de ${today.toLocaleString('pt-BR', { month: 'long' })} de ${today.getFullYear()}`;
-    const replacements = buildReplacements(doc.memberDataSnapshot, fullDate);
+    const replacements = buildReplacements(doc.memberDataSnapshot, fullDate, pastorName);
 
     if (template) {
       // --- Template-based rendering (matches Letters.tsx exactly) ---
@@ -160,11 +167,19 @@ async function generateCertPDF(
             pdf.setFontSize(el.style?.fontSize || 11);
             pdf.setFont('helvetica', el.style?.fontWeight === 'bold' ? 'bold' : 'normal');
 
-            const pageMargin = 15;
+            const pageMargin = 20;
             const safeMaxW   = pdfW - 2 * pageMargin;
-            const textY      = (el.y * scale) + ((el.style?.fontSize || 11) * 0.35);
             const lh         = pdf.getLineHeight() / pdf.internal.scaleFactor;
-            const align      = el.style?.textAlign as string;
+
+            // Centralização vertical real do bloco de texto
+            const allLinesEst: string[] = [];
+            processed.split('\n').forEach(para => {
+              if (para.trim() === '') { allLinesEst.push(''); return; }
+              allLinesEst.push(...pdf.splitTextToSize(para, safeMaxW));
+            });
+            const blockH = allLinesEst.length * lh;
+            const textY  = Math.max(pageMargin + lh, (pdfH - blockH) / 2 + lh);
+            const align  = el.style?.textAlign as string;
 
             if (align === 'center') {
               const lines = pdf.splitTextToSize(processed, safeMaxW);
@@ -266,7 +281,7 @@ export const MemberDocumentos: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 max-w-2xl">
+    <div className="space-y-6 w-full max-w-7xl mx-auto animate-fade-in">
       <div>
         <h1 className="text-2xl font-bold text-gray-800">Certificados</h1>
         <p className="text-gray-500 text-sm mt-1">Certificados permanentes emitidos em seu nome</p>
@@ -285,7 +300,7 @@ export const MemberDocumentos: React.FC = () => {
           </p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {letterHistory.map((cert: LetterHistory) => {
             const cfg = CERT_CONFIG[cert.letterType] ?? CERT_CONFIG.BATISMO;
             const isViewLoading = loadingId === `${cert.id}-view`;
@@ -295,7 +310,7 @@ export const MemberDocumentos: React.FC = () => {
             return (
               <div
                 key={cert.id}
-                className="bg-white rounded-xl shadow-sm border border-gray-200 p-4"
+                className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 flex flex-col justify-between hover:shadow-md hover:border-orange-200 transition-all"
               >
                 <div className="flex items-center gap-4">
                   <div className={`flex items-center justify-center w-10 h-10 rounded-full border ${cfg.color} shrink-0`}>

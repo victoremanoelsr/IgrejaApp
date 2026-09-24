@@ -17,6 +17,7 @@ import {
   deletePendingTransaction,
   getPendingCount,
 } from './utils/offlineDB';
+import { deleteFileFromSupabaseStorage } from './utils/storageUtils';
 import type { ToastType } from './components/Toast';
 import { ToastContainer } from './components/Toast';
 
@@ -651,6 +652,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateMember = async (id: string, m: Member) => {
+    const oldMember = members.find(mem => mem.id === id);
+    const oldPhotoUrl = oldMember?.photo;
+
     const baseUpdate: any = {
       name: m.name,
       cpf: m.cpf,
@@ -679,6 +683,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     if (!error) {
+      // Se a foto mudou e havia foto antiga salva no storage, remove a antiga
+      if (oldPhotoUrl && oldPhotoUrl !== m.photo) {
+        deleteFileFromSupabaseStorage(oldPhotoUrl, 'images').catch(() => {});
+      }
       setMembers(members.map(mem => mem.id === id ? m : mem));
       return { success: true };
     }
@@ -686,6 +694,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const deleteMember = async (id: string) => {
+    const memberToDelete = members.find(m => m.id === id);
+    if (memberToDelete?.photo) {
+      deleteFileFromSupabaseStorage(memberToDelete.photo, 'images').catch(() => {});
+    }
     await supabase.from('members').delete().eq('id', id);
     setMembers(members.filter(m => m.id !== id));
   };
@@ -872,7 +884,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (d.dueDay !== undefined) payload.due_day = d.dueDay;
       if (d.gracePeriod !== undefined) payload.grace_period = d.gracePeriod;
       if (d.paymentPromiseDate !== undefined) payload.payment_promise_date = d.paymentPromiseDate || null;
-      if (d.pixKey !== undefined) payload.pix_key = d.pixKey;
+      if (d.pixKey !== undefined) payload.pix_key = d.pixKey && d.pixKey.trim() !== '' ? d.pixKey.trim() : null;
 
       // New columns that may not exist yet in older DB schemas – handled separately
       const extendedPayload: any = {};
@@ -894,8 +906,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           await supabase.from('churches').update(extendedPayload).eq('id', id);
       }
 
-      setChurches(churches.map(c => c.id === id ? { ...c, ...d } : c));
-      if(currentChurch?.id === id) setCurrentChurch({ ...currentChurch, ...d });
+      const updatedPatch = {
+        ...d,
+        ...(d.pixKey !== undefined ? { pixKey: d.pixKey && d.pixKey.trim() !== '' ? d.pixKey.trim() : undefined } : {})
+      };
+
+      setChurches(churches.map(c => c.id === id ? { ...c, ...updatedPatch } : c));
+      if(currentChurch?.id === id) setCurrentChurch({ ...currentChurch, ...updatedPatch });
       return { success: true };
   };
 

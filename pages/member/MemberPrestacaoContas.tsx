@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useMember } from '../../contexts/MemberContext';
+import { supabase } from '../../services/supabaseClient';
 import { getPublicFinancialData, PublicTransaction } from '../../services/memberService';
 import {
   BarChart2,
@@ -110,7 +111,24 @@ export const MemberPrestacaoContas: React.FC = () => {
 
   useEffect(() => {
     if (session?.churchId) {
+      // 1. Carrega imediatamente do cache local para resposta rápida
       setConfig(getPrestacaoConfig(session.churchId));
+
+      // 2. Busca do Supabase para garantir sincronização entre diferentes aparelhos (computador do pastor vs celular do membro)
+      supabase
+        .from('churches')
+        .select('prestacao_config')
+        .eq('id', session.churchId)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (data?.prestacao_config) {
+            setConfig({ ...defaultConfig, ...data.prestacao_config });
+            try {
+              localStorage.setItem(PRESTACAO_CONFIG_KEY + session.churchId, JSON.stringify(data.prestacao_config));
+            } catch {}
+          }
+        })
+        .catch(() => {});
     }
   }, [session?.churchId]);
 

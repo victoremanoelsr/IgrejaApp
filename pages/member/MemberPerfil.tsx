@@ -126,7 +126,7 @@ const ChangeUsernameModal: React.FC<{ memberId: string; currentUsername?: string
 
 /* ─── Main ─── */
 export const MemberPerfil: React.FC = () => {
-  const { session, logout, updateMemberPhoto } = useMember();
+  const { session, logout, updateMemberPhoto, removeMemberPhoto } = useMember();
   const { t, i18n } = useTranslation();
   const lang = i18n.language;
   const navigate = useNavigate();
@@ -184,6 +184,22 @@ export const MemberPerfil: React.FC = () => {
     }
   };
 
+  const handleRemovePhoto = async () => {
+    setPhotoUploading(true);
+    setPhotoError(null);
+    try {
+      const result = await removeMemberPhoto();
+      if (result.success) {
+        setPhotoSuccess(true);
+        setTimeout(() => setPhotoSuccess(false), 3000);
+      } else {
+        setPhotoError(result.error || 'Erro ao remover foto.');
+      }
+    } finally {
+      setPhotoUploading(false);
+    }
+  };
+
   const initials = member.name.split(' ').filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('');
 
   const profileFields = [
@@ -196,7 +212,7 @@ export const MemberPerfil: React.FC = () => {
   ];
 
   return (
-    <div className="space-y-6 max-w-2xl">
+    <div className="space-y-6 w-full max-w-5xl mx-auto animate-fade-in">
       {showFirstAccessAlert && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
           <div className="flex items-start gap-3">
@@ -250,110 +266,127 @@ export const MemberPerfil: React.FC = () => {
         </div>
       )}
 
-      {/* Profile Header */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 text-center">
-        {/* Hidden file input */}
-        <input
-          ref={photoInputRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={handlePhotoChange}
-        />
+      {/* Grid Responsivo: 1 coluna no mobile, 12 colunas no desktop */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* Coluna Esquerda: Profile Header */}
+        <div className="lg:col-span-5 bg-white rounded-2xl shadow-sm border border-gray-200 p-6 text-center">
+          {/* Hidden file input */}
+          <input
+            ref={photoInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handlePhotoChange}
+          />
 
-        {/* Avatar with camera overlay */}
-        <div className="relative w-20 h-20 mx-auto mb-3">
-          {member.photo ? (
-            <img src={member.photo} alt={member.name} className="w-20 h-20 rounded-full object-cover border-4 border-orange-200" />
-          ) : (
-            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center">
-              <span className="text-white text-2xl font-bold">{initials}</span>
-            </div>
+          {/* Avatar with camera overlay */}
+          <div className="relative w-24 h-24 mx-auto mb-3">
+            {member.photo ? (
+              <img src={member.photo} alt={member.name} className="w-24 h-24 rounded-full object-cover border-4 border-orange-200 shadow-sm" />
+            ) : (
+              <div className="w-24 h-24 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center shadow-sm">
+                <span className="text-white text-3xl font-bold">{initials}</span>
+              </div>
+            )}
+            {/* Camera button overlay */}
+            <button
+              onClick={() => photoInputRef.current?.click()}
+              disabled={photoUploading}
+              title="Alterar foto"
+              className="absolute bottom-0 right-0 w-8 h-8 bg-orange-500 hover:bg-orange-600 disabled:bg-orange-300 rounded-full flex items-center justify-center shadow-md border-2 border-white transition-colors"
+            >
+              {photoUploading
+                ? <Loader size={14} className="text-white animate-spin" />
+                : <Camera size={14} className="text-white" />
+              }
+            </button>
+          </div>
+
+          {member.photo && (
+            <button
+              type="button"
+              onClick={handleRemovePhoto}
+              disabled={photoUploading}
+              className="text-[11px] text-red-500 hover:text-red-700 font-semibold mb-2 block mx-auto transition-colors disabled:opacity-50"
+            >
+              Remover foto
+            </button>
           )}
-          {/* Camera button overlay */}
-          <button
-            onClick={() => photoInputRef.current?.click()}
-            disabled={photoUploading}
-            title="Alterar foto"
-            className="absolute bottom-0 right-0 w-7 h-7 bg-orange-500 hover:bg-orange-600 disabled:bg-orange-300 rounded-full flex items-center justify-center shadow-md border-2 border-white transition-colors"
-          >
-            {photoUploading
-              ? <Loader size={13} className="text-white animate-spin" />
-              : <Camera size={13} className="text-white" />
-            }
-          </button>
+
+          <h2 className="text-gray-800 font-bold text-lg">{member.name}</h2>
+          <p className="text-gray-500 text-xs">{session.church.name}</p>
+          {member.memberNumber && (
+            <p className="text-gray-400 text-xs mt-0.5">{t('memberPortal.profile.memberNumber')} {member.memberNumber}</p>
+          )}
+          <div className="flex justify-center mt-3">
+            <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+              member.status === 'ATIVO'
+                ? 'bg-green-100 text-green-700 border border-green-200'
+                : 'bg-gray-100 text-gray-500 border border-gray-200'
+            }`}>
+              {member.status || 'ATIVO'}
+            </span>
+          </div>
         </div>
 
-        <h2 className="text-gray-800 font-bold text-lg">{member.name}</h2>
-        <p className="text-gray-500 text-xs">{session.church.name}</p>
-        {member.memberNumber && (
-          <p className="text-gray-400 text-xs mt-0.5">{t('memberPortal.profile.memberNumber')} {member.memberNumber}</p>
-        )}
-        <div className="flex justify-center mt-2">
-          <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-            member.status === 'ATIVO'
-              ? 'bg-green-100 text-green-700 border border-green-200'
-              : 'bg-gray-100 text-gray-500 border border-gray-200'
-          }`}>
-            {member.status || 'ATIVO'}
-          </span>
+        {/* Coluna Direita: Dados Pessoais e Ações da Conta */}
+        <div className="lg:col-span-7 space-y-6">
+          {/* Details */}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-5 space-y-3">
+            <h3 className="text-gray-700 text-sm font-semibold">{t('memberPortal.profile.personalData')}</h3>
+            {profileFields.map(({ icon: Icon, label, value }) => (
+              <div key={label} className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center shrink-0">
+                  <Icon size={14} className="text-gray-500" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-gray-400 text-[10px] uppercase tracking-wider font-semibold">{label}</p>
+                  <p className="text-gray-800 text-xs font-medium truncate">{value}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Actions */}
+          <div className="space-y-2.5">
+            <button onClick={() => setShowChangeUsername(true)}
+              className="w-full flex items-center gap-3 bg-white border border-gray-200 rounded-xl p-4 text-left shadow-sm hover:border-orange-300 hover:shadow-md transition-all">
+              <div className="w-9 h-9 rounded-lg bg-orange-50 border border-orange-200 flex items-center justify-center shrink-0">
+                <AtSign size={16} className="text-orange-500" />
+              </div>
+              <div>
+                <p className="text-gray-800 text-sm font-semibold">{t('memberPortal.profile.changeUsername')}</p>
+                <p className="text-gray-400 text-xs">
+                  {usernameChanged || member.memberUsername
+                    ? `${t('memberPortal.profile.currentLabel')} ${usernameChanged || member.memberUsername}`
+                    : t('memberPortal.profile.customizeUsername')}
+                </p>
+              </div>
+            </button>
+
+            <button onClick={() => setShowChangePassword(true)}
+              className="w-full flex items-center gap-3 bg-white border border-gray-200 rounded-xl p-4 text-left shadow-sm hover:border-orange-300 hover:shadow-md transition-all">
+              <div className="w-9 h-9 rounded-lg bg-orange-50 border border-orange-200 flex items-center justify-center shrink-0">
+                <Lock size={16} className="text-orange-500" />
+              </div>
+              <div>
+                <p className="text-gray-800 text-sm font-semibold">{t('memberPortal.profile.changePassword')}</p>
+                <p className="text-gray-400 text-xs">{t('memberPortal.profile.customizePassword')}</p>
+              </div>
+            </button>
+
+            <button onClick={handleLogout}
+              className="w-full flex items-center gap-3 bg-white border border-red-200 rounded-xl p-4 text-left shadow-sm hover:border-red-300 hover:bg-red-50 transition-all">
+              <div className="w-9 h-9 rounded-lg bg-red-50 border border-red-200 flex items-center justify-center shrink-0">
+                <LogOut size={16} className="text-red-500" />
+              </div>
+              <div>
+                <p className="text-red-500 text-sm font-semibold">{t('memberPortal.profile.logout')}</p>
+                <p className="text-gray-400 text-xs">{t('memberPortal.profile.endSession')}</p>
+              </div>
+            </button>
+          </div>
         </div>
-      </div>
-
-      {/* Details */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 space-y-3">
-        <h3 className="text-gray-700 text-sm font-semibold">{t('memberPortal.profile.personalData')}</h3>
-        {profileFields.map(({ icon: Icon, label, value }) => (
-          <div key={label} className="flex items-center gap-3">
-            <div className="w-7 h-7 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center shrink-0">
-              <Icon size={12} className="text-gray-500" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-gray-400 text-[10px] uppercase tracking-wider font-semibold">{label}</p>
-              <p className="text-gray-800 text-xs font-medium truncate">{value}</p>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Actions */}
-      <div className="space-y-2">
-        <button onClick={() => setShowChangeUsername(true)}
-          className="w-full flex items-center gap-3 bg-white border border-gray-200 rounded-xl p-4 text-left shadow-sm hover:border-orange-300 hover:shadow-md transition-all">
-          <div className="w-8 h-8 rounded-lg bg-orange-50 border border-orange-200 flex items-center justify-center shrink-0">
-            <AtSign size={14} className="text-orange-500" />
-          </div>
-          <div>
-            <p className="text-gray-800 text-sm font-semibold">{t('memberPortal.profile.changeUsername')}</p>
-            <p className="text-gray-400 text-xs">
-              {usernameChanged || member.memberUsername
-                ? `${t('memberPortal.profile.currentLabel')} ${usernameChanged || member.memberUsername}`
-                : t('memberPortal.profile.customizeUsername')}
-            </p>
-          </div>
-        </button>
-
-        <button onClick={() => setShowChangePassword(true)}
-          className="w-full flex items-center gap-3 bg-white border border-gray-200 rounded-xl p-4 text-left shadow-sm hover:border-orange-300 hover:shadow-md transition-all">
-          <div className="w-8 h-8 rounded-lg bg-orange-50 border border-orange-200 flex items-center justify-center shrink-0">
-            <Lock size={14} className="text-orange-500" />
-          </div>
-          <div>
-            <p className="text-gray-800 text-sm font-semibold">{t('memberPortal.profile.changePassword')}</p>
-            <p className="text-gray-400 text-xs">{t('memberPortal.profile.customizePassword')}</p>
-          </div>
-        </button>
-
-        <button onClick={handleLogout}
-          className="w-full flex items-center gap-3 bg-white border border-red-200 rounded-xl p-4 text-left shadow-sm hover:border-red-300 hover:bg-red-50 transition-all">
-          <div className="w-8 h-8 rounded-lg bg-red-50 border border-red-200 flex items-center justify-center shrink-0">
-            <LogOut size={14} className="text-red-500" />
-          </div>
-          <div>
-            <p className="text-red-500 text-sm font-semibold">{t('memberPortal.profile.logout')}</p>
-            <p className="text-gray-400 text-xs">{t('memberPortal.profile.endSession')}</p>
-          </div>
-        </button>
       </div>
 
       {showChangePassword && (

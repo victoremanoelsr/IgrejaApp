@@ -72,7 +72,7 @@ export const ConfiguracoesSaas: React.FC = () => {
         >
           <label className="flex items-center gap-2 text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
             <Phone size={14} className="text-emerald-400" />
-            Telefone para Vendas (WhatsApp)
+            Telefone / WhatsApp Financeiro e Vendas
           </label>
           <input
             type="tel"
@@ -83,7 +83,7 @@ export const ConfiguracoesSaas: React.FC = () => {
             onChange={e => setForm({ ...form, salesPhone: e.target.value })}
           />
           <p className="text-[11px] text-slate-500 mt-2">
-            Será usado nos botões "Contratar Novo Plano" e "Falar com Suporte" em todo o sistema.
+            Será usado nos botões "Falar com Financeiro" (tela de bloqueio), "Contratar Novo Plano" e contato em todo o sistema.
           </p>
         </motion.div>
 

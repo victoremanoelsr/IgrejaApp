@@ -13,6 +13,8 @@ import {
   subscribeToMemberTransactions,
 } from '../services/memberService';
 import { supabase } from '../services/supabaseClient';
+import { toAppMember } from '../services/dataMappers';
+import { deleteFileFromSupabaseStorage } from '../utils/storageUtils';
 
 const SESSION_KEY = 'member_session';
 
@@ -33,6 +35,7 @@ interface MemberContextType {
   refreshLetterHistory: () => Promise<void>;
   refreshCarnetHistory: () => Promise<void>;
   updateMemberPhoto: (file: File) => Promise<{ success: boolean; error?: string }>;
+  removeMemberPhoto: () => Promise<{ success: boolean; error?: string }>;
 }
 
 const MemberContext = createContext<MemberContextType | undefined>(undefined);
@@ -73,10 +76,29 @@ export const MemberProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [isLoadingLetters, setIsLoadingLetters] = useState(!!loadSession());
   const channelRef = useRef<any>(null);
   const letterChannelRef = useRef<any>(null);
+  const memberChannelRef = useRef<any>(null);
   const sessionRef = useRef<MemberSession | null>(loadSession());
 
-
   const fetchMemberData = async (s: MemberSession) => {
+    // Sincroniza dados mais recentes do membro direto do banco (ex: foto atualizada pela igreja)
+    try {
+      const { data: freshMember } = await supabase
+        .from('members')
+        .select('*')
+        .eq('id', s.member.id)
+        .maybeSingle();
+
+      if (freshMember) {
+        const updatedMember = toAppMember(freshMember);
+        s = { ...s, member: updatedMember };
+        setSession(s);
+        saveSession(s);
+        sessionRef.current = s;
+      }
+    } catch (err) {
+      console.warn('[fetchMemberData] Falha ao sincronizar dados do membro:', err);
+    }
+
     setIsLoading(true);
     try {
       const [contribs, campaignContribs, tithes, events, carnetList] = await Promise.all([
@@ -84,7 +106,7 @@ export const MemberProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         getMemberCampaignContributions(s.churchId, s.member.name),
         getMemberCurrentMonthTithes(s.churchId, s.member.id),
         getMemberUpcomingEvents(s.churchId),
-        getMemberCarnets(s.churchId),
+        getMemberCarnets(s.churchId, s.church?.parentId),
       ]);
       setContributions(contribs);
       setCampaignContributions(campaignContribs);
@@ -170,6 +192,35 @@ export const MemberProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         async () => {
           const data = await getMemberLetterHistory(s.churchId, s.member.id);
           setLetterHistory(data);
+        }
+      )
+      .subscribe();
+
+    // Sincronização em tempo real do cadastro do membro (foto, dados cadastrais pela igreja)
+    if (memberChannelRef.current) {
+      memberChannelRef.current.unsubscribe();
+    }
+    memberChannelRef.current = supabase
+      .channel(`member-profile-sync-${s.member.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'members',
+          filter: `id=eq.${s.member.id}`,
+        },
+        (payload) => {
+          if (payload.new) {
+            const updated = toAppMember(payload.new as any);
+            setSession((prev) => {
+              if (!prev) return null;
+              const nextSession: MemberSession = { ...prev, member: updated };
+              saveSession(nextSession);
+              sessionRef.current = nextSession;
+              return nextSession;
+            });
+          }
         }
       )
       .subscribe();
@@ -284,8 +335,10 @@ export const MemberProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const updateMemberPhoto = async (file: File): Promise<{ success: boolean; error?: string }> => {
     if (!session) return { success: false, error: 'Sessão não encontrada.' };
+    const oldPhotoUrl = session.member.photo;
+
     try {
-      // 1. Upload to Supabase storage
+      // 1. Upload para o Supabase Storage
       const fileExt = file.name.split('.').pop();
       const fileName = `member_${session.member.id}_${Date.now()}.${fileExt}`;
       const { error: uploadError } = await supabase.storage
@@ -296,17 +349,54 @@ export const MemberProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const { data: urlData } = supabase.storage.from('images').getPublicUrl(fileName);
       const photoUrl = urlData.publicUrl;
 
-      // 2. Update member record in DB via RPC (bypasses RLS for anon key)
+      // 2. Atualiza registro do membro no banco de dados
       const { error: dbError } = await supabase.rpc('update_member_photo', {
         p_member_id: session.member.id,
         p_photo_url: photoUrl,
       });
       if (dbError) return { success: false, error: dbError.message };
 
-      // 3. Update session in state + storage so photo shows immediately
+      // 3. Remove a foto antiga do Supabase Storage para evitar acúmulo de arquivos
+      if (oldPhotoUrl && oldPhotoUrl !== photoUrl) {
+        await deleteFileFromSupabaseStorage(oldPhotoUrl, 'images');
+      }
+
+      // 4. Atualiza a sessão e o storage local para exibição imediata
       const updatedSession: MemberSession = {
         ...session,
         member: { ...session.member, photo: photoUrl },
+      };
+      saveSession(updatedSession);
+      setSession(updatedSession);
+      sessionRef.current = updatedSession;
+
+      return { success: true };
+    } catch (e: any) {
+      return { success: false, error: e.message || 'Erro desconhecido.' };
+    }
+  };
+
+  const removeMemberPhoto = async (): Promise<{ success: boolean; error?: string }> => {
+    if (!session) return { success: false, error: 'Sessão não encontrada.' };
+    const oldPhotoUrl = session.member.photo;
+
+    try {
+      // 1. Atualiza no banco para remover a URL da foto
+      const { error: dbError } = await supabase.rpc('update_member_photo', {
+        p_member_id: session.member.id,
+        p_photo_url: '',
+      });
+      if (dbError) return { success: false, error: dbError.message };
+
+      // 2. Remove o arquivo do Supabase Storage
+      if (oldPhotoUrl) {
+        await deleteFileFromSupabaseStorage(oldPhotoUrl, 'images');
+      }
+
+      // 3. Atualiza estado e sessão
+      const updatedSession: MemberSession = {
+        ...session,
+        member: { ...session.member, photo: undefined },
       };
       saveSession(updatedSession);
       setSession(updatedSession);
@@ -337,6 +427,7 @@ export const MemberProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         refreshLetterHistory,
         refreshCarnetHistory,
         updateMemberPhoto,
+        removeMemberPhoto,
       }}
     >
       {children}

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../context';
+import { supabase } from '../services/supabaseClient';
 import { Settings as SettingsIcon, Save, Building, Camera, AlertTriangle, CheckCircle, Info, Key, BarChart2, Eye, EyeOff, FileDown, Filter } from 'lucide-react';
 import { getPrestacaoConfig, PRESTACAO_CONFIG_KEY, PrestacaoConfig } from './member/MemberPrestacaoContas';
 
@@ -77,12 +78,40 @@ export const Settings: React.FC = () => {
       setLogoUrl(currentChurch.logoUrl || '');
       setPixKey(currentChurch.pixKey?.trim() || '');
       setPrestConfig(getPrestacaoConfig(currentChurch.id));
+
+      // Sincroniza configurações da prestação de contas com o Supabase
+      supabase
+        .from('churches')
+        .select('prestacao_config')
+        .eq('id', currentChurch.id)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (data?.prestacao_config) {
+            setPrestConfig(data.prestacao_config);
+            try {
+              localStorage.setItem(PRESTACAO_CONFIG_KEY + currentChurch.id, JSON.stringify(data.prestacao_config));
+            } catch {}
+          }
+        })
+        .catch(() => {});
     }
   }, [currentChurch]);
 
-  const handleSavePrestConfig = () => {
+  const handleSavePrestConfig = async () => {
     if (!currentChurch) return;
-    localStorage.setItem(PRESTACAO_CONFIG_KEY + currentChurch.id, JSON.stringify(prestConfig));
+    try {
+      localStorage.setItem(PRESTACAO_CONFIG_KEY + currentChurch.id, JSON.stringify(prestConfig));
+    } catch {}
+
+    try {
+      await supabase
+        .from('churches')
+        .update({ prestacao_config: prestConfig })
+        .eq('id', currentChurch.id);
+    } catch (err) {
+      console.warn('[handleSavePrestConfig] Erro ao salvar prestacao_config no Supabase:', err);
+    }
+
     setPrestSaved(true);
     setTimeout(() => setPrestSaved(false), 3000);
   };

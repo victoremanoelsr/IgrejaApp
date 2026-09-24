@@ -4,7 +4,6 @@ import { useApp } from '../context';
 import { Member, LetterHistory, LetterTemplate, LayoutElement } from '../types';
 import { Mail, Search, X, Download, User, Check, History, Eye, FileSignature, AlertTriangle, CheckCircle, Info, Settings, Move, Image as ImageIcon, Save, Trash2, PlusCircle, Type, User as UserIcon, Calendar, Briefcase, MapPin, AlignLeft, AlignCenter, AlignRight, AlignJustify } from 'lucide-react';
 import jsPDF from 'jspdf';
-import Draggable, { DraggableData } from 'react-draggable';
 import { loadImageForPDF, addImageToPdf } from '../utils/pdfImageLoader';
 
 // --- CONSTANTES EDITOR ---
@@ -21,72 +20,10 @@ const DEFAULT_TEXTO_ELEMENT: LayoutElement = {
     id: 'tag_texto_cadastrado',
     type: 'text',
     content: '{{texto_cadastrado}}',
-    x: 40,
-    y: Math.round(EDITOR_HEIGHT * 0.25),
+    x: Math.round(EDITOR_WIDTH / 2),
+    y: Math.round(EDITOR_HEIGHT / 2),
     width: EDITOR_WIDTH - 80,
     style: { fontSize: 12, color: '#000000', fontWeight: 'normal', textAlign: 'justify' }
-};
-
-interface DraggableLabelProps {
-  el: LayoutElement;
-  isSelected: boolean;
-  onSelect: (id: string) => void;
-  onDragStop: (id: string, data: DraggableData) => void;
-}
-
-const DraggableLabel: React.FC<DraggableLabelProps> = ({ el, isSelected, onSelect, onDragStop }) => {
-  const nodeRef = useRef<HTMLDivElement>(null);
-
-  const friendlyName: Record<string, string> = {
-      '{{nome_membro}}': 'Nome Completo',
-      '{{cpf}}': 'CPF',
-      '{{cargo}}': 'Cargo/Função',
-      '{{data_batismo}}': 'Data Batismo',
-      '{{data_nascimento}}': 'Data Nasc.',
-      '{{data_atual}}': 'Data de Hoje',
-      '{{cidade_igreja}}': 'Cidade/Data',
-      '{{estado_civil}}': 'Est. Civil',
-      '{{texto_cadastrado}}': 'Texto da Carta',
-      '{{nome_pai}}': 'Nome do Pai',
-      '{{nome_mae}}': 'Nome da Mãe',
-      '{{rg}}': 'RG',
-      '{{naturalidade}}': 'Naturalidade',
-      '{{nacionalidade}}': 'Nacionalidade',
-      '{{nome_pastor_presidente}}': 'Pastor Presidente',
-  };
-
-  const getIcon = (content: string) => {
-      if (content === '{{texto_cadastrado}}') return <FileSignature size={12} className="mr-1"/>;
-      if (content.includes('nome') || content.includes('cpf')) return <UserIcon size={12} className="mr-1"/>;
-      if (content.includes('data')) return <Calendar size={12} className="mr-1"/>;
-      if (content.includes('cargo')) return <Briefcase size={12} className="mr-1"/>;
-      if (content.includes('cidade')) return <MapPin size={12} className="mr-1"/>;
-      return <Type size={12} className="mr-1"/>;
-  };
-
-  return (
-    <Draggable
-      nodeRef={nodeRef}
-      position={{ x: el.x, y: el.y }}
-      onStop={(e, data) => onDragStop(el.id, data)}
-      bounds="parent"
-    >
-      <div
-          ref={nodeRef}
-          onClick={(e) => { e.stopPropagation(); onSelect(el.id); }}
-          className={`absolute cursor-move flex items-center px-2 py-1 rounded shadow-sm border transition-all select-none z-20
-            ${isSelected
-                ? 'bg-blue-600 text-white border-blue-700 shadow-xl scale-105'
-                : 'bg-white/90 text-gray-800 border-gray-300 hover:bg-blue-50'
-            }`}
-      >
-          {getIcon(el.content)}
-          <div style={{ fontSize: '10px', fontWeight: 'bold', whiteSpace: 'nowrap' }}>
-              {friendlyName[el.content] || el.content}
-          </div>
-      </div>
-    </Draggable>
-  );
 };
 
 export const Letters: React.FC = () => {
@@ -367,7 +304,13 @@ export const Letters: React.FC = () => {
                     baptismDate: selectedMember.baptismDate,
                     birthDate: selectedMember.birthDate,
                     roleOrFunction,
-                    cpf: selectedMember.cpf
+                    cpf: selectedMember.cpf,
+                    rg: selectedMember.rg,
+                    maritalStatus: selectedMember.maritalStatus,
+                    nacionalidade: selectedMember.nacionalidade,
+                    naturalidade: selectedMember.naturalidade,
+                    fatherName: fatherName || '',
+                    motherName: motherName || ''
                 }
             } as LetterHistory);
             if (letterType === 'MUDANCA' && disableMember) {
@@ -404,8 +347,17 @@ export const Letters: React.FC = () => {
         setTemplateChangeText(t.changeText || '');
         setBackgroundUrl(t.backgroundUrl);
         const layout = t.layoutJson || [];
-        const hasTexto = layout.some(el => el.content === '{{texto_cadastrado}}');
-        setLayoutElements(hasTexto ? layout : [...layout, { ...DEFAULT_TEXTO_ELEMENT, id: `tag_texto_${Date.now()}` }]);
+        const textoEl = layout.find(el => el.content === '{{texto_cadastrado}}');
+        if (textoEl) {
+            setLayoutElements([{
+                ...textoEl,
+                x: Math.round(EDITOR_WIDTH / 2),
+                y: Math.round((isCertType(t.type) ? EDITOR_HEIGHT_LAND : EDITOR_HEIGHT) / 2),
+                width: textoEl.width || (EDITOR_WIDTH - 80),
+            }]);
+        } else {
+            setLayoutElements([{ ...DEFAULT_TEXTO_ELEMENT, id: `tag_texto_${Date.now()}` }]);
+        }
         setSelectedElementId(null);
     };
 
@@ -452,28 +404,6 @@ export const Letters: React.FC = () => {
             setIsSavingTemplate(false);
             if (bgInputRef.current) bgInputRef.current.value = '';
         }
-    };
-
-    const handleAddField = (tag: string) => {
-        const isText = tag === '{{texto_cadastrado}}';
-        const canvasH = isCertType(templateType) ? EDITOR_HEIGHT_LAND : EDITOR_HEIGHT;
-        const marginPx = Math.round(2 * (EDITOR_WIDTH / A4_WIDTH_MM));
-        const contentWidth = EDITOR_WIDTH - (2 * marginPx);
-        const newEl: LayoutElement = {
-            id: `tag_${Date.now()}`,
-            type: isText ? 'text' : 'tag',
-            content: tag,
-            x: isText ? Math.round(EDITOR_WIDTH / 2) : 50,
-            y: isText ? Math.round(canvasH / 2)       : 50,
-            width: isText ? contentWidth : 150,
-            style: { fontSize: 12, color: '#000000', fontWeight: 'normal', textAlign: isText ? 'center' : 'left' }
-        };
-        setLayoutElements(prev => [...prev, newEl]);
-        setSelectedElementId(newEl.id);
-    };
-
-    const handleDragStop = (id: string, data: DraggableData) => {
-        setLayoutElements(prev => prev.map(el => el.id === id ? { ...el, x: data.x, y: data.y } : el));
     };
 
     const updateElementStyle = (id: string, style: Partial<LayoutElement['style']>) => {
@@ -555,17 +485,33 @@ export const Letters: React.FC = () => {
                         {/* Toolbar de inserção de tags no Texto Modelo */}
                         <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
                             <p className="text-[10px] font-bold text-orange-600 uppercase mb-2 flex items-center gap-1">
-                                <Type size={10}/> Inserir Tag no Texto Modelo
+                                <Type size={10}/> Inserir Tag no Texto Modelo (no cursor)
                             </p>
                             <div className="flex flex-wrap gap-1">
-                                {['{{nome_membro}}','{{cpf}}','{{rg}}','{{cargo}}','{{data_batismo}}','{{data_nascimento}}','{{data_atual}}','{{cidade_igreja}}','{{estado_civil}}','{{naturalidade}}','{{nacionalidade}}','{{nome_pastor_presidente}}','{{nome_pai}}','{{nome_mae}}'].map(tag => (
+                                {[
+                                    { tag: '{{nome_membro}}', label: 'Nome' },
+                                    { tag: '{{cpf}}', label: 'CPF' },
+                                    { tag: '{{rg}}', label: 'RG' },
+                                    { tag: '{{estado_civil}}', label: 'Est. Civil' },
+                                    { tag: '{{nacionalidade}}', label: 'Nacionalidade' },
+                                    { tag: '{{naturalidade}}', label: 'Naturalidade' },
+                                    { tag: '{{cargo}}', label: 'Cargo' },
+                                    { tag: '{{nome_pastor_presidente}}', label: 'Pastor Pres.' },
+                                    { tag: '{{data_nascimento}}', label: 'Nascimento' },
+                                    { tag: '{{data_batismo}}', label: 'Batismo' },
+                                    { tag: '{{data_atual}}', label: 'Data Hoje' },
+                                    { tag: '{{cidade_igreja}}', label: 'Cidade/Data' },
+                                    { tag: '{{nome_pai}}', label: 'Nome Pai' },
+                                    { tag: '{{nome_mae}}', label: 'Nome Mãe' },
+                                ].map(({ tag, label }) => (
                                     <button
                                         key={tag}
+                                        type="button"
                                         onClick={() => insertTagAtCursor(tag)}
-                                        className="px-2 py-0.5 rounded text-[10px] font-bold border bg-white hover:bg-orange-100 text-orange-700 border-orange-300 transition-colors"
+                                        className="px-2 py-0.5 rounded text-[10px] font-bold border bg-white hover:bg-orange-100 hover:border-orange-400 text-orange-700 border-orange-300 transition-colors shadow-xs"
                                         title={`Inserir ${tag} no Texto Modelo`}
                                     >
-                                        {tag.replace(/{{|}}/g, '')}
+                                        {label}
                                     </button>
                                 ))}
                             </div>
@@ -583,6 +529,7 @@ export const Letters: React.FC = () => {
                                             {[8,9,10,11,12,14,16,18,20,24].map(s => <option key={s} value={s}>{s}px</option>)}
                                         </select>
                                         <button
+                                            type="button"
                                             onClick={() => updateElementStyle(textoEl.id, { fontWeight: textoEl.style.fontWeight === 'bold' ? 'normal' : 'bold' })}
                                             className={`p-1 border rounded text-xs font-bold w-7 h-7 flex items-center justify-center ${textoEl.style.fontWeight === 'bold' ? 'bg-blue-600 text-white' : 'bg-white'}`}
                                         >B</button>
@@ -590,7 +537,7 @@ export const Letters: React.FC = () => {
                                             {(['left','center','right','justify'] as const).map(align => {
                                                 const icons = { left: <AlignLeft size={11}/>, center: <AlignCenter size={11}/>, right: <AlignRight size={11}/>, justify: <AlignJustify size={11}/> };
                                                 return (
-                                                    <button key={align} onClick={() => updateElementStyle(textoEl.id, { textAlign: align })} className={`p-1 w-6 h-6 flex items-center justify-center border-r last:border-0 ${textoEl.style.textAlign === align ? 'bg-blue-600 text-white' : 'bg-white hover:bg-gray-50'}`}>
+                                                    <button key={align} type="button" onClick={() => updateElementStyle(textoEl.id, { textAlign: align })} className={`p-1 w-6 h-6 flex items-center justify-center border-r last:border-0 ${textoEl.style.textAlign === align ? 'bg-blue-600 text-white' : 'bg-white hover:bg-gray-50'}`}>
                                                         {icons[align]}
                                                     </button>
                                                 );
@@ -613,7 +560,7 @@ export const Letters: React.FC = () => {
                                 <Type size={14} className="mr-1.5"/> Texto Modelo
                             </h4>
                             <p className="text-[10px] text-gray-400 leading-relaxed">
-                                Digite o texto da carta/certificado. Use as tags acima para inserir dados dinâmicos. O texto aparecerá <b>centralizado</b> no documento.
+                                Digite o texto da carta/certificado. Use as tags acima para inserir dados dinâmicos. O texto aparecerá <b>centralizado no centro absoluto</b> do documento.
                             </p>
 
                             {(templateType !== 'MUDANCA') && (
@@ -652,71 +599,69 @@ export const Letters: React.FC = () => {
                         </div>
                     </div>
 
-                    {/* CANVAS PREVIEW — {{texto_cadastrado}} sempre centralizado */}
+                    {/* CANVAS PREVIEW — {{texto_cadastrado}} sempre centralizado no centro absoluto da folha */}
                     {(() => {
                         const isLand = isCertType(templateType);
                         const canvasH = isLand ? EDITOR_HEIGHT_LAND : EDITOR_HEIGHT;
                         const textoEl = layoutElements.find(el => el.content === '{{texto_cadastrado}}');
                         const activeText = templateType === 'MUDANCA' ? templateChangeText : templateRecommendationText;
                         const previewText = processTextForPreview(activeText);
+                        const widthPx = textoEl?.width || Math.round(EDITOR_WIDTH - 80);
+
                         return (
                             <div className="overflow-x-auto shrink-0">
-                                {/* Container A4 */}
+                                {/* Container da folha A4 com position: relative e dimensões exatas */}
                                 <div
                                     className="relative border-2 border-gray-300 bg-white overflow-hidden shadow-2xl"
                                     style={{ width: `${EDITOR_WIDTH}px`, height: `${canvasH}px` }}
                                     onClick={() => setSelectedElementId(null)}
                                 >
                                     {backgroundUrl && (
-                                        <img src={backgroundUrl} className="absolute inset-0 w-full h-full object-cover pointer-events-none" style={{ opacity: 0.85 }} />
+                                        <img
+                                            src={backgroundUrl}
+                                            alt="Papel Timbrado"
+                                            className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+                                            style={{ opacity: 0.88 }}
+                                        />
                                     )}
 
-                                    {/* Camada de centralização absoluta — eixo X e Y garantidos */}
-                                    <div style={{
-                                        position: 'absolute',
-                                        top: 0, left: 0, right: 0, bottom: 0,
-                                        display: 'flex',
-                                        flexDirection: 'column',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        zIndex: 10,
-                                        pointerEvents: 'none',
-                                    }}>
-                                        {textoEl && (
-                                            <div
-                                                style={{
-                                                    pointerEvents: 'auto',
-                                                    width: `${textoEl.width || (EDITOR_WIDTH - 80)}px`,
-                                                    fontSize: `${textoEl.style.fontSize}px`,
-                                                    color: textoEl.style.color,
-                                                    fontWeight: textoEl.style.fontWeight,
-                                                    textAlign: textoEl.style.textAlign as React.CSSProperties['textAlign'],
-                                                    lineHeight: 1.6,
-                                                    whiteSpace: 'pre-wrap',
-                                                    wordBreak: 'break-word',
-                                                    padding: '6px 8px',
-                                                    border: '1.5px dashed #93c5fd',
-                                                    background: 'rgba(255,255,255,0.72)',
-                                                    borderRadius: '2px',
-                                                    maxHeight: `${canvasH - 60}px`,
-                                                    overflow: 'hidden',
-                                                }}
-                                            >
-                                                {previewText || (
-                                                    <span style={{ color: '#94a3b8', fontStyle: 'italic', fontSize: '11px' }}>
-                                                        O texto do modelo aparecerá aqui centralizado. Digite no campo "Texto Modelo" ao lado.
-                                                    </span>
-                                                )}
-                                            </div>
-                                        )}
-                                    </div>
+                                    {/* BLOCO CENTRAL ABSOLUTO DA TAG {{texto_cadastrado}} (EIXO X E Y) */}
+                                    {textoEl && (
+                                        <div
+                                            style={{
+                                                position: 'absolute',
+                                                top: '50%',
+                                                left: '50%',
+                                                transform: 'translate(-50%, -50%)',
+                                                width: `${widthPx}px`,
+                                                fontSize: `${textoEl.style.fontSize}px`,
+                                                color: textoEl.style.color,
+                                                fontWeight: textoEl.style.fontWeight,
+                                                textAlign: (textoEl.style.textAlign || 'center') as React.CSSProperties['textAlign'],
+                                                lineHeight: 1.65,
+                                                whiteSpace: 'pre-wrap',
+                                                wordBreak: 'break-word',
+                                                padding: '12px 16px',
+                                                border: '1.5px dashed #3b82f6',
+                                                background: 'rgba(255, 255, 255, 0.82)',
+                                                backdropFilter: 'blur(2px)',
+                                                borderRadius: '4px',
+                                                boxShadow: '0 4px 15px rgba(0, 0, 0, 0.05)',
+                                                maxHeight: `${canvasH - 60}px`,
+                                                overflow: 'hidden',
+                                                boxSizing: 'border-box',
+                                                zIndex: 10,
+                                            }}
+                                        >
+                                            {previewText || (
+                                                <span style={{ color: '#94a3b8', fontStyle: 'italic', fontSize: '11px' }}>
+                                                    O texto do modelo aparecerá aqui centralizado. Digite no campo "Texto Modelo" ao lado.
+                                                </span>
+                                            )}
+                                        </div>
+                                    )}
 
-                                    {/* Elementos arrastáveis legacy (não-texto) mantidos por compatibilidade */}
-                                    {layoutElements.filter(el => el.content !== '{{texto_cadastrado}}').map(el => (
-                                        <DraggableLabel key={el.id} el={el} isSelected={selectedElementId === el.id} onSelect={setSelectedElementId} onDragStop={handleDragStop} />
-                                    ))}
-
-                                    <div className="absolute bottom-2 right-2 text-[10px] text-gray-400 bg-white/80 px-1 rounded pointer-events-none select-none">
+                                    <div className="absolute bottom-2 right-2 text-[10px] text-gray-400 bg-white/80 px-1.5 py-0.5 rounded shadow-sm pointer-events-none select-none">
                                         {isLand ? 'A4 Paisagem' : 'A4 Retrato'}
                                     </div>
                                 </div>

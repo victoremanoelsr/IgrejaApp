@@ -147,81 +147,92 @@ export const MemberFinanceiro: React.FC = () => {
   const hasData = yearContribs.length > 0 || yearCampaignContribs.length > 0;
 
   return (
-    <div className="space-y-5 max-w-2xl">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-800">{t('memberPortal.financial.title')}</h1>
-        <p className="text-gray-500 text-sm mt-1">{t('memberPortal.financial.subtitle')}</p>
-      </div>
-
-      {/* Dízimo do Mês */}
-      {isLoading ? (
-        <Skeleton className="h-20" />
-      ) : (
-        <div className="bg-gradient-to-br from-orange-50 to-orange-100 border border-orange-200 rounded-2xl p-4 flex items-center justify-between shadow-sm">
-          <div>
-            <p className="text-orange-500 text-[11px] font-bold uppercase tracking-wider mb-1">
-              {t('memberPortal.financial.titheOfMonth')}
-            </p>
-            <p className="text-orange-600 text-2xl font-extrabold">{formatCurrency(currentMonthTithes, lang)}</p>
-          </div>
-          <div className="w-12 h-12 rounded-xl bg-orange-200 flex items-center justify-center">
-            <TrendingUp size={22} className="text-orange-600" />
-          </div>
-        </div>
-      )}
-
-      {/* Year Selector */}
-      <div className="flex items-center justify-between bg-white border border-gray-200 rounded-xl px-4 py-3 shadow-sm">
-        <button
-          onClick={() => setSelectedYear(y => Math.max(y - 1, minYear))}
-          disabled={selectedYear <= minYear}
-          className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-        >
-          <ChevronLeft size={18} />
-        </button>
-
-        <div className="flex items-center gap-2">
-          <Calendar size={15} className="text-orange-400" />
-          <span className="text-gray-800 font-bold text-base">{selectedYear}</span>
-          {selectedYear === currentYear && (
-            <span className="text-[10px] bg-orange-100 text-orange-500 font-bold px-2 py-0.5 rounded-full">
-              {t('memberPortal.financial.currentYear')}
-            </span>
-          )}
+    <div className="space-y-6 w-full max-w-7xl mx-auto animate-fade-in">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800">{t('memberPortal.financial.title')}</h1>
+          <p className="text-gray-500 text-sm mt-1">{t('memberPortal.financial.subtitle')}</p>
         </div>
 
-        <button
-          onClick={() => setSelectedYear(y => Math.min(y + 1, currentYear))}
-          disabled={selectedYear >= currentYear}
-          className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-        >
-          <ChevronRight size={18} />
-        </button>
-      </div>
+        {/* Year Selector */}
+        <div className="flex items-center justify-between sm:justify-end gap-3 bg-white border border-gray-200 rounded-xl px-4 py-2.5 shadow-sm">
+          <button
+            onClick={() => setSelectedYear(y => Math.max(y - 1, minYear))}
+            disabled={selectedYear <= minYear}
+            className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          >
+            <ChevronLeft size={18} />
+          </button>
 
-      {/* Year Summary Cards */}
-      {isLoading ? (
-        <div className="grid grid-cols-2 gap-3">
-          {[1, 2].map((i) => <Skeleton key={i} className="h-20" />)}
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 gap-3">
-          <div className="bg-white rounded-xl shadow-sm border border-green-100 p-4 text-center">
-            <p className="text-gray-400 text-[10px] font-semibold uppercase tracking-wider mb-1">
-              {t('memberPortal.financial.totalTithes')} {selectedYear}
-            </p>
-            <p className="text-green-600 text-lg font-extrabold">{formatCurrency(yearTithes, lang)}</p>
-          </div>
-          <div className="bg-white rounded-xl shadow-sm border border-blue-100 p-4 text-center">
-            <p className="text-gray-400 text-[10px] font-semibold uppercase tracking-wider mb-1">
-              {t('memberPortal.financial.totalOfferings')} {selectedYear}
-            </p>
-            <p className="text-blue-600 text-lg font-extrabold">{formatCurrency(yearOfferings, lang)}</p>
-            {yearCampaignContribs.length > 0 && (
-              <p className="text-[9px] text-blue-400 mt-0.5">
-                inclui {yearCampaignContribs.length} oferta(s) de campanha
-              </p>
+          <div className="flex items-center gap-2">
+            <Calendar size={15} className="text-orange-400" />
+            <span className="text-gray-800 font-bold text-base">{selectedYear}</span>
+            {selectedYear === currentYear && (
+              <span className="text-[10px] bg-orange-100 text-orange-500 font-bold px-2 py-0.5 rounded-full">
+                {t('memberPortal.financial.currentYear')}
+              </span>
             )}
+          </div>
+
+          <button
+            onClick={() => setSelectedYear(y => Math.min(y + 1, currentYear))}
+            disabled={selectedYear >= currentYear}
+            className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          >
+            <ChevronRight size={18} />
+          </button>
+        </div>
+      </div>
+
+      {/* Resumo Financeiro em Grid Responsivo */}
+      {isLoading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {[1, 2, 3].map((i) => <Skeleton key={i} className="h-24" />)}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {/* Dízimo do Mês */}
+          <div className="bg-gradient-to-br from-orange-50 to-orange-100 border border-orange-200 rounded-2xl p-5 flex items-center justify-between shadow-sm">
+            <div>
+              <p className="text-orange-600 text-[11px] font-bold uppercase tracking-wider mb-1">
+                {t('memberPortal.financial.titheOfMonth')}
+              </p>
+              <p className="text-orange-700 text-2xl font-extrabold">{formatCurrency(currentMonthTithes, lang)}</p>
+            </div>
+            <div className="w-12 h-12 rounded-xl bg-orange-200/80 flex items-center justify-center">
+              <TrendingUp size={22} className="text-orange-600" />
+            </div>
+          </div>
+
+          {/* Total Dízimos no Ano */}
+          <div className="bg-white rounded-2xl shadow-sm border border-green-100 p-5 flex items-center justify-between">
+            <div>
+              <p className="text-gray-400 text-[11px] font-semibold uppercase tracking-wider mb-1">
+                {t('memberPortal.financial.totalTithes')} {selectedYear}
+              </p>
+              <p className="text-green-600 text-2xl font-extrabold">{formatCurrency(yearTithes, lang)}</p>
+            </div>
+            <div className="w-12 h-12 rounded-xl bg-green-50 border border-green-100 flex items-center justify-center">
+              <Wallet size={22} className="text-green-600" />
+            </div>
+          </div>
+
+          {/* Total Ofertas no Ano */}
+          <div className="bg-white rounded-2xl shadow-sm border border-blue-100 p-5 flex items-center justify-between">
+            <div>
+              <p className="text-gray-400 text-[11px] font-semibold uppercase tracking-wider mb-1">
+                {t('memberPortal.financial.totalOfferings')} {selectedYear}
+              </p>
+              <p className="text-blue-600 text-2xl font-extrabold">{formatCurrency(yearOfferings, lang)}</p>
+              {yearCampaignContribs.length > 0 && (
+                <p className="text-[10px] text-blue-500 mt-1 font-medium">
+                  inclui {yearCampaignContribs.length} oferta(s) de campanha
+                </p>
+              )}
+            </div>
+            <div className="w-12 h-12 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center">
+              <Megaphone size={22} className="text-blue-600" />
+            </div>
           </div>
         </div>
       )}
@@ -295,7 +306,7 @@ export const MemberFinanceiro: React.FC = () => {
                     </p>
                     <p className="text-gray-400 text-xs">{new Date(txn.date + 'T12:00:00').toLocaleDateString('pt-BR')}</p>
                     {txn.description && (
-                      <p className="text-gray-300 text-[10px] truncate max-w-[160px]">{txn.description}</p>
+                      <p className="text-gray-400 text-[11px] truncate max-w-xs sm:max-w-md lg:max-w-2xl">{txn.description}</p>
                     )}
                   </div>
                 </div>
