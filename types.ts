@@ -40,6 +40,7 @@ export interface User {
   cpf: string;
   birthDate?: string; 
   role: Role;
+  roles?: Role[]; // Lista de todos os cargos atribuídos (suporte a múltiplos departamentos)
   churchId?: string; // Agora opcional
   password?: string; 
 }

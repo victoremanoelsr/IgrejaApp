@@ -22,16 +22,24 @@ export const toAppChurch = (data: any): Church => ({
   pastorPhone: data.pastor_phone || undefined,
 });
 
-export const toAppUser = (data: any): User => ({
-  id: data.id,
-  name: data.name,
-  username: data.username,
-  cpf: data.cpf,
-  birthDate: data.birth_date,
-  role: data.role,
-  churchId: data.church_id || undefined, 
-  password: data.password 
-});
+export const toAppUser = (data: any): User => {
+  const rawRole = (data.role || 'MEMBRO').toString().trim();
+  const rolesList = (rawRole.includes(',') ? rawRole.split(',') : [rawRole])
+    .map((r: string) => r.trim())
+    .filter(Boolean) as Role[];
+
+  return {
+    id: data.id,
+    name: data.name,
+    username: data.username,
+    cpf: data.cpf,
+    birthDate: data.birth_date,
+    role: (rolesList[0] || 'MEMBRO') as Role,
+    roles: rolesList.length > 0 ? rolesList : [data.role],
+    churchId: data.church_id || undefined, 
+    password: data.password 
+  };
+};
 
 export const toAppMember = (data: any): Member => ({
   id: data.id,

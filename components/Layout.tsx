@@ -37,10 +37,13 @@ import {
   WifiOff,
   CreditCard,
   Crown,
+  ArrowLeftRight,
 } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Church } from '../types';
 import { NotificationCenter } from './NotificationCenter';
+import { DepartmentSelectorModal } from './DepartmentSelectorModal';
+import { getUserRoles, getRoleInfo } from '../utils/roleUtils';
 
 interface ChurchOptionProps {
   church: Church;
@@ -75,7 +78,7 @@ const ChurchOption: React.FC<ChurchOptionProps> = ({ church, isChild = false, cu
 );
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, logout, currentChurch, availableChurches, selectChurch, exitAdminView, members, isOnline, pendingOfflineCount } = useApp();
+  const { user, logout, currentChurch, availableChurches, selectChurch, exitAdminView, members, isOnline, pendingOfflineCount, switchActiveRole } = useApp();
   const { t, i18n } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
@@ -84,6 +87,10 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   const [isDesktopHovered, setIsDesktopHovered] = useState(false);
   const [showChurchSelector, setShowChurchSelector] = useState(false);
   const [showLangSelector, setShowLangSelector] = useState(false);
+  const [showDeptModal, setShowDeptModal] = useState(false);
+
+  const userRoles = getUserRoles(user);
+  const hasMultipleRoles = userRoles.length > 1;
 
   const handleLanguageChange = (code: string) => {
     i18n.changeLanguage(code);
@@ -374,6 +381,33 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
 
         {/* FOOTER */}
         <div className="p-4 border-t border-gray-800 bg-[#0a0a0a]">
+            {hasMultipleRoles && (
+              <div className="mb-3">
+                {isExpanded ? (
+                  <button
+                    onClick={() => setShowDeptModal(true)}
+                    className="w-full flex items-center justify-between px-3 py-2 bg-gradient-to-r from-orange-600/25 via-amber-600/20 to-orange-500/25 hover:from-orange-600/40 hover:to-amber-600/40 border border-orange-500/40 text-orange-200 hover:text-white rounded-lg transition-all duration-200 group shadow-sm"
+                    title="Alternar entre seus departamentos"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <ArrowLeftRight size={15} className="text-brand-orange group-hover:rotate-180 transition-transform duration-300 shrink-0" />
+                      <span className="text-xs font-bold truncate">Alternar Depto</span>
+                    </div>
+                    <span className="text-[10px] font-bold bg-brand-orange text-black px-1.5 py-0.5 rounded-full shrink-0 shadow-sm">
+                      {userRoles.length}
+                    </span>
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => setShowDeptModal(true)}
+                    className="w-10 h-10 mx-auto flex items-center justify-center bg-orange-600/30 hover:bg-orange-600/50 border border-orange-500/40 text-brand-orange hover:text-white rounded-lg transition-all"
+                    title={`Alternar Departamento (${userRoles.length} disponíveis)`}
+                  >
+                    <ArrowLeftRight size={18} />
+                  </button>
+                )}
+              </div>
+            )}
             {/* ... (Existing footer logic for User Profile and Church Switcher) ... */}
             <div className="relative">
                 {isExpanded ? (
@@ -480,6 +514,20 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
            {children}
         </div>
       </main>
+
+      {showDeptModal && user && (
+        <DepartmentSelectorModal
+          user={user}
+          currentRole={user.role}
+          onSelectRole={(selectedRole) => {
+            switchActiveRole(selectedRole);
+            const target = getRoleInfo(selectedRole);
+            setShowDeptModal(false);
+            navigate(target.path, { state: target.state });
+          }}
+          onClose={() => setShowDeptModal(false)}
+        />
+      )}
     </div>
   );
 };

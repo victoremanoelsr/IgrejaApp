@@ -20,6 +20,7 @@ import Draggable, { DraggableData } from 'react-draggable';
 import { GoogleGenAI, Type as GenAIType } from "@google/genai";
 import { CarnetEditor } from '../components/CarnetEditor';
 import { loadImageForPDF, renderElementsToPDF, addImageToPdf } from '../utils/pdfImageLoader';
+import { getUserRoles, addRoleToUserRoles } from '../utils/roleUtils';
 
 // --- CONFIGURAÇÕES DE DIMENSÃO (BASE 96 DPI) ---
 const EDITOR_WIDTH = 794; 
@@ -466,35 +467,91 @@ export const MissionsPanel: React.FC = () => {
 
   const handleDragStop = (id: string, data: DraggableData) => { setLayoutElements(prev => prev.map(el => el.id === id ? { ...el, x: data.x, y: data.y } : el)); };
   const updateSelectedStyle = (key: keyof LayoutElement['style'], value: any) => { if (!selectedElementId) return; setLayoutElements(prev => prev.map(el => el.id === selectedElementId ? { ...el, style: { ...el.style, [key]: value } } : el)); };
-  const missionsUsers = users.filter(u => u.churchId === currentChurch?.id && MISSIONS_ROLES.some(mr => mr.role === u.role));
+  const missionsUsers = users.filter(u => u.churchId === currentChurch?.id && getUserRoles(u).some(mr => MISSIONS_ROLES.some(m => m.role === mr)));
   
-  const handleEditTeamMember = (user: User) => { setEditingUserId(user.id); setTeamFormData({ name: user.name, username: user.username, password: '', role: user.role, cpf: user.cpf }); setTeamFormMode('EDIT'); };
+  const handleEditTeamMember = (user: User) => {
+    const activeRole = getUserRoles(user).find(r => MISSIONS_ROLES.some(mr => mr.role === r)) || user.role;
+    setEditingUserId(user.id);
+    setTeamFormData({ name: user.name, username: user.username, password: '', role: activeRole, cpf: user.cpf });
+    setTeamFormMode('EDIT');
+  };
   
   const handleSaveTeamMember = async (e: React.FormEvent) => { 
       e.preventDefault(); 
       if (!currentChurch) return; 
-      const payload: User = { 
-          id: editingUserId || '', 
-          name: teamFormData.name.toUpperCase(), 
-          username: teamFormData.username, 
-          cpf: teamFormData.cpf, 
-          role: teamFormData.role, 
-          churchId: currentChurch.id, 
-          password: teamFormData.password 
-      }; 
+
       if (editingUserId) { 
-          await updateUser(editingUserId, payload); 
-          if (teamFormData.password) { await updateUserCredentials(editingUserId, undefined, teamFormData.password); } 
-          showFeedback('Atualizado!'); 
+          const existingUser = users.find(u => u.id === editingUserId);
+          if (existingUser) {
+              const otherRoles = getUserRoles(existingUser).filter(r => !MISSIONS_ROLES.some(mr => mr.role === r));
+              const updatedRoles = [...otherRoles, teamFormData.role];
+              const payload: User = { 
+                  ...existingUser, 
+                  name: teamFormData.name.toUpperCase(), 
+                  username: teamFormData.username, 
+                  cpf: teamFormData.cpf, 
+                  role: updatedRoles.join(',') as Role, 
+                  roles: updatedRoles, 
+                  churchId: currentChurch.id, 
+                  password: teamFormData.password || undefined 
+              }; 
+              await updateUser(editingUserId, payload); 
+              if (teamFormData.password) { await updateUserCredentials(editingUserId, undefined, teamFormData.password); } 
+              showFeedback('Atualizado!'); 
+          }
       } else { 
-          const res = await addUser(payload); 
-          if (res.success) showFeedback('Adicionado!'); 
-          else { showFeedback(res.error || 'Erro', 'error'); return; } 
+          const existingUser = users.find(u => 
+              (teamFormData.cpf && u.cpf && u.cpf.trim() === teamFormData.cpf.trim()) ||
+              (u.username && u.username.toLowerCase() === teamFormData.username.toLowerCase())
+          );
+
+          if (existingUser) {
+              const currentRoles = getUserRoles(existingUser);
+              const updatedRoles = addRoleToUserRoles(currentRoles, teamFormData.role);
+              const payload: User = {
+                  ...existingUser,
+                  name: teamFormData.name.toUpperCase(),
+                  cpf: teamFormData.cpf || existingUser.cpf,
+                  role: updatedRoles.join(',') as Role,
+                  roles: updatedRoles
+              };
+              await updateUser(existingUser.id, payload);
+              if (teamFormData.password) {
+                  await updateUserCredentials(existingUser.id, undefined, teamFormData.password);
+              }
+              showFeedback('Usuário já existente: cargo de missões adicionado!');
+          } else {
+              const payload: User = { 
+                  id: '', 
+                  name: teamFormData.name.toUpperCase(), 
+                  username: teamFormData.username, 
+                  cpf: teamFormData.cpf, 
+                  role: teamFormData.role, 
+                  churchId: currentChurch.id, 
+                  password: teamFormData.password 
+              }; 
+              const res = await addUser(payload); 
+              if (res.success) showFeedback('Adicionado!'); 
+              else { showFeedback(res.error || 'Erro', 'error'); return; } 
+          }
       } 
       setTeamFormMode('LIST'); setEditingUserId(null); setTeamFormData({ name: '', username: '', password: '', role: 'PRESIDENTE_MISSOES', cpf: '' }); 
   };
   
-  const handleDeleteTeamMember = async (id: string, name: string) => { setConfirmModal({ isOpen: true, title: 'Remover da Equipe', message: `Remover "${name}" da equipe de missões? O cadastro de membro e todo o histórico serão preservados.`, variant: 'danger', onConfirm: async () => { const res = await removeFromTeam(id); if(res.success) showFeedback('Membro removido da equipe.'); else showFeedback(res.error || 'Erro ao remover.', 'error'); setConfirmModal(prev => ({...prev, isOpen: false})); }}); };
+  const handleDeleteTeamMember = async (id: string, name: string, roleToRemove?: Role) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Remover da Equipe',
+      message: `Remover "${name}" da equipe de missões? O cadastro de membro e todo o histórico serão preservados.`,
+      variant: 'danger',
+      onConfirm: async () => {
+        const res = await removeFromTeam(id, roleToRemove);
+        if (res.success) showFeedback('Membro removido da equipe de missões.');
+        else showFeedback(res.error || 'Erro ao remover.', 'error');
+        setConfirmModal(prev => ({...prev, isOpen: false}));
+      }
+    });
+  };
   
   const handleCancelForm = () => {
     setAmount(''); setDesc(''); setSearchTerm(''); setSelectedMemberId(''); setSelectedFile(null); setMissionRecipient('');
@@ -1153,21 +1210,24 @@ export const MissionsPanel: React.FC = () => {
           {teamFormMode === 'LIST' ? (
               <div className="space-y-3">
                 {missionsUsers.length === 0 && <p className="text-center text-gray-400 py-8">Nenhum membro na equipe.</p>}
-                {missionsUsers.map(u => (
+                {missionsUsers.map(u => {
+                  const activeMissionsRole = getUserRoles(u).find(r => MISSIONS_ROLES.some(mr => mr.role === r)) || (u.role as Role);
+                  return (
                   <div key={u.id} className="p-4 border rounded-lg flex justify-between items-center hover:bg-gray-50 transition-colors">
                     <div className="flex items-center">
                         <div className="h-10 w-10 bg-teal-100 text-teal-600 rounded-full flex items-center justify-center mr-3 font-bold"><UserIcon size={20}/></div>
                         <div>
                             <p className="text-sm font-bold text-gray-800">{u.name}</p>
-                            <p className="text-xs text-gray-500">@{u.username} • <span className="text-teal-600 font-semibold">{MISSIONS_ROLES.find(r => r.role === u.role)?.label}</span></p>
+                            <p className="text-xs text-gray-500">@{u.username} • <span className="text-teal-600 font-semibold">{MISSIONS_ROLES.find(r => r.role === activeMissionsRole)?.label}</span></p>
                         </div>
                     </div>
                     {canAddToTeam && <div className="flex gap-2">
                         <button onClick={() => handleEditTeamMember(u)} className="p-2 text-gray-400 hover:text-teal-600 rounded-full"><Edit2 size={16}/></button>
-                        <button onClick={() => handleDeleteTeamMember(u.id, u.name)} className="p-2 text-gray-400 hover:text-red-500 rounded-full" title="Remover da equipe"><Trash2 size={16}/></button>
+                        <button onClick={() => handleDeleteTeamMember(u.id, u.name, activeMissionsRole)} className="p-2 text-gray-400 hover:text-red-500 rounded-full" title="Remover da equipe"><Trash2 size={16}/></button>
                     </div>}
                   </div>
-                ))}
+                  );
+                })}
               </div>
           ) : (
               <form onSubmit={handleSaveTeamMember} className="space-y-4 max-w-lg mx-auto bg-gray-50 p-6 rounded-xl border">

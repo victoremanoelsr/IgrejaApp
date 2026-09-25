@@ -4,14 +4,19 @@ import { useApp } from '../context';
 import { useMember } from '../contexts/MemberContext';
 import { useNavigate } from 'react-router-dom';
 import { Lock, User, ArrowRight, AlertCircle, CheckCircle, Building, Eye, EyeOff, Loader } from 'lucide-react';
+import { DepartmentSelectorModal } from '../components/DepartmentSelectorModal';
+import { getUserRoles, getRoleInfo } from '../utils/roleUtils';
+import { User as UserType } from '../types';
 
 type LoginStep = 'LOGIN' | 'RECOVERY_IDENTIFY' | 'RECOVERY_SELECT' | 'RECOVERY_RESET_USER' | 'RECOVERY_RESET_PASS';
 
 export const Login: React.FC = () => {
-  const { login, recoverAccount, updateUserCredentials } = useApp();
+  const { login, switchActiveRole, recoverAccount, updateUserCredentials } = useApp();
   const { login: memberLogin } = useMember();
   const navigate = useNavigate();
   const [step, setStep] = useState<LoginStep>('LOGIN');
+  const [multiRoleUser, setMultiRoleUser] = useState<UserType | null>(null);
+  const [showRoleModal, setShowRoleModal] = useState(false);
   
   // Form States
   const [username, setUsername] = useState('');
@@ -87,10 +92,17 @@ export const Login: React.FC = () => {
 
     if (adminResult.user) {
       setIsProcessing(false);
+      const userRoles = getUserRoles(adminResult.user);
+      if (userRoles.length > 1) {
+        setMultiRoleUser(adminResult.user);
+        setShowRoleModal(true);
+        return;
+      }
       if (adminResult.user.role === 'SUPER_ADM') {
         navigate('/admin/dashboard');
       } else {
-        navigate('/dashboard');
+        const dest = getRoleInfo(adminResult.user.role);
+        navigate(dest.path, { state: dest.state });
       }
       return;
     }
@@ -405,6 +417,16 @@ export const Login: React.FC = () => {
         {step === 'RECOVERY_RESET_USER' && renderResetUser()}
         {step === 'RECOVERY_RESET_PASS' && renderResetPass()}
       </div>
+
+      {multiRoleUser && (
+        <DepartmentSelectorModal
+          isOpen={showRoleModal}
+          user={multiRoleUser}
+          onSelectRole={(role) => switchActiveRole(role)}
+          onClose={() => setShowRoleModal(false)}
+          canClose={false}
+        />
+      )}
     </div>
   );
 };

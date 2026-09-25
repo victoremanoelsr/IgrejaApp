@@ -15,6 +15,7 @@ import {
 import { Transaction, Member, User, Role } from '../types';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { getUserRoles, addRoleToUserRoles } from '../utils/roleUtils';
 
 const LADIES_ROLES: {role: Role, label: string}[] = [
     { role: 'LIDER_SENHORAS', label: 'Líder de Senhoras' },
@@ -184,22 +185,66 @@ export const LadiesPanel: React.FC = () => {
   const handleSaveTeamMember = async (e: React.FormEvent) => {
       e.preventDefault();
       if (!currentChurch) return;
-      const payload: User = {
-          id: editingUserId || '', name: teamFormData.name.toUpperCase(), username: teamFormData.username,
-          cpf: teamFormData.cpf, role: teamFormData.role, churchId: currentChurch.id, password: teamFormData.password
-      };
+
       if (editingUserId) {
-          await updateUser(editingUserId, payload);
-          if (teamFormData.password) await updateUserCredentials(editingUserId, undefined, teamFormData.password);
-          showFeedback('Atualizado!');
+          const existingUser = users.find(u => u.id === editingUserId);
+          if (existingUser) {
+              const otherRoles = getUserRoles(existingUser).filter(r => !LADIES_ROLES.some(lr => lr.role === r));
+              const updatedRoles = [...otherRoles, teamFormData.role];
+              const payload: User = {
+                  ...existingUser,
+                  name: teamFormData.name.toUpperCase(),
+                  username: teamFormData.username,
+                  cpf: teamFormData.cpf,
+                  role: updatedRoles.join(',') as Role,
+                  roles: updatedRoles,
+                  churchId: currentChurch.id,
+                  password: teamFormData.password || undefined
+              };
+              await updateUser(editingUserId, payload);
+              if (teamFormData.password) await updateUserCredentials(editingUserId, undefined, teamFormData.password);
+              showFeedback('Atualizado!');
+          }
       } else {
-          const res = await addUser(payload);
-          if (res.success) showFeedback('Adicionado!'); else showFeedback(res.error || 'Erro', 'error');
+          const existingUser = users.find(u => 
+              (teamFormData.cpf && u.cpf && u.cpf.trim() === teamFormData.cpf.trim()) ||
+              (u.username && u.username.toLowerCase() === teamFormData.username.toLowerCase())
+          );
+
+          if (existingUser) {
+              const currentRoles = getUserRoles(existingUser);
+              const updatedRoles = addRoleToUserRoles(currentRoles, teamFormData.role);
+              const payload: User = {
+                  ...existingUser,
+                  name: teamFormData.name.toUpperCase(),
+                  cpf: teamFormData.cpf || existingUser.cpf,
+                  role: updatedRoles.join(',') as Role,
+                  roles: updatedRoles
+              };
+              await updateUser(existingUser.id, payload);
+              if (teamFormData.password) {
+                  await updateUserCredentials(existingUser.id, undefined, teamFormData.password);
+              }
+              showFeedback('Usuário já existente: cargo de senhoras adicionado!');
+          } else {
+              const payload: User = {
+                  id: '',
+                  name: teamFormData.name.toUpperCase(),
+                  username: teamFormData.username,
+                  cpf: teamFormData.cpf,
+                  role: teamFormData.role,
+                  churchId: currentChurch.id,
+                  password: teamFormData.password
+              };
+              const res = await addUser(payload);
+              if (res.success) showFeedback('Adicionado!');
+              else showFeedback(res.error || 'Erro', 'error');
+          }
       }
       setTeamFormMode('LIST'); setEditingUserId(null); setTeamFormData({ name: '', username: '', password: '', role: 'LIDER_SENHORAS', cpf: '' });
   };
 
-  const teamUsers = users.filter(u => u.churchId === currentChurch?.id && LADIES_ROLES.some(r => r.role === u.role));
+  const teamUsers = users.filter(u => u.churchId === currentChurch?.id && getUserRoles(u).some(r => LADIES_ROLES.some(lr => lr.role === r)));
 
   const memberSuggestions = members.filter(m => {
     if (m.churchId !== currentChurch?.id) return false;
@@ -422,7 +467,9 @@ export const LadiesPanel: React.FC = () => {
           
           {teamFormMode === 'LIST' ? (
               <div className="space-y-3">
-                  {teamUsers.map(u => (
+                  {teamUsers.map(u => {
+                      const activeLadiesRole = getUserRoles(u).find(r => LADIES_ROLES.some(lr => lr.role === r)) || (u.role as Role);
+                      return (
                       <div key={u.id} className="p-4 border rounded-lg flex justify-between items-center hover:bg-gray-50 transition-colors">
                           <div className="flex items-center">
                               <div className="h-10 w-10 bg-pink-100 text-pink-600 rounded-full flex items-center justify-center mr-3 font-bold">
@@ -430,15 +477,16 @@ export const LadiesPanel: React.FC = () => {
                               </div>
                               <div>
                                   <p className="text-sm font-bold text-gray-800">{u.name}</p>
-                                  <p className="text-xs text-gray-500">@{u.username} • <span className="text-pink-600 font-semibold">{LADIES_ROLES.find(r => r.role === u.role)?.label}</span></p>
+                                  <p className="text-xs text-gray-500">@{u.username} • <span className="text-pink-600 font-semibold">{LADIES_ROLES.find(r => r.role === activeLadiesRole)?.label}</span></p>
                               </div>
                           </div>
                           {canAddToTeam && <div className="flex gap-2">
-                              <button onClick={() => { setEditingUserId(u.id); setTeamFormData({name: u.name, username: u.username, password: '', cpf: u.cpf, role: u.role as Role}); setTeamFormMode('EDIT'); }} className="p-2 text-gray-400 hover:text-pink-600 hover:bg-pink-50 rounded-full transition-colors"><Edit2 size={16}/></button>
-                              <button onClick={() => { if(window.confirm(`Remover "${u.name}" da equipe? O cadastro de membro e histórico serão preservados.`)) removeFromTeam(u.id); }} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors" title="Remover da equipe"><Trash2 size={16}/></button>
+                              <button onClick={() => { setEditingUserId(u.id); setTeamFormData({name: u.name, username: u.username, password: '', cpf: u.cpf, role: activeLadiesRole}); setTeamFormMode('EDIT'); }} className="p-2 text-gray-400 hover:text-pink-600 hover:bg-pink-50 rounded-full transition-colors"><Edit2 size={16}/></button>
+                              <button onClick={() => { if(window.confirm(`Remover "${u.name}" da equipe? O cadastro de membro e histórico serão preservados.`)) removeFromTeam(u.id, activeLadiesRole); }} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors" title="Remover da equipe"><Trash2 size={16}/></button>
                           </div>}
                       </div>
-                  ))}
+                      );
+                  })}
                   {teamUsers.length === 0 && (
                       <div className="text-center py-8 bg-gray-50 rounded-lg border border-dashed">
                           <Users size={32} className="mx-auto text-gray-300 mb-2"/>

@@ -4,8 +4,9 @@ import { supabase } from './services/supabaseClient';
 import { 
   User, Church, Member, Transaction, Campaign, Event, Minute, 
   FixedExpense, LetterHistory, BookletSettings, CarnetTemplate, LetterTemplate,
-  PhysicalSpace, Asset, SystemSettings, CarnetHistoryRecord
+  PhysicalSpace, Asset, SystemSettings, CarnetHistoryRecord, Role
 } from './types';
+import { getUserRoles, removeRoleFromUserRoles } from './utils/roleUtils';
 import { 
   toAppUser, toAppChurch, toAppMember, toAppTransaction, 
   toAppCampaign, toAppEvent, toAppMinute, toAppFixedExpense, toAppLetterHistory, toAppCarnetTemplate, toAppLetterTemplate,
@@ -37,6 +38,7 @@ interface AppContextType {
   
   login: (u: string, p: string) => Promise<{user?: User, error?: string, blocked?: boolean}>;
   logout: () => void;
+  switchActiveRole: (newRole: Role) => void;
   recoverAccount: (name: string, cpf: string) => Promise<string | null>;
   updateUserCredentials: (id: string, username?: string, password?: string) => Promise<{success: boolean, error?: string}>;
   
@@ -67,7 +69,7 @@ interface AppContextType {
   addUser: (u: User) => Promise<{success: boolean, error?: string}>;
   updateUser: (id: string, u: User) => Promise<{success: boolean, error?: string}>;
   deleteUser: (id: string) => Promise<void>;
-  removeFromTeam: (id: string) => Promise<{success: boolean, error?: string}>;
+  removeFromTeam: (id: string, roleToRemove?: Role) => Promise<{success: boolean, error?: string}>;
   
   addCampaign: (c: Campaign) => Promise<void>;
   updateCampaign: (id: string, c: Campaign) => Promise<{success: boolean, error?: string}>;
@@ -542,6 +544,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     supabase.auth.signOut().catch(() => {});
     setUser(null);
     setCurrentChurch(null);
+  };
+
+  const switchActiveRole = (newRole: Role) => {
+    if (!user) return;
+    setUser(prev => {
+      if (!prev) return null;
+      return { ...prev, role: newRole };
+    });
   };
 
   const recoverAccount = async (name: string, cpf: string): Promise<string | null> => {
@@ -1125,20 +1135,34 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
   };
 
-  // Remove a pessoa apenas do cargo no departamento (role = null).
+  // Remove a pessoa apenas do cargo no departamento.
+  // Se o usuário tiver múltiplos cargos (ex: Jovens + Senhores), remove apenas o cargo especificado.
   // NÃO desativa o perfil, NÃO apaga o membro, NÃO afeta transações históricas.
-  // Use este método nos painéis de departamento em vez de deleteUser.
-  const removeFromTeam = async (id: string): Promise<{success: boolean, error?: string}> => {
+  const removeFromTeam = async (id: string, roleToRemove?: Role): Promise<{success: boolean, error?: string}> => {
+      const targetUser = users.find(u => u.id === id);
+      let newRoleValue: string | null = null;
+      let remainingRoles: Role[] = [];
+
+      if (targetUser && roleToRemove) {
+          const currentRoles = getUserRoles(targetUser);
+          remainingRoles = removeRoleFromUserRoles(currentRoles, roleToRemove);
+          newRoleValue = remainingRoles.length > 0 ? remainingRoles.join(',') : null;
+      }
+
       const { error } = await supabase
           .from('profiles')
-          .update({ role: null })
+          .update({ role: newRoleValue })
           .eq('id', id);
       if (error) {
           console.error('[removeFromTeam] erro ao remover cargo:', error.message);
           return { success: false, error: error.message };
       }
-      // Remove do estado local (a person with role=null doesn't appear in any department team filter)
-      setUsers(users.filter(u => u.id !== id));
+      // Se ainda restarem cargos, mantém o usuário na lista com os roles atualizados; se não, remove da lista de equipe
+      if (remainingRoles.length > 0 && targetUser) {
+          setUsers(users.map(u => u.id === id ? { ...u, role: remainingRoles[0], roles: remainingRoles } : u));
+      } else {
+          setUsers(users.filter(u => u.id !== id));
+      }
       return { success: true };
   };
 
@@ -1489,7 +1513,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const value = {
     user, users, churches, members, transactions, campaigns, events, minutes, fixedExpenses, lettersHistory, availableChurches, currentChurch,
-    login, logout, recoverAccount, updateUserCredentials, selectChurch, exitAdminView,
+    login, logout, switchActiveRole, recoverAccount, updateUserCredentials, selectChurch, exitAdminView,
     addMember, updateMember, deleteMember, uploadMemberPhoto,
     addTransaction, updateTransaction, deleteTransaction, uploadTransactionFile, confirmTransactionPayment,
     addFixedExpense, generateMonthlyFixedExpenses,
