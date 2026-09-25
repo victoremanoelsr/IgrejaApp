@@ -209,6 +209,7 @@ export const MissionsPanel: React.FC = () => {
   const [carnetHistoryRecords, setCarnetHistoryRecords] = useState<CarnetHistoryRecord[]>([]);
   const [carnetHistorySearch, setCarnetHistorySearch] = useState('');
   const [carnetHistoryYear, setCarnetHistoryYear] = useState(new Date().getFullYear());
+  const [reissuingId, setReissuingId] = useState<string | null>(null);
   
   const [showHistoryFilters, setShowHistoryFilters] = useState(false);
   const [historyFilterType, setHistoryFilterType] = useState<'TODOS' | 'ENTRADA' | 'SAIDA'>('TODOS');
@@ -801,93 +802,103 @@ export const MissionsPanel: React.FC = () => {
           return;
       }
 
+      setReissuingId(r.id);
       showFeedback('Gerando reemissão do carnê...', 'info');
 
-      const bgUrl = templateToUse.backgroundUrl;
-      const bgStyle = templateToUse.backgroundStyle || { mode: 'cover', opacity: 0.5 };
-      const bgData = bgUrl ? await loadImageForPDF(bgUrl) : null;
+      try {
+          const bgUrl = templateToUse.backgroundUrl;
+          const bgStyle = templateToUse.backgroundStyle || { mode: 'cover', opacity: 0.5 };
+          const bgData = bgUrl ? await loadImageForPDF(bgUrl) : null;
 
-      let bgWidth = 0, bgHeight = 0;
-      if (bgData) {
-          await new Promise<void>((res) => {
-              const img = new Image();
-              img.onload = () => { bgWidth = img.naturalWidth; bgHeight = img.naturalHeight; res(); };
-              img.onerror = () => res();
-              img.src = bgData;
-          });
-      }
-
-      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-      const months = ['JANEIRO', 'FEVEREIRO', 'MARÇO', 'ABRIL', 'MAIO', 'JUNHO', 'JULHO', 'AGOSTO', 'SETEMBRO', 'OUTUBRO', 'NOVEMBRO', 'DEZEMBRO'];
-      const elements = templateToUse.layoutJson || REQUIRED_FIELDS;
-      const scale = 210 / EDITOR_WIDTH;
-      const ticketsPerPage = 4;
-      const pageHeight = 297;
-      const totalTicketsHeight = ticketsPerPage * TICKET_HEIGHT_MM; 
-      const marginY = (pageHeight - totalTicketsHeight) / 2;
-
-      let imgX = 0, imgY = 0, imgW = 210, imgH = 70;
-      if (bgData && bgWidth > 0 && bgHeight > 0) {
-          const ratioImg = bgWidth / bgHeight;
-          const ratioTicket = 210 / 70; 
-          if (bgStyle.mode === 'contain') {
-              if (ratioImg > ratioTicket) { imgW = 210; imgH = 210 / ratioImg; imgY = (70 - imgH) / 2; } 
-              else { imgH = 70; imgW = 70 * ratioImg; imgX = (210 - imgW) / 2; }
-          } else if (bgStyle.mode === 'cover') {
-              if (ratioImg > ratioTicket) { imgH = 70; imgW = 70 * ratioImg; imgX = (210 - imgW) / 2; } 
-              else { imgW = 210; imgH = 210 / ratioImg; imgY = (70 - imgH) / 2; }
-          } 
-      }
-
-      const imageCache: Record<string, string | null> = {};
-      const STUB_X_MM = TICKET_WIDTH_MM * 0.25;
-      const hasStubLine = elements.some(el => el.id.startsWith('stub_'));
-
-      for (let i = 0; i < 12; i++) {
-          if (i > 0 && i % ticketsPerPage === 0) doc.addPage();
-          const currentY = marginY + ((i % ticketsPerPage) * TICKET_HEIGHT_MM);
-
+          let bgWidth = 0, bgHeight = 0;
           if (bgData) {
-              doc.saveGraphicsState();
-              doc.setGState(new (doc as any).GState({ opacity: bgStyle.opacity }));
-              addImageToPdf(doc, bgData, imgX, currentY + imgY, imgW, imgH);
-              doc.restoreGraphicsState();
+              await new Promise<void>((res) => {
+                  const img = new Image();
+                  img.onload = () => { bgWidth = img.naturalWidth; bgHeight = img.naturalHeight; res(); };
+                  img.onerror = () => res();
+                  img.src = bgData;
+              });
           }
 
-          const replacements: Record<string, string> = {
-              '{{nome_membro}}': r.memberName,
-              '{{valor}}': `R$ ${parseFloat(r.amount.toString()).toLocaleString('pt-BR', {minimumFractionDigits: 2})}`,
-              '{{mes_extenso}}': months[i],
-              '{{ano}}': r.year.toString(),
-              '{{n_parcela}}': `${i+1}/12`,
-          };
-          await renderElementsToPDF(doc, elements, scale, currentY, replacements, imageCache);
+          const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+          const months = ['JANEIRO', 'FEVEREIRO', 'MARÇO', 'ABRIL', 'MAIO', 'JUNHO', 'JULHO', 'AGOSTO', 'SETEMBRO', 'OUTUBRO', 'NOVEMBRO', 'DEZEMBRO'];
+          const elements = templateToUse.layoutJson || REQUIRED_FIELDS;
+          const scale = 210 / EDITOR_WIDTH;
+          const ticketsPerPage = 4;
+          const pageHeight = 297;
+          const totalTicketsHeight = ticketsPerPage * TICKET_HEIGHT_MM; 
+          const marginY = (pageHeight - totalTicketsHeight) / 2;
 
-          if (hasStubLine) {
-              doc.setDrawColor(140, 140, 140);
-              doc.setLineWidth(0.3);
-              (doc as any).setLineDash([1.5, 1.5], 0);
-              doc.line(STUB_X_MM, currentY, STUB_X_MM, currentY + TICKET_HEIGHT_MM);
-              (doc as any).setLineDash([], 0);
+          let imgX = 0, imgY = 0, imgW = 210, imgH = 70;
+          if (bgData && bgWidth > 0 && bgHeight > 0) {
+              const ratioImg = bgWidth / bgHeight;
+              const ratioTicket = 210 / 70; 
+              if (bgStyle.mode === 'contain') {
+                  if (ratioImg > ratioTicket) { imgW = 210; imgH = 210 / ratioImg; imgY = (70 - imgH) / 2; } 
+                  else { imgH = 70; imgW = 70 * ratioImg; imgX = (210 - imgW) / 2; }
+              } else if (bgStyle.mode === 'cover') {
+                  if (ratioImg > ratioTicket) { imgH = 70; imgW = 70 * ratioImg; imgX = (210 - imgW) / 2; } 
+                  else { imgW = 210; imgH = 210 / ratioImg; imgY = (70 - imgH) / 2; }
+              } 
           }
+
+          const imageCache: Record<string, string | null> = {};
+          const STUB_X_MM = TICKET_WIDTH_MM * 0.25;
+          const hasStubLine = elements.some(el => el.id.startsWith('stub_'));
+
+          for (let i = 0; i < 12; i++) {
+              if (i > 0 && i % ticketsPerPage === 0) doc.addPage();
+              const currentY = marginY + ((i % ticketsPerPage) * TICKET_HEIGHT_MM);
+
+              if (bgData) {
+                  doc.saveGraphicsState();
+                  doc.setGState(new (doc as any).GState({ opacity: bgStyle.opacity }));
+                  addImageToPdf(doc, bgData, imgX, currentY + imgY, imgW, imgH);
+                  doc.restoreGraphicsState();
+              }
+
+              const replacements: Record<string, string> = {
+                  '{{nome_membro}}': member.name || r.memberName,
+                  '{{cpf}}': member.cpf || '',
+                  '{{valor}}': `R$ ${parseFloat(r.amount.toString()).toLocaleString('pt-BR', {minimumFractionDigits: 2})}`,
+                  '{{mes_extenso}}': months[i],
+                  '{{mes_numero}}': String(i + 1).padStart(2, '0'),
+                  '{{ano}}': r.year.toString(),
+                  '{{n_parcela}}': `${i+1}/12`,
+              };
+              await renderElementsToPDF(doc, elements, scale, currentY, replacements, imageCache);
+
+              if (hasStubLine) {
+                  doc.setDrawColor(140, 140, 140);
+                  doc.setLineWidth(0.3);
+                  (doc as any).setLineDash([1.5, 1.5], 0);
+                  doc.line(STUB_X_MM, currentY, STUB_X_MM, currentY + TICKET_HEIGHT_MM);
+                  (doc as any).setLineDash([], 0);
+              }
+          }
+
+          const totalPdfPages = Math.ceil(12 / ticketsPerPage);
+          for (let pg = 1; pg <= totalPdfPages; pg++) {
+              doc.setPage(pg);
+              const carnetsOnPage = Math.min(ticketsPerPage, 12 - (pg - 1) * ticketsPerPage);
+              for (let j = 0; j < carnetsOnPage - 1; j++) {
+                  const lineY = marginY + (j + 1) * TICKET_HEIGHT_MM;
+                  doc.setDrawColor(100, 100, 100);
+                  doc.setLineWidth(0.4);
+                  (doc as any).setLineDash([2, 2], 0);
+                  doc.line(0, lineY, 210, lineY);
+                  (doc as any).setLineDash([], 0);
+              }
+          }
+
+          doc.save(`REEMISSAO_CARNE_MISSOES_${r.memberName.replace(/\s+/g, '_')}_${r.year}.pdf`);
+          showFeedback('Carnê reemitido com sucesso!', 'success');
+      } catch (err) {
+          console.error(err);
+          showFeedback('Erro ao reemitir o carnê.', 'error');
+      } finally {
+          setReissuingId(null);
       }
-
-      const totalPdfPages = Math.ceil(12 / ticketsPerPage);
-      for (let pg = 1; pg <= totalPdfPages; pg++) {
-          doc.setPage(pg);
-          const carnetsOnPage = Math.min(ticketsPerPage, 12 - (pg - 1) * ticketsPerPage);
-          for (let j = 0; j < carnetsOnPage - 1; j++) {
-              const lineY = marginY + (j + 1) * TICKET_HEIGHT_MM;
-              doc.setDrawColor(100, 100, 100);
-              doc.setLineWidth(0.4);
-              (doc as any).setLineDash([2, 2], 0);
-              doc.line(0, lineY, 210, lineY);
-              (doc as any).setLineDash([], 0);
-          }
-      }
-
-      doc.save(`REEMISSAO_CARNE_MISSOES_${r.memberName.replace(/\s+/g, '_')}_${r.year}.pdf`);
-      showFeedback('Carnê reemitido com sucesso!', 'success');
   };
 
   // AUTOCOMPLETE LOGIC FOR TEAM MEMBER
@@ -925,11 +936,15 @@ export const MissionsPanel: React.FC = () => {
 
   const renderDashboard = () => {
       const daysInMonth = new Date(dashYear, dashMonth, 0).getDate();
+      const isCarnet = (t: Transaction) => {
+          const d = (t.description || '').toUpperCase();
+          return d.includes('CARNÊ') || d.includes('CARNE') || t.category === 'CARNE' || t.category === 'CARNÊ';
+      };
       const monthlyTransactions = transactions.filter(t => {
           if (t.churchId !== currentChurch?.id) return false;
           if (t.category !== 'MISSOES') return false;
           if (t.status !== 'PAGO') return false;
-          if (t.description.includes('CARNÊ')) return false;
+          if (isCarnet(t)) return false;
           const tDate = new Date(t.date + 'T12:00:00');
           return (tDate.getMonth() + 1) === dashMonth && tDate.getFullYear() === dashYear;
       });
@@ -940,7 +955,7 @@ export const MissionsPanel: React.FC = () => {
           if (t.churchId !== currentChurch?.id) return false;
           if (t.category !== 'MISSOES') return false;
           if (t.status !== 'PAGO') return false;
-          if (t.description.includes('CARNÊ')) return false;
+          if (isCarnet(t)) return false;
           return t.date <= lastDayOfSelectedMonth;
       });
       const totalInAllTime = cumulativeTransactions.filter(t => t.type === 'ENTRADA').reduce((acc, t) => acc + t.amount, 0);
@@ -1001,10 +1016,15 @@ export const MissionsPanel: React.FC = () => {
   );
 
   const renderReports = () => {
+      const isCarnet = (t: Transaction) => {
+          const d = (t.description || '').toUpperCase();
+          return d.includes('CARNÊ') || d.includes('CARNE') || t.category === 'CARNE' || t.category === 'CARNÊ';
+      };
       const filteredReportTransactions = transactions.filter(t => {
           if (t.churchId !== currentChurch?.id) return false;
           if (t.category !== 'MISSOES') return false;
           if (t.status !== 'PAGO') return false; 
+          if (isCarnet(t)) return false;
           if (reportFilterType === 'MONTH') {
               const tDate = new Date(t.date + 'T12:00:00');
               return (tDate.getMonth() + 1) === repMonth && tDate.getFullYear() === repYear;
@@ -1026,7 +1046,7 @@ export const MissionsPanel: React.FC = () => {
         doc.setFontSize(18); doc.text("Relatório de Missões", 14, 20); doc.setFontSize(10); doc.text(`Período: ${periodText}`, 14, 26); doc.text(`Unidade: ${currentChurch?.name}`, 14, 32);
         
         if (reportViewMode === 'SUMMARY') {
-            autoTable(doc, { startY: 40, head: [['Tipo', 'Valor']], body: [['Entradas (Ofertas/Carnês)', totalIn.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})], ['Saídas', totalOut.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})], ['Saldo Final', repBalance.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})]] });
+            autoTable(doc, { startY: 40, head: [['Tipo', 'Valor']], body: [['Entradas (Ofertas)', totalIn.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})], ['Saídas', totalOut.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})], ['Saldo Final', repBalance.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})]] });
         } else {
              autoTable(doc, { 
                  startY: 40, 
@@ -1247,7 +1267,8 @@ export const MissionsPanel: React.FC = () => {
   const renderTransactionTab = () => {
     // FILTRAR TRANSAÇÕES PARA REMOVER CARNÊS DA LISTA DE EXTRATO
     const generalTransactionsList = historyTransactions.filter(t => {
-        const isNotCarnet = !t.description.includes('CARNÊ');
+        const descUpper = (t.description || '').toUpperCase();
+        const isNotCarnet = !descUpper.includes('CARNÊ') && !descUpper.includes('CARNE') && t.category !== 'CARNE' && t.category !== 'CARNÊ';
         const matchesType = historyFilterType === 'TODOS' ? true : t.type === historyFilterType;
         return isNotCarnet && matchesType;
     });
@@ -1482,14 +1503,16 @@ export const MissionsPanel: React.FC = () => {
                                                         <td className="px-3 py-2 text-center whitespace-nowrap">
                                                             <button 
                                                                 onClick={() => handleReemitirCarnetRecord(r)} 
-                                                                className="text-gray-400 hover:text-orange-600 p-1 rounded hover:bg-orange-50 transition-colors mr-1.5" 
-                                                                title="Reemitir Carnê"
+                                                                disabled={reissuingId === r.id}
+                                                                className="inline-flex items-center gap-1.5 text-xs font-bold text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200 px-2.5 py-1.5 rounded-lg transition-all mr-2 shadow-sm active:scale-95 disabled:opacity-50" 
+                                                                title="Reemitir e Baixar Carnê deste membro"
                                                             >
-                                                                <Printer size={14}/>
+                                                                {reissuingId === r.id ? <Loader size={13} className="animate-spin" /> : <Download size={13}/>}
+                                                                <span>Reemitir Carnê</span>
                                                             </button>
                                                             <button 
                                                                 onClick={async () => { await deleteCarnetHistory(r.id); await loadCarnetHistory(); }} 
-                                                                className="text-gray-400 hover:text-red-600 p-1 rounded hover:bg-red-50 transition-colors" 
+                                                                className="text-gray-400 hover:text-red-600 p-1.5 rounded-lg hover:bg-red-50 transition-colors" 
                                                                 title="Remover do histórico"
                                                             >
                                                                 <Trash2 size={14}/>

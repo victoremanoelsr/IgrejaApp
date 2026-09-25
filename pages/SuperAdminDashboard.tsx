@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../context';
 import { useNavigate } from 'react-router-dom';
-import { Building, Users, Eye, Power, Plus, UserPlus, Trash2, Edit2, User, AlertTriangle, CheckCircle, Info, CalendarClock, CreditCard, BadgeCheck, Crown } from 'lucide-react';
+import { Building, Users, Eye, Power, Plus, UserPlus, Trash2, Edit2, User, AlertTriangle, CheckCircle, Info, CalendarClock, CreditCard, BadgeCheck, Search, X } from 'lucide-react';
 import { Church, User as UserType, Member, PlanType, PlanTier } from '../types';
 import { PLAN_LIMITS } from '../hooks/usePlanLimits';
 
@@ -39,6 +39,7 @@ export const SuperAdminDashboard: React.FC = () => {
   const { churches, members, selectChurch, toggleChurchStatus, addChurch, addUser, addMember, deleteChurch, updateChurch, confirmChurchPayment, systemSettings } = useApp();
   const navigate = useNavigate();
   
+  const [searchTerm, setSearchTerm] = useState('');
   const [showUnifiedForm, setShowUnifiedForm] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -265,6 +266,32 @@ export const SuperAdminDashboard: React.FC = () => {
   };
 
 
+  // Helpers para busca de igrejas (por nome, CNPJ, pastor ou dirigente)
+  const cleanStr = (s?: string) => (s || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const cleanDigits = (s?: string) => (s || '').replace(/\D/g, '');
+
+  const termClean = cleanStr(searchTerm).trim();
+  const termDigits = cleanDigits(searchTerm);
+
+  const checkMatch = (church: Church) => {
+    if (!termClean) return true;
+    const nameMatch = cleanStr(church.name).includes(termClean);
+    const pastorMatch = cleanStr(church.pastorName).includes(termClean);
+    const addressMatch = cleanStr(church.address).includes(termClean);
+    const cnpjRawMatch = termDigits.length > 0 && cleanDigits(church.cnpj).includes(termDigits);
+    const cnpjLabelMatch = cleanStr(church.cnpj).includes(termClean);
+    return nameMatch || pastorMatch || addressMatch || cnpjRawMatch || cnpjLabelMatch;
+  };
+
+  const filteredSedes = churches
+    .filter(c => c.type === 'SEDE')
+    .filter(sede => {
+      if (!termClean) return true;
+      if (checkMatch(sede)) return true;
+      const children = churches.filter(c => c.parentId === sede.id);
+      return children.some(child => checkMatch(child));
+    });
+
   return (
     <div className="space-y-4">
       {/* Header Stats - COMPACTO */}
@@ -272,13 +299,6 @@ export const SuperAdminDashboard: React.FC = () => {
         <div className="z-10">
           <h1 className="text-2xl md:text-3xl font-black tracking-tight mb-1">Painel Master</h1>
           <p className="text-gray-400 text-xs md:text-sm">Bem-vindo, Administrador Geral.</p>
-          <button
-            onClick={() => navigate('/admin/configuracoes-saas')}
-            className="mt-3 inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-amber-400 hover:text-amber-300 transition-colors"
-          >
-            <Crown size={13} />
-            Configurações Master do SaaS
-          </button>
         </div>
         <div className="flex space-x-6 mt-4 md:mt-0 z-10">
           <div className="text-center">
@@ -586,11 +606,36 @@ export const SuperAdminDashboard: React.FC = () => {
       )}
 
 
-      {/* Super Vision Module - COMPACT LIST */}
+      {/* Module Listagem de Igrejas com Campo de Pesquisa */}
       <div className="bg-white rounded-lg shadow border border-gray-100 overflow-hidden">
-        <div className="p-3 border-b flex justify-between items-center bg-gray-50">
-          <h2 className="text-sm md:text-base font-bold text-gray-800 flex items-center"><Eye className="mr-2 text-brand-black" size={18}/> Super Visão Global</h2>
-          <span className="text-xs font-bold text-gray-500 bg-white px-2 py-1 rounded border">{activeChurches} Igrejas Ativas</span>
+        <div className="p-3 border-b flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 bg-gray-50">
+          <div className="relative flex-1 max-w-md">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+              <Search size={16} />
+            </div>
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Pesquisar por nome da igreja, CNPJ, pastor..."
+              className="w-full pl-9 pr-8 py-1.5 bg-white border border-gray-300 rounded-lg text-xs md:text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-orange/30 focus:border-brand-orange transition-all shadow-sm"
+            />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => setSearchTerm('')}
+                className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+                title="Limpar pesquisa"
+              >
+                <X size={15} />
+              </button>
+            )}
+          </div>
+          <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+            <span className="text-xs font-bold text-gray-600 bg-white px-2.5 py-1 rounded border border-gray-200">
+              {termClean ? `${filteredSedes.length} Sede(s) encontrada(s)` : `${activeChurches} Igrejas Ativas`}
+            </span>
+          </div>
         </div>
         <div className="w-full">
             <table className="w-full divide-y divide-gray-200 table-fixed">
@@ -605,11 +650,17 @@ export const SuperAdminDashboard: React.FC = () => {
                 </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-                {churches.filter(c => c.type === 'SEDE').map((church) => (
-                <React.Fragment key={church.id}>
-                    {/* SEDE ROW */}
-                    <tr className="hover:bg-gray-50 bg-white">
-                    <td className="px-2 py-2 overflow-hidden">
+                {filteredSedes.map((church) => {
+                  const allChildren = churches.filter(child => child.parentId === church.id);
+                  const matchingChildren = termClean && !checkMatch(church)
+                    ? allChildren.filter(child => checkMatch(child))
+                    : allChildren;
+
+                  return (
+                    <React.Fragment key={church.id}>
+                      {/* SEDE ROW */}
+                      <tr className="hover:bg-gray-50 bg-white">
+                      <td className="px-2 py-2 overflow-hidden">
                         <div className="flex items-start">
                             <div className="h-8 w-8 bg-brand-black text-white rounded flex items-center justify-center mr-2 shrink-0 mt-1">
                                 <Building size={16}/>
@@ -714,7 +765,7 @@ export const SuperAdminDashboard: React.FC = () => {
                     </td>
                     </tr>
                     {/* CONGREGATION ROWS (Nested) */}
-                    {churches.filter(child => child.parentId === church.id).map(child => (
+                    {matchingChildren.map(child => (
                     <tr key={child.id} className="hover:bg-gray-50 bg-gray-50/30">
                         <td className="px-2 py-2 pl-6 md:pl-12 relative overflow-hidden">
                             <div className="absolute left-4 md:left-8 top-1/2 w-2 h-[1px] bg-gray-300"></div>
@@ -754,13 +805,29 @@ export const SuperAdminDashboard: React.FC = () => {
                         </td>
                     </tr>
                     ))}
-                </React.Fragment>
-                ))}
-                {churches.length === 0 && (
-                    <tr>
-                        <td colSpan={5} className="text-center py-4 text-xs text-gray-500">Nenhuma igreja cadastrada.</td>
-                    </tr>
-                )}
+                  </React.Fragment>
+                );
+              })}
+              {filteredSedes.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="text-center py-6 text-xs text-gray-500">
+                    {termClean ? (
+                      <div className="flex flex-col items-center gap-1.5">
+                        <span>Nenhuma igreja encontrada para a busca <strong>"{searchTerm}"</strong>.</span>
+                        <button
+                          type="button"
+                          onClick={() => setSearchTerm('')}
+                          className="text-brand-orange hover:underline font-semibold text-xs mt-1"
+                        >
+                          Limpar pesquisa
+                        </button>
+                      </div>
+                    ) : (
+                      'Nenhuma igreja cadastrada.'
+                    )}
+                  </td>
+                </tr>
+              )}
             </tbody>
             </table>
         </div>

@@ -235,6 +235,8 @@ export interface LetterHistory {
     naturalidade?: string;
     fatherName?: string;
     motherName?: string;
+    fatherId?: string;
+    motherId?: string;
   };
 }
 

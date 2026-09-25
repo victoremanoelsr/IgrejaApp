@@ -122,7 +122,7 @@ export const Dashboard: React.FC = () => {
   const viewId = currentChurch.id;
   const churchMembers = members.filter(m => m.churchId === viewId);
   
-  const excludedCategoriesFromGeneral = ['MISSOES', 'JOVENS', 'CRIANCAS', 'SENHORAS', 'SENHORES'];
+  const excludedCategoriesFromGeneral = ['MISSOES', 'JOVENS', 'CRIANCAS', 'ADOLESCENTES', 'SENHORAS', 'SENHORES', 'CARNE', 'CARNÊ'];
 
   const lastDayOfSelectedMonth = new Date(selectedYear, selectedMonth, 0).toISOString().split('T')[0];
 
@@ -131,11 +131,17 @@ export const Dashboard: React.FC = () => {
       return m === selectedMonth && y === selectedYear;
   };
 
+  const isCarnetTransaction = (t: any) => {
+      const descUpper = (t.description || '').toUpperCase();
+      return descUpper.includes('CARNÊ') || descUpper.includes('CARNE') || t.category === 'CARNE' || t.category === 'CARNÊ';
+  };
+
   // Transações do mês selecionado (para exibir entradas/saídas do mês)
   const generalTransactions = transactions.filter(t => 
       t.churchId === viewId && 
       !t.campaignId &&
       !excludedCategoriesFromGeneral.includes(t.category) &&
+      !isCarnetTransaction(t) &&
       matchesSelectedDate(t.date) &&
       t.status === 'PAGO'
   );
@@ -148,6 +154,7 @@ export const Dashboard: React.FC = () => {
       t.churchId === viewId &&
       !t.campaignId &&
       !excludedCategoriesFromGeneral.includes(t.category) &&
+      !isCarnetTransaction(t) &&
       t.date <= lastDayOfSelectedMonth &&
       t.status === 'PAGO'
   );
@@ -156,9 +163,10 @@ export const Dashboard: React.FC = () => {
   const balanceGeneral = cumulativeTotalIn - cumulativeTotalOut;
 
   const tithesTransactions = transactions.filter(t => 
-      t.churchId === viewId &&
+      t.churchId === viewId && 
       t.category === 'DIZIMO' &&
       t.type === 'ENTRADA' &&
+      !isCarnetTransaction(t) &&
       matchesSelectedDate(t.date) &&
       t.status === 'PAGO'
   );
@@ -168,8 +176,9 @@ export const Dashboard: React.FC = () => {
 
   // Missões: entradas/saídas do mês para o gráfico de pizza
   const missionsTransactions = transactions.filter(t => 
-      t.churchId === viewId &&
+      t.churchId === viewId && 
       t.category === 'MISSOES' &&
+      !isCarnetTransaction(t) &&
       matchesSelectedDate(t.date) &&
       t.status === 'PAGO'
   );
@@ -180,6 +189,7 @@ export const Dashboard: React.FC = () => {
   const cumulativeMissionsTransactions = transactions.filter(t =>
       t.churchId === viewId &&
       t.category === 'MISSOES' &&
+      !isCarnetTransaction(t) &&
       t.date <= lastDayOfSelectedMonth &&
       t.status === 'PAGO'
   );

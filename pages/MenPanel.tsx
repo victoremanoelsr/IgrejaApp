@@ -100,9 +100,15 @@ export const MenPanel: React.FC = () => {
     };
   }, [wrapperRef]);
 
+  const isCarnet = (t: Transaction) => {
+      const d = (t.description || '').toUpperCase();
+      return d.includes('CARNÊ') || d.includes('CARNE') || t.category === 'CARNE' || t.category === 'CARNÊ';
+  };
+
   const historyTransactions = transactions.filter(t => {
       if (t.churchId !== currentChurch?.id) return false;
       if (t.category !== 'SENHORES') return false; 
+      if (isCarnet(t)) return false;
       const d = new Date(t.date + 'T12:00:00');
       const matchesDate = (d.getMonth() + 1) === historyMonth && d.getFullYear() === historyYear;
       return matchesDate;
@@ -207,6 +213,7 @@ export const MenPanel: React.FC = () => {
           if (t.churchId !== currentChurch?.id) return false;
           if (t.category !== 'SENHORES') return false;
           if (t.status !== 'PAGO') return false;
+          if (isCarnet(t)) return false;
           const tDate = new Date(t.date + 'T12:00:00');
           return (tDate.getMonth() + 1) === dashMonth && tDate.getFullYear() === dashYear;
       });
@@ -219,6 +226,7 @@ export const MenPanel: React.FC = () => {
           if (t.churchId !== currentChurch?.id) return false;
           if (t.category !== 'SENHORES') return false;
           if (t.status !== 'PAGO') return false;
+          if (isCarnet(t)) return false;
           return t.date <= lastDayOfSelectedMonth;
       });
 
@@ -495,6 +503,7 @@ export const MenPanel: React.FC = () => {
           if (t.churchId !== currentChurch?.id) return false;
           if (t.category !== 'SENHORES') return false;
           if (t.status !== 'PAGO') return false; 
+          if (isCarnet(t)) return false;
 
           if (reportFilterType === 'MONTH') {
               const tDate = new Date(t.date + 'T12:00:00');

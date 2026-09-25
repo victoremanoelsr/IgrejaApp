@@ -121,7 +121,7 @@ export const MemberProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setIsLoadingLetters(true);
     try {
       const [letHistory, carHistory] = await Promise.all([
-        getMemberLetterHistory(s.churchId, s.member.id),
+        getMemberLetterHistory(s.churchId, s.member.id, s.member.name),
         getMemberCarnetHistory(s.churchId, s.member.id),
       ]);
       console.log('[fetchMemberData] letterHistory count:', letHistory.length, 'carnetHistory count:', carHistory.length);
@@ -137,7 +137,7 @@ export const MemberProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const refreshLetterHistory = async () => {
     const s = sessionRef.current;
     if (!s) return;
-    const data = await getMemberLetterHistory(s.churchId, s.member.id);
+    const data = await getMemberLetterHistory(s.churchId, s.member.id, s.member.name);
     setLetterHistory(data);
   };
 
@@ -190,7 +190,7 @@ export const MemberProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           filter: `church_id=eq.${s.churchId}`,
         },
         async () => {
-          const data = await getMemberLetterHistory(s.churchId, s.member.id);
+          const data = await getMemberLetterHistory(s.churchId, s.member.id, s.member.name);
           setLetterHistory(data);
         }
       )

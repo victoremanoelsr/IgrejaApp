@@ -55,7 +55,7 @@ export const Reports: React.FC = () => {
       if (!endDate) setEndDate(finalEnd);
   };
   
-  const excludedCategories = ['MISSOES', 'JOVENS', 'CRIANCAS', 'SENHORAS', 'SENHORES'];
+  const excludedCategories = ['MISSOES', 'JOVENS', 'CRIANCAS', 'ADOLESCENTES', 'SENHORAS', 'SENHORES', 'CARNE', 'CARNÊ'];
 
   // --- CALCULATIONS ---
 
@@ -78,6 +78,8 @@ export const Reports: React.FC = () => {
       if (t.campaignId) return false;
       if (excludedCategories.includes(t.category)) return false; 
       if (t.status !== 'PAGO') return false;
+      const descUpper = (t.description || '').toUpperCase();
+      if (descUpper.includes('CARNÊ') || descUpper.includes('CARNE')) return false;
 
       const tDate = t.date; // YYYY-MM-DD
       return tDate >= rangeStart && tDate <= rangeEnd;

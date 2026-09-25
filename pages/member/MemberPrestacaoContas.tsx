@@ -142,6 +142,10 @@ export const MemberPrestacaoContas: React.FC = () => {
 
       // Filter: always show general categories; department categories only if member has the flag
       const filtered = raw.filter((t) => {
+        const descUpper = (t.description || '').toUpperCase();
+        if (descUpper.includes('CARNÊ') || descUpper.includes('CARNE') || t.category === 'CARNE' || t.category === 'CARNÊ') {
+          return false;
+        }
         if (GENERAL_CATEGORIES.has(t.category)) return true;
         const flag = DEPT_CATEGORY_FLAGS[t.category];
         if (!flag) return false; // unknown category — hide

@@ -36,6 +36,7 @@ import {
   Wifi,
   WifiOff,
   CreditCard,
+  Crown,
 } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Church } from '../types';
@@ -254,6 +255,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
 
   const superAdminMenuItems: MenuItem[] = [
     { label: t('nav.masterPanel'), icon: Building, path: '/admin/dashboard', roles: ['SUPER_ADM'] },
+    { label: t('nav.masterSettings'), icon: Crown, path: '/admin/configuracoes-saas', roles: ['SUPER_ADM'] },
   ];
 
   // LOGICA DE FILTRAGEM

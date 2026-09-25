@@ -40,9 +40,11 @@ export const Letters: React.FC = () => {
     const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
     const [fatherSearch, setFatherSearch] = useState('');
     const [fatherName, setFatherName] = useState('');
+    const [fatherId, setFatherId] = useState<string | undefined>(undefined);
     const [showFatherDrop, setShowFatherDrop] = useState(false);
     const [motherSearch, setMotherSearch] = useState('');
     const [motherName, setMotherName] = useState('');
+    const [motherId, setMotherId] = useState<string | undefined>(undefined);
     const [showMotherDrop, setShowMotherDrop] = useState(false);
 
     // EDITOR STATE
@@ -310,7 +312,9 @@ export const Letters: React.FC = () => {
                     nacionalidade: selectedMember.nacionalidade,
                     naturalidade: selectedMember.naturalidade,
                     fatherName: fatherName || '',
-                    motherName: motherName || ''
+                    motherName: motherName || '',
+                    fatherId: fatherId || undefined,
+                    motherId: motherId || undefined,
                 }
             } as LetterHistory);
             if (letterType === 'MUDANCA' && disableMember) {
@@ -323,8 +327,10 @@ export const Letters: React.FC = () => {
         setSearchTerm('');
         setFatherSearch('');
         setFatherName('');
+        setFatherId(undefined);
         setMotherSearch('');
         setMotherName('');
+        setMotherId(undefined);
     };
 
     // --- EDITOR LOGIC ---
@@ -795,16 +801,16 @@ export const Letters: React.FC = () => {
                                                 placeholder="Buscar nome do pai..."
                                                 className="w-full pl-9 p-2 border rounded-lg"
                                                 value={fatherSearch}
-                                                onChange={e => { setFatherSearch(e.target.value); setFatherName(e.target.value); setShowFatherDrop(true); }}
+                                                onChange={e => { setFatherSearch(e.target.value); setFatherName(e.target.value); setFatherId(undefined); setShowFatherDrop(true); }}
                                                 onFocus={() => setShowFatherDrop(true)}
                                                 onBlur={() => setTimeout(() => setShowFatherDrop(false), 200)}
                                             />
-                                            {fatherSearch && <button onClick={() => { setFatherSearch(''); setFatherName(''); setShowFatherDrop(false); }} className="absolute right-2 top-2.5 text-gray-400 hover:text-red-500"><X size={14}/></button>}
+                                            {fatherSearch && <button onClick={() => { setFatherSearch(''); setFatherName(''); setFatherId(undefined); setShowFatherDrop(false); }} className="absolute right-2 top-2.5 text-gray-400 hover:text-red-500"><X size={14}/></button>}
                                         </div>
                                         {showFatherDrop && fatherSuggestions.length > 0 && (
                                             <div className="absolute w-full bg-white shadow-lg border rounded-lg mt-1 max-h-48 overflow-y-auto z-30">
                                                 {fatherSuggestions.map(m => (
-                                                    <div key={m.id} onMouseDown={() => { setFatherName(m.name); setFatherSearch(m.name); setShowFatherDrop(false); }} className="p-2 hover:bg-purple-50 cursor-pointer border-b text-sm font-medium">{m.name}</div>
+                                                    <div key={m.id} onMouseDown={() => { setFatherName(m.name); setFatherSearch(m.name); setFatherId(m.id); setShowFatherDrop(false); }} className="p-2 hover:bg-purple-50 cursor-pointer border-b text-sm font-medium">{m.name}</div>
                                                 ))}
                                             </div>
                                         )}
@@ -819,16 +825,16 @@ export const Letters: React.FC = () => {
                                                 placeholder="Buscar nome da mãe..."
                                                 className="w-full pl-9 p-2 border rounded-lg"
                                                 value={motherSearch}
-                                                onChange={e => { setMotherSearch(e.target.value); setMotherName(e.target.value); setShowMotherDrop(true); }}
+                                                onChange={e => { setMotherSearch(e.target.value); setMotherName(e.target.value); setMotherId(undefined); setShowMotherDrop(true); }}
                                                 onFocus={() => setShowMotherDrop(true)}
                                                 onBlur={() => setTimeout(() => setShowMotherDrop(false), 200)}
                                             />
-                                            {motherSearch && <button onClick={() => { setMotherSearch(''); setMotherName(''); setShowMotherDrop(false); }} className="absolute right-2 top-2.5 text-gray-400 hover:text-red-500"><X size={14}/></button>}
+                                            {motherSearch && <button onClick={() => { setMotherSearch(''); setMotherName(''); setMotherId(undefined); setShowMotherDrop(false); }} className="absolute right-2 top-2.5 text-gray-400 hover:text-red-500"><X size={14}/></button>}
                                         </div>
                                         {showMotherDrop && motherSuggestions.length > 0 && (
                                             <div className="absolute w-full bg-white shadow-lg border rounded-lg mt-1 max-h-48 overflow-y-auto z-30">
                                                 {motherSuggestions.map(m => (
-                                                    <div key={m.id} onMouseDown={() => { setMotherName(m.name); setMotherSearch(m.name); setShowMotherDrop(false); }} className="p-2 hover:bg-purple-50 cursor-pointer border-b text-sm font-medium">{m.name}</div>
+                                                    <div key={m.id} onMouseDown={() => { setMotherName(m.name); setMotherSearch(m.name); setMotherId(m.id); setShowMotherDrop(false); }} className="p-2 hover:bg-purple-50 cursor-pointer border-b text-sm font-medium">{m.name}</div>
                                                 ))}
                                             </div>
                                         )}

@@ -95,14 +95,17 @@ export const Finance: React.FC = () => {
 
   const filteredMembers = members.filter(m => m.churchId === viewId && m.name.toLowerCase().includes(searchTerm.toLowerCase()));
   
-  const excludedCategories = ['MISSOES', 'JOVENS', 'CRIANCAS', 'ADOLESCENTES', 'SENHORAS', 'SENHORES'];
+  const excludedCategories = ['MISSOES', 'JOVENS', 'CRIANCAS', 'ADOLESCENTES', 'SENHORAS', 'SENHORES', 'CARNE', 'CARNÊ'];
 
   const churchTransactions = transactions
     .filter(t => t.churchId === viewId)
     .filter(t => !t.campaignId)
     // FILTRO GLOBAL: Remove Pendentes, Carnês e Transações de Departamentos
     .filter(t => t.status !== 'PENDENTE')
-    .filter(t => !t.description.includes('CARNÊ'))
+    .filter(t => {
+        const descUpper = (t.description || '').toUpperCase();
+        return !descUpper.includes('CARNÊ') && !descUpper.includes('CARNE') && t.category !== 'CARNE' && t.category !== 'CARNÊ';
+    })
     .filter(t => !excludedCategories.includes(t.category))
     .filter(t => {
         const tDate = new Date(t.date + 'T12:00:00');

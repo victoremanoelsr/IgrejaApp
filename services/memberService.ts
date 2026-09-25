@@ -168,18 +168,50 @@ export const getMemberCarnets = async (churchId: string, parentId?: string): Pro
 
 export const getMemberLetterHistory = async (
   churchId: string,
-  memberId: string
+  memberId: string,
+  memberName?: string
 ): Promise<LetterHistory[]> => {
-  const { data, error } = await supabase
+  // 1. Busca todos os documentos emitidos no nome do próprio membro (Recomendação, Mudança, Batismo, Apresentação)
+  const { data: ownData } = await supabase
     .from('letter_history')
     .select('*')
     .eq('church_id', churchId)
     .eq('member_id', memberId)
-    .in('letter_type', ['BATISMO', 'APRESENTACAO'])
     .order('issued_at', { ascending: false });
 
-  if (error || !data) return [];
-  return data.map(toAppLetterHistory);
+  const ownList = (ownData || []).map(toAppLetterHistory);
+  const ownIds = new Set(ownList.map(l => l.id));
+
+  // 2. Busca certificados de apresentação na igreja para verificar se o membro é pai ou mãe
+  const { data: presentationData } = await supabase
+    .from('letter_history')
+    .select('*')
+    .eq('church_id', churchId)
+    .eq('letter_type', 'APRESENTACAO')
+    .order('issued_at', { ascending: false });
+
+  const clean = (s?: string) => (s || '').trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const targetName = clean(memberName);
+
+  const childPresentations: LetterHistory[] = [];
+  if (presentationData) {
+    for (const raw of presentationData) {
+      if (ownIds.has(raw.id)) continue;
+      const snap = raw.member_data_snapshot || {};
+      const isFatherId = snap.fatherId && snap.fatherId === memberId;
+      const isMotherId = snap.motherId && snap.motherId === memberId;
+      const isFatherName = targetName && snap.fatherName && clean(snap.fatherName) === targetName;
+      const isMotherName = targetName && snap.motherName && clean(snap.motherName) === targetName;
+
+      if (isFatherId || isMotherId || isFatherName || isMotherName) {
+        childPresentations.push(toAppLetterHistory(raw));
+      }
+    }
+  }
+
+  const all = [...ownList, ...childPresentations];
+  all.sort((a, b) => new Date(b.issuedAt).getTime() - new Date(a.issuedAt).getTime());
+  return all;
 };
 
 export const getMemberCarnetHistory = async (
