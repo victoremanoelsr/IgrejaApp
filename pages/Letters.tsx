@@ -26,6 +26,21 @@ const DEFAULT_TEXTO_ELEMENT: LayoutElement = {
     style: { fontSize: 12, color: '#000000', fontWeight: 'normal', textAlign: 'justify' }
 };
 
+const DOC_LABELS: Record<string, string> = {
+    RECOMENDACAO: 'Recomendação',
+    MUDANCA: 'Mudança',
+    BATISMO: 'Cert. Batismo',
+    APRESENTACAO: 'Cert. Apresentação',
+    GENERICO: 'Genérico',
+};
+
+const DOC_TITLES: Record<string, string> = {
+    RECOMENDACAO: 'CARTA DE RECOMENDAÇÃO',
+    MUDANCA: 'CARTA DE MUDANÇA',
+    BATISMO: 'CERTIFICADO DE BATISMO',
+    APRESENTACAO: 'CERTIFICADO DE APRESENTAÇÃO',
+};
+
 export const Letters: React.FC = () => {
     const { user, currentChurch, members, lettersHistory, addLetterHistory, deleteLetterHistory, updateMember, getLetterTemplates, addLetterTemplate, updateLetterTemplate, deleteLetterTemplate, uploadBookletBackground } = useApp();
 
@@ -38,6 +53,7 @@ export const Letters: React.FC = () => {
     const [roleOrFunction, setRoleOrFunction] = useState('MEMBRO');
     const [disableMember, setDisableMember] = useState(false);
     const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
+    const [reemittingId, setReemittingId] = useState<string | null>(null);
     const [fatherSearch, setFatherSearch] = useState('');
     const [fatherName, setFatherName] = useState('');
     const [fatherId, setFatherId] = useState<string | undefined>(undefined);
@@ -333,6 +349,213 @@ export const Letters: React.FC = () => {
         setMotherId(undefined);
     };
 
+    // --- REEMISSÃO DIRETA DO DOCUMENTO ORIGINAL SALVO ---
+    const handleReemitDirectly = async (h: LetterHistory) => {
+        try {
+            setReemittingId(h.id);
+            const isCert = isCertType(h.letterType);
+            const orientation = isCert ? 'l' : 'p';
+            const pdfW_mm = isCert ? A4_HEIGHT_MM : A4_WIDTH_MM;
+            const pdfH_mm = isCert ? A4_WIDTH_MM  : A4_HEIGHT_MM;
+            const doc = new jsPDF(orientation as any, 'mm', 'a4');
+
+            const church = currentChurch;
+            const churchName    = church?.name    || 'Igreja';
+            const churchAddress = church?.address || '';
+            const pastorName    = church?.pastorName || '';
+            const logoUrl       = church?.logoUrl || '';
+
+            // Busca modelo pelo nome gravado no histórico ou tipo correspondente
+            const currentFiltered = templates.filter(t => t.churchId === church?.id && (t.type === h.letterType || t.type === 'GENERICO'));
+            const template = (h.templateName && templates.find(t => t.churchId === church?.id && t.name === h.templateName))
+                || templates.find(t => t.churchId === church?.id && t.type === h.letterType)
+                || (currentFiltered.length > 0 ? currentFiltered[0] : undefined);
+
+            const snap = h.memberDataSnapshot || {};
+            const memberName = h.memberName || snap.name || 'Membro';
+            const memberCpf  = snap.cpf || '';
+            const memberRg   = snap.rg || '';
+            const role       = snap.roleOrFunction || 'MEMBRO';
+            const birthDateFormatted   = snap.birthDate ? parseLocalDate(snap.birthDate).toLocaleDateString('pt-BR') : '-';
+            const baptismDateFormatted = snap.baptismDate ? parseLocalDate(snap.baptismDate).toLocaleDateString('pt-BR') : '-';
+            const marital    = snap.maritalStatus || '';
+            const fName      = snap.fatherName || '';
+            const mName      = snap.motherName || '';
+            const nat        = snap.naturalidade || '';
+            const nac        = snap.nacionalidade || 'Brasileiro(a)';
+
+            const issueDate = new Date(h.issuedAt || h.generatedAt || Date.now());
+            const city = churchAddress.split(',')[1]?.trim() || churchName;
+            const fullDate = `${city}, ${issueDate.getDate()} de ${issueDate.toLocaleString('pt-BR', { month: 'long' })} de ${issueDate.getFullYear()}`;
+            const formattedIssueDate = issueDate.toLocaleDateString('pt-BR');
+
+            if (template) {
+                if (template.backgroundUrl) {
+                    const bgData = await loadImageForPDF(template.backgroundUrl);
+                    if (bgData) {
+                        addImageToPdf(doc, bgData, 0, 0, pdfW_mm, pdfH_mm);
+                    }
+                }
+
+                const scale = pdfW_mm / EDITOR_WIDTH;
+                const elementsToRender = template.layoutJson || [{ ...DEFAULT_TEXTO_ELEMENT }];
+
+                for (const el of elementsToRender) {
+                    if (el.type === 'image' && el.content) {
+                        const imgData = await loadImageForPDF(el.content);
+                        if (imgData) {
+                            const x = el.x * scale;
+                            const y = el.y * scale;
+                            const w = (el.width || 100) * scale;
+                            const h = (el.height || 100) * scale;
+                            addImageToPdf(doc, imgData, x, y, w, h);
+                        }
+                        continue;
+                    }
+
+                    if (el.content === '{{texto_cadastrado}}') {
+                        const textContent = h.letterType === 'MUDANCA' ? (template.changeText || '') : (template.recommendationText || '');
+                        if (textContent.trim()) {
+                            doc.setTextColor(el.style?.color || '#000000');
+                            doc.setFontSize(el.style?.fontSize || 12);
+                            doc.setFont("helvetica", el.style?.fontWeight === 'bold' ? 'bold' : 'normal');
+                            const processedText = textContent
+                                .replace(/{{nome_membro}}/g, memberName)
+                                .replace(/{{cpf}}/g, memberCpf)
+                                .replace(/{{rg}}/g, memberRg)
+                                .replace(/{{cargo}}/g, role)
+                                .replace(/{{data_batismo}}/g, baptismDateFormatted)
+                                .replace(/{{data_nascimento}}/g, birthDateFormatted)
+                                .replace(/{{data_atual}}/g, formattedIssueDate)
+                                .replace(/{{cidade_igreja}}/g, fullDate)
+                                .replace(/{{estado_civil}}/g, marital)
+                                .replace(/{{nome_pai}}/g, fName)
+                                .replace(/{{nome_mae}}/g, mName)
+                                .replace(/{{naturalidade}}/g, nat)
+                                .replace(/{{nacionalidade}}/g, nac)
+                                .replace(/{{nome_pastor_presidente}}/g, pastorName);
+
+                            const pageMargin = isCert ? 30 : 20;
+                            const safeMaxW   = pdfW_mm - 2 * pageMargin;
+                            const lh         = doc.getLineHeight() / doc.internal.scaleFactor;
+                            const allLinesEst: string[] = [];
+                            processedText.split('\n').forEach(para => {
+                                if (para.trim() === '') { allLinesEst.push(''); return; }
+                                allLinesEst.push(...doc.splitTextToSize(para, safeMaxW));
+                            });
+                            const blockH   = allLinesEst.length * lh;
+                            const textY    = Math.max(pageMargin + lh, (pdfH_mm - blockH) / 2 + lh);
+                            const align    = el.style?.textAlign as string;
+                            if (align === 'center') {
+                                const centerX = pdfW_mm / 2;
+                                const lines   = doc.splitTextToSize(processedText, safeMaxW);
+                                lines.forEach((line: string, i: number) => {
+                                    doc.text(line, centerX, textY + i * lh, { align: 'center' });
+                                });
+                            } else {
+                                renderJustifiedText(doc, processedText, pageMargin, textY, safeMaxW, lh);
+                            }
+                        }
+                    } else {
+                        const text = (el.content || '')
+                            .replace(/{{nome_membro}}/g, memberName)
+                            .replace(/{{cpf}}/g, memberCpf)
+                            .replace(/{{rg}}/g, memberRg)
+                            .replace(/{{cargo}}/g, role)
+                            .replace(/{{data_batismo}}/g, baptismDateFormatted)
+                            .replace(/{{data_nascimento}}/g, birthDateFormatted)
+                            .replace(/{{data_atual}}/g, formattedIssueDate)
+                            .replace(/{{cidade_igreja}}/g, fullDate)
+                            .replace(/{{estado_civil}}/g, marital)
+                            .replace(/{{nome_pai}}/g, fName)
+                            .replace(/{{nome_mae}}/g, mName)
+                            .replace(/{{naturalidade}}/g, nat)
+                            .replace(/{{nacionalidade}}/g, nac)
+                            .replace(/{{nome_pastor_presidente}}/g, pastorName);
+
+                        doc.setTextColor(el.style?.color || '#000000');
+                        doc.setFontSize(el.style?.fontSize || 12);
+                        doc.setFont("helvetica", el.style?.fontWeight === 'bold' ? 'bold' : 'normal');
+                        const x = el.x * scale;
+                        const y = el.y * scale;
+                        if (el.style?.textAlign === 'center') {
+                            doc.text(text, x, y + ((el.style?.fontSize || 12) * 0.35), { align: 'center' });
+                        } else if (el.style?.textAlign === 'right') {
+                            doc.text(text, x, y + ((el.style?.fontSize || 12) * 0.35), { align: 'right' });
+                        } else {
+                            doc.text(text, x, y + ((el.style?.fontSize || 12) * 0.35));
+                        }
+                    }
+                }
+            } else {
+                // Fallback padrão sem papel timbrado
+                if (logoUrl) {
+                    const logoData = await loadImageForPDF(logoUrl);
+                    if (logoData) addImageToPdf(doc, logoData, 15, isCert ? 10 : 15, isCert ? 25 : 30, isCert ? 25 : 30);
+                }
+
+                if (isCert) {
+                    doc.setFontSize(13); doc.setFont("helvetica", 'bold');
+                    doc.text(churchName.toUpperCase(), pdfW_mm / 2, 22, { align: 'center' });
+                    doc.setFontSize(9); doc.setFont("helvetica", 'normal');
+                    doc.text(churchAddress, pdfW_mm / 2, 28, { align: 'center' });
+                    doc.text(`Pastor Presidente: ${pastorName}`, pdfW_mm / 2, 34, { align: 'center' });
+                    doc.setLineWidth(0.5); doc.line(15, 42, pdfW_mm - 15, 42);
+
+                    const title = h.letterType === 'BATISMO' ? 'CERTIFICADO DE BATISMO' : 'CERTIFICADO DE APRESENTAÇÃO';
+                    doc.setFontSize(16); doc.setFont("helvetica", 'bold');
+                    doc.text(title, pdfW_mm / 2, 60, { align: 'center' });
+
+                    let body = '';
+                    if (h.letterType === 'BATISMO') {
+                        body = `Certificamos que ${memberName}, portador(a) do CPF nº ${memberCpf}, nascido(a) em ${birthDateFormatted}, recebeu o Santo Batismo nas águas em ${baptismDateFormatted}, em cumprimento ao mandamento bíblico, sendo reconhecido(a) como membro batizado(a) desta comunidade de fé.`;
+                    } else {
+                        body = `Certificamos que a criança ${memberName}, nascida em ${birthDateFormatted}, filha de ${fName || 'Pai não informado'} e ${mName || 'Mãe não informada'}, foi solenemente apresentada ao Senhor Jesus Cristo nesta congregação, segundo o mandamento das Sagradas Escrituras (Lucas 2:22), com oração e imposição de mãos, impetrando sobre sua vida a bênção e a graça do Deus Todo-Poderoso.`;
+                    }
+
+                    doc.setFontSize(11); doc.setFont("helvetica", 'normal');
+                    renderJustifiedText(doc, body, 25, 80, pdfW_mm - 50);
+
+                    doc.text(fullDate, pdfW_mm / 2, 150, { align: 'center' });
+                    doc.line(pdfW_mm / 2 - 40, 175, pdfW_mm / 2 + 40, 175);
+                    doc.text('Assinatura do Pastor', pdfW_mm / 2, 180, { align: 'center' });
+                    doc.setFontSize(8);
+                    doc.text(pastorName.toUpperCase(), pdfW_mm / 2, 185, { align: 'center' });
+                } else {
+                    const recommendationTemplate = `A Igreja Evangélica Assembleia de Deus em ${city}, vem por meio desta, recomendar à comunhão dos santos, o(a) irmão(a) ${memberName}, portador(a) do CPF nº ${memberCpf}, nascido(a) em ${birthDateFormatted} e batizado(a) nas águas em ${baptismDateFormatted !== '-' ? baptismDateFormatted : 'data não registrada'}.\n\nO(A) referido(a) irmão(a) é ${role} em nossa igreja, encontrando-se em plena comunhão e paz conosco. Portanto, o(a) recomendamos para participar de todas as atividades e sacramentos, como membro do corpo de Cristo.\n\nSem mais para o momento, subscrevemo-nos.`;
+                    const transferTemplate = `A Igreja Evangélica Assembleia de Deus em ${city}, concede a presente CARTA DE MUDANÇA ao(à) irmão(ã) ${memberName}, portador(a) do CPF nº ${memberCpf}, nascido(a) em ${birthDateFormatted} e batizado(a) nas águas em ${baptismDateFormatted !== '-' ? baptismDateFormatted : 'data não registrada'}.\n\nO(A) referido(a) irmão(a) esteve em comunhão conosco na função de ${role} e, por motivo de mudança, solicitou seu desligamento de nosso rol de membros.\n\nNada temos que desabone sua conduta moral e espiritual. Portanto, o(a) recomendamos à vossa filiação.\n\nSem mais para o momento, subscrevemo-nos.`;
+                    const content = h.letterType === 'MUDANCA' ? transferTemplate : recommendationTemplate;
+                    const title = DOC_TITLES[h.letterType] || 'CARTA';
+
+                    doc.setFontSize(14); doc.setFont("helvetica", 'bold');
+                    doc.text(churchName.toUpperCase(), 105, 25, { align: 'center' });
+                    doc.setFontSize(10); doc.setFont("helvetica", 'normal');
+                    doc.text(churchAddress, 105, 32, { align: 'center' });
+                    doc.text(`Pastor Presidente: ${pastorName}`, 105, 39, { align: 'center' });
+                    doc.setLineWidth(0.5); doc.line(15, 50, 195, 50);
+                    doc.setFontSize(16); doc.setFont("helvetica", 'bold');
+                    doc.text(title, 105, 70, { align: 'center' });
+                    doc.setFontSize(12); doc.setFont("helvetica", 'normal');
+                    renderJustifiedText(doc, content, 20, 90, 170);
+                    doc.text(`${city}, ${formattedIssueDate}.`, 105, 180, { align: 'center' });
+                    doc.line(65, 220, 145, 220);
+                    doc.text('Assinatura do Pastor', 105, 225, { align: 'center' });
+                    doc.setFontSize(8);
+                    doc.text(pastorName.toUpperCase(), 105, 230, { align: 'center' });
+                }
+            }
+
+            const filePrefix = (h.letterType === 'BATISMO' || h.letterType === 'APRESENTACAO') ? 'Certificado' : 'Carta';
+            doc.save(`${filePrefix}_${h.letterType}_${memberName.replace(/\s/g, '_')}.pdf`);
+            showAlert("Sucesso", "Documento original baixado com sucesso!", "success");
+        } catch (err: any) {
+            console.error("Erro ao reemitir:", err);
+            showAlert("Erro", "Não foi possível baixar o documento original: " + (err?.message || "Tente novamente"), "danger");
+        } finally {
+            setReemittingId(null);
+        }
+    };
+
     // --- EDITOR LOGIC ---
     const handleNewTemplate = () => {
         setEditingTemplateId(null);
@@ -428,20 +651,6 @@ export const Letters: React.FC = () => {
     const fatherSuggestions = fatherSearch.length < 2 ? [] : activeMembers.filter(m => m.name.toLowerCase().includes(fatherSearch.toLowerCase()));
     const motherSuggestions = motherSearch.length < 2 ? [] : activeMembers.filter(m => m.name.toLowerCase().includes(motherSearch.toLowerCase()));
     const filteredTemplates = templates.filter(t => t.churchId === currentChurch?.id && (t.type === letterType || t.type === 'GENERICO'));
-
-    const DOC_LABELS: Record<string, string> = {
-        RECOMENDACAO: 'Recomendação',
-        MUDANCA: 'Mudança',
-        BATISMO: 'Cert. Batismo',
-        APRESENTACAO: 'Cert. Apresentação',
-        GENERICO: 'Genérico',
-    };
-    const DOC_TITLES: Record<string, string> = {
-        RECOMENDACAO: 'CARTA DE RECOMENDAÇÃO',
-        MUDANCA: 'CARTA DE MUDANÇA',
-        BATISMO: 'CERTIFICADO DE BATISMO',
-        APRESENTACAO: 'CERTIFICADO DE APRESENTAÇÃO',
-    };
     const selectedElement = layoutElements.find(el => el.id === selectedElementId);
 
     // --- RENDERERS ---
@@ -900,17 +1109,20 @@ export const Letters: React.FC = () => {
                                     <td className="px-4 py-2 text-right">
                                         <div className="flex items-center justify-end gap-1">
                                             <button
-                                                onClick={() => {
-                                                    setSelectedMember({ name: h.memberDataSnapshot.name, cpf: h.memberDataSnapshot.cpf, birthDate: h.memberDataSnapshot.birthDate || '', baptismDate: h.memberDataSnapshot.baptismDate } as Member);
-                                                    setRoleOrFunction(h.memberDataSnapshot.roleOrFunction);
-                                                    setLetterType(h.letterType as any);
-                                                    showAlert("Pronto para Reemissão", "Os dados foram carregados. Clique em 'Gerar Carta PDF' para reimprimir.", "info");
-                                                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                                                }}
-                                                className="text-gray-500 hover:text-brand-orange p-1 flex items-center"
-                                                title="Reemitir carta"
+                                                onClick={() => handleReemitDirectly(h)}
+                                                disabled={reemittingId === h.id}
+                                                className="text-brand-orange hover:text-brand-orange/80 p-1 flex items-center font-medium disabled:opacity-50 transition-colors"
+                                                title="Baixar documento original"
                                             >
-                                                <Eye size={16} className="mr-1"/> Reemitir
+                                                {reemittingId === h.id ? (
+                                                    <>
+                                                        <Settings size={15} className="mr-1 animate-spin text-brand-orange"/> Baixando...
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <Download size={15} className="mr-1"/> Reemitir
+                                                    </>
+                                                )}
                                             </button>
                                             <button
                                                 onClick={() => showConfirm("Excluir Registro", "Tem certeza que deseja excluir este registro do histórico?", async () => { await deleteLetterHistory(h.id); }, "danger")}
