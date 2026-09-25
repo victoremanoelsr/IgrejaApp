@@ -489,6 +489,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (!profileData.auth_user_id || profileData.auth_user_id !== realSignIn.user.id) {
           try { await supabase.rpc('link_profile_to_auth', { p_username: u, p_auth_user_id: realSignIn.user.id }); } catch (_) {}
         }
+        // Padroniza a senha no Auth para a chave do sistema, evitando futuros erros 400 no console
+        try { await supabase.auth.updateUser({ password: authPass }); } catch (_) {}
       } else {
         // 4. Usuário Auth não existe — cria via signUp, confirma e-mail e faz signIn
         const { data: signUpData } = await supabase.auth.signUp({
