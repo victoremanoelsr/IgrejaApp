@@ -468,26 +468,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const authEmail = `${u}@${EMAIL_DOMAIN}`;
     const authPass = buildAuthPassword(profileData.id);
 
-    // 2. Tenta signIn com senha real (usuários pré-migração com senha real no Auth)
-    const { data: realSignIn } = await supabase.auth.signInWithPassword({
+    // 2. Tenta signIn com senha derivada primeiro (padrão de todos os usuários criados no sistema)
+    const { data: derivedSignIn } = await supabase.auth.signInWithPassword({
       email: authEmail,
-      password: p,
+      password: authPass,
     });
 
-    if (realSignIn?.user) {
-      if (!profileData.auth_user_id || profileData.auth_user_id !== realSignIn.user.id) {
-        try { await supabase.rpc('link_profile_to_auth', { p_username: u, p_auth_user_id: realSignIn.user.id }); } catch (_) {}
+    if (derivedSignIn?.user) {
+      if (!profileData.auth_user_id || profileData.auth_user_id !== derivedSignIn.user.id) {
+        try { await supabase.rpc('link_profile_to_auth', { p_username: u, p_auth_user_id: derivedSignIn.user.id }); } catch (_) {}
       }
     } else {
-      // 3. Tenta signIn com senha derivada (usuários criados pelo sistema)
-      const { data: derivedSignIn } = await supabase.auth.signInWithPassword({
+      // 3. Fallback: tenta signIn com senha real (usuários legados pré-migração)
+      const { data: realSignIn } = await supabase.auth.signInWithPassword({
         email: authEmail,
-        password: authPass,
+        password: p,
       });
 
-      if (derivedSignIn?.user) {
-        if (!profileData.auth_user_id || profileData.auth_user_id !== derivedSignIn.user.id) {
-          try { await supabase.rpc('link_profile_to_auth', { p_username: u, p_auth_user_id: derivedSignIn.user.id }); } catch (_) {}
+      if (realSignIn?.user) {
+        if (!profileData.auth_user_id || profileData.auth_user_id !== realSignIn.user.id) {
+          try { await supabase.rpc('link_profile_to_auth', { p_username: u, p_auth_user_id: realSignIn.user.id }); } catch (_) {}
         }
       } else {
         // 4. Usuário Auth não existe — cria via signUp, confirma e-mail e faz signIn
