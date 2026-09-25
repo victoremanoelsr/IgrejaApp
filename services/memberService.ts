@@ -128,17 +128,7 @@ export const getMemberUpcomingEvents = async (churchId: string): Promise<Event[]
 };
 
 export const getMemberCarnets = async (churchId: string, parentId?: string): Promise<CarnetTemplate[]> => {
-  // 1. Tenta RPC SECURITY DEFINER caso exista no banco
-  try {
-    const { data: rpcData, error: rpcError } = await supabase.rpc('get_member_carnet_templates', {
-      p_church_id: churchId
-    });
-    if (!rpcError && rpcData && Array.isArray(rpcData) && rpcData.length > 0) {
-      return rpcData.map(toAppCarnetTemplate);
-    }
-  } catch (_) {}
-
-  // 2. Tenta buscar pelo churchId do membro ou da sede (parentId)
+  // Busca templates de carnês pelo churchId do membro ou da sede (parentId)
   const churchIds = [churchId];
   if (parentId && parentId !== churchId) churchIds.push(parentId);
 
