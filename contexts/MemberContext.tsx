@@ -253,7 +253,7 @@ export const MemberProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         .from('churches')
         .select('id, active, type, parent_id, plan_type, due_day, grace_period, payment_promise_date')
         .eq('id', churchId)
-        .single();
+        .maybeSingle();
 
       if (churchData) {
         let sedeData = churchData;
@@ -263,7 +263,7 @@ export const MemberProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             .from('churches')
             .select('id, active, plan_type, due_day, grace_period, payment_promise_date')
             .eq('id', churchData.parent_id)
-            .single();
+            .maybeSingle();
           if (parentData) sedeData = parentData;
         }
 
