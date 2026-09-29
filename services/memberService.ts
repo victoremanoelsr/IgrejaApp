@@ -269,6 +269,7 @@ export interface PublicTransaction {
   category: string;
   type: 'ENTRADA' | 'SAIDA';
   amount: number;
+  description?: string;
 }
 
 export const getPublicFinancialData = async (
@@ -285,17 +286,45 @@ export const getPublicFinancialData = async (
 
   if (error) {
     console.error('[getPublicFinancialData] RPC error:', error.message);
-    return [];
   }
-  if (!data) return [];
 
-  return (data as any[]).map((row) => ({
-    id: String(row.id),
-    date: String(row.date),
-    category: String(row.category),
-    type: row.type as 'ENTRADA' | 'SAIDA',
-    amount: parseFloat(String(row.amount)) || 0,
-  }));
+  let list: PublicTransaction[] = [];
+
+  if (data && Array.isArray(data)) {
+    list = (data as any[]).map((row) => ({
+      id: String(row.id),
+      date: String(row.date),
+      category: String(row.category),
+      type: row.type as 'ENTRADA' | 'SAIDA',
+      amount: parseFloat(String(row.amount)) || 0,
+      description: row.type === 'SAIDA' ? (row.description ? String(row.description).trim() : '') : '',
+    }));
+  }
+
+  // Fallback caso a RPC no banco seja a versão antiga (sem campo description no retorno)
+  const saidasSemDesc = list.filter((t) => t.type === 'SAIDA' && !t.description);
+  if (saidasSemDesc.length > 0) {
+    try {
+      const { data: descData } = await supabase
+        .from('transactions')
+        .select('id, description')
+        .in('id', saidasSemDesc.map((s) => s.id));
+
+      if (descData && descData.length > 0) {
+        const descMap = new Map<string, string>(descData.map((d: any) => [String(d.id), String(d.description || '')]));
+        list = list.map((t) => {
+          if (t.type === 'SAIDA' && !t.description && descMap.has(t.id)) {
+            return { ...t, description: descMap.get(t.id) || '' };
+          }
+          return t;
+        });
+      }
+    } catch {
+      // Ignora erro se RLS impedir leitura direta
+    }
+  }
+
+  return list;
 };
 
 export const subscribeToMemberTransactions = (

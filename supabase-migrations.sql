@@ -39,11 +39,12 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
   SELECT json_build_object(
-    'id',       t.id::TEXT,
-    'date',     t.date::TEXT,
-    'category', t.category::TEXT,
-    'type',     t.type::TEXT,
-    'amount',   t.amount::NUMERIC
+    'id',          t.id::TEXT,
+    'date',        t.date::TEXT,
+    'category',    t.category::TEXT,
+    'type',        t.type::TEXT,
+    'amount',      t.amount::NUMERIC,
+    'description', CASE WHEN t.type = 'SAIDA' THEN t.description::TEXT ELSE NULL END
   )
   FROM transactions t
   WHERE t.church_id = p_church_id
