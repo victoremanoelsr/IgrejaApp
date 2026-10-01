@@ -271,7 +271,37 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const fetchData = async () => {
     const { data: userData } = await supabase.from('profiles').select('*').or('is_active.is.null,is_active.eq.true');
-    if(userData) setUsers(userData.map(toAppUser));
+    if (userData) {
+      const appUsers = userData.map(toAppUser);
+      setUsers(appUsers);
+
+      // Sincroniza e consolida todas as roles da pessoa conectada
+      setUser(prev => {
+        if (!prev) return null;
+        const prevCleanCpf = prev.cpf ? prev.cpf.replace(/\D/g, '') : '';
+        const prevCleanName = prev.name ? prev.name.trim().toUpperCase() : '';
+        const prevCleanUsername = prev.username ? prev.username.trim().toLowerCase() : '';
+
+        const matching = appUsers.filter(u => {
+          if (u.id === prev.id) return true;
+          const uCleanCpf = u.cpf ? u.cpf.replace(/\D/g, '') : '';
+          if (prevCleanCpf && uCleanCpf && prevCleanCpf === uCleanCpf) return true;
+          if (u.username && prevCleanUsername && u.username.trim().toLowerCase() === prevCleanUsername) return true;
+          if (u.name && prevCleanName && u.name.trim().toUpperCase() === prevCleanName) return true;
+          return false;
+        });
+
+        const combinedRoles = Array.from(new Set([
+          ...(prev.roles || [prev.role]),
+          ...matching.flatMap(u => (u.roles || [u.role]))
+        ])) as Role[];
+
+        return {
+          ...prev,
+          roles: combinedRoles
+        };
+      });
+    }
 
     const { data: churchData } = await supabase.from('churches').select('*');
     if(churchData) {
@@ -519,6 +549,38 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const appUser = toAppUser(profileData);
     await fetchData();
 
+    // Consolida roles de todos os perfis correspondentes
+    const userCleanCpf = profileData.cpf ? profileData.cpf.replace(/\D/g, '') : '';
+    const userCleanName = profileData.name ? profileData.name.trim().toUpperCase() : '';
+    const userCleanUsername = profileData.username ? profileData.username.trim().toLowerCase() : '';
+
+    const { data: allProfiles } = await supabase.from('profiles').select('*').or('is_active.is.null,is_active.eq.true');
+    const matching = (allProfiles || []).filter(p => {
+      if (p.id === profileData.id) return true;
+      const pCleanCpf = p.cpf ? p.cpf.replace(/\D/g, '') : '';
+      if (userCleanCpf && pCleanCpf && userCleanCpf === pCleanCpf) return true;
+      if (p.username && userCleanUsername && p.username.trim().toLowerCase() === userCleanUsername) return true;
+      if (p.name && userCleanName && p.name.trim().toUpperCase() === userCleanName) return true;
+      return false;
+    });
+
+    const consolidatedRoles = Array.from(new Set([
+      ...appUser.roles,
+      ...((rpcData as any[]) || []).flatMap(p => {
+        const r = (p.role || '').toString();
+        return r.includes(',') ? r.split(',').map((x: string) => x.trim()) : [r.trim()];
+      }),
+      ...matching.flatMap(p => {
+        const r = (p.role || '').toString();
+        return r.includes(',') ? r.split(',').map((x: string) => x.trim()) : [r.trim()];
+      })
+    ])).filter(Boolean) as Role[];
+
+    appUser.roles = consolidatedRoles;
+    if (!consolidatedRoles.includes(appUser.role) && consolidatedRoles.length > 0) {
+      appUser.role = consolidatedRoles[0];
+    }
+
     if (appUser.role !== 'SUPER_ADM' && appUser.churchId) {
       const { data: freshChurches } = await supabase.from('churches').select('*');
       const churchList = freshChurches ? freshChurches.map(toAppChurch) : churches;
@@ -550,7 +612,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (!user) return;
     setUser(prev => {
       if (!prev) return null;
-      return { ...prev, role: newRole };
+      return { 
+        ...prev, 
+        role: newRole,
+        roles: Array.from(new Set([...(prev.roles || []), newRole]))
+      };
     });
   };
 
@@ -868,6 +934,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           parent_id: c.parentId
       };
       
+      if (c.officialName) payload.official_name = c.officialName;
       if (c.id && c.id.trim() !== '') {
           payload.id = c.id;
       }
@@ -878,7 +945,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (c.pixKey)      payload.pix_key      = c.pixKey;
 
       const { data, error } = await supabase.from('churches').insert([payload]).select();
-      if (error) return { success: false, error: error.message };
+      if (error) {
+        // Fallback caso a coluna official_name ainda não tenha sido criada no Supabase
+        if (payload.official_name) {
+          delete payload.official_name;
+          const retry = await supabase.from('churches').insert([payload]).select();
+          if (retry.error) return { success: false, error: retry.error.message };
+          if (retry.data) setChurches(prev => [...prev, toAppChurch(retry.data[0])]);
+          return { success: true, id: retry.data?.[0]?.id };
+        }
+        return { success: false, error: error.message };
+      }
       if (data) setChurches(prev => [...prev, toAppChurch(data[0])]);
       return { success: true, id: data?.[0]?.id };
   };
@@ -903,6 +980,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (d.planTier !== undefined) extendedPayload.plan_tier = d.planTier;
       if (d.lastPaymentDate !== undefined) extendedPayload.last_payment_date = d.lastPaymentDate || null;
       if (d.pastorPhone !== undefined) extendedPayload.pastor_phone = d.pastorPhone || null;
+      if (d.officialName !== undefined) extendedPayload.official_name = d.officialName || null;
 
       const hasMain = Object.keys(payload).length > 0;
       const hasExt  = Object.keys(extendedPayload).length > 0;
@@ -915,7 +993,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       // Extended update (graceful – silently ignored if columns don't exist)
       if (hasExt) {
-          await supabase.from('churches').update(extendedPayload).eq('id', id);
+          try {
+            await supabase.from('churches').update(extendedPayload).eq('id', id);
+          } catch (e) {
+            console.warn('[updateChurch] Aviso ao atualizar colunas estendidas:', e);
+          }
+      }
+
+      // Se officialName foi alterado, sincroniza também em prestacao_config para redundância
+      if (d.officialName !== undefined) {
+          try {
+            const { data: cData } = await supabase.from('churches').select('prestacao_config').eq('id', id).maybeSingle();
+            const currentPrest = cData?.prestacao_config || {};
+            await supabase.from('churches').update({
+              prestacao_config: { ...currentPrest, officialName: d.officialName }
+            }).eq('id', id);
+          } catch {}
       }
 
       const updatedPatch = {
@@ -1055,28 +1148,43 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateUser = async (id: string, u: User): Promise<{success: boolean, error?: string}> => {
+      const cleanBirth = (u.birthDate && u.birthDate.trim() !== '') ? cleanDate(u.birthDate) : null;
+      const cleanCpf = (u.cpf && u.cpf.trim() !== '') ? u.cpf.trim() : null;
+      const cleanChurch = (u.churchId && u.churchId.trim() !== '') ? u.churchId.trim() : null;
+      const cleanPass = (u.password && u.password.trim() !== '') ? u.password.trim() : null;
+
       // 1. Tenta via RPC update_profile_admin (bypassa RLS e sincroniza auth e profiles)
       const { data: rpcData, error: rpcError } = await supabase.rpc('update_profile_admin', {
           p_id: id,
           p_name: u.name,
-          p_username: u.username,
+          p_username: u.username.trim(),
           p_role: u.role,
-          p_church_id: u.churchId || null,
-          p_cpf: u.cpf || null,
-          p_birth_date: u.birthDate || null,
-          p_password: (u.password && u.password.trim() !== '') ? u.password : null
+          p_church_id: cleanChurch,
+          p_cpf: cleanCpf,
+          p_birth_date: cleanBirth,
+          p_password: cleanPass
       });
 
       if (!rpcError && rpcData) {
           if ((rpcData as any).success === false) {
               return { success: false, error: (rpcData as any).error || 'Erro ao atualizar usuário.' };
           }
-          const { data: row } = await supabase.from('profiles').select('*').eq('id', id).single();
+          const { data: row } = await supabase.from('profiles').select('*').eq('id', id).maybeSingle();
           if (row) {
               setUsers(users.map(us => us.id === id ? toAppUser(row) : us));
           } else {
               setUsers(users.map(us => us.id === id ? { ...us, ...u } : us));
           }
+
+          if (user && user.id === id) {
+              setUser(prev => prev ? { ...prev, ...u } : null);
+          }
+
+          // Se username ou password foram alterados, sincroniza com o helper de credenciais
+          if (u.username || cleanPass) {
+              await updateUserCredentials(id, u.username.trim(), cleanPass || undefined);
+          }
+
           return { success: true };
       }
 
@@ -1085,23 +1193,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       // Fallback para update direto caso a RPC não esteja disponível
       const updatePayload: any = {
           name: u.name,
-          username: u.username,
+          username: u.username.trim(),
           role: u.role,
-          church_id: u.churchId
+          church_id: cleanChurch
       };
-      if (u.cpf !== undefined) updatePayload.cpf = u.cpf;
-      if (u.birthDate !== undefined && u.birthDate !== '') updatePayload.birth_date = cleanDate(u.birthDate);
-      if (u.password && u.password.trim() !== '') updatePayload.password = u.password;
+      if (cleanCpf !== null) updatePayload.cpf = cleanCpf;
+      if (cleanBirth !== null) updatePayload.birth_date = cleanBirth;
+      if (cleanPass !== null) updatePayload.password = cleanPass;
 
       let { data: updatedRows, error } = await supabase.from('profiles').update(updatePayload).eq('id', id).select();
       if (error && (error.message?.includes('birth_date') || error.message?.includes('cpf'))) {
           const basicPayload: any = {
               name: u.name,
-              username: u.username,
+              username: u.username.trim(),
               role: u.role,
-              church_id: u.churchId
+              church_id: cleanChurch
           };
-          if (u.password && u.password.trim() !== '') basicPayload.password = u.password;
+          if (cleanPass !== null) basicPayload.password = cleanPass;
           const retryRes = await supabase.from('profiles').update(basicPayload).eq('id', id).select();
           error = retryRes.error;
           updatedRows = retryRes.data;
@@ -1118,11 +1226,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           return { success: false, error: errMsg };
       }
 
-      if (u.password && u.password.trim() !== '') {
-          await updateUserCredentials(id, u.username, u.password);
+      if (cleanPass) {
+          await updateUserCredentials(id, u.username.trim(), cleanPass);
       }
 
       setUsers(users.map(us => us.id === id ? toAppUser(updatedRows[0]) : us));
+      if (user && user.id === id) {
+          setUser(prev => prev ? { ...prev, ...u } : null);
+      }
       return { success: true };
   };
 
@@ -1136,33 +1247,61 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   // Remove a pessoa apenas do cargo no departamento.
-  // Se o usuário tiver múltiplos cargos (ex: Jovens + Senhores), remove apenas o cargo especificado.
-  // NÃO desativa o perfil, NÃO apaga o membro, NÃO afeta transações históricas.
+  // Se o usuário tiver múltiplos cargos (ex: Senhoras + Missões), remove apenas o cargo especificado.
+  // Se não sobrar cargo de liderança, define como 'MEMBRO' (nunca null).
+  // Usa RPC SECURITY DEFINER para bypassar o RLS e garantir persistência definitiva no Supabase.
   const removeFromTeam = async (id: string, roleToRemove?: Role): Promise<{success: boolean, error?: string}> => {
       const targetUser = users.find(u => u.id === id);
-      let newRoleValue: string | null = null;
-      let remainingRoles: Role[] = [];
+      if (!targetUser) {
+          return { success: false, error: 'Usuário não encontrado na lista de usuários.' };
+      }
 
-      if (targetUser && roleToRemove) {
+      let remainingRoles: Role[] = [];
+      let finalRole = 'MEMBRO';
+
+      if (roleToRemove) {
           const currentRoles = getUserRoles(targetUser);
           remainingRoles = removeRoleFromUserRoles(currentRoles, roleToRemove);
-          newRoleValue = remainingRoles.length > 0 ? remainingRoles.join(',') : null;
+          finalRole = remainingRoles.length > 0 ? remainingRoles.join(',') : 'MEMBRO';
       }
 
-      const { error } = await supabase
-          .from('profiles')
-          .update({ role: newRoleValue })
-          .eq('id', id);
-      if (error) {
-          console.error('[removeFromTeam] erro ao remover cargo:', error.message);
-          return { success: false, error: error.message };
+      // Atualiza via RPC update_profile_admin com SECURITY DEFINER (bypassa RLS com segurança)
+      const { data: rpcData, error: rpcError } = await supabase.rpc('update_profile_admin', {
+          p_id: id,
+          p_name: targetUser.name,
+          p_username: targetUser.username,
+          p_role: finalRole,
+          p_church_id: targetUser.churchId || null,
+          p_cpf: targetUser.cpf || null,
+          p_birth_date: targetUser.birthDate || null,
+          p_password: null // mantém a senha atual intacta
+      });
+
+      if (rpcError || (rpcData && (rpcData as any).success === false)) {
+          const errMsg = rpcError?.message || (rpcData as any)?.error || 'Erro ao remover cargo no banco de dados.';
+          console.error('[removeFromTeam] Erro ao remover cargo:', errMsg);
+          return { success: false, error: errMsg };
       }
-      // Se ainda restarem cargos, mantém o usuário na lista com os roles atualizados; se não, remove da lista de equipe
-      if (remainingRoles.length > 0 && targetUser) {
-          setUsers(users.map(u => u.id === id ? { ...u, role: remainingRoles[0], roles: remainingRoles } : u));
-      } else {
-          setUsers(users.filter(u => u.id !== id));
+
+      // Atualiza a lista de usuários em memória
+      setUsers(prev => prev.map(u => {
+          if (u.id !== id) return u;
+          return {
+              ...u,
+              role: (remainingRoles[0] || 'MEMBRO') as Role,
+              roles: remainingRoles.length > 0 ? remainingRoles : ['MEMBRO']
+          };
+      }));
+
+      // Se o usuário logado for o próprio, atualiza a sessão ativa
+      if (user && user.id === id) {
+          setUser(prev => prev ? {
+              ...prev,
+              role: (remainingRoles[0] || 'MEMBRO') as Role,
+              roles: remainingRoles.length > 0 ? remainingRoles : ['MEMBRO']
+          } : null);
       }
+
       return { success: true };
   };
 

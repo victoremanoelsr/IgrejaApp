@@ -296,7 +296,7 @@ export const Campaigns: React.FC = () => {
       
       doc.setFontSize(18);
       doc.setTextColor(orange[0], orange[1], orange[2]);
-      doc.text(currentChurch.name.toUpperCase(), 14, 20);
+      doc.text((currentChurch.officialName || currentChurch.name).toUpperCase(), 14, 20);
       
       doc.setFontSize(12);
       doc.setTextColor(100);

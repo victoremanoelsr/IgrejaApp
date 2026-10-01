@@ -1,9 +1,10 @@
 
-import { Church, User, Member, Transaction, Campaign, Event, Minute, FixedExpense, LetterHistory, CarnetTemplate, LetterTemplate, PhysicalSpace, Asset } from '../types';
+import { Church, User, Member, Transaction, Campaign, Event, Minute, FixedExpense, LetterHistory, CarnetTemplate, LetterTemplate, PhysicalSpace, Asset, Role } from '../types';
 
 export const toAppChurch = (data: any): Church => ({
   id: data.id,
   name: data.name,
+  officialName: data.official_name || data.prestacao_config?.officialName || undefined,
   address: data.address,
   active: data.active,
   type: data.type,

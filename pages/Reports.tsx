@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context';
-import { FileText, Download, TrendingUp, TrendingDown, DollarSign, Calendar, PieChart, Search, Filter, Info, ChevronDown, Briefcase } from 'lucide-react';
+import { FileText, Download, TrendingUp, TrendingDown, DollarSign, Calendar, PieChart, Search, Filter, Info, ChevronDown, Briefcase, X, ShieldCheck, Users, EyeOff } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Transaction } from '../types';
 import { PisPasep } from './PisPasep';
+import { getChurchDisplayName } from '../utils/churchUtils';
 
 export const Reports: React.FC = () => {
   const { transactions, currentChurch, generateMonthlyFixedExpenses } = useApp();
+  const churchName = getChurchDisplayName(currentChurch);
   
   // Filter States
   const [filterType, setFilterType] = useState<'MONTH' | 'PERIOD'>('MONTH');
@@ -106,24 +108,58 @@ export const Reports: React.FC = () => {
   const totalDizimos = dizimosList.reduce((acc, t) => acc + t.amount, 0);
   const totalOfertas = ofertasList.reduce((acc, t) => acc + t.amount, 0);
 
-  // --- PDF GENERATION ---
-  const generatePDF = () => {
-    const doc = new jsPDF();
-    const pageWidth = doc.internal.pageSize.getWidth();
-    
-    // Title
-    doc.setFontSize(18);
-    doc.text(currentChurch?.name.toUpperCase() || 'RELATÓRIO', pageWidth / 2, 20, { align: 'center' });
-    doc.setFontSize(10);
-    doc.text(`Relatório Financeiro ${reportViewMode === 'DETAILED' ? 'Detalhado' : 'Resumido'}`, pageWidth / 2, 26, { align: 'center' });
-    
-    const periodLabel = filterType === 'MONTH' 
+  const [showExportModal, setShowExportModal] = useState(false);
+
+  // Mapeamento amigável de tipos para relatório público
+  const getPublicEntryType = (t: Transaction): string => {
+    if (t.category === 'DIZIMO') return 'Dízimo';
+    if (t.category === 'OFERTA') return 'Oferta';
+    const map: Record<string, string> = {
+      MISSOES: 'Missões',
+      JOVENS: 'Jovens',
+      CRIANCAS: 'Crianças',
+      ADOLESCENTES: 'Adolescentes',
+      SENHORAS: 'Senhoras',
+      SENHORES: 'Senhores',
+      CONSTRUCAO: 'Construção / Obras',
+      OUTROS: 'Outras Contribuições'
+    };
+    return map[t.category] || 'Contribuição';
+  };
+
+  const getPeriodLabel = () => {
+    return filterType === 'MONTH' 
         ? `${String(selectedMonth).padStart(2,'0')}/${selectedYear}` 
         : `${new Date(rangeStart).toLocaleDateString('pt-BR')} a ${new Date(rangeEnd).toLocaleDateString('pt-BR')}`;
-    
-    doc.text(`Período: ${periodLabel}`, pageWidth / 2, 32, { align: 'center' });
+  };
 
-    let finalY = 45;
+  // --- PDF GENERATION: DETALHADO (ADMINISTRATIVO) ---
+  const generateDetailedPDF = () => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const periodLabel = getPeriodLabel();
+    
+    // Header institucional
+    doc.setFillColor(255, 100, 0);
+    doc.rect(0, 0, pageWidth, 6, 'F');
+
+    // Title
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(30, 41, 59);
+    doc.text(churchName.toUpperCase() || 'RELATÓRIO FINANCEIRO', pageWidth / 2, 18, { align: 'center' });
+    
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(71, 85, 105);
+    doc.text(`Relatório Financeiro Detalhado — Uso Administrativo / Tesouraria`, pageWidth / 2, 25, { align: 'center' });
+    doc.text(`Período: ${periodLabel}`, pageWidth / 2, 31, { align: 'center' });
+
+    doc.setFontSize(8.5);
+    doc.setTextColor(148, 163, 184);
+    doc.text(`Emitido em: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`, pageWidth / 2, 36, { align: 'center' });
+
+    let finalY = 42;
 
     // Summary Table
     autoTable(doc, {
@@ -134,70 +170,259 @@ export const Reports: React.FC = () => {
             `R$ ${totalOutPeriod.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`,
             `R$ ${finalBalance.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`
         ]],
-        headStyles: { fillColor: [255, 100, 0], halign: 'center' },
+        headStyles: { fillColor: [255, 100, 0], halign: 'center', fontStyle: 'bold' },
         bodyStyles: { halign: 'center', fontStyle: 'bold' },
         columnStyles: {
             0: { textColor: [22, 163, 74] },
             1: { textColor: [220, 38, 38] },
-            2: { textColor: finalBalance >= 0 ? [0, 0, 0] : [220, 38, 38] }
+            2: { textColor: finalBalance >= 0 ? [22, 163, 74] : [220, 38, 38] }
         }
     });
-    finalY = (doc as any).lastAutoTable.finalY + 15;
+    finalY = (doc as any).lastAutoTable.finalY + 12;
 
-    if (reportViewMode === 'DETAILED') {
-        // Entradas
-        doc.setFontSize(12);
-        doc.setTextColor(22, 163, 74);
-        doc.text("Entradas Detalhadas", 14, finalY);
-        finalY += 5;
-        
-        if (inflowsList.length > 0) {
-            autoTable(doc, {
-                startY: finalY,
-                head: [['Data', 'Descrição', 'Categoria', 'Valor']],
-                body: inflowsList.map(t => [
-                    new Date(t.date).toLocaleDateString('pt-BR'),
-                    t.description,
-                    t.category,
-                    t.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})
-                ]),
-                theme: 'striped',
-                headStyles: { fillColor: [22, 163, 74] }
-            });
-            finalY = (doc as any).lastAutoTable.finalY + 15;
-        } else {
-            doc.setFontSize(10);
-            doc.setTextColor(100);
-            doc.text("Nenhuma entrada no período.", 14, finalY + 5);
-            finalY += 15;
-        }
-
-        // Saídas
-        doc.setFontSize(12);
-        doc.setTextColor(220, 38, 38);
-        doc.text("Saídas Detalhadas", 14, finalY);
-        finalY += 5;
-
-        if (outflowsList.length > 0) {
-            autoTable(doc, {
-                startY: finalY,
-                head: [['Data', 'Descrição', 'Valor']],
-                body: outflowsList.map(t => [
-                    new Date(t.date).toLocaleDateString('pt-BR'),
-                    t.description,
-                    t.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})
-                ]),
-                theme: 'striped',
-                headStyles: { fillColor: [220, 38, 38] }
-            });
-        } else {
-            doc.setFontSize(10);
-            doc.setTextColor(100);
-            doc.text("Nenhuma saída no período.", 14, finalY + 5);
-        }
+    // Entradas Detalhadas
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(22, 163, 74);
+    doc.text("Entradas Detalhadas", 14, finalY);
+    finalY += 4;
+    
+    if (inflowsList.length > 0) {
+        autoTable(doc, {
+            startY: finalY,
+            head: [['Data', 'Descrição / Identificação', 'Categoria', 'Valor']],
+            body: inflowsList.map(t => [
+                new Date(t.date).toLocaleDateString('pt-BR'),
+                t.description,
+                t.category,
+                `R$ ${t.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`
+            ]),
+            theme: 'striped',
+            headStyles: { fillColor: [22, 163, 74], fontStyle: 'bold' },
+            foot: [['TOTAL ENTRADAS', '', '', `R$ ${totalInPeriod.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`]],
+            footStyles: { fillColor: [240, 253, 244], textColor: [22, 163, 74], fontStyle: 'bold' }
+        });
+        finalY = (doc as any).lastAutoTable.finalY + 12;
+    } else {
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(148, 163, 184);
+        doc.text("Nenhuma entrada registrada no período.", 14, finalY + 4);
+        finalY += 12;
     }
 
-    doc.save(`Relatorio_Financeiro_${periodLabel.replace(/\//g, '-')}.pdf`);
+    // Saídas Detalhadas
+    if (finalY > 230) {
+        doc.addPage();
+        finalY = 20;
+    }
+
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(220, 38, 38);
+    doc.text("Saídas Detalhadas", 14, finalY);
+    finalY += 4;
+
+    if (outflowsList.length > 0) {
+        autoTable(doc, {
+            startY: finalY,
+            head: [['Data', 'Descrição / Finalidade', 'Valor']],
+            body: outflowsList.map(t => [
+                new Date(t.date).toLocaleDateString('pt-BR'),
+                t.description,
+                `R$ ${t.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`
+            ]),
+            theme: 'striped',
+            headStyles: { fillColor: [220, 38, 38], fontStyle: 'bold' },
+            foot: [['TOTAL SAÍDAS', '', `R$ ${totalOutPeriod.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`]],
+            footStyles: { fillColor: [254, 242, 242], textColor: [220, 38, 38], fontStyle: 'bold' }
+        });
+        finalY = (doc as any).lastAutoTable.finalY + 10;
+    } else {
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(148, 163, 184);
+        doc.text("Nenhuma saída registrada no período.", 14, finalY + 4);
+        finalY += 10;
+    }
+
+    // Rodapé de páginas
+    const pageCount = (doc as any).internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setTextColor(150);
+        doc.text(`Página ${i} de ${pageCount} • Sistema IgrejaApp`, pageWidth - 14, doc.internal.pageSize.getHeight() - 10, { align: 'right' });
+    }
+
+    doc.save(`Relatorio_Financeiro_Detalhado_${periodLabel.replace(/\//g, '-')}.pdf`);
+    setShowExportModal(false);
+  };
+
+  // --- PDF GENERATION: PÚBLICO / PRESTAÇÃO DE CONTAS (SEM NOMES DE DIZIMISTAS) ---
+  const generatePublicPDF = () => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const periodLabel = getPeriodLabel();
+    
+    // Header institucional
+    doc.setFillColor(255, 100, 0);
+    doc.rect(0, 0, pageWidth, 6, 'F');
+
+    // Title
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(30, 41, 59);
+    doc.text(churchName.toUpperCase() || 'PRESTAÇÃO DE CONTAS', pageWidth / 2, 18, { align: 'center' });
+    
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(255, 100, 0);
+    doc.text(`PRESTAÇÃO DE CONTAS — RELATÓRIO PÚBLICO`, pageWidth / 2, 25, { align: 'center' });
+
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(71, 85, 105);
+    doc.text(`Período: ${periodLabel}`, pageWidth / 2, 31, { align: 'center' });
+
+    doc.setFontSize(8.5);
+    doc.setTextColor(148, 163, 184);
+    doc.text(`Emitido em: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} • Relatório para a Congregação`, pageWidth / 2, 36, { align: 'center' });
+
+    let finalY = 42;
+
+    // Resumo Geral do Período
+    autoTable(doc, {
+        startY: finalY,
+        head: [['ENTRADAS (Período)', 'SAÍDAS (Período)', 'SALDO DO PERÍODO']],
+        body: [[
+            `R$ ${totalInPeriod.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`,
+            `R$ ${totalOutPeriod.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`,
+            `R$ ${finalBalance.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`
+        ]],
+        headStyles: { fillColor: [255, 100, 0], halign: 'center', fontStyle: 'bold' },
+        bodyStyles: { halign: 'center', fontStyle: 'bold' },
+        columnStyles: {
+            0: { textColor: [22, 163, 74] },
+            1: { textColor: [220, 38, 38] },
+            2: { textColor: finalBalance >= 0 ? [22, 163, 74] : [220, 38, 38] }
+        }
+    });
+    finalY = (doc as any).lastAutoTable.finalY + 12;
+
+    // Entradas Públicas (mostra Data, Tipo e Valor - SEM nomes de pessoas)
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(22, 163, 74);
+    doc.text("Entradas e Contribuições", 14, finalY);
+
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'italic');
+    doc.setTextColor(100, 116, 139);
+    doc.text("* Por privacidade e zelo cristão pastoral, as entradas não exibem nomes de doadores.", 14, finalY + 4.5);
+    finalY += 7;
+
+    if (inflowsList.length > 0) {
+        autoTable(doc, {
+            startY: finalY,
+            head: [['Data', 'Tipo de Entrada', 'Valor']],
+            body: inflowsList.map(t => [
+                new Date(t.date).toLocaleDateString('pt-BR'),
+                getPublicEntryType(t),
+                `R$ ${t.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`
+            ]),
+            theme: 'striped',
+            headStyles: { fillColor: [22, 163, 74], fontStyle: 'bold' },
+            foot: [['TOTAL ENTRADAS', '', `R$ ${totalInPeriod.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`]],
+            footStyles: { fillColor: [240, 253, 244], textColor: [22, 163, 74], fontStyle: 'bold' },
+            columnStyles: {
+                0: { cellWidth: 35 },
+                1: { cellWidth: 'auto' },
+                2: { cellWidth: 45, halign: 'right' }
+            }
+        });
+        finalY = (doc as any).lastAutoTable.finalY + 12;
+    } else {
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(148, 163, 184);
+        doc.text("Nenhuma entrada no período.", 14, finalY + 4);
+        finalY += 12;
+    }
+
+    // Saídas / Despesas (Mostra Data, Para que foi / Descrição e Valor)
+    if (finalY > 220) {
+        doc.addPage();
+        finalY = 20;
+    }
+
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(220, 38, 38);
+    doc.text("Saídas e Despesas Pagas", 14, finalY);
+
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'italic');
+    doc.setTextColor(100, 116, 139);
+    doc.text("Discriminação de todas as despesas da congregação no período.", 14, finalY + 4.5);
+    finalY += 7;
+
+    if (outflowsList.length > 0) {
+        autoTable(doc, {
+            startY: finalY,
+            head: [['Data', 'Descrição / Para que foi', 'Valor']],
+            body: outflowsList.map(t => [
+                new Date(t.date).toLocaleDateString('pt-BR'),
+                t.description || 'Despesa eclesiástica',
+                `R$ ${t.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`
+            ]),
+            theme: 'striped',
+            headStyles: { fillColor: [220, 38, 38], fontStyle: 'bold' },
+            foot: [['TOTAL SAÍDAS', '', `R$ ${totalOutPeriod.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`]],
+            footStyles: { fillColor: [254, 242, 242], textColor: [220, 38, 38], fontStyle: 'bold' },
+            columnStyles: {
+                0: { cellWidth: 35 },
+                1: { cellWidth: 'auto' },
+                2: { cellWidth: 45, halign: 'right' }
+            }
+        });
+        finalY = (doc as any).lastAutoTable.finalY + 12;
+    } else {
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(148, 163, 184);
+        doc.text("Nenhuma saída registrada no período.", 14, finalY + 4);
+        finalY += 12;
+    }
+
+    // Nota final de encerramento
+    if (finalY > 250) {
+        doc.addPage();
+        finalY = 20;
+    }
+    doc.setFillColor(248, 250, 252);
+    doc.setDrawColor(226, 232, 240);
+    doc.roundedRect(14, finalY, pageWidth - 28, 18, 3, 3, 'FD');
+    doc.setFontSize(8.5);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(30, 41, 59);
+    doc.text("Transparência e Prestação de Contas Congregacional", 18, finalY + 6);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.5);
+    doc.setTextColor(100, 116, 139);
+    doc.text("Relatório emitido pela liderança eclesiástica para acompanhamento de todos os membros e congregação.", 18, finalY + 12);
+
+    // Rodapé de páginas
+    const pageCount = (doc as any).internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setTextColor(150);
+        doc.text(`Página ${i} de ${pageCount} • Prestação de Contas Oficial`, pageWidth - 14, doc.internal.pageSize.getHeight() - 10, { align: 'right' });
+    }
+
+    doc.save(`Prestacao_Contas_${periodLabel.replace(/\//g, '-')}.pdf`);
+    setShowExportModal(false);
   };
 
   const renderSectionHeader = (title: string, color: 'green' | 'red') => (
@@ -250,7 +475,7 @@ export const Reports: React.FC = () => {
                 <h2 className="text-xl font-bold text-gray-800 flex items-center">
                     <FileText className="mr-2 text-brand-orange"/> Relatórios
                 </h2>
-                <p className="text-sm text-gray-500">Unidade: {currentChurch?.name}</p>
+                <p className="text-sm text-gray-500">Unidade: {churchName}</p>
             </div>
             
             <div className="flex bg-gray-100 p-1 rounded-lg">
@@ -348,10 +573,11 @@ export const Reports: React.FC = () => {
             </div>
 
             <button 
-                onClick={generatePDF}
-                className="bg-brand-black text-white px-6 py-2.5 rounded-lg text-xs font-bold flex items-center hover:bg-gray-800 shadow-lg transition-transform active:scale-95 w-full md:w-auto justify-center"
+                onClick={() => setShowExportModal(true)}
+                className="bg-brand-black hover:bg-gray-800 text-white px-5 py-2.5 rounded-lg text-xs font-bold flex items-center shadow-lg transition-transform active:scale-95 w-full md:w-auto justify-center"
+                title="Clique para escolher e baixar a Prestação de Contas ou Relatório Detalhado"
             >
-                <Download size={16} className="mr-2"/> Baixar PDF {reportViewMode === 'DETAILED' ? 'Detalhado' : ''}
+                <Download size={16} className="mr-2 text-brand-orange"/> Prestação de Contas
             </button>
         </div>
         )}
@@ -414,6 +640,99 @@ export const Reports: React.FC = () => {
               <span className={`text-3xl font-black ${finalBalance >= 0 ? 'text-brand-black' : 'text-red-600'}`}>
                   R$ {finalBalance.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
               </span>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE OPÇÕES DE DOWNLOAD: RELATÓRIO DETALHADO OU RELATÓRIO PÚBLICO */}
+      {showExportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-gray-100 relative animate-fade-in">
+            {/* Fechar */}
+            <button 
+              onClick={() => setShowExportModal(false)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 p-1.5 rounded-full hover:bg-gray-100 transition-colors"
+            >
+              <X size={20} />
+            </button>
+
+            {/* Cabeçalho do Modal */}
+            <div className="text-center mb-6">
+              <div className="w-12 h-12 bg-orange-100 text-brand-orange rounded-full flex items-center justify-center mx-auto mb-3 shadow-inner">
+                <Download size={24} />
+              </div>
+              <h3 className="text-lg font-extrabold text-gray-800 uppercase tracking-tight">
+                Exportar Relatório / Prestação de Contas
+              </h3>
+              <p className="text-xs text-gray-500 mt-1">
+                Período: <span className="font-bold text-gray-700">{getPeriodLabel()}</span> • {churchName}
+              </p>
+              <p className="text-xs text-gray-400 mt-1">
+                Selecione o tipo de PDF que deseja baixar:
+              </p>
+            </div>
+
+            {/* Opções */}
+            <div className="space-y-3">
+              {/* Opção 1: Baixar Relatório Público (Prestação de Contas para WhatsApp / Grupos) */}
+              <button
+                type="button"
+                onClick={generatePublicPDF}
+                className="w-full text-left p-4 rounded-xl border-2 border-orange-200 hover:border-brand-orange bg-orange-50/50 hover:bg-orange-50 transition-all group flex items-start gap-4 shadow-sm hover:shadow"
+              >
+                <div className="w-10 h-10 rounded-lg bg-brand-orange text-white flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform shadow-md">
+                  <Users size={20} />
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center justify-between mb-1 gap-2">
+                    <span className="text-sm font-bold text-gray-900 group-hover:text-brand-orange transition-colors">
+                      Baixar Relatório Público
+                    </span>
+                    <span className="text-[10px] font-bold bg-green-100 text-green-700 px-2 py-0.5 rounded-full shrink-0">
+                      Recomendado p/ Grupos
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-600 leading-relaxed">
+                    Mostra apenas <strong>Data, Tipo e Valor</strong> nas entradas (<strong>sem o nome da pessoa</strong> que dizimou). Saídas completas com datas e motivos. Ideal para enviar no grupo da igreja.
+                  </p>
+                </div>
+              </button>
+
+              {/* Opção 2: Baixar Relatório Detalhado (Administração) */}
+              <button
+                type="button"
+                onClick={generateDetailedPDF}
+                className="w-full text-left p-4 rounded-xl border-2 border-gray-200 hover:border-gray-400 bg-gray-50 hover:bg-white transition-all group flex items-start gap-4 shadow-sm hover:shadow"
+              >
+                <div className="w-10 h-10 rounded-lg bg-gray-800 text-white flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform shadow-md">
+                  <FileText size={20} />
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center justify-between mb-1 gap-2">
+                    <span className="text-sm font-bold text-gray-900 group-hover:text-gray-700 transition-colors">
+                      Baixar Relatório Detalhado
+                    </span>
+                    <span className="text-[10px] font-bold bg-gray-200 text-gray-700 px-2 py-0.5 rounded-full shrink-0">
+                      Uso Administrativo
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-500 leading-relaxed">
+                    Relatório interno completo para pastor e tesoureiro. Inclui as descrições integrais com identificação de cada membro dizimista/ofertante e todas as movimentações.
+                  </p>
+                </div>
+              </button>
+            </div>
+
+            {/* Rodapé do Modal */}
+            <div className="mt-6 pt-4 border-t border-gray-100 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setShowExportModal(false)}
+                className="px-4 py-2 text-xs font-bold text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                Cancelar
+              </button>
+            </div>
           </div>
         </div>
       )}

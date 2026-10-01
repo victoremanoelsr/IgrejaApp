@@ -579,8 +579,8 @@ export const PisPasep: React.FC = () => {
     doc.text('RELATÓRIO DE APURAÇÃO DO PIS/PASEP SOBRE FOLHA DE SALÁRIOS', pw / 2, 14, { align: 'center' });
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
-    doc.text('Igrejas e Templos de Qualquer Culto — Alíquota 1%', pw / 2, 21, { align: 'center' });
-    doc.text(`${currentChurch?.name || ''} | CNPJ: ${currentChurch?.cnpj || '[não informado]'}`, pw / 2, 27, { align: 'center' });
+    const churchDisplayName = currentChurch?.officialName || currentChurch?.name || '';
+    doc.text(`${churchDisplayName} | CNPJ: ${currentChurch?.cnpj || '[não informado]'}`, pw / 2, 27, { align: 'center' });
     doc.text(`Competência: ${fmtCompetencia(p.competencia)} | Emissão: ${new Date().toLocaleDateString('pt-BR')}`, pw / 2, 33, { align: 'center' });
 
     doc.setTextColor(0, 0, 0);
@@ -598,7 +598,7 @@ export const PisPasep: React.FC = () => {
     doc.setFontSize(9);
     doc.setTextColor(0);
     const churchRows = [
-      ['Razão Social:', currentChurch?.name || ''],
+      ['Razão Social:', churchDisplayName],
       ['CNPJ:', currentChurch?.cnpj || 'Não informado'],
       ['Endereço:', currentChurch?.address || 'Não informado'],
       ['Responsável Legal:', currentChurch?.pastorName || 'Não informado'],

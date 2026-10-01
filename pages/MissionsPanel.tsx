@@ -20,7 +20,7 @@ import Draggable, { DraggableData } from 'react-draggable';
 import { GoogleGenAI, Type as GenAIType } from "@google/genai";
 import { CarnetEditor } from '../components/CarnetEditor';
 import { loadImageForPDF, renderElementsToPDF, addImageToPdf } from '../utils/pdfImageLoader';
-import { getUserRoles, addRoleToUserRoles } from '../utils/roleUtils';
+import { getUserRoles, addRoleToUserRoles, findExistingUserForMember } from '../utils/roleUtils';
 
 // --- CONFIGURAÇÕES DE DIMENSÃO (BASE 96 DPI) ---
 const EDITOR_WIDTH = 794; 
@@ -139,9 +139,10 @@ export const MissionsPanel: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   
-  const isMissionsRole = user && [
-      'PRESIDENTE_MISSOES', 'VICE_MISSOES', 'TESOUREIRO_MISSOES', 'SECRETARIO_MISSOES'
-  ].includes(user.role);
+  const isMissionsRole = user && (
+      getUserRoles(user).some(r => ['PRESIDENTE_MISSOES', 'VICE_MISSOES', 'TESOUREIRO_MISSOES', 'SECRETARIO_MISSOES'].includes(r)) ||
+      ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE'].includes(user.role)
+  );
 
   const canManageTeam = user && [
       'SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'DIRIGENTE', 'SECRETARIO', 'TESOUREIRO',
@@ -478,36 +479,54 @@ export const MissionsPanel: React.FC = () => {
   
   const handleSaveTeamMember = async (e: React.FormEvent) => { 
       e.preventDefault(); 
-      if (!currentChurch) return; 
-
-      if (editingUserId) { 
+           if (editingUserId) { 
           const existingUser = users.find(u => u.id === editingUserId);
           if (existingUser) {
               const otherRoles = getUserRoles(existingUser).filter(r => !MISSIONS_ROLES.some(mr => mr.role === r));
               const updatedRoles = [...otherRoles, teamFormData.role];
+              const cleanUsername = teamFormData.username.trim();
+              const cleanPassword = teamFormData.password.trim();
+
               const payload: User = { 
                   ...existingUser, 
                   name: teamFormData.name.toUpperCase(), 
-                  username: teamFormData.username, 
+                  username: cleanUsername, 
                   cpf: teamFormData.cpf, 
                   role: updatedRoles.join(',') as Role, 
                   roles: updatedRoles, 
                   churchId: currentChurch.id, 
-                  password: teamFormData.password || undefined 
+                  password: cleanPassword || undefined 
               }; 
-              await updateUser(editingUserId, payload); 
-              if (teamFormData.password) { await updateUserCredentials(editingUserId, undefined, teamFormData.password); } 
-              showFeedback('Atualizado!'); 
+              const res = await updateUser(editingUserId, payload); 
+              if (!res.success) {
+                  showFeedback(res.error || 'Erro ao atualizar membro.', 'error');
+                  return;
+              }
+
+              if (cleanPassword || cleanUsername !== existingUser.username) {
+                  const credRes = await updateUserCredentials(editingUserId, cleanUsername, cleanPassword || undefined);
+                  if (!credRes.success) {
+                      showFeedback(credRes.error || 'Erro ao atualizar credenciais de login.', 'error');
+                      return;
+                  }
+              } 
+              showFeedback('Membro da equipe atualizado com sucesso!'); 
           }
       } else { 
-          const existingUser = users.find(u => 
-              (teamFormData.cpf && u.cpf && u.cpf.trim() === teamFormData.cpf.trim()) ||
-              (u.username && u.username.toLowerCase() === teamFormData.username.toLowerCase())
+          const existingUser = findExistingUserForMember(
+              { name: teamFormData.name, cpf: teamFormData.cpf },
+              users
+          ) || users.find(u => 
+              (teamFormData.cpf && u.cpf && u.cpf.replace(/\D/g, '') === teamFormData.cpf.replace(/\D/g, '')) ||
+              (teamFormData.username && u.username && u.username.toLowerCase() === teamFormData.username.trim().toLowerCase())
           );
 
           if (existingUser) {
               const currentRoles = getUserRoles(existingUser);
               const updatedRoles = addRoleToUserRoles(currentRoles, teamFormData.role);
+              const cleanUsername = teamFormData.username.trim();
+              const cleanPassword = teamFormData.password.trim();
+
               const payload: User = {
                   ...existingUser,
                   name: teamFormData.name.toUpperCase(),
@@ -515,27 +534,37 @@ export const MissionsPanel: React.FC = () => {
                   role: updatedRoles.join(',') as Role,
                   roles: updatedRoles
               };
-              await updateUser(existingUser.id, payload);
-              if (teamFormData.password) {
-                  await updateUserCredentials(existingUser.id, undefined, teamFormData.password);
+              const res = await updateUser(existingUser.id, payload);
+              if (!res.success) {
+                  showFeedback(res.error || 'Erro ao adicionar cargo ao usuário.', 'error');
+                  return;
               }
-              showFeedback('Usuário já existente: cargo de missões adicionado!');
-          } else {
+
+              if (cleanPassword || (cleanUsername && cleanUsername !== existingUser.username)) {
+                  await updateUserCredentials(existingUser.id, cleanUsername || existingUser.username, cleanPassword || undefined);
+              }
+              showFeedback(`Usuário @${cleanUsername || existingUser.username} vinculado ao cargo de missões!`);
+          } else { 
+              const cleanPassword = teamFormData.password.trim();
+              if (!cleanPassword) {
+                  showFeedback('Por favor, informe uma senha para o novo usuário.', 'error');
+                  return;
+              }
               const payload: User = { 
                   id: '', 
                   name: teamFormData.name.toUpperCase(), 
-                  username: teamFormData.username, 
+                  username: teamFormData.username.trim(), 
                   cpf: teamFormData.cpf, 
                   role: teamFormData.role, 
                   churchId: currentChurch.id, 
-                  password: teamFormData.password 
+                  password: cleanPassword 
               }; 
               const res = await addUser(payload); 
-              if (res.success) showFeedback('Adicionado!'); 
-              else { showFeedback(res.error || 'Erro', 'error'); return; } 
+              if (res.success) showFeedback('Membro adicionado à equipe com sucesso!'); 
+              else { showFeedback(res.error || 'Erro ao cadastrar membro.', 'error'); return; } 
           }
       } 
-      setTeamFormMode('LIST'); setEditingUserId(null); setTeamFormData({ name: '', username: '', password: '', role: 'PRESIDENTE_MISSOES', cpf: '' }); 
+      setTeamFormMode('LIST'); setEditingUserId(null); setTeamFormData({ name: '', username: '', password: '', role: 'PRESIDENTE_MISSOES', cpf: '' });
   };
   
   const handleDeleteTeamMember = async (id: string, name: string, roleToRemove?: Role) => {
@@ -732,7 +761,7 @@ export const MissionsPanel: React.FC = () => {
           year: bookletYear,
           category: 'MISSOES',
           templateName: templateToUse.name,
-          generatedBy: user?.name || user?.email || '',
+          generatedBy: user?.name || user?.username || '',
       });
       await loadCarnetHistory();
       setIsGenerating(false);
@@ -966,17 +995,29 @@ export const MissionsPanel: React.FC = () => {
   });
 
   const handleSelectMember = (member: Member) => {
-    const firstName = member.name.split(' ')[0].toLowerCase();
-    const suggestedUser = member.email ? member.email.split('@')[0] : firstName;
-    
-    setTeamFormData(prev => ({
-      ...prev,
-      name: member.name,
-      cpf: member.cpf,
-      username: suggestedUser
-    }));
+    const existing = findExistingUserForMember(member, users);
+    if (existing) {
+      setTeamFormData(prev => ({
+        ...prev,
+        name: member.name,
+        cpf: member.cpf || existing.cpf || '',
+        username: existing.username,
+        password: '' // Sempre em branco
+      }));
+    } else {
+      const firstName = member.name.split(' ')[0].toLowerCase();
+      const suggestedUser = member.email ? member.email.split('@')[0] : firstName;
+      setTeamFormData(prev => ({
+        ...prev,
+        name: member.name,
+        cpf: member.cpf || '',
+        username: suggestedUser,
+        password: '' // Sempre em branco
+      }));
+    }
     setShowSuggestions(false);
   };
+
 
   const renderVisualEditor = () => (
     <div className="space-y-6 animate-fade-in">
@@ -1278,31 +1319,49 @@ export const MissionsPanel: React.FC = () => {
                     </select>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-xs font-bold text-gray-600 mb-1">Usuário (Login)</label>
-                        <input 
-                            required 
-                            className="w-full p-2.5 border rounded-lg text-sm focus:ring-2 focus:ring-teal-500 outline-none" 
-                            value={teamFormData.username} 
-                            onChange={e => setTeamFormData({...teamFormData, username: e.target.value})}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-bold text-gray-600 mb-1">Senha {editingUserId && '(Opcional)'}</label>
-                        <div className="relative">
-                            <Key size={14} className="absolute left-3 top-3 text-gray-400"/>
+                  {(() => {
+                    const isExisting = Boolean(
+                      editingUserId ||
+                      findExistingUserForMember({ name: teamFormData.name, cpf: teamFormData.cpf }, users) ||
+                      (teamFormData.username && users.some(u => u.username.toLowerCase() === teamFormData.username.trim().toLowerCase()))
+                    );
+                    return (
+                      <>
+                        {isExisting && !editingUserId && (
+                          <div className="p-3 bg-teal-50 border border-teal-200 rounded-lg text-xs text-teal-900 flex items-center gap-2">
+                            <CheckCircle size={16} className="text-teal-600 shrink-0"/>
+                            <span>Membro já possui usuário de login (<strong>@{teamFormData.username}</strong>). As credenciais existentes serão mantidas caso a senha fique em branco.</span>
+                          </div>
+                        )}
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-xs font-bold text-gray-600 mb-1">Usuário (Login)</label>
                             <input 
+                              required 
+                              className="w-full p-2.5 border rounded-lg text-sm focus:ring-2 focus:ring-teal-500 outline-none" 
+                              value={teamFormData.username} 
+                              onChange={e => setTeamFormData({...teamFormData, username: e.target.value})}
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-bold text-gray-600 mb-1">Senha {isExisting && '(Opcional)'}</label>
+                            <div className="relative">
+                              <Key size={14} className="absolute left-3 top-3 text-gray-400"/>
+                              <input 
                                 type="password" 
                                 className="w-full pl-9 p-2.5 border rounded-lg text-sm focus:ring-2 focus:ring-teal-500 outline-none" 
                                 value={teamFormData.password} 
                                 onChange={e => setTeamFormData({...teamFormData, password: e.target.value})}
-                                required={!editingUserId}
-                                placeholder={editingUserId ? "Manter atual" : ""}
-                            />
+                                required={!isExisting}
+                                placeholder={isExisting ? "Manter senha atual" : "Defina uma senha"}
+                              />
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                  </div>
+                      </>
+                    );
+                  })()}
+
 
                   <div>
                     <label className="block text-xs font-bold text-gray-600 mb-1">CPF (Opcional)</label>

@@ -242,7 +242,7 @@ export const Minutes: React.FC = () => {
                     <ShieldAlert size={12} className="mr-1"/> Apenas Visualização
                 </div>
             )}
-            <p className="text-gray-500 text-xs mt-0.5 ml-1">{currentChurch?.name}</p>
+            <p className="text-gray-500 text-xs mt-0.5 ml-1">{currentChurch?.officialName || currentChurch?.name}</p>
         </div>
         
         {canEdit && (

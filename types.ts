@@ -14,7 +14,8 @@ export type PlanTier = 'bronze' | 'prata' | 'ouro' | 'diamond';
 
 export interface Church {
   id: string;
-  name: string;
+  name: string; // Nome de identificação/cobrança (cadastrado na criação da igreja pelo Super ADM)
+  officialName?: string; // Nome oficial da igreja (cadastrado na janela Configurações pela própria igreja)
   address: string;
   cnpj?: string;
   pastorName: string;

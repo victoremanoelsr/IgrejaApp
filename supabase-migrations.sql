@@ -149,3 +149,10 @@ DO $$ BEGIN
       ON carnet_history FOR ALL USING (true) WITH CHECK (true);
   END IF;
 END $$;
+
+-- =============================================================
+-- COLUNA NOME OFICIAL DA IGREJA
+-- Nome oficial para exibição no painel lateral e documentos
+-- Mantém o campo 'name' como o nome de identificação/cobrança do Super Admin
+-- =============================================================
+ALTER TABLE churches ADD COLUMN IF NOT EXISTS official_name TEXT;

@@ -70,7 +70,7 @@ export const Settings: React.FC = () => {
 
   useEffect(() => {
     if (currentChurch) {
-      setName(currentChurch.name);
+      setName(currentChurch.officialName || currentChurch.name);
       setAddress(currentChurch.address);
       setPastorName(currentChurch.pastorName);
       setPastorPhone(currentChurch.pastorPhone || '');
@@ -146,15 +146,26 @@ export const Settings: React.FC = () => {
         setIsSaving(false);
         return;
       }
-      const res = await updateChurch(currentChurch.id, {
-        name: name.toUpperCase(),
+
+      const updateData: Partial<typeof currentChurch> = {
         address: address.toUpperCase(),
         pastorName: pastorName.toUpperCase(),
         pastorPhone: pastorPhone.replace(/\D/g, ''),
         missionStatement: mission.toUpperCase(),
         logoUrl: logoUrl,
         pixKey: pixKey.trim(),
-      });
+      };
+
+      if (currentChurch.type === 'CONGREGACAO') {
+        updateData.name = name.toUpperCase();
+        updateData.officialName = name.toUpperCase();
+      } else {
+        // Para a sede, atualiza o nome oficial para documentos e barra lateral,
+        // preservando o nome de controle/cobrança do Super Admin
+        updateData.officialName = name.toUpperCase();
+      }
+
+      const res = await updateChurch(currentChurch.id, updateData);
       setIsSaving(false);
 
       if (res.success) {
@@ -216,13 +227,21 @@ export const Settings: React.FC = () => {
              </div>
 
              <div>
-               <label className="block text-sm font-medium text-gray-700">Nome da Igreja / Congregação</label>
+               <label className="block text-sm font-medium text-gray-700">
+                 {isCongregation ? 'Nome da Congregação *' : 'Nome Oficial da Igreja *'}
+               </label>
                <input 
                  type="text" 
-                 className="mt-1 block w-full p-3 border rounded-lg focus:ring-brand-orange uppercase"
+                 className="mt-1 block w-full p-3 border rounded-lg focus:ring-brand-orange uppercase font-bold"
                  value={name}
                  onChange={e => setName(e.target.value.toUpperCase())}
+                 placeholder={isCongregation ? 'Ex: CONGREGAÇÃO JARDIM AMÉRICA' : 'Ex: IGREJA EVANGÉLICA ASSEMBLEIA DE DEUS'}
                />
+               {!isCongregation && (
+                 <p className="text-[11px] text-gray-500 mt-1">
+                   Este é o <strong>nome oficial da igreja</strong> que aparecerá no painel lateral e em todos os documentos oficiais (relatórios, atas, cartas, termos e carnês).
+                 </p>
+               )}
              </div>
 
              <div>

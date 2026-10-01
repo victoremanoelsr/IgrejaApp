@@ -41,6 +41,8 @@ import { BillingPage } from './pages/BillingPage';
 import { ConfiguracoesSaas } from './pages/ConfiguracoesSaas';
 import { PisPasep } from './pages/PisPasep';
 
+import { getUserRoles } from './utils/roleUtils';
+
 const ProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles?: string[] }> = ({ children, allowedRoles }) => {
   const { user, currentChurch, churches } = useApp();
   if (!user) return <Navigate to="/" replace />;
@@ -58,22 +60,30 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles?: strin
     }
   }
   
-  const missionsRoles = ['PRESIDENTE_MISSOES', 'VICE_MISSOES', 'TESOUREIRO_MISSOES', 'SECRETARIO_MISSOES'];
-  const youthRoles = ['LIDER_JOVENS', 'TESOUREIRO_JOVENS'];
-  const childrenRoles = ['LIDER_CRIANCAS', 'TESOUREIRO_CRIANCAS'];
-  const adolescentsRoles = ['LIDER_ADOLESCENTES', 'TESOUREIRO_ADOLESCENTES'];
-  const ladiesRoles = ['LIDER_SENHORAS', 'TESOUREIRO_SENHORAS'];
-  const menRoles = ['LIDER_SENHORES', 'TESOUREIRO_SENHORES'];
-  
-  if (missionsRoles.includes(user.role) && window.location.hash !== '#/missoes') return <Navigate to="/missoes" replace />;
-  if (youthRoles.includes(user.role) && window.location.hash !== '#/jovens') return <Navigate to="/jovens" replace />;
-  if (childrenRoles.includes(user.role) && window.location.hash !== '#/criancas') return <Navigate to="/criancas" replace />;
-  if (adolescentsRoles.includes(user.role) && window.location.hash !== '#/adolescentes') return <Navigate to="/adolescentes" replace />;
-  if (ladiesRoles.includes(user.role) && window.location.hash !== '#/senhoras') return <Navigate to="/senhoras" replace />;
-  if (menRoles.includes(user.role) && window.location.hash !== '#/senhores') return <Navigate to="/senhores" replace />;
+  const userRoles = getUserRoles(user);
 
-  if (allowedRoles && !allowedRoles.includes(user.role) && !allowedRoles.includes('ALL')) {
-     return <Navigate to="/" replace />;
+  // Verifica se o usuário tem permissão para a rota atual (pela role ativa ou por qualquer uma de suas roles)
+  const hasRouteAccess = !allowedRoles || 
+    allowedRoles.includes('ALL') || 
+    allowedRoles.includes(user.role) || 
+    userRoles.some(r => allowedRoles.includes(r));
+
+  if (!hasRouteAccess) {
+    const missionsRoles = ['PRESIDENTE_MISSOES', 'VICE_MISSOES', 'TESOUREIRO_MISSOES', 'SECRETARIO_MISSOES'];
+    const youthRoles = ['LIDER_JOVENS', 'TESOUREIRO_JOVENS'];
+    const childrenRoles = ['LIDER_CRIANCAS', 'TESOUREIRO_CRIANCAS'];
+    const adolescentsRoles = ['LIDER_ADOLESCENTES', 'TESOUREIRO_ADOLESCENTES'];
+    const ladiesRoles = ['LIDER_SENHORAS', 'TESOUREIRO_SENHORAS'];
+    const menRoles = ['LIDER_SENHORES', 'TESOUREIRO_SENHORES'];
+    
+    if (userRoles.some(r => missionsRoles.includes(r))) return <Navigate to="/missoes" replace />;
+    if (userRoles.some(r => youthRoles.includes(r))) return <Navigate to="/jovens" replace />;
+    if (userRoles.some(r => childrenRoles.includes(r))) return <Navigate to="/criancas" replace />;
+    if (userRoles.some(r => adolescentsRoles.includes(r))) return <Navigate to="/adolescentes" replace />;
+    if (userRoles.some(r => ladiesRoles.includes(r))) return <Navigate to="/senhoras" replace />;
+    if (userRoles.some(r => menRoles.includes(r))) return <Navigate to="/senhores" replace />;
+
+    return <Navigate to="/" replace />;
   }
   
   return <Layout>{children}</Layout>;

@@ -275,7 +275,7 @@ export const SuperAdminDashboard: React.FC = () => {
 
   const checkMatch = (church: Church) => {
     if (!termClean) return true;
-    const nameMatch = cleanStr(church.name).includes(termClean);
+    const nameMatch = cleanStr(church.name).includes(termClean) || cleanStr(church.officialName).includes(termClean);
     const pastorMatch = cleanStr(church.pastorName).includes(termClean);
     const addressMatch = cleanStr(church.address).includes(termClean);
     const cnpjRawMatch = termDigits.length > 0 && cleanDigits(church.cnpj).includes(termDigits);
@@ -667,6 +667,11 @@ export const SuperAdminDashboard: React.FC = () => {
                             </div>
                             <div className="min-w-0 flex-1">
                                 <div className="font-bold text-xs md:text-sm text-gray-900 truncate uppercase">{church.name}</div>
+                                {church.officialName && church.officialName.trim() !== '' && church.officialName.trim().toUpperCase() !== church.name.trim().toUpperCase() && (
+                                  <div className="text-[10px] text-gray-500 font-medium truncate">
+                                    Oficial: <span className="text-gray-700 font-bold">{church.officialName}</span>
+                                  </div>
+                                )}
                                 <div className="text-[10px] text-gray-500 truncate">{church.address}</div>
                                 
                                 {/* Consumption bars */}

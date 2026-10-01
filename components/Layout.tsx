@@ -44,6 +44,7 @@ import { Church } from '../types';
 import { NotificationCenter } from './NotificationCenter';
 import { DepartmentSelectorModal } from './DepartmentSelectorModal';
 import { getUserRoles, getRoleInfo } from '../utils/roleUtils';
+import { getChurchDisplayName } from '../utils/churchUtils';
 
 interface ChurchOptionProps {
   church: Church;
@@ -53,32 +54,35 @@ interface ChurchOptionProps {
 }
 
 // Helper Component for List Item
-const ChurchOption: React.FC<ChurchOptionProps> = ({ church, isChild = false, currentChurch, onSelect }) => (
-  <button
-      onClick={() => onSelect(church.id)}
-      className={`w-full text-left px-3 py-3 text-sm border-b border-gray-800 last:border-0 hover:bg-gray-800 transition-colors flex items-center group relative ${church.id === currentChurch?.id ? 'bg-red-900/10' : ''} ${isChild ? 'pl-8 bg-[#151515]' : ''}`}
-  >
-      {isChild && (
-          <CornerDownRight size={14} className="absolute left-3 text-gray-600" />
-      )}
-      
-      <div className={`mr-3 p-1.5 rounded-md shrink-0 ${church.type === 'SEDE' ? 'bg-red-500/10 text-red-500' : 'bg-blue-500/10 text-blue-400'}`}>
-          {church.type === 'SEDE' ? <Home size={14}/> : <MapPin size={14}/>}
-      </div>
-      <div className="flex-1 min-w-0">
-          <p className={`font-medium truncate ${church.id === currentChurch?.id ? 'text-brand-orange' : 'text-gray-300 group-hover:text-white'}`}>
-              {church.name}
-          </p>
-          <p className="text-[10px] text-gray-600 uppercase font-bold">
-              {church.type}
-          </p>
-      </div>
-      {church.id === currentChurch?.id && <div className="w-1.5 h-1.5 rounded-full bg-brand-orange ml-2"></div>}
-  </button>
-);
+const ChurchOption: React.FC<ChurchOptionProps> = ({ church, isChild = false, currentChurch, onSelect }) => {
+  const displayName = getChurchDisplayName(church);
+  return (
+    <button
+        onClick={() => onSelect(church.id)}
+        className={`w-full text-left px-3 py-3 text-sm border-b border-gray-800 last:border-0 hover:bg-gray-800 transition-colors flex items-center group relative ${church.id === currentChurch?.id ? 'bg-red-900/10' : ''} ${isChild ? 'pl-8 bg-[#151515]' : ''}`}
+    >
+        {isChild && (
+            <CornerDownRight size={14} className="absolute left-3 text-gray-600" />
+        )}
+        
+        <div className={`mr-3 p-1.5 rounded-md shrink-0 ${church.type === 'SEDE' ? 'bg-red-500/10 text-red-500' : 'bg-blue-500/10 text-blue-400'}`}>
+            {church.type === 'SEDE' ? <Home size={14}/> : <MapPin size={14}/>}
+        </div>
+        <div className="flex-1 min-w-0">
+            <p className={`font-medium truncate ${church.id === currentChurch?.id ? 'text-brand-orange' : 'text-gray-300 group-hover:text-white'}`}>
+                {displayName}
+            </p>
+            <p className="text-[10px] text-gray-600 uppercase font-bold">
+                {church.type}
+            </p>
+        </div>
+        {church.id === currentChurch?.id && <div className="w-1.5 h-1.5 rounded-full bg-brand-orange ml-2"></div>}
+    </button>
+  );
+};
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, logout, currentChurch, availableChurches, selectChurch, exitAdminView, members, isOnline, pendingOfflineCount, switchActiveRole } = useApp();
+  const { user, users, logout, currentChurch, availableChurches, selectChurch, exitAdminView, members, isOnline, pendingOfflineCount, switchActiveRole } = useApp();
   const { t, i18n } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
@@ -87,10 +91,31 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   const [isDesktopHovered, setIsDesktopHovered] = useState(false);
   const [showChurchSelector, setShowChurchSelector] = useState(false);
   const [showLangSelector, setShowLangSelector] = useState(false);
-  const [showDeptModal, setShowDeptModal] = useState(false);
+  const [showDeptSelector, setShowDeptSelector] = useState(false);
 
-  const userRoles = getUserRoles(user);
-  const hasMultipleRoles = userRoles.length > 1;
+  const userRolesFromUser = getUserRoles(user);
+  const userCleanCpf = user?.cpf ? user.cpf.replace(/\D/g, '') : '';
+  const userCleanName = user?.name ? user.name.trim().toUpperCase() : '';
+  const userCleanUsername = user?.username ? user.username.trim().toLowerCase() : '';
+
+  // Encontra todos os perfis em 'users' que pertencem a esta mesma pessoa (mesmo CPF, username, nome ou ID)
+  const matchingProfiles = (users || []).filter(u => {
+    if (!user) return false;
+    if (u.id === user.id) return true;
+    const uCleanCpf = u.cpf ? u.cpf.replace(/\D/g, '') : '';
+    if (userCleanCpf && uCleanCpf && userCleanCpf === uCleanCpf) return true;
+    if (u.username && userCleanUsername && u.username.trim().toLowerCase() === userCleanUsername) return true;
+    if (u.name && userCleanName && u.name.trim().toUpperCase() === userCleanName) return true;
+    return false;
+  });
+
+  const allUserRoles = Array.from(new Set([
+    ...userRolesFromUser,
+    ...matchingProfiles.flatMap(p => getUserRoles(p))
+  ]));
+
+  const userRoles = allUserRoles;
+
 
   const handleLanguageChange = (code: string) => {
     i18n.changeLanguage(code);
@@ -176,7 +201,157 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   const independentCongregations = availableChurches.filter(c => c.type !== 'SEDE' && !availableChurches.some(parent => parent.id === c.parentId));
   const canSwitchChurch = availableChurches.length > 1 && (user.role === 'SUPER_ADM' || user.role === 'PRESIDENTE' || user.role === 'VICE_PRESIDENTE');
 
-  // --- MENU DEFINITIONS ---
+  // --- SELETOR DE DEPARTAMENTOS ---
+  // Somente departamentos reais (não janelas gerais do sistema)
+  const currentPath = location.pathname;
+  let activeDeptId = '';
+  if (currentPath.startsWith('/missoes')) activeDeptId = 'MISSOES';
+  else if (currentPath.startsWith('/jovens')) activeDeptId = 'JOVENS';
+  else if (currentPath.startsWith('/criancas')) activeDeptId = 'CRIANCAS';
+  else if (currentPath.startsWith('/adolescentes')) activeDeptId = 'ADOLESCENTES';
+  else if (currentPath.startsWith('/senhoras')) activeDeptId = 'SENHORAS';
+  else if (currentPath.startsWith('/senhores')) activeDeptId = 'SENHORES';
+
+  const getDeptRoleLabel = (r: Role): string => {
+    const map: Record<string, string> = {
+      PRESIDENTE_MISSOES: 'Presidente de Missões',
+      VICE_MISSOES: 'Vice de Missões',
+      TESOUREIRO_MISSOES: 'Tesoureiro(a) de Missões',
+      SECRETARIO_MISSOES: 'Secretário(a) de Missões',
+      LIDER_JOVENS: 'Líder de Jovens',
+      TESOUREIRO_JOVENS: 'Tesoureiro(a) de Jovens',
+      LIDER_CRIANCAS: 'Líder de Crianças',
+      TESOUREIRO_CRIANCAS: 'Tesoureiro(a) de Crianças',
+      LIDER_ADOLESCENTES: 'Líder de Adolescentes',
+      TESOUREIRO_ADOLESCENTES: 'Tesoureiro(a) de Adolescentes',
+      LIDER_SENHORAS: 'Líder de Senhoras',
+      TESOUREIRO_SENHORAS: 'Tesoureiro(a) de Senhoras',
+      LIDER_SENHORES: 'Líder de Senhores',
+      TESOUREIRO_SENHORES: 'Tesoureiro(a) de Senhores',
+    };
+    return map[r] || r.replace('_', ' ').toLowerCase();
+  };
+
+  const DEPARTMENT_DEFINITIONS = [
+    {
+      id: 'MISSOES',
+      label: 'Dep. de Missões',
+      sublabel: 'Missões',
+      path: '/missoes',
+      state: { activeTab: 'DASHBOARD', entered: true },
+      roles: ['PRESIDENTE_MISSOES', 'VICE_MISSOES', 'TESOUREIRO_MISSOES', 'SECRETARIO_MISSOES'] as Role[],
+      defaultRole: 'PRESIDENTE_MISSOES' as Role,
+      icon: Globe,
+      iconColor: 'text-teal-400',
+      iconBg: 'bg-teal-900/40',
+      borderColor: 'border-teal-500',
+      textColor: 'text-teal-400',
+      glowBg: 'bg-teal-600/10'
+    },
+    {
+      id: 'JOVENS',
+      label: 'União de Jovens',
+      sublabel: 'Jovens',
+      path: '/jovens',
+      state: { activeTab: 'DASHBOARD', entered: true },
+      roles: ['LIDER_JOVENS', 'TESOUREIRO_JOVENS'] as Role[],
+      defaultRole: 'LIDER_JOVENS' as Role,
+      icon: Zap,
+      iconColor: 'text-orange-400',
+      iconBg: 'bg-orange-900/40',
+      borderColor: 'border-orange-500',
+      textColor: 'text-orange-400',
+      glowBg: 'bg-orange-600/10'
+    },
+    {
+      id: 'CRIANCAS',
+      label: 'Dep. Infantil',
+      sublabel: 'Crianças',
+      path: '/criancas',
+      state: { activeTab: 'DASHBOARD', entered: true },
+      roles: ['LIDER_CRIANCAS', 'TESOUREIRO_CRIANCAS'] as Role[],
+      defaultRole: 'LIDER_CRIANCAS' as Role,
+      icon: Baby,
+      iconColor: 'text-sky-400',
+      iconBg: 'bg-sky-900/40',
+      borderColor: 'border-sky-500',
+      textColor: 'text-sky-400',
+      glowBg: 'bg-sky-600/10'
+    },
+    {
+      id: 'ADOLESCENTES',
+      label: 'Dep. Adolescentes',
+      sublabel: 'Adolescentes',
+      path: '/adolescentes',
+      state: { activeTab: 'DASHBOARD', entered: true },
+      roles: ['LIDER_ADOLESCENTES', 'TESOUREIRO_ADOLESCENTES'] as Role[],
+      defaultRole: 'LIDER_ADOLESCENTES' as Role,
+      icon: Users,
+      iconColor: 'text-purple-400',
+      iconBg: 'bg-purple-900/40',
+      borderColor: 'border-purple-500',
+      textColor: 'text-purple-400',
+      glowBg: 'bg-purple-600/10'
+    },
+    {
+      id: 'SENHORAS',
+      label: 'Círculo de Oração',
+      sublabel: 'Senhoras',
+      path: '/senhoras',
+      state: { activeTab: 'DASHBOARD', entered: true },
+      roles: ['LIDER_SENHORAS', 'TESOUREIRO_SENHORAS'] as Role[],
+      defaultRole: 'LIDER_SENHORAS' as Role,
+      icon: Heart,
+      iconColor: 'text-pink-400',
+      iconBg: 'bg-pink-900/40',
+      borderColor: 'border-pink-500',
+      textColor: 'text-pink-400',
+      glowBg: 'bg-pink-600/10'
+    },
+    {
+      id: 'SENHORES',
+      label: 'União de Senhores',
+      sublabel: 'Senhores',
+      path: '/senhores',
+      state: { activeTab: 'DASHBOARD', entered: true },
+      roles: ['LIDER_SENHORES', 'TESOUREIRO_SENHORES'] as Role[],
+      defaultRole: 'LIDER_SENHORES' as Role,
+      icon: ShieldCheck,
+      iconColor: 'text-indigo-400',
+      iconBg: 'bg-indigo-900/40',
+      borderColor: 'border-indigo-500',
+      textColor: 'text-indigo-400',
+      glowBg: 'bg-indigo-600/10'
+    }
+  ];
+
+  // Apenas os departamentos em que o usuário possui cargo vinculado em suas permissões
+  const availableDepts = DEPARTMENT_DEFINITIONS
+    .filter(dept => userRoles.some(r => dept.roles.includes(r)))
+    .map(dept => {
+      const assignedRole = userRoles.find(r => dept.roles.includes(r)) || dept.defaultRole;
+      return {
+        ...dept,
+        userRole: assignedRole,
+        roleLabel: getDeptRoleLabel(assignedRole)
+      };
+    });
+
+  // O seletor de departamentos SÓ deve aparecer se o usuário possuir mais de 1 departamento atribuído!
+  const canSwitchDept = availableDepts.length > 1;
+
+  const activeDept = availableDepts.find(d => d.id === activeDeptId) || 
+    availableDepts.find(d => d.userRole === user.role) || 
+    availableDepts[0];
+
+  const handleDeptSelect = (dept: typeof availableDepts[0]) => {
+    if (dept.userRole) {
+      switchActiveRole(dept.userRole);
+    }
+    setShowDeptSelector(false);
+    navigate(dept.path, { state: dept.state });
+  };
+
   const isMissionsUser = ['PRESIDENTE_MISSOES', 'VICE_MISSOES', 'TESOUREIRO_MISSOES', 'SECRETARIO_MISSOES'].includes(user.role);
   const isYouthUser = ['LIDER_JOVENS', 'TESOUREIRO_JOVENS'].includes(user.role);
   const isChildrenUser = ['LIDER_CRIANCAS', 'TESOUREIRO_CRIANCAS'].includes(user.role);
@@ -315,35 +490,38 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       <aside 
         className={`fixed md:relative z-40 h-full flex flex-col shadow-2xl transition-all duration-300 ease-in-out bg-[#0f0f0f] text-white border-r border-gray-800 ${isMobileOpen ? 'translate-x-0 w-72' : '-translate-x-full md:translate-x-0'} ${isDesktopHovered ? 'md:w-72' : 'md:w-20'}`}
         onMouseEnter={() => setIsDesktopHovered(true)}
-        onMouseLeave={() => { setIsDesktopHovered(false); setShowChurchSelector(false); }}
+        onMouseLeave={() => { setIsDesktopHovered(false); setShowChurchSelector(false); setShowDeptSelector(false); }}
       >
         <div className={`h-16 md:h-20 flex items-center justify-center border-b border-gray-800 shrink-0 overflow-hidden px-2 transition-all duration-300 ${headerColorClass}`}>
            {isSuperAdminGlobal ? (
              isExpanded ? <span className="text-xl font-bold text-brand-orange tracking-wider animate-fade-in-down">SUPER ADM</span> : <span className="text-xl font-bold text-brand-orange">SA</span>
-           ) : currentChurch ? (
-             <div className={`flex items-center transition-all duration-300 ${isExpanded ? 'justify-start w-full px-2' : 'justify-center'}`}>
-                {currentChurch.logoUrl ? (
-                    <img src={currentChurch.logoUrl} alt="Logo" className="w-8 h-8 md:w-10 md:h-10 rounded-full object-cover border-2 border-gray-700 bg-white shrink-0"/>
-                ) : (
-                    <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-gradient-to-br from-brand-orange to-red-600 flex items-center justify-center text-white font-bold text-xs md:text-sm shrink-0 shadow-lg border border-gray-700">
-                        {currentChurch.name.substring(0, 2).toUpperCase()}
-                    </div>
-                )}
-                {isExpanded && (
-                    <div className="ml-3 overflow-hidden animate-fade-in">
-                        <span className="block font-bold text-gray-100 text-sm truncate leading-tight" title={currentChurch.name}>{currentChurch.name}</span>
-                        <span className="block text-[9px] text-gray-500 font-bold uppercase tracking-wider mt-0.5">
-                            {isYouthUser || isYouthEntered ? t('nav.depYouth') : 
-                             isMissionsUser || isMissionsEntered ? t('nav.depMissions') :
-                             isChildrenUser || isChildrenEntered ? t('nav.depChildren') :
-                             isAdolescentsUser || isAdolescentsEntered ? 'DEP. ADOLESCENTES' :
-                             isLadiesUser || isLadiesEntered ? t('nav.depLadies') :
-                             currentChurch.type}
-                        </span>
-                    </div>
-                )}
-             </div>
-           ) : (
+           ) : currentChurch ? (() => {
+              const churchDisplayName = getChurchDisplayName(currentChurch);
+              return (
+              <div className={`flex items-center transition-all duration-300 ${isExpanded ? 'justify-start w-full px-2' : 'justify-center'}`}>
+                 {currentChurch.logoUrl ? (
+                     <img src={currentChurch.logoUrl} alt="Logo" className="w-8 h-8 md:w-10 md:h-10 rounded-full object-cover border-2 border-gray-700 bg-white shrink-0"/>
+                 ) : (
+                     <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-gradient-to-br from-brand-orange to-red-600 flex items-center justify-center text-white font-bold text-xs md:text-sm shrink-0 shadow-lg border border-gray-700">
+                         {churchDisplayName.substring(0, 2).toUpperCase()}
+                     </div>
+                 )}
+                 {isExpanded && (
+                     <div className="ml-3 overflow-hidden animate-fade-in">
+                         <span className="block font-bold text-gray-100 text-sm truncate leading-tight" title={churchDisplayName}>{churchDisplayName}</span>
+                         <span className="block text-[9px] text-gray-500 font-bold uppercase tracking-wider mt-0.5">
+                             {isYouthUser || isYouthEntered ? t('nav.depYouth') : 
+                              isMissionsUser || isMissionsEntered ? t('nav.depMissions') :
+                              isChildrenUser || isChildrenEntered ? t('nav.depChildren') :
+                              isAdolescentsUser || isAdolescentsEntered ? 'DEP. ADOLESCENTES' :
+                              isLadiesUser || isLadiesEntered ? t('nav.depLadies') :
+                              currentChurch.type}
+                         </span>
+                     </div>
+                 )}
+              </div>
+              );
+            })() : (
              isExpanded ? <span className="text-xl font-bold text-brand-orange tracking-wider">IgrejaApp</span> : <span className="text-xl font-bold text-brand-orange">IA</span>
            )}
         </div>
@@ -381,33 +559,104 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
 
         {/* FOOTER */}
         <div className="p-4 border-t border-gray-800 bg-[#0a0a0a]">
-            {hasMultipleRoles && (
-              <div className="mb-3">
+            {canSwitchDept && activeDept && (
+              <div className="relative mb-3">
                 {isExpanded ? (
                   <button
-                    onClick={() => setShowDeptModal(true)}
-                    className="w-full flex items-center justify-between px-3 py-2 bg-gradient-to-r from-orange-600/25 via-amber-600/20 to-orange-500/25 hover:from-orange-600/40 hover:to-amber-600/40 border border-orange-500/40 text-orange-200 hover:text-white rounded-lg transition-all duration-200 group shadow-sm"
-                    title="Alternar entre seus departamentos"
+                    onClick={() => {
+                      setShowDeptSelector(!showDeptSelector);
+                      setShowChurchSelector(false);
+                    }}
+                    className={`w-full text-left rounded-r-lg border-l-4 ${activeDept.borderColor} bg-gray-800/80 p-3 transition-all duration-200 group relative overflow-hidden hover:bg-gray-800 cursor-pointer shadow-sm`}
                   >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <ArrowLeftRight size={15} className="text-brand-orange group-hover:rotate-180 transition-transform duration-300 shrink-0" />
-                      <span className="text-xs font-bold truncate">Alternar Depto</span>
+                    <div className={`absolute top-0 right-0 -mt-2 -mr-2 w-16 h-16 ${activeDept.glowBg} blur-xl rounded-full pointer-events-none`}></div>
+                    <p className="text-[10px] text-gray-400 uppercase tracking-widest font-bold mb-1">
+                      DEPARTAMENTO
+                    </p>
+                    <div className="flex justify-between items-center mb-2">
+                      <div className="flex items-center min-w-0">
+                        <div className={`w-5 h-5 rounded ${activeDept.iconBg} flex items-center justify-center mr-2 shrink-0`}>
+                          <activeDept.icon size={13} className={activeDept.iconColor} />
+                        </div>
+                        <h4 className="text-white font-bold text-sm truncate pr-2 leading-tight">
+                          {activeDept.label}
+                        </h4>
+                      </div>
+                      <ChevronDown
+                        size={14}
+                        className={`text-gray-500 transition-transform duration-300 shrink-0 ${showDeptSelector ? 'rotate-180 text-brand-orange' : ''}`}
+                      />
                     </div>
-                    <span className="text-[10px] font-bold bg-brand-orange text-black px-1.5 py-0.5 rounded-full shrink-0 shadow-sm">
-                      {userRoles.length}
-                    </span>
+                    <div className="flex items-center pt-2 border-t border-gray-700/50 justify-between">
+                      <div className="flex items-center min-w-0 mr-2">
+                        <div className="relative mr-2 shrink-0">
+                          <div className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.6)]"></div>
+                        </div>
+                        <p className={`text-xs ${activeDept.textColor} font-medium truncate capitalize`}>
+                          {activeDept.roleLabel}
+                        </p>
+                      </div>
+                      <span className="text-[10px] font-bold bg-gray-700 text-gray-300 px-1.5 py-0.5 rounded-full shrink-0">
+                        {availableDepts.length} opções
+                      </span>
+                    </div>
                   </button>
                 ) : (
-                  <button
-                    onClick={() => setShowDeptModal(true)}
-                    className="w-10 h-10 mx-auto flex items-center justify-center bg-orange-600/30 hover:bg-orange-600/50 border border-orange-500/40 text-brand-orange hover:text-white rounded-lg transition-all"
-                    title={`Alternar Departamento (${userRoles.length} disponíveis)`}
-                  >
-                    <ArrowLeftRight size={18} />
-                  </button>
+                  <div className="flex justify-center">
+                    <button
+                      onClick={() => {
+                        setShowDeptSelector(!showDeptSelector);
+                        setShowChurchSelector(false);
+                      }}
+                      className={`w-10 h-10 rounded-lg bg-gray-800 border-2 ${activeDept.borderColor} flex items-center justify-center ${activeDept.iconColor} shadow-lg hover:scale-105 transition-transform`}
+                      title={`Departamento: ${activeDept.label} (${availableDepts.length} opções)`}
+                    >
+                      <activeDept.icon size={18} />
+                    </button>
+                  </div>
+                )}
+
+                {showDeptSelector && isExpanded && (
+                  <div className="absolute bottom-full left-0 w-full mb-3 bg-[#1a1a1a] border border-gray-700 rounded-lg shadow-2xl overflow-hidden z-50 animate-fade-in-up">
+                    <div className="px-3 py-2 bg-black/40 border-b border-gray-700 text-[10px] text-gray-500 font-bold uppercase tracking-wider flex items-center justify-between">
+                      <span>TROCAR DEPARTAMENTO</span>
+                      <span className="text-[10px] font-bold bg-brand-orange text-black px-1.5 py-0.2 rounded-full">
+                        {availableDepts.length}
+                      </span>
+                    </div>
+                    <div className="max-h-60 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 divide-y divide-gray-800/80">
+                      {availableDepts.map(dept => {
+                        const isSelected = dept.id === activeDept.id;
+                        const DeptIcon = dept.icon;
+                        return (
+                          <button
+                            key={dept.id}
+                            onClick={() => handleDeptSelect(dept)}
+                            className={`w-full text-left px-3 py-3 text-xs transition-colors flex items-center gap-3 hover:bg-gray-800 group relative ${isSelected ? 'bg-orange-500/10' : ''}`}
+                          >
+                            <div className={`w-8 h-8 rounded-lg ${dept.iconBg} flex items-center justify-center shrink-0`}>
+                              <DeptIcon size={16} className={dept.iconColor} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className={`font-bold truncate text-sm ${isSelected ? 'text-brand-orange' : 'text-gray-200 group-hover:text-white'}`}>
+                                {dept.label}
+                              </p>
+                              <p className="text-[10px] text-gray-400 font-medium truncate uppercase mt-0.5">
+                                {dept.roleLabel}
+                              </p>
+                            </div>
+                            {isSelected && (
+                              <div className="w-2 h-2 rounded-full bg-brand-orange shrink-0"></div>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 )}
               </div>
             )}
+
             {/* ... (Existing footer logic for User Profile and Church Switcher) ... */}
             <div className="relative">
                 {isExpanded ? (
@@ -514,20 +763,6 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
            {children}
         </div>
       </main>
-
-      {showDeptModal && user && (
-        <DepartmentSelectorModal
-          user={user}
-          currentRole={user.role}
-          onSelectRole={(selectedRole) => {
-            switchActiveRole(selectedRole);
-            const target = getRoleInfo(selectedRole);
-            setShowDeptModal(false);
-            navigate(target.path, { state: target.state });
-          }}
-          onClose={() => setShowDeptModal(false)}
-        />
-      )}
     </div>
   );
 };

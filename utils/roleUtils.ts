@@ -274,3 +274,30 @@ export const removeRoleFromUserRoles = (existingRoles: Role[], roleToRemove: Rol
   return existingRoles.filter(r => r !== roleToRemove);
 };
 
+/**
+ * Procura um usuário cadastrado correspondente a um membro (por CPF, ID ou Nome completo).
+ */
+export const findExistingUserForMember = <T extends { id?: string; name?: string; cpf?: string; username: string }>(
+  member: { id?: string; name?: string; cpf?: string },
+  users: T[]
+): T | undefined => {
+  if (!member || !users || users.length === 0) return undefined;
+  
+  const cleanMemberCpf = member.cpf ? member.cpf.replace(/\D/g, '') : '';
+  const memberName = (member.name || '').trim().toUpperCase();
+
+  return users.find(u => {
+    // 1. Match por CPF limpo
+    if (cleanMemberCpf && cleanMemberCpf.length === 11 && u.cpf) {
+      const cleanUserCpf = u.cpf.replace(/\D/g, '');
+      if (cleanUserCpf === cleanMemberCpf) return true;
+    }
+    // 2. Match por ID exato
+    if (member.id && u.id && member.id === u.id) return true;
+    // 3. Match por Nome Completo exato
+    if (memberName && u.name && u.name.trim().toUpperCase() === memberName) return true;
+    return false;
+  });
+};
+
+
