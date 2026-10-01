@@ -89,9 +89,9 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isDesktopHovered, setIsDesktopHovered] = useState(false);
-  const [showChurchSelector, setShowChurchSelector] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
   const [showLangSelector, setShowLangSelector] = useState(false);
-  const [showDeptSelector, setShowDeptSelector] = useState(false);
+  const userMenuRef = React.useRef<HTMLDivElement>(null);
 
   const userRolesFromUser = getUserRoles(user);
   const userCleanCpf = user?.cpf ? user.cpf.replace(/\D/g, '') : '';
@@ -184,6 +184,16 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   const isLadiesEntered = location.pathname.startsWith('/senhoras') && !!locationState?.entered;
   const isMenEntered = location.pathname.startsWith('/senhores') && !!locationState?.entered;
 
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setShowUserMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const handleLogout = () => {
     if (pendingOfflineCount > 0) {
       const confirmed = window.confirm(
@@ -195,7 +205,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     navigate('/');
   };
   const handleReturnToAdminPanel = () => { exitAdminView(); navigate('/admin/dashboard'); };
-  const handleChurchSelect = (churchId: string) => { selectChurch(churchId); setShowChurchSelector(false); };
+  const handleChurchSelect = (churchId: string) => { selectChurch(churchId); setShowUserMenu(false); };
 
   const sedes = availableChurches.filter(c => c.type === 'SEDE');
   const independentCongregations = availableChurches.filter(c => c.type !== 'SEDE' && !availableChurches.some(parent => parent.id === c.parentId));
@@ -339,6 +349,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
 
   // O seletor de departamentos SÓ deve aparecer se o usuário possuir mais de 1 departamento atribuído!
   const canSwitchDept = availableDepts.length > 1;
+  const canSwitch = canSwitchChurch || canSwitchDept;
 
   const activeDept = availableDepts.find(d => d.id === activeDeptId) || 
     availableDepts.find(d => d.userRole === user.role) || 
@@ -348,7 +359,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     if (dept.userRole) {
       switchActiveRole(dept.userRole);
     }
-    setShowDeptSelector(false);
+    setShowUserMenu(false);
     navigate(dept.path, { state: dept.state });
   };
 
@@ -358,6 +369,10 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   const isAdolescentsUser = ['LIDER_ADOLESCENTES', 'TESOUREIRO_ADOLESCENTES'].includes(user.role);
   const isLadiesUser = ['LIDER_SENHORAS', 'TESOUREIRO_SENHORAS'].includes(user.role);
   const isMenUser = ['LIDER_SENHORES', 'TESOUREIRO_SENHORES'].includes(user.role);
+
+  const displayedUserRole = (activeDept && (activeDeptId || isMissionsUser || isYouthUser || isChildrenUser || isAdolescentsUser || isLadiesUser || isMenUser || (!canSwitchChurch && canSwitchDept)))
+    ? activeDept.roleLabel
+    : user.role.replace(/_/g, ' ').toLowerCase();
 
   interface MenuItem {
       label: string;
@@ -559,150 +574,134 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
 
         {/* FOOTER */}
         <div className="p-4 border-t border-gray-800 bg-[#0a0a0a]">
-            {canSwitchDept && activeDept && (
-              <div className="relative mb-3">
+            {/* USER CARD WITH POPUP SELECTOR */}
+            <div className="relative" ref={userMenuRef}>
                 {isExpanded ? (
-                  <button
-                    onClick={() => {
-                      setShowDeptSelector(!showDeptSelector);
-                      setShowChurchSelector(false);
-                    }}
-                    className={`w-full text-left rounded-r-lg border-l-4 ${activeDept.borderColor} bg-gray-800/80 p-3 transition-all duration-200 group relative overflow-hidden hover:bg-gray-800 cursor-pointer shadow-sm`}
-                  >
-                    <div className={`absolute top-0 right-0 -mt-2 -mr-2 w-16 h-16 ${activeDept.glowBg} blur-xl rounded-full pointer-events-none`}></div>
-                    <p className="text-[10px] text-gray-400 uppercase tracking-widest font-bold mb-1">
-                      DEPARTAMENTO
-                    </p>
-                    <div className="flex justify-between items-center mb-2">
-                      <div className="flex items-center min-w-0">
-                        <div className={`w-5 h-5 rounded ${activeDept.iconBg} flex items-center justify-center mr-2 shrink-0`}>
-                          <activeDept.icon size={13} className={activeDept.iconColor} />
-                        </div>
-                        <h4 className="text-white font-bold text-sm truncate pr-2 leading-tight">
-                          {activeDept.label}
-                        </h4>
-                      </div>
-                      <ChevronDown
-                        size={14}
-                        className={`text-gray-500 transition-transform duration-300 shrink-0 ${showDeptSelector ? 'rotate-180 text-brand-orange' : ''}`}
-                      />
-                    </div>
-                    <div className="flex items-center pt-2 border-t border-gray-700/50 justify-between">
-                      <div className="flex items-center min-w-0 mr-2">
-                        <div className="relative mr-2 shrink-0">
-                          <div className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.6)]"></div>
-                        </div>
-                        <p className={`text-xs ${activeDept.textColor} font-medium truncate capitalize`}>
-                          {activeDept.roleLabel}
-                        </p>
-                      </div>
-                      <span className="text-[10px] font-bold bg-gray-700 text-gray-300 px-1.5 py-0.5 rounded-full shrink-0">
-                        {availableDepts.length} opções
-                      </span>
-                    </div>
-                  </button>
-                ) : (
-                  <div className="flex justify-center">
-                    <button
-                      onClick={() => {
-                        setShowDeptSelector(!showDeptSelector);
-                        setShowChurchSelector(false);
-                      }}
-                      className={`w-10 h-10 rounded-lg bg-gray-800 border-2 ${activeDept.borderColor} flex items-center justify-center ${activeDept.iconColor} shadow-lg hover:scale-105 transition-transform`}
-                      title={`Departamento: ${activeDept.label} (${availableDepts.length} opções)`}
+                    <button 
+                      onClick={() => canSwitch && setShowUserMenu(!showUserMenu)} 
+                      className={`w-full text-left rounded-r-lg border-l-4 border-red-600 bg-gray-800/80 p-3 transition-all duration-200 group relative overflow-hidden ${canSwitch ? 'hover:bg-gray-800 cursor-pointer' : 'cursor-default'}`}
                     >
-                      <activeDept.icon size={18} />
-                    </button>
-                  </div>
-                )}
-
-                {showDeptSelector && isExpanded && (
-                  <div className="absolute bottom-full left-0 w-full mb-3 bg-[#1a1a1a] border border-gray-700 rounded-lg shadow-2xl overflow-hidden z-50 animate-fade-in-up">
-                    <div className="px-3 py-2 bg-black/40 border-b border-gray-700 text-[10px] text-gray-500 font-bold uppercase tracking-wider flex items-center justify-between">
-                      <span>TROCAR DEPARTAMENTO</span>
-                      <span className="text-[10px] font-bold bg-brand-orange text-black px-1.5 py-0.2 rounded-full">
-                        {availableDepts.length}
-                      </span>
-                    </div>
-                    <div className="max-h-60 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 divide-y divide-gray-800/80">
-                      {availableDepts.map(dept => {
-                        const isSelected = dept.id === activeDept.id;
-                        const DeptIcon = dept.icon;
-                        return (
-                          <button
-                            key={dept.id}
-                            onClick={() => handleDeptSelect(dept)}
-                            className={`w-full text-left px-3 py-3 text-xs transition-colors flex items-center gap-3 hover:bg-gray-800 group relative ${isSelected ? 'bg-orange-500/10' : ''}`}
-                          >
-                            <div className={`w-8 h-8 rounded-lg ${dept.iconBg} flex items-center justify-center shrink-0`}>
-                              <DeptIcon size={16} className={dept.iconColor} />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className={`font-bold truncate text-sm ${isSelected ? 'text-brand-orange' : 'text-gray-200 group-hover:text-white'}`}>
-                                {dept.label}
-                              </p>
-                              <p className="text-[10px] text-gray-400 font-medium truncate uppercase mt-0.5">
-                                {dept.roleLabel}
-                              </p>
-                            </div>
-                            {isSelected && (
-                              <div className="w-2 h-2 rounded-full bg-brand-orange shrink-0"></div>
-                            )}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* ... (Existing footer logic for User Profile and Church Switcher) ... */}
-            <div className="relative">
-                {isExpanded ? (
-                    <button onClick={() => canSwitchChurch && setShowChurchSelector(!showChurchSelector)} className={`w-full text-left rounded-r-lg border-l-4 border-red-600 bg-gray-800/80 p-3 transition-all duration-200 group relative overflow-hidden ${canSwitchChurch ? 'hover:bg-gray-800 cursor-pointer' : 'cursor-default'}`}>
                          <div className="absolute top-0 right-0 -mt-2 -mr-2 w-16 h-16 bg-red-600/10 blur-xl rounded-full pointer-events-none"></div>
                          <p className="text-[10px] text-gray-400 uppercase tracking-widest font-bold mb-1">{isSuperAdminGlobal ? t('common.globalMode') : t('common.user')}</p>
                          <div className="flex justify-between items-center mb-2">
-                             <div className="flex items-center">
-                                 {userPhotoUrl && <img src={userPhotoUrl} alt="User" className="w-5 h-5 rounded-full mr-2 object-cover border border-gray-600"/>}
+                             <div className="flex items-center min-w-0">
+                                 {userPhotoUrl && <img src={userPhotoUrl} alt="User" className="w-5 h-5 rounded-full mr-2 object-cover border border-gray-600 shrink-0"/>}
                                  <h4 className="text-white font-bold text-sm truncate pr-2 leading-tight">{user.name}</h4>
                              </div>
-                             {canSwitchChurch && <ChevronDown size={14} className={`text-gray-500 transition-transform duration-300 ${showChurchSelector ? 'rotate-180 text-brand-orange' : ''}`}/>}
+                             {canSwitch && (
+                               <ChevronDown 
+                                 size={14} 
+                                 className={`text-gray-500 transition-transform duration-300 shrink-0 ${showUserMenu ? 'rotate-180 text-brand-orange' : ''}`}
+                               />
+                             )}
                          </div>
                          <div className="flex items-center pt-2 border-t border-gray-700/50">
-                             <div className="relative mr-2">
+                             <div className="relative mr-2 shrink-0">
                                <div className={`w-2.5 h-2.5 rounded-full animate-pulse ${isOnline ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]' : 'bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.6)]'}`}></div>
                              </div>
-                             <p className="text-xs text-brand-orange font-medium truncate flex-1 capitalize">{user.role.replace('_', ' ').toLowerCase()}</p>
+                             <p className="text-xs text-brand-orange font-medium truncate flex-1 capitalize">{displayedUserRole}</p>
                              {!isOnline && <WifiOff size={11} className="text-orange-400 shrink-0" title="Offline" />}
                              {isOnline && pendingOfflineCount > 0 && <Wifi size={11} className="text-orange-400 shrink-0 animate-pulse" title="Sincronizando" />}
                          </div>
                     </button>
                 ) : (
                     <div className="flex justify-center">
-                        <div className="w-10 h-10 rounded-full bg-gray-800 border-2 border-red-600 flex items-center justify-center text-white font-bold text-sm shadow-lg relative cursor-default overflow-hidden" title={user.name}>
+                        <button
+                            onClick={() => canSwitch && setShowUserMenu(!showUserMenu)}
+                            className={`w-10 h-10 rounded-full bg-gray-800 border-2 border-red-600 flex items-center justify-center text-white font-bold text-sm shadow-lg relative overflow-hidden ${canSwitch ? 'cursor-pointer hover:border-brand-orange' : 'cursor-default'}`} 
+                            title={user.name}
+                        >
                             {userPhotoUrl ? <img src={userPhotoUrl} alt={user.name} className="w-full h-full object-cover" /> : user.name.charAt(0)}
                             <div className={`absolute bottom-0 right-0 w-3 h-3 border-2 border-gray-900 rounded-full z-10 ${isOnline ? 'bg-green-500' : 'bg-orange-500'}`}></div>
-                        </div>
+                        </button>
                     </div>
                 )}
-                {showChurchSelector && isExpanded && (
+
+                {showUserMenu && isExpanded && (
                     <div className="absolute bottom-full left-0 w-full mb-3 bg-[#1a1a1a] border border-gray-700 rounded-lg shadow-2xl overflow-hidden z-50 animate-fade-in-up">
-                        <div className="px-3 py-2 bg-black/40 border-b border-gray-700 text-[10px] text-gray-500 font-bold uppercase tracking-wider">{t('common.switchUnit')}</div>
-                        <div className="max-h-60 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600">
-                            {sedes.map(sede => (
-                                <React.Fragment key={sede.id}>
-                                    <ChurchOption church={sede} currentChurch={currentChurch} onSelect={handleChurchSelect} />
-                                    {availableChurches.filter(child => child.parentId === sede.id).sort((a, b) => a.name.localeCompare(b.name)).map(child => (
-                                            <ChurchOption key={child.id} church={child} isChild={true} currentChurch={currentChurch} onSelect={handleChurchSelect} />
+                        {/* SEÇÃO TROCAR UNIDADE (Igreja / Congregação) */}
+                        {canSwitchChurch && (
+                            <div>
+                                <div className="px-3 py-2 bg-black/40 border-b border-gray-700 text-[10px] text-gray-500 font-bold uppercase tracking-wider">
+                                    {t('common.switchUnit')}
+                                </div>
+                                <div className="max-h-60 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600">
+                                    {sedes.map(sede => (
+                                        <React.Fragment key={sede.id}>
+                                            <ChurchOption church={sede} currentChurch={currentChurch} onSelect={handleChurchSelect} />
+                                            {availableChurches.filter(child => child.parentId === sede.id).sort((a, b) => a.name.localeCompare(b.name)).map(child => (
+                                                    <ChurchOption key={child.id} church={child} isChild={true} currentChurch={currentChurch} onSelect={handleChurchSelect} />
+                                            ))}
+                                        </React.Fragment>
                                     ))}
-                                </React.Fragment>
-                            ))}
-                            {independentCongregations.length > 0 && independentCongregations.map(cong => (
-                               <ChurchOption key={cong.id} church={cong} currentChurch={currentChurch} onSelect={handleChurchSelect} />
-                            ))}
-                        </div>
+                                    {independentCongregations.length > 0 && independentCongregations.map(cong => (
+                                       <ChurchOption key={cong.id} church={cong} currentChurch={currentChurch} onSelect={handleChurchSelect} />
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* SEÇÃO TROCAR DEPARTAMENTO */}
+                        {canSwitchDept && (
+                            <div className={canSwitchChurch ? 'border-t border-gray-700' : ''}>
+                                <div className="px-3 py-2 bg-black/40 border-b border-gray-700 text-[10px] text-gray-500 font-bold uppercase tracking-wider flex items-center justify-between">
+                                    <span>TROCAR DEPARTAMENTO</span>
+                                    <span className="text-[10px] font-bold bg-brand-orange/20 text-brand-orange px-1.5 py-0.5 rounded-full">
+                                        {availableDepts.length}
+                                    </span>
+                                </div>
+                                <div className="max-h-60 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600">
+                                    {/* Departamento ativo no momento: No topo, tom laranja com bolinha */}
+                                    {activeDept && (
+                                        <button
+                                            key={activeDept.id}
+                                            onClick={() => handleDeptSelect(activeDept)}
+                                            className="w-full text-left px-3 py-3 text-sm border-b border-gray-800 last:border-0 hover:bg-gray-800 transition-colors flex items-center group relative bg-red-900/10"
+                                        >
+                                            <div className={`mr-3 p-1.5 rounded-md shrink-0 ${activeDept.iconBg} ${activeDept.iconColor}`}>
+                                                <activeDept.icon size={14} />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="font-medium truncate text-brand-orange">
+                                                    {activeDept.label}
+                                                </p>
+                                                <p className="text-[10px] text-gray-400 uppercase font-bold">
+                                                    {activeDept.roleLabel}
+                                                </p>
+                                            </div>
+                                            <div className="w-1.5 h-1.5 rounded-full bg-brand-orange ml-2 shrink-0"></div>
+                                        </button>
+                                    )}
+
+                                    {/* Demais departamentos que o usuário tem acesso: listados abaixo com estilo subordinado */}
+                                    {availableDepts
+                                        .filter(dept => dept.id !== activeDept?.id)
+                                        .map(dept => {
+                                            const DeptIcon = dept.icon;
+                                            return (
+                                                <button
+                                                    key={dept.id}
+                                                    onClick={() => handleDeptSelect(dept)}
+                                                    className="w-full text-left px-3 py-3 text-sm border-b border-gray-800 last:border-0 hover:bg-gray-800 transition-colors flex items-center group relative pl-8 bg-[#151515]"
+                                                >
+                                                    <CornerDownRight size={14} className="absolute left-3 text-gray-600" />
+                                                    <div className={`mr-3 p-1.5 rounded-md shrink-0 ${dept.iconBg} ${dept.iconColor}`}>
+                                                        <DeptIcon size={14} />
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="font-medium truncate text-gray-300 group-hover:text-white">
+                                                            {dept.label}
+                                                        </p>
+                                                        <p className="text-[10px] text-gray-500 uppercase font-bold">
+                                                            {dept.roleLabel}
+                                                        </p>
+                                                    </div>
+                                                </button>
+                                            );
+                                        })}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 )}
             </div>
