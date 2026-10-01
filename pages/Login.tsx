@@ -78,16 +78,20 @@ export const Login: React.FC = () => {
 
   // Checa se o usuário digitado está em período de bloqueio temporário
   useEffect(() => {
+    let isCurrent = true;
     if (username.trim()) {
-      const status = checkRateLimit(username.trim());
-      if (status.isLocked) {
-        setLockoutSeconds(status.remainingSeconds);
-        setError(`Conta temporariamente bloqueada por excesso de tentativas. Tente novamente em ${formatLockoutTime(status.remainingSeconds)}.`);
-      } else if (lockoutSeconds > 0) {
-        setLockoutSeconds(0);
-        setError('');
-      }
+      checkRateLimit(username.trim()).then(status => {
+        if (!isCurrent) return;
+        if (status.isLocked) {
+          setLockoutSeconds(status.remainingSeconds);
+          setError(`Conta temporariamente bloqueada por excesso de tentativas. Tente novamente em ${formatLockoutTime(status.remainingSeconds)}.`);
+        } else if (lockoutSeconds > 0) {
+          setLockoutSeconds(0);
+          setError('');
+        }
+      });
     }
+    return () => { isCurrent = false; };
   }, [username]);
 
   // Helpers
@@ -111,8 +115,8 @@ export const Login: React.FC = () => {
     const trimmedUser = username.trim();
     const trimmedPass = password.trim();
 
-    // 0. Verifica se já está temporariamente bloqueado por excesso de tentativas
-    const rateStatus = checkRateLimit(trimmedUser);
+    // 0. Verifica se já está temporariamente bloqueado por excesso de tentativas (no banco e no cache)
+    const rateStatus = await checkRateLimit(trimmedUser);
     if (rateStatus.isLocked) {
       setLockoutSeconds(rateStatus.remainingSeconds);
       setError(`Muitas tentativas incorretas. Por segurança, tente novamente em ${formatLockoutTime(rateStatus.remainingSeconds)}.`);
@@ -131,7 +135,7 @@ export const Login: React.FC = () => {
     }
 
     if (adminResult.user) {
-      resetLoginAttempts(trimmedUser);
+      await resetLoginAttempts(trimmedUser);
       setIsProcessing(false);
       const userRoles = getUserRoles(adminResult.user);
       if (userRoles.length > 1) {
@@ -158,13 +162,13 @@ export const Login: React.FC = () => {
     }
 
     if (!memberResult.error) {
-      resetLoginAttempts(trimmedUser);
+      await resetLoginAttempts(trimmedUser);
       navigate('/portal/dashboard');
       return;
     }
 
-    // Registra tentativa falha e checa limite
-    const failStatus = recordFailedLogin(trimmedUser);
+    // Registra tentativa falha no banco de dados e checa limite
+    const failStatus = await recordFailedLogin(trimmedUser);
     if (failStatus.isLocked) {
       setLockoutSeconds(failStatus.remainingSeconds);
       setError(`Você errou a senha 5 vezes consecutivas. Por segurança, aguarde ${formatLockoutTime(failStatus.remainingSeconds)} antes de tentar novamente.`);

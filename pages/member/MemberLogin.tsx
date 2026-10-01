@@ -31,17 +31,21 @@ export const MemberLogin: React.FC = () => {
 
   // Checa se o CPF digitado já está em período de bloqueio
   useEffect(() => {
+    let isCurrent = true;
     const cleanCpf = cpf.replace(/\D/g, '');
     if (cleanCpf.length === 11) {
-      const status = checkRateLimit(cleanCpf);
-      if (status.isLocked) {
-        setLockoutSeconds(status.remainingSeconds);
-        setError(`Acesso temporariamente bloqueado por excesso de tentativas. Tente novamente em ${formatLockoutTime(status.remainingSeconds)}.`);
-      } else if (lockoutSeconds > 0) {
-        setLockoutSeconds(0);
-        setError('');
-      }
+      checkRateLimit(cleanCpf).then(status => {
+        if (!isCurrent) return;
+        if (status.isLocked) {
+          setLockoutSeconds(status.remainingSeconds);
+          setError(`Acesso temporariamente bloqueado por excesso de tentativas. Tente novamente em ${formatLockoutTime(status.remainingSeconds)}.`);
+        } else if (lockoutSeconds > 0) {
+          setLockoutSeconds(0);
+          setError('');
+        }
+      });
     }
+    return () => { isCurrent = false; };
   }, [cpf]);
 
   const versiculos = useMemo(() => {
@@ -76,7 +80,7 @@ export const MemberLogin: React.FC = () => {
     setError('');
 
     const cleanCpf = cpf.replace(/\D/g, '');
-    const rateStatus = checkRateLimit(cleanCpf);
+    const rateStatus = await checkRateLimit(cleanCpf);
     if (rateStatus.isLocked) {
       setLockoutSeconds(rateStatus.remainingSeconds);
       setError(`Acesso temporariamente bloqueado por excesso de tentativas. Tente novamente em ${formatLockoutTime(rateStatus.remainingSeconds)}.`);
@@ -89,7 +93,7 @@ export const MemberLogin: React.FC = () => {
       return;
     }
     if (result.error) {
-      const failStatus = recordFailedLogin(cleanCpf);
+      const failStatus = await recordFailedLogin(cleanCpf);
       if (failStatus.isLocked) {
         setLockoutSeconds(failStatus.remainingSeconds);
         setError(`Você errou a senha 5 vezes consecutivas. Por segurança, tente novamente em ${formatLockoutTime(failStatus.remainingSeconds)}.`);
@@ -97,7 +101,7 @@ export const MemberLogin: React.FC = () => {
         setError(`${result.error} Tentativas restantes: ${failStatus.attemptsLeft} de ${MAX_LOGIN_ATTEMPTS}.`);
       }
     } else {
-      resetLoginAttempts(cleanCpf);
+      await resetLoginAttempts(cleanCpf);
       navigate('/portal/dashboard');
     }
   };

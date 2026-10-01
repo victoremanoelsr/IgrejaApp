@@ -1,9 +1,18 @@
 // Utilitário de Proteção contra Força Bruta (Rate Limiting de Login)
-// Limita tentativas consecutivas de senha incorreta para proteger contas de usuários e membros.
+// Integrado ao Banco de Dados (Supabase RPC) com fallback resiliente em localStorage.
+
+import { supabase } from '../services/supabaseClient';
 
 const STORAGE_KEY = 'ia_auth_rate_limit_v1';
 export const MAX_LOGIN_ATTEMPTS = 5;
 export const LOCKOUT_DURATION_MS = 5 * 60 * 1000; // 5 minutos de bloqueio temporário
+
+export interface RateLimitStatus {
+  isLocked: boolean;
+  remainingSeconds: number;
+  attemptsLeft: number;
+  totalAttempts: number;
+}
 
 interface AttemptRecord {
   count: number;
@@ -15,7 +24,6 @@ type AttemptMap = Record<string, AttemptRecord>;
 
 const normalizeKey = (identifier: string): string => {
   const clean = identifier.trim().toLowerCase();
-  // Se for CPF (com pontuação ou não), normaliza para apenas dígitos
   const digitsOnly = clean.replace(/\D/g, '');
   if (digitsOnly.length === 11) {
     return `cpf_${digitsOnly}`;
@@ -23,7 +31,7 @@ const normalizeKey = (identifier: string): string => {
   return `user_${clean}`;
 };
 
-const getStore = (): AttemptMap => {
+const getLocalStore = (): AttemptMap => {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return {};
@@ -33,9 +41,8 @@ const getStore = (): AttemptMap => {
   }
 };
 
-const saveStore = (store: AttemptMap) => {
+const saveLocalStore = (store: AttemptMap) => {
   try {
-    // Limpeza de registros muito antigos (mais de 24h)
     const now = Date.now();
     const cleaned: AttemptMap = {};
     for (const [k, v] of Object.entries(store)) {
@@ -44,28 +51,33 @@ const saveStore = (store: AttemptMap) => {
       }
     }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(cleaned));
-  } catch {
-    // Fallback silencioso caso localStorage esteja restrito
-  }
+  } catch {}
 };
 
-export interface RateLimitStatus {
-  isLocked: boolean;
-  remainingSeconds: number;
-  attemptsLeft: number;
-  totalAttempts: number;
-}
+const updateLocalCache = (identifier: string, status: RateLimitStatus) => {
+  try {
+    const key = normalizeKey(identifier);
+    const store = getLocalStore();
+    const now = Date.now();
+    store[key] = {
+      count: status.totalAttempts,
+      lockedUntil: status.isLocked ? now + status.remainingSeconds * 1000 : undefined,
+      lastAttempt: now,
+    };
+    saveLocalStore(store);
+  } catch {}
+};
 
 /**
- * Verifica se um identificador (usuário ou CPF) está temporariamente bloqueado.
+ * Consulta síncrona rápida no cache local (útil para renderização instantânea)
  */
-export const checkRateLimit = (identifier: string): RateLimitStatus => {
+export const checkLocalRateLimit = (identifier: string): RateLimitStatus => {
   if (!identifier || !identifier.trim()) {
     return { isLocked: false, remainingSeconds: 0, attemptsLeft: MAX_LOGIN_ATTEMPTS, totalAttempts: 0 };
   }
 
   const key = normalizeKey(identifier);
-  const store = getStore();
+  const store = getLocalStore();
   const record = store[key];
 
   if (!record) {
@@ -74,14 +86,12 @@ export const checkRateLimit = (identifier: string): RateLimitStatus => {
 
   const now = Date.now();
 
-  // Se havia bloqueio mas o tempo expirou, reseta o contador
   if (record.lockedUntil && record.lockedUntil <= now) {
     delete store[key];
-    saveStore(store);
+    saveLocalStore(store);
     return { isLocked: false, remainingSeconds: 0, attemptsLeft: MAX_LOGIN_ATTEMPTS, totalAttempts: 0 };
   }
 
-  // Se ainda está no período de bloqueio
   if (record.lockedUntil && record.lockedUntil > now) {
     const remainingSeconds = Math.ceil((record.lockedUntil - now) / 1000);
     return {
@@ -102,20 +112,68 @@ export const checkRateLimit = (identifier: string): RateLimitStatus => {
 };
 
 /**
- * Registra uma tentativa falha de login.
- * Se atingir o limite, ativa o bloqueio temporário.
+ * Consulta de bloqueio no Banco de Dados (Supabase RPC) com fallback no cache local.
  */
-export const recordFailedLogin = (identifier: string): RateLimitStatus => {
+export const checkRateLimit = async (identifier: string): Promise<RateLimitStatus> => {
   if (!identifier || !identifier.trim()) {
     return { isLocked: false, remainingSeconds: 0, attemptsLeft: MAX_LOGIN_ATTEMPTS, totalAttempts: 0 };
   }
 
+  try {
+    const { data, error } = await supabase.rpc('check_login_lockout', {
+      p_identifier: identifier.trim(),
+    });
+
+    if (!error && data && typeof data === 'object') {
+      const status: RateLimitStatus = {
+        isLocked: !!data.is_locked,
+        remainingSeconds: Number(data.remaining_seconds) || 0,
+        attemptsLeft: Number(data.attempts_left) ?? MAX_LOGIN_ATTEMPTS,
+        totalAttempts: Math.max(0, MAX_LOGIN_ATTEMPTS - (Number(data.attempts_left) || 0)),
+      };
+      updateLocalCache(identifier, status);
+      return status;
+    }
+  } catch (e) {
+    console.warn('[RateLimit] Supabase indisponível, usando cache local:', e);
+  }
+
+  return checkLocalRateLimit(identifier);
+};
+
+/**
+ * Registra tentativa incorreta no Banco de Dados (Supabase RPC) e atualiza cache.
+ */
+export const recordFailedLogin = async (identifier: string): Promise<RateLimitStatus> => {
+  if (!identifier || !identifier.trim()) {
+    return { isLocked: false, remainingSeconds: 0, attemptsLeft: MAX_LOGIN_ATTEMPTS, totalAttempts: 0 };
+  }
+
+  try {
+    const { data, error } = await supabase.rpc('record_login_failure', {
+      p_identifier: identifier.trim(),
+    });
+
+    if (!error && data && typeof data === 'object') {
+      const status: RateLimitStatus = {
+        isLocked: !!data.is_locked,
+        remainingSeconds: Number(data.remaining_seconds) || 0,
+        attemptsLeft: Number(data.attempts_left) ?? 0,
+        totalAttempts: Math.max(0, MAX_LOGIN_ATTEMPTS - (Number(data.attempts_left) || 0)),
+      };
+      updateLocalCache(identifier, status);
+      return status;
+    }
+  } catch (e) {
+    console.warn('[RateLimit] Erro ao gravar tentativa no banco, usando fallback local:', e);
+  }
+
+  // Fallback local caso haja falha de conexão
   const key = normalizeKey(identifier);
-  const store = getStore();
+  const store = getLocalStore();
   const now = Date.now();
   const current = store[key] || { count: 0, lastAttempt: now };
 
-  // Se já tinha expirado o bloqueio, reseta
   if (current.lockedUntil && current.lockedUntil <= now) {
     current.count = 0;
     delete current.lockedUntil;
@@ -127,7 +185,7 @@ export const recordFailedLogin = (identifier: string): RateLimitStatus => {
   if (current.count >= MAX_LOGIN_ATTEMPTS) {
     current.lockedUntil = now + LOCKOUT_DURATION_MS;
     store[key] = current;
-    saveStore(store);
+    saveLocalStore(store);
     return {
       isLocked: true,
       remainingSeconds: Math.ceil(LOCKOUT_DURATION_MS / 1000),
@@ -137,7 +195,7 @@ export const recordFailedLogin = (identifier: string): RateLimitStatus => {
   }
 
   store[key] = current;
-  saveStore(store);
+  saveLocalStore(store);
 
   return {
     isLocked: false,
@@ -148,15 +206,28 @@ export const recordFailedLogin = (identifier: string): RateLimitStatus => {
 };
 
 /**
- * Reseta as tentativas falhas após um login com sucesso.
+ * Reseta as tentativas no Banco de Dados e no cache local após login com sucesso.
  */
-export const resetLoginAttempts = (identifier: string) => {
+export const resetLoginAttempts = async (identifier: string) => {
   if (!identifier) return;
-  const key = normalizeKey(identifier);
-  const store = getStore();
-  if (store[key]) {
-    delete store[key];
-    saveStore(store);
+
+  // Limpa cache local
+  try {
+    const key = normalizeKey(identifier);
+    const store = getLocalStore();
+    if (store[key]) {
+      delete store[key];
+      saveLocalStore(store);
+    }
+  } catch {}
+
+  // Limpa no banco de dados via RPC
+  try {
+    await supabase.rpc('clear_login_lockout', {
+      p_identifier: identifier.trim(),
+    });
+  } catch (e) {
+    console.warn('[RateLimit] Erro ao resetar tentativas no banco:', e);
   }
 };
 
