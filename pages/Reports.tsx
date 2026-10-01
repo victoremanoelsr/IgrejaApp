@@ -110,6 +110,15 @@ export const Reports: React.FC = () => {
 
   const [showExportModal, setShowExportModal] = useState(false);
 
+  useEffect(() => {
+    if (!showExportModal) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowExportModal(false);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showExportModal]);
+
   // Mapeamento amigável de tipos para relatório público
   const getPublicEntryType = (t: Transaction): string => {
     if (t.category === 'DIZIMO') return 'Dízimo';
@@ -646,8 +655,14 @@ export const Reports: React.FC = () => {
 
       {/* MODAL DE OPÇÕES DE DOWNLOAD: RELATÓRIO DETALHADO OU RELATÓRIO PÚBLICO */}
       {showExportModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-gray-100 relative animate-fade-in">
+        <div 
+          onClick={() => setShowExportModal(false)}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-gray-100 relative animate-fade-in"
+          >
             {/* Fechar */}
             <button 
               onClick={() => setShowExportModal(false)}
