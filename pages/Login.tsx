@@ -1,12 +1,13 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../context';
 import { useMember } from '../contexts/MemberContext';
 import { useNavigate } from 'react-router-dom';
-import { Lock, User, ArrowRight, AlertCircle, CheckCircle, Building, Eye, EyeOff, Loader } from 'lucide-react';
+import { Lock, User, ArrowRight, AlertCircle, CheckCircle, Building, Eye, EyeOff, Loader, Clock } from 'lucide-react';
 import { DepartmentSelectorModal } from '../components/DepartmentSelectorModal';
 import { getUserRoles, getRoleInfo } from '../utils/roleUtils';
 import { User as UserType } from '../types';
+import { checkRateLimit, recordFailedLogin, resetLoginAttempts, formatLockoutTime, MAX_LOGIN_ATTEMPTS } from '../utils/rateLimiter';
 
 type LoginStep = 'LOGIN' | 'RECOVERY_IDENTIFY' | 'RECOVERY_SELECT' | 'RECOVERY_RESET_USER' | 'RECOVERY_RESET_PASS';
 
@@ -22,6 +23,7 @@ export const Login: React.FC = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false); // Visibilidade Login
+  const [lockoutSeconds, setLockoutSeconds] = useState(0);
   
   // Recovery States
   const [recoveryName, setRecoveryName] = useState('');
@@ -59,6 +61,35 @@ export const Login: React.FC = () => {
     return versiculos[Math.floor(Math.random() * versiculos.length)];
   }, []);
 
+  // Timer regressivo para desbloqueio
+  useEffect(() => {
+    if (lockoutSeconds <= 0) return;
+    const timer = setInterval(() => {
+      setLockoutSeconds((prev) => {
+        if (prev <= 1) {
+          setError('');
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [lockoutSeconds]);
+
+  // Checa se o usuário digitado está em período de bloqueio temporário
+  useEffect(() => {
+    if (username.trim()) {
+      const status = checkRateLimit(username.trim());
+      if (status.isLocked) {
+        setLockoutSeconds(status.remainingSeconds);
+        setError(`Conta temporariamente bloqueada por excesso de tentativas. Tente novamente em ${formatLockoutTime(status.remainingSeconds)}.`);
+      } else if (lockoutSeconds > 0) {
+        setLockoutSeconds(0);
+        setError('');
+      }
+    }
+  }, [username]);
+
   // Helpers
   const formatCPF = (value: string) => {
     return value
@@ -76,10 +107,19 @@ export const Login: React.FC = () => {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setIsProcessing(true);
 
     const trimmedUser = username.trim();
     const trimmedPass = password.trim();
+
+    // 0. Verifica se já está temporariamente bloqueado por excesso de tentativas
+    const rateStatus = checkRateLimit(trimmedUser);
+    if (rateStatus.isLocked) {
+      setLockoutSeconds(rateStatus.remainingSeconds);
+      setError(`Muitas tentativas incorretas. Por segurança, tente novamente em ${formatLockoutTime(rateStatus.remainingSeconds)}.`);
+      return;
+    }
+
+    setIsProcessing(true);
 
     // Step 1: try admin login
     const adminResult = await login(trimmedUser, trimmedPass);
@@ -91,6 +131,7 @@ export const Login: React.FC = () => {
     }
 
     if (adminResult.user) {
+      resetLoginAttempts(trimmedUser);
       setIsProcessing(false);
       const userRoles = getUserRoles(adminResult.user);
       if (userRoles.length > 1) {
@@ -117,11 +158,19 @@ export const Login: React.FC = () => {
     }
 
     if (!memberResult.error) {
+      resetLoginAttempts(trimmedUser);
       navigate('/portal/dashboard');
       return;
     }
 
-    setError('Usuário ou senha incorretos.');
+    // Registra tentativa falha e checa limite
+    const failStatus = recordFailedLogin(trimmedUser);
+    if (failStatus.isLocked) {
+      setLockoutSeconds(failStatus.remainingSeconds);
+      setError(`Você errou a senha 5 vezes consecutivas. Por segurança, aguarde ${formatLockoutTime(failStatus.remainingSeconds)} antes de tentar novamente.`);
+    } else {
+      setError(`Usuário ou senha incorretos. Tentativas restantes: ${failStatus.attemptsLeft} de ${MAX_LOGIN_ATTEMPTS}.`);
+    }
   };
 
   const handleIdentify = async (e: React.FormEvent) => {
@@ -239,15 +288,41 @@ export const Login: React.FC = () => {
       </div>
 
       {error && (
-        <div className="text-brand-red text-xs font-bold flex flex-col bg-red-50 p-2 rounded">
-            <div className="flex items-center"><AlertCircle size={14} className="mr-1 shrink-0"/> {error}</div>
-            <div className="text-gray-500 font-normal mt-1 text-xs">Membro? Use seu CPF como usuário e senha no primeiro acesso.</div>
+        <div className={`text-xs font-bold flex flex-col p-3 rounded-lg border ${
+          lockoutSeconds > 0 
+            ? 'bg-amber-500/10 border-amber-500/30 text-amber-400' 
+            : 'bg-red-50 border-red-200 text-brand-red'
+        }`}>
+            <div className="flex items-center">
+              {lockoutSeconds > 0 ? (
+                <Clock size={16} className="mr-1.5 shrink-0 text-amber-500 animate-pulse"/>
+              ) : (
+                <AlertCircle size={14} className="mr-1 shrink-0"/>
+              )}
+              <span>{error}</span>
+            </div>
+            {lockoutSeconds === 0 && (
+              <div className="text-gray-500 font-normal mt-1 text-xs">Membro? Use seu CPF como usuário e senha no primeiro acesso.</div>
+            )}
         </div>
       )}
       {successMsg && <div className="text-green-600 text-xs font-bold flex items-center bg-green-50 p-2 rounded"><CheckCircle size={14} className="mr-1"/>{successMsg}</div>}
 
-      <button type="submit" className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-lg shadow-md text-sm font-bold text-white bg-brand-orange hover:bg-brand-red focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-orange transition-all transform active:scale-95 mt-2">
-        Acessar Sistema
+      <button 
+        type="submit" 
+        disabled={isProcessing || lockoutSeconds > 0}
+        className={`w-full flex justify-center py-2.5 px-4 border border-transparent rounded-lg shadow-md text-sm font-bold text-white transition-all transform mt-2 ${
+          lockoutSeconds > 0
+            ? 'bg-gray-400 cursor-not-allowed opacity-75'
+            : 'bg-brand-orange hover:bg-brand-red focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-orange active:scale-95'
+        }`}
+      >
+        {lockoutSeconds > 0 
+          ? `Bloqueado temporariamente (${formatLockoutTime(lockoutSeconds)})` 
+          : isProcessing 
+            ? 'Acessando...' 
+            : 'Acessar Sistema'
+        }
       </button>
 
       <div className="text-center my-4 px-2">

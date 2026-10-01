@@ -1,7 +1,8 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useMember } from '../../contexts/MemberContext';
-import { Lock, Hash, Eye, EyeOff, AlertCircle, Building, ArrowLeft, Loader } from 'lucide-react';
+import { Lock, Hash, Eye, EyeOff, AlertCircle, Building, ArrowLeft, Loader, Clock } from 'lucide-react';
+import { checkRateLimit, recordFailedLogin, resetLoginAttempts, formatLockoutTime, MAX_LOGIN_ATTEMPTS } from '../../utils/rateLimiter';
 
 export const MemberLogin: React.FC = () => {
   const { login, isLoading } = useMember();
@@ -10,7 +11,38 @@ export const MemberLogin: React.FC = () => {
   const [cpf, setCpf] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [lockoutSeconds, setLockoutSeconds] = useState(0);
   const [error, setError] = useState('');
+
+  // Timer regressivo para desbloqueio
+  useEffect(() => {
+    if (lockoutSeconds <= 0) return;
+    const timer = setInterval(() => {
+      setLockoutSeconds((prev) => {
+        if (prev <= 1) {
+          setError('');
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [lockoutSeconds]);
+
+  // Checa se o CPF digitado já está em período de bloqueio
+  useEffect(() => {
+    const cleanCpf = cpf.replace(/\D/g, '');
+    if (cleanCpf.length === 11) {
+      const status = checkRateLimit(cleanCpf);
+      if (status.isLocked) {
+        setLockoutSeconds(status.remainingSeconds);
+        setError(`Acesso temporariamente bloqueado por excesso de tentativas. Tente novamente em ${formatLockoutTime(status.remainingSeconds)}.`);
+      } else if (lockoutSeconds > 0) {
+        setLockoutSeconds(0);
+        setError('');
+      }
+    }
+  }, [cpf]);
 
   const versiculos = useMemo(() => {
     const list = [
@@ -42,14 +74,30 @@ export const MemberLogin: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    const result = await login(cpf, password);
+
+    const cleanCpf = cpf.replace(/\D/g, '');
+    const rateStatus = checkRateLimit(cleanCpf);
+    if (rateStatus.isLocked) {
+      setLockoutSeconds(rateStatus.remainingSeconds);
+      setError(`Acesso temporariamente bloqueado por excesso de tentativas. Tente novamente em ${formatLockoutTime(rateStatus.remainingSeconds)}.`);
+      return;
+    }
+
+    const result = await login(cleanCpf, password);
     if (result.blocked) {
       navigate('/bloqueado');
       return;
     }
     if (result.error) {
-      setError(result.error);
+      const failStatus = recordFailedLogin(cleanCpf);
+      if (failStatus.isLocked) {
+        setLockoutSeconds(failStatus.remainingSeconds);
+        setError(`Você errou a senha 5 vezes consecutivas. Por segurança, tente novamente em ${formatLockoutTime(failStatus.remainingSeconds)}.`);
+      } else {
+        setError(`${result.error} Tentativas restantes: ${failStatus.attemptsLeft} de ${MAX_LOGIN_ATTEMPTS}.`);
+      }
     } else {
+      resetLoginAttempts(cleanCpf);
       navigate('/portal/dashboard');
     }
   };
@@ -120,18 +168,41 @@ export const MemberLogin: React.FC = () => {
             </div>
 
             {error && (
-              <div className="flex items-start gap-2 bg-red-500/10 border border-red-500/30 rounded-xl p-3">
-                <AlertCircle size={15} className="text-red-400 shrink-0 mt-0.5" />
-                <p className="text-red-400 text-xs leading-relaxed">{error}</p>
+              <div className={`flex items-start gap-2 border rounded-xl p-3 ${
+                lockoutSeconds > 0 
+                  ? 'bg-amber-500/10 border-amber-500/30' 
+                  : 'bg-red-500/10 border-red-500/30'
+              }`}>
+                {lockoutSeconds > 0 ? (
+                  <Clock size={16} className="text-amber-400 shrink-0 mt-0.5 animate-pulse" />
+                ) : (
+                  <AlertCircle size={15} className="text-red-400 shrink-0 mt-0.5" />
+                )}
+                <p className={`text-xs leading-relaxed ${lockoutSeconds > 0 ? 'text-amber-400 font-medium' : 'text-red-400'}`}>
+                  {error}
+                </p>
               </div>
             )}
 
             <button
               type="submit"
-              disabled={isLoading || cpf.length < 11 || password.length < 8}
-              className="w-full flex items-center justify-center gap-2 py-3 bg-orange-500 hover:bg-orange-600 disabled:bg-orange-500/40 disabled:cursor-not-allowed text-white font-bold rounded-xl shadow-lg shadow-orange-500/20 transition-all active:scale-95 text-sm"
+              disabled={isLoading || lockoutSeconds > 0 || cpf.length < 11 || password.length < 8}
+              className={`w-full flex items-center justify-center gap-2 py-3 text-white font-bold rounded-xl shadow-lg transition-all text-sm ${
+                lockoutSeconds > 0
+                  ? 'bg-slate-700 text-slate-400 cursor-not-allowed shadow-none'
+                  : 'bg-orange-500 hover:bg-orange-600 disabled:bg-orange-500/40 disabled:cursor-not-allowed shadow-orange-500/20 active:scale-95'
+              }`}
             >
-              {isLoading ? <Loader size={16} className="animate-spin" /> : 'Entrar no Portal'}
+              {lockoutSeconds > 0 ? (
+                `Acesso bloqueado (${formatLockoutTime(lockoutSeconds)})`
+              ) : isLoading ? (
+                <>
+                  <Loader size={16} className="animate-spin" />
+                  Entrando no Portal...
+                </>
+              ) : (
+                'Entrar no Portal'
+              )}
             </button>
           </form>
 
