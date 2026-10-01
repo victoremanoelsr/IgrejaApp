@@ -335,6 +335,33 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     }
   ];
 
+  // Cargos gerais da administração da igreja
+  const GENERAL_CHURCH_ROLES: Role[] = ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'DIRIGENTE', 'TESOUREIRO', 'SECRETARIO'];
+  const assignedGeneralRole = userRoles.find(r => GENERAL_CHURCH_ROLES.includes(r)) || (GENERAL_CHURCH_ROLES.includes(user.role) ? user.role : undefined);
+
+  // Painel Geral / Igreja Sede do usuário
+  const churchDisplayName = currentChurch ? getChurchDisplayName(currentChurch) : 'Igreja Sede';
+  const isSede = currentChurch?.type === 'SEDE' || !currentChurch;
+  const generalRoleInfo = assignedGeneralRole ? getRoleInfo(assignedGeneralRole) : null;
+
+  const generalPanel = assignedGeneralRole ? {
+    id: 'IGREJA_SEDE',
+    label: isSede ? `${churchDisplayName} (Sede)` : churchDisplayName,
+    sublabel: isSede ? 'Painel da Sede' : 'Painel Geral',
+    path: assignedGeneralRole === 'SUPER_ADM' && !currentChurch ? '/admin/dashboard' : '/dashboard',
+    state: { activeTab: 'DASHBOARD', entered: true },
+    roles: [assignedGeneralRole],
+    defaultRole: assignedGeneralRole,
+    userRole: assignedGeneralRole,
+    roleLabel: generalRoleInfo?.roleLabel || (isSede ? 'Secretaria Geral' : 'Geral'),
+    icon: isSede ? Home : Building,
+    iconColor: isSede ? 'text-red-400' : 'text-blue-400',
+    iconBg: isSede ? 'bg-red-900/40' : 'bg-blue-900/40',
+    borderColor: isSede ? 'border-red-500' : 'border-blue-500',
+    textColor: isSede ? 'text-red-400' : 'text-blue-400',
+    glowBg: isSede ? 'bg-red-600/10' : 'bg-blue-600/10'
+  } : null;
+
   // Apenas os departamentos em que o usuário possui cargo vinculado em suas permissões
   const availableDepts = DEPARTMENT_DEFINITIONS
     .filter(dept => userRoles.some(r => dept.roles.includes(r)))
@@ -347,20 +374,29 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       };
     });
 
-  // O seletor de departamentos SÓ deve aparecer se o usuário possuir mais de 1 departamento atribuído!
-  const canSwitchDept = availableDepts.length > 1;
-  const canSwitch = canSwitchChurch || canSwitchDept;
+  // Lista consolidada de todos os painéis que o usuário tem acesso (Igreja Sede + Departamentos)
+  const availablePanels = [
+    ...(generalPanel ? [generalPanel] : []),
+    ...availableDepts
+  ];
 
-  const activeDept = availableDepts.find(d => d.id === activeDeptId) || 
-    availableDepts.find(d => d.userRole === user.role) || 
-    availableDepts[0];
+  // O seletor de painéis deve aparecer se o usuário possuir mais de 1 painel/departamento disponível
+  const canSwitchPanel = availablePanels.length > 1;
+  const canSwitch = canSwitchChurch || canSwitchPanel;
 
-  const handleDeptSelect = (dept: typeof availableDepts[0]) => {
-    if (dept.userRole) {
-      switchActiveRole(dept.userRole);
+  // Identifica o painel atualmente ativo com base na rota ou na role atual
+  const activePanel = activeDeptId 
+    ? availableDepts.find(d => d.id === activeDeptId) || availablePanels.find(p => p.id === activeDeptId)
+    : (generalPanel && (!activeDeptId || !availableDepts.some(d => d.userRole === user.role))
+        ? generalPanel
+        : availablePanels.find(p => p.userRole === user.role) || availablePanels[0]);
+
+  const handlePanelSelect = (panel: typeof availablePanels[0]) => {
+    if (panel.userRole) {
+      switchActiveRole(panel.userRole);
     }
     setShowUserMenu(false);
-    navigate(dept.path, { state: dept.state });
+    navigate(panel.path, { state: panel.state });
   };
 
   const isMissionsUser = ['PRESIDENTE_MISSOES', 'VICE_MISSOES', 'TESOUREIRO_MISSOES', 'SECRETARIO_MISSOES'].includes(user.role);
@@ -370,9 +406,9 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   const isLadiesUser = ['LIDER_SENHORAS', 'TESOUREIRO_SENHORAS'].includes(user.role);
   const isMenUser = ['LIDER_SENHORES', 'TESOUREIRO_SENHORES'].includes(user.role);
 
-  const displayedUserRole = (activeDept && (activeDeptId || isMissionsUser || isYouthUser || isChildrenUser || isAdolescentsUser || isLadiesUser || isMenUser || (!canSwitchChurch && canSwitchDept)))
-    ? activeDept.roleLabel
-    : user.role.replace(/_/g, ' ').toLowerCase();
+  const displayedUserRole = (activePanel && activePanel.id !== 'IGREJA_SEDE')
+    ? activePanel.roleLabel
+    : (generalPanel ? generalPanel.roleLabel : user.role.replace(/_/g, ' ').toLowerCase());
 
   interface MenuItem {
       label: string;
@@ -563,7 +599,18 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
               return (
               <React.Fragment key={item.label}>
                 {isBackBtn && <div className="border-t border-gray-800 my-2"></div>}
-                <Link to={item.path} state={item.state} onClick={() => setIsMobileOpen(false)} className={`flex items-center px-3 py-3 rounded-lg transition-all whitespace-nowrap group ${isActive ? activeClass : (isBackBtn ? 'text-blue-400 hover:bg-blue-900/20' : 'text-gray-400 hover:bg-gray-800 hover:text-white')}`} title={!isExpanded ? item.label : ''}>
+                <Link 
+                  to={item.path} 
+                  state={item.state} 
+                  onClick={() => { 
+                    setIsMobileOpen(false); 
+                    if (isBackBtn && assignedGeneralRole) {
+                      switchActiveRole(assignedGeneralRole);
+                    }
+                  }} 
+                  className={`flex items-center px-3 py-3 rounded-lg transition-all whitespace-nowrap group ${isActive ? activeClass : (isBackBtn ? 'text-blue-400 hover:bg-blue-900/20' : 'text-gray-400 hover:bg-gray-800 hover:text-white')}`} 
+                  title={!isExpanded ? item.label : ''}
+                >
                   <item.icon size={22} className={`shrink-0 ${isActive ? 'text-white' : (isBackBtn ? 'text-blue-400' : 'text-gray-500 group-hover:text-white')}`} />
                   <span className={`ml-3 font-medium transition-all duration-200 ${isExpanded ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4 w-0 hidden'}`}>{item.label}</span>
                 </Link>
@@ -641,59 +688,59 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                             </div>
                         )}
 
-                        {/* SEÇÃO TROCAR DEPARTAMENTO */}
-                        {canSwitchDept && (
+                        {/* SEÇÃO TROCAR PAINEL / DEPARTAMENTO */}
+                        {canSwitchPanel && (
                             <div className={canSwitchChurch ? 'border-t border-gray-700' : ''}>
                                 <div className="px-3 py-2 bg-black/40 border-b border-gray-700 text-[10px] text-gray-500 font-bold uppercase tracking-wider flex items-center justify-between">
-                                    <span>TROCAR DEPARTAMENTO</span>
+                                    <span>TROCAR PAINEL / DEPARTAMENTO</span>
                                     <span className="text-[10px] font-bold bg-brand-orange/20 text-brand-orange px-1.5 py-0.5 rounded-full">
-                                        {availableDepts.length}
+                                        {availablePanels.length}
                                     </span>
                                 </div>
                                 <div className="max-h-60 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600">
-                                    {/* Departamento ativo no momento: No topo, tom laranja com bolinha */}
-                                    {activeDept && (
+                                    {/* Painel ativo no momento: No topo, tom laranja com bolinha */}
+                                    {activePanel && (
                                         <button
-                                            key={activeDept.id}
-                                            onClick={() => handleDeptSelect(activeDept)}
+                                            key={activePanel.id}
+                                            onClick={() => handlePanelSelect(activePanel)}
                                             className="w-full text-left px-3 py-3 text-sm border-b border-gray-800 last:border-0 hover:bg-gray-800 transition-colors flex items-center group relative bg-red-900/10"
                                         >
-                                            <div className={`mr-3 p-1.5 rounded-md shrink-0 ${activeDept.iconBg} ${activeDept.iconColor}`}>
-                                                <activeDept.icon size={14} />
+                                            <div className={`mr-3 p-1.5 rounded-md shrink-0 ${activePanel.iconBg} ${activePanel.iconColor}`}>
+                                                <activePanel.icon size={14} />
                                             </div>
                                             <div className="flex-1 min-w-0">
                                                 <p className="font-medium truncate text-brand-orange">
-                                                    {activeDept.label}
+                                                    {activePanel.label}
                                                 </p>
                                                 <p className="text-[10px] text-gray-400 uppercase font-bold">
-                                                    {activeDept.roleLabel}
+                                                    {activePanel.roleLabel}
                                                 </p>
                                             </div>
                                             <div className="w-1.5 h-1.5 rounded-full bg-brand-orange ml-2 shrink-0"></div>
                                         </button>
                                     )}
 
-                                    {/* Demais departamentos que o usuário tem acesso: listados abaixo com estilo subordinado */}
-                                    {availableDepts
-                                        .filter(dept => dept.id !== activeDept?.id)
-                                        .map(dept => {
-                                            const DeptIcon = dept.icon;
-                                            return (
+                                    {/* Demais painéis que o usuário tem acesso: listados abaixo com estilo subordinado */}
+                                    {availablePanels
+                                        .filter(panel => panel.id !== activePanel?.id)
+                                        .map(panel => {
+                                             const PanelIcon = panel.icon;
+                                             return (
                                                 <button
-                                                    key={dept.id}
-                                                    onClick={() => handleDeptSelect(dept)}
+                                                    key={panel.id}
+                                                    onClick={() => handlePanelSelect(panel)}
                                                     className="w-full text-left px-3 py-3 text-sm border-b border-gray-800 last:border-0 hover:bg-gray-800 transition-colors flex items-center group relative pl-8 bg-[#151515]"
                                                 >
                                                     <CornerDownRight size={14} className="absolute left-3 text-gray-600" />
-                                                    <div className={`mr-3 p-1.5 rounded-md shrink-0 ${dept.iconBg} ${dept.iconColor}`}>
-                                                        <DeptIcon size={14} />
+                                                    <div className={`mr-3 p-1.5 rounded-md shrink-0 ${panel.iconBg} ${panel.iconColor}`}>
+                                                        <PanelIcon size={14} />
                                                     </div>
                                                     <div className="flex-1 min-w-0">
                                                         <p className="font-medium truncate text-gray-300 group-hover:text-white">
-                                                            {dept.label}
+                                                            {panel.label}
                                                         </p>
                                                         <p className="text-[10px] text-gray-500 uppercase font-bold">
-                                                            {dept.roleLabel}
+                                                            {panel.roleLabel}
                                                         </p>
                                                     </div>
                                                 </button>

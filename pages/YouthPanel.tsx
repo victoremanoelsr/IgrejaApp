@@ -209,7 +209,7 @@ export const YouthPanel: React.FC = () => {
   // Team
   const [teamFormMode, setTeamFormMode] = useState<'LIST' | 'EDIT'>('LIST');
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
-  const [teamFormData, setTeamFormData] = useState({ name: '', username: '', password: '', role: 'LIDER_JOVENS' as Role, cpf: '' });
+  const [teamFormData, setTeamFormData] = useState({ name: '', username: '', password: '', role: '' as Role, cpf: '' });
   const [showSuggestions, setShowSuggestions] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
   
@@ -716,6 +716,11 @@ export const YouthPanel: React.FC = () => {
     e.preventDefault();
     if (!currentChurch) return;
 
+    if (!teamFormData.role) {
+      showFeedback('Por favor, selecione um cargo para o membro da equipe.', 'error');
+      return;
+    }
+
     if (editingUserId) {
       const existingUser = users.find(u => u.id === editingUserId);
       if (existingUser) {
@@ -804,7 +809,7 @@ export const YouthPanel: React.FC = () => {
 
     setTeamFormMode('LIST');
     setEditingUserId(null);
-    setTeamFormData({ name: '', username: '', password: '', role: 'LIDER_JOVENS', cpf: '' });
+    setTeamFormData({ name: '', username: '', password: '', role: '' as Role, cpf: '' });
   };
   const toggleYouthMember = async (member: Member) => { await updateMember(member.id, { ...member, isYouth: !member.isYouth }); showFeedback(member.isYouth ? 'Removido dos Jovens' : 'Adicionado aos Jovens'); };
 
@@ -916,7 +921,7 @@ export const YouthPanel: React.FC = () => {
         <div className="flex justify-between items-center mb-6">
           <h3 className="font-bold text-gray-700 flex items-center text-lg"><Users size={24} className="mr-2 text-orange-600"/> Equipe de Jovens</h3>
           {teamFormMode === 'LIST' && canAddToTeam && (
-            <button onClick={() => { setEditingUserId(null); setTeamFormData({ name: '', username: '', password: '', role: 'LIDER_JOVENS', cpf: '' }); setTeamFormMode('EDIT'); }} className="bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center shadow hover:bg-orange-700 transition-colors"><PlusCircle size={16} className="mr-2"/> Adicionar</button>
+            <button onClick={() => { setEditingUserId(null); setTeamFormData({ name: '', username: '', password: '', role: '' as Role, cpf: '' }); setTeamFormMode('EDIT'); }} className="bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center shadow hover:bg-orange-700 transition-colors"><PlusCircle size={16} className="mr-2"/> Adicionar</button>
           )}
         </div>
         {teamFormMode === 'LIST' ? (
@@ -975,8 +980,9 @@ export const YouthPanel: React.FC = () => {
               </div>
             )}
             <div>
-              <label className="block text-xs font-bold text-gray-600 mb-1">Cargo</label>
-              <select className="w-full p-2.5 border rounded-lg text-sm bg-white focus:ring-2 focus:ring-orange-500 outline-none" value={teamFormData.role} onChange={e => setTeamFormData({...teamFormData, role: e.target.value as Role})}>
+              <label className="block text-xs font-bold text-gray-600 mb-1">Cargo *</label>
+              <select required className="w-full p-2.5 border rounded-lg text-sm bg-white focus:ring-2 focus:ring-orange-500 outline-none" value={teamFormData.role} onChange={e => setTeamFormData({...teamFormData, role: e.target.value as Role})}>
+                <option value="" disabled>Selecione o cargo...</option>
                 {YOUTH_ROLES.map(r => <option key={r.role} value={r.role}>{r.label}</option>)}
               </select>
             </div>

@@ -219,7 +219,7 @@ export const MissionsPanel: React.FC = () => {
   const [showTeamModal, setShowTeamModal] = useState(false);
   const [teamFormMode, setTeamFormMode] = useState<'LIST' | 'EDIT'>('LIST');
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
-  const [teamFormData, setTeamFormData] = useState({ name: '', username: '', password: '', role: 'PRESIDENTE_MISSOES' as Role, cpf: '' });
+  const [teamFormData, setTeamFormData] = useState({ name: '', username: '', password: '', role: '' as Role, cpf: '' });
   
   // Autocomplete State
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -479,7 +479,11 @@ export const MissionsPanel: React.FC = () => {
   
   const handleSaveTeamMember = async (e: React.FormEvent) => { 
       e.preventDefault(); 
-           if (editingUserId) { 
+      if (!teamFormData.role) {
+          showFeedback('Por favor, selecione um cargo para o membro da equipe.', 'error');
+          return;
+      }
+      if (editingUserId) { 
           const existingUser = users.find(u => u.id === editingUserId);
           if (existingUser) {
               const otherRoles = getUserRoles(existingUser).filter(r => !MISSIONS_ROLES.some(mr => mr.role === r));
@@ -564,7 +568,7 @@ export const MissionsPanel: React.FC = () => {
               else { showFeedback(res.error || 'Erro ao cadastrar membro.', 'error'); return; } 
           }
       } 
-      setTeamFormMode('LIST'); setEditingUserId(null); setTeamFormData({ name: '', username: '', password: '', role: 'PRESIDENTE_MISSOES', cpf: '' });
+      setTeamFormMode('LIST'); setEditingUserId(null); setTeamFormData({ name: '', username: '', password: '', role: '' as Role, cpf: '' });
   };
   
   const handleDeleteTeamMember = async (id: string, name: string, roleToRemove?: Role) => {
@@ -1246,7 +1250,7 @@ export const MissionsPanel: React.FC = () => {
       <div className="bg-white p-6 rounded-xl shadow border">
           <div className="flex justify-between items-center mb-6">
               <h3 className="font-bold text-gray-700 flex items-center text-lg"><Users size={24} className="mr-2 text-teal-600"/> Equipe de Missões</h3>
-              {teamFormMode === 'LIST' && canAddToTeam && (<button onClick={() => { setEditingUserId(null); setTeamFormData({ name: '', username: '', password: '', role: 'PRESIDENTE_MISSOES', cpf: '' }); setTeamFormMode('EDIT'); }} className="bg-teal-600 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center shadow hover:bg-teal-700 transition-colors"><PlusCircle size={16} className="mr-2"/> Adicionar</button>)}
+              {teamFormMode === 'LIST' && canAddToTeam && (<button onClick={() => { setEditingUserId(null); setTeamFormData({ name: '', username: '', password: '', role: '' as Role, cpf: '' }); setTeamFormMode('EDIT'); }} className="bg-teal-600 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center shadow hover:bg-teal-700 transition-colors"><PlusCircle size={16} className="mr-2"/> Adicionar</button>)}
           </div>
           {teamFormMode === 'LIST' ? (
               <div className="space-y-3">
@@ -1307,12 +1311,14 @@ export const MissionsPanel: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-gray-600 mb-1">Cargo</label>
+                    <label className="block text-xs font-bold text-gray-600 mb-1">Cargo *</label>
                     <select 
+                        required
                         className="w-full p-2.5 border rounded-lg text-sm bg-white focus:ring-2 focus:ring-teal-500 outline-none"
                         value={teamFormData.role}
                         onChange={e => setTeamFormData({...teamFormData, role: e.target.value as Role})}
                     >
+                        <option value="" disabled>Selecione o cargo...</option>
                         {MISSIONS_ROLES.map(r => (
                             <option key={r.role} value={r.role}>{r.label}</option>
                         ))}

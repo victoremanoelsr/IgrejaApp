@@ -42,6 +42,72 @@ export const Login: React.FC = () => {
   const [successMsg, setSuccessMsg] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
 
+  // Suporte a lembrar senha e credenciais no aparelho
+  const [rememberMe, setRememberMe] = useState(() => {
+    try {
+      return localStorage.getItem('igrejaapp_remember') !== 'false';
+    } catch {
+      return true;
+    }
+  });
+  const [hasSavedCredentials, setHasSavedCredentials] = useState(false);
+
+  // Carrega credenciais salvas no dispositivo ao abrir
+  useEffect(() => {
+    try {
+      const savedUser = localStorage.getItem('igrejaapp_saved_user');
+      const savedPass = localStorage.getItem('igrejaapp_saved_pass');
+      if (savedUser) {
+        setUsername(savedUser);
+        if (savedPass) {
+          setPassword(savedPass);
+        }
+        setHasSavedCredentials(true);
+      }
+    } catch (_) {}
+  }, []);
+
+  const handleForgetCredentials = () => {
+    try {
+      localStorage.removeItem('igrejaapp_saved_user');
+      localStorage.removeItem('igrejaapp_saved_pass');
+      localStorage.removeItem('igrejaapp_remember');
+    } catch (_) {}
+    setUsername('');
+    setPassword('');
+    setHasSavedCredentials(false);
+  };
+
+  const saveCredentialsIfRequested = (u: string, p: string) => {
+    if (rememberMe) {
+      try {
+        localStorage.setItem('igrejaapp_saved_user', u);
+        localStorage.setItem('igrejaapp_saved_pass', p);
+        localStorage.setItem('igrejaapp_remember', 'true');
+        setHasSavedCredentials(true);
+      } catch (_) {}
+    } else {
+      try {
+        localStorage.removeItem('igrejaapp_saved_user');
+        localStorage.removeItem('igrejaapp_saved_pass');
+        localStorage.removeItem('igrejaapp_remember');
+        setHasSavedCredentials(false);
+      } catch (_) {}
+    }
+
+    // Suporte nativo à Web Credential Management API (W3C standard - iOS Keychain e Google Password Manager)
+    if (typeof window !== 'undefined' && 'credentials' in navigator && (window as any).PasswordCredential) {
+      try {
+        const cred = new (window as any).PasswordCredential({
+          id: u,
+          password: p,
+          name: u,
+        });
+        navigator.credentials.store(cred).catch(() => {});
+      } catch (_) {}
+    }
+  };
+
   const versiculos = [
     { texto: 'Tudo posso naquele que me fortalece.', referencia: 'Filipenses 4:13' },
     { texto: 'O Senhor é o meu pastor e nada me faltará.', referencia: 'Salmos 23:1' },
@@ -136,6 +202,7 @@ export const Login: React.FC = () => {
 
     if (adminResult.user) {
       await resetLoginAttempts(trimmedUser);
+      saveCredentialsIfRequested(trimmedUser, trimmedPass);
       setIsProcessing(false);
       const userRoles = getUserRoles(adminResult.user);
       if (userRoles.length > 1) {
@@ -163,6 +230,7 @@ export const Login: React.FC = () => {
 
     if (!memberResult.error) {
       await resetLoginAttempts(trimmedUser);
+      saveCredentialsIfRequested(trimmedUser, trimmedPass);
       navigate('/portal/dashboard');
       return;
     }
@@ -241,7 +309,7 @@ export const Login: React.FC = () => {
   // --- RENDER HELPERS ---
 
   const renderLogin = () => (
-    <form onSubmit={handleLogin} className="space-y-4">
+    <form method="post" action="#" autoComplete="on" onSubmit={handleLogin} className="space-y-4">
       <div className="text-center mb-2">
         <div className="flex justify-center mb-2">
           <img src="/logo.png" alt="Logo" className="h-20 w-20 object-contain" />
@@ -251,13 +319,16 @@ export const Login: React.FC = () => {
       </div>
       
       <div>
-        <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Usuário</label>
+        <label htmlFor="username" className="block text-xs font-bold text-gray-700 uppercase mb-1">Usuário</label>
         <div className="relative">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
             <User className="h-4 w-4 text-gray-400" />
           </div>
           <input
+            id="username"
+            name="username"
             type="text"
+            autoComplete="username"
             required
             className="block w-full pl-9 pr-3 py-2.5 border border-gray-300 rounded-lg focus:ring-brand-orange focus:border-brand-orange text-sm transition-all"
             value={username}
@@ -268,13 +339,16 @@ export const Login: React.FC = () => {
       </div>
 
       <div>
-        <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Senha</label>
+        <label htmlFor="password" className="block text-xs font-bold text-gray-700 uppercase mb-1">Senha</label>
         <div className="relative">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
             <Lock className="h-4 w-4 text-gray-400" />
           </div>
           <input
+            id="password"
+            name="password"
             type={showPassword ? 'text' : 'password'}
+            autoComplete="current-password"
             required
             className="block w-full pl-9 pr-10 py-2.5 border border-gray-300 rounded-lg focus:ring-brand-orange focus:border-brand-orange text-sm transition-all"
             value={password}
@@ -285,10 +359,36 @@ export const Login: React.FC = () => {
             type="button"
             onClick={() => setShowPassword(!showPassword)}
             className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 focus:outline-none"
+            tabIndex={-1}
+            title={showPassword ? 'Ocultar senha' : 'Ver senha'}
           >
             {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
           </button>
         </div>
+      </div>
+
+      {/* Opção de Salvar/Lembrar Senha no dispositivo */}
+      <div className="flex items-center justify-between text-xs pt-0.5 pb-1">
+        <label className="flex items-center gap-2 cursor-pointer select-none text-gray-600 hover:text-gray-800">
+          <input
+            type="checkbox"
+            checked={rememberMe}
+            onChange={(e) => setRememberMe(e.target.checked)}
+            className="w-4 h-4 rounded border-gray-300 text-brand-orange focus:ring-brand-orange cursor-pointer accent-orange-500"
+          />
+          <span className="font-semibold text-gray-600">Lembrar senha neste celular / PC</span>
+        </label>
+
+        {hasSavedCredentials && (
+          <button
+            type="button"
+            onClick={handleForgetCredentials}
+            className="text-[11px] text-gray-400 hover:text-red-500 transition-colors underline font-medium"
+            title="Limpar credenciais salvas deste aparelho"
+          >
+            Esquecer dados
+          </button>
+        )}
       </div>
 
       {error && (
