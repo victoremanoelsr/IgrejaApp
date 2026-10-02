@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User, Role } from '../types';
-import { getRoleInfo } from '../utils/roleUtils';
+import { getRoleInfo, getAccessiblePanels } from '../utils/roleUtils';
 import { 
   Building, 
   Crown, 
@@ -54,12 +54,11 @@ export const DepartmentSelectorModal: React.FC<DepartmentSelectorModalProps> = (
 
   if (!isOpen) return null;
 
-  const roles = user.roles && user.roles.length > 0 ? user.roles : [user.role];
+  const accessiblePanels = getAccessiblePanels(user);
 
-  const handleChoose = (role: Role) => {
-    onSelectRole(role);
-    const info = getRoleInfo(role);
-    navigate(info.path, { state: info.state });
+  const handleChoose = (panel: (typeof accessiblePanels)[0]) => {
+    onSelectRole(panel.role);
+    navigate(panel.path, { state: panel.state });
     if (onClose) onClose();
   };
 
@@ -93,15 +92,15 @@ export const DepartmentSelectorModal: React.FC<DepartmentSelectorModalProps> = (
         {/* Roles Grid */}
         <div className="p-6 max-h-[70vh] overflow-y-auto">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {roles.map((role) => {
-              const info = getRoleInfo(role);
+            {accessiblePanels.map((panel) => {
+              const info = getRoleInfo(panel.role);
               const IconComponent = ICON_MAP[info.iconName] || Building;
-              const isCurrent = activeRole === role;
+              const isCurrent = activeRole === panel.role;
 
               return (
                 <div
-                  key={role}
-                  onClick={() => handleChoose(role)}
+                  key={panel.id}
+                  onClick={() => handleChoose(panel)}
                   className={`group relative p-5 rounded-xl border-2 transition-all cursor-pointer text-left flex flex-col justify-between hover:shadow-lg transform hover:-translate-y-0.5 ${
                     isCurrent
                       ? 'border-brand-orange bg-orange-50/40 dark:bg-orange-950/20 shadow-md ring-2 ring-brand-orange/20'
@@ -121,7 +120,7 @@ export const DepartmentSelectorModal: React.FC<DepartmentSelectorModalProps> = (
                       </div>
                       <div>
                         <h3 className="font-bold text-gray-800 dark:text-gray-100 text-base group-hover:text-brand-orange transition-colors">
-                          {info.departmentName}
+                          {panel.name || info.departmentName}
                         </h3>
                         <span className={`inline-block mt-0.5 text-[11px] font-semibold px-2 py-0.5 rounded-md ${info.badgeColor}`}>
                           {info.roleLabel}
@@ -131,7 +130,7 @@ export const DepartmentSelectorModal: React.FC<DepartmentSelectorModalProps> = (
                   </div>
 
                   <div className="pt-4 mt-2 border-t border-gray-100 dark:border-gray-700/60 flex items-center justify-between text-xs font-bold text-gray-500 group-hover:text-brand-orange transition-colors">
-                    <span>Acessar este departamento</span>
+                    <span>Acessar este painel</span>
                     <ArrowRight size={14} className="transform group-hover:translate-x-1 transition-transform" />
                   </div>
                 </div>

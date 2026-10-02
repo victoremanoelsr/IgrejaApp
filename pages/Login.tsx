@@ -5,7 +5,7 @@ import { useMember } from '../contexts/MemberContext';
 import { useNavigate } from 'react-router-dom';
 import { Lock, User, ArrowRight, AlertCircle, CheckCircle, Building, Eye, EyeOff, Loader, Clock } from 'lucide-react';
 import { DepartmentSelectorModal } from '../components/DepartmentSelectorModal';
-import { getUserRoles, getRoleInfo } from '../utils/roleUtils';
+import { getUserRoles, getRoleInfo, getAccessiblePanels } from '../utils/roleUtils';
 import { User as UserType } from '../types';
 import { checkRateLimit, recordFailedLogin, resetLoginAttempts, formatLockoutTime, MAX_LOGIN_ATTEMPTS } from '../utils/rateLimiter';
 
@@ -45,16 +45,23 @@ export const Login: React.FC = () => {
   // Suporte a lembrar senha e credenciais no aparelho
   const [rememberMe, setRememberMe] = useState(() => {
     try {
-      return localStorage.getItem('igrejaapp_remember') !== 'false';
+      return localStorage.getItem('igrejaapp_remember') === 'true';
     } catch {
-      return true;
+      return false;
     }
   });
   const [hasSavedCredentials, setHasSavedCredentials] = useState(false);
 
-  // Carrega credenciais salvas no dispositivo ao abrir
+  // Carrega credenciais salvas no dispositivo ao abrir APENAS se lembrar senha estiver ativo
   useEffect(() => {
     try {
+      const isRemember = localStorage.getItem('igrejaapp_remember') === 'true';
+      if (!isRemember) {
+        setUsername('');
+        setPassword('');
+        setHasSavedCredentials(false);
+        return;
+      }
       const savedUser = localStorage.getItem('igrejaapp_saved_user');
       const savedPass = localStorage.getItem('igrejaapp_saved_pass');
       if (savedUser) {
@@ -67,12 +74,31 @@ export const Login: React.FC = () => {
     } catch (_) {}
   }, []);
 
+  const handleRememberToggle = (checked: boolean) => {
+    setRememberMe(checked);
+    if (!checked) {
+      try {
+        localStorage.removeItem('igrejaapp_saved_user');
+        localStorage.removeItem('igrejaapp_saved_pass');
+        localStorage.setItem('igrejaapp_remember', 'false');
+      } catch (_) {}
+      setUsername('');
+      setPassword('');
+      setHasSavedCredentials(false);
+    } else {
+      try {
+        localStorage.setItem('igrejaapp_remember', 'true');
+      } catch (_) {}
+    }
+  };
+
   const handleForgetCredentials = () => {
     try {
       localStorage.removeItem('igrejaapp_saved_user');
       localStorage.removeItem('igrejaapp_saved_pass');
-      localStorage.removeItem('igrejaapp_remember');
+      localStorage.setItem('igrejaapp_remember', 'false');
     } catch (_) {}
+    setRememberMe(false);
     setUsername('');
     setPassword('');
     setHasSavedCredentials(false);
@@ -204,18 +230,35 @@ export const Login: React.FC = () => {
       await resetLoginAttempts(trimmedUser);
       saveCredentialsIfRequested(trimmedUser, trimmedPass);
       setIsProcessing(false);
-      const userRoles = getUserRoles(adminResult.user);
-      if (userRoles.length > 1) {
+      // Super Administrador vai direto para o Painel Master
+      if (adminResult.user.role === 'SUPER_ADM' || adminResult.user.roles?.includes('SUPER_ADM')) {
+        navigate('/admin/dashboard');
+        return;
+      }
+
+      // Painéis acessíveis pelo usuário (Administração Geral e/ou Departamentos)
+      const accessiblePanels = getAccessiblePanels(adminResult.user);
+
+      // O modal só é exibido se tiver acesso a mais de 1 painel/departamento
+      // (ex: mais de 1 departamento, ou administração da igreja + departamento)
+      if (accessiblePanels.length > 1) {
         setMultiRoleUser(adminResult.user);
         setShowRoleModal(true);
         return;
       }
-      if (adminResult.user.role === 'SUPER_ADM') {
-        navigate('/admin/dashboard');
-      } else {
-        const dest = getRoleInfo(adminResult.user.role);
-        navigate(dest.path, { state: dest.state });
+
+      // Se só tem 1 painel acessível (ex: apenas Pastor Presidente, apenas Dirigente, ou apenas Líder de 1 departamento)
+      if (accessiblePanels.length === 1) {
+        const targetPanel = accessiblePanels[0];
+        if (targetPanel.role !== adminResult.user.role) {
+          switchActiveRole(targetPanel.role);
+        }
+        navigate(targetPanel.path, { state: targetPanel.state });
+        return;
       }
+
+      const dest = getRoleInfo(adminResult.user.role);
+      navigate(dest.path, { state: dest.state });
       return;
     }
 
@@ -373,10 +416,10 @@ export const Login: React.FC = () => {
           <input
             type="checkbox"
             checked={rememberMe}
-            onChange={(e) => setRememberMe(e.target.checked)}
+            onChange={(e) => handleRememberToggle(e.target.checked)}
             className="w-4 h-4 rounded border-gray-300 text-brand-orange focus:ring-brand-orange cursor-pointer accent-orange-500"
           />
-          <span className="font-semibold text-gray-600">Lembrar senha neste celular / PC</span>
+          <span className="font-semibold text-gray-600">Lembrar senha</span>
         </label>
 
         {hasSavedCredentials && (

@@ -278,11 +278,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       // Sincroniza e consolida todas as roles da pessoa conectada
       setUser(prev => {
         if (!prev) return null;
+        if (prev.role === 'SUPER_ADM' || (prev.roles && prev.roles.includes('SUPER_ADM'))) {
+          return {
+            ...prev,
+            role: 'SUPER_ADM',
+            roles: ['SUPER_ADM'],
+            churchId: undefined
+          };
+        }
+
         const prevCleanCpf = prev.cpf ? prev.cpf.replace(/\D/g, '') : '';
         const prevCleanName = prev.name ? prev.name.trim().toUpperCase() : '';
         const prevCleanUsername = prev.username ? prev.username.trim().toLowerCase() : '';
 
         const matching = appUsers.filter(u => {
+          if (u.role === 'SUPER_ADM') return false;
           if (u.id === prev.id) return true;
           const uCleanCpf = u.cpf ? u.cpf.replace(/\D/g, '') : '';
           if (prevCleanCpf && uCleanCpf && prevCleanCpf === uCleanCpf) return true;
@@ -294,11 +304,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const combinedRoles = Array.from(new Set([
           ...(prev.roles || [prev.role]),
           ...matching.flatMap(u => (u.roles || [u.role]))
-        ])) as Role[];
+        ])).filter(r => r !== 'SUPER_ADM') as Role[];
 
         return {
           ...prev,
-          roles: combinedRoles
+          roles: combinedRoles.length > 0 ? combinedRoles : [prev.role]
         };
       });
     }
@@ -497,57 +507,85 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     const profileData = rpcData[0];
-    const authEmail = `${u}@${EMAIL_DOMAIN}`;
+    const safeUsername = (profileData.username || u)
+      .toLowerCase()
+      .trim()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9._-]/g, '_');
+    const authEmail = `${safeUsername || profileData.id.replace(/-/g, '')}@${EMAIL_DOMAIN}`;
     const authPass = buildAuthPassword(profileData.id);
 
-    // 2. Tenta signIn com senha derivada primeiro (padrão de todos os usuários criados no sistema)
-    const { data: derivedSignIn } = await supabase.auth.signInWithPassword({
-      email: authEmail,
-      password: authPass,
-    });
-
-    if (derivedSignIn?.user) {
-      if (!profileData.auth_user_id || profileData.auth_user_id !== derivedSignIn.user.id) {
-        try { await supabase.rpc('link_profile_to_auth', { p_username: u, p_auth_user_id: derivedSignIn.user.id }); } catch (_) {}
-      }
-    } else {
-      // 3. Fallback: tenta signIn com senha real (usuários legados pré-migração)
-      const { data: realSignIn } = await supabase.auth.signInWithPassword({
+    try {
+      // 2. Tenta signIn com senha derivada primeiro (padrão de todos os usuários criados no sistema)
+      const { data: derivedSignIn, error: derivedErr } = await supabase.auth.signInWithPassword({
         email: authEmail,
-        password: p,
+        password: authPass,
       });
 
-      if (realSignIn?.user) {
-        if (!profileData.auth_user_id || profileData.auth_user_id !== realSignIn.user.id) {
-          try { await supabase.rpc('link_profile_to_auth', { p_username: u, p_auth_user_id: realSignIn.user.id }); } catch (_) {}
+      if (derivedSignIn?.user) {
+        if (!profileData.auth_user_id || profileData.auth_user_id !== derivedSignIn.user.id) {
+          try { await supabase.rpc('link_profile_to_auth', { p_username: u, p_auth_user_id: derivedSignIn.user.id }); } catch (_) {}
         }
-        // Padroniza a senha no Auth para a chave do sistema, evitando futuros erros 400 no console
-        try { await supabase.auth.updateUser({ password: authPass }); } catch (_) {}
       } else {
-        // 4. Usuário Auth não existe — cria via signUp, confirma e-mail e faz signIn
-        const { data: signUpData } = await supabase.auth.signUp({
+        // Se der erro 500 no Supabase Auth por hash corrompido, tenta limpar
+        if (derivedErr?.message?.includes('500') || (derivedErr as any)?.status === 500) {
+          try { await supabase.rpc('fix_corrupted_auth_user', { p_profile_id: profileData.id }); } catch (_) {}
+        }
+
+        // 3. Fallback: tenta signIn com senha real (usuários legados pré-migração)
+        const { data: realSignIn, error: realErr } = await supabase.auth.signInWithPassword({
           email: authEmail,
-          password: authPass,
+          password: p,
         });
 
-        if (signUpData?.user) {
-          try { await supabase.rpc('confirm_internal_user', { p_email: authEmail }); } catch (_) {}
+        if (realSignIn?.user) {
+          if (!profileData.auth_user_id || profileData.auth_user_id !== realSignIn.user.id) {
+            try { await supabase.rpc('link_profile_to_auth', { p_username: u, p_auth_user_id: realSignIn.user.id }); } catch (_) {}
+          }
+          // Padroniza a senha no Auth para a chave do sistema
+          try { await supabase.auth.updateUser({ password: authPass }); } catch (_) {}
+        } else {
+          if (realErr?.message?.includes('500') || (realErr as any)?.status === 500) {
+            try { await supabase.rpc('fix_corrupted_auth_user', { p_profile_id: profileData.id }); } catch (_) {}
+          }
 
-          const { data: finalSignIn } = await supabase.auth.signInWithPassword({
+          // 4. Usuário Auth não existe — cria via signUp, confirma e-mail e faz signIn
+          const { data: signUpData } = await supabase.auth.signUp({
             email: authEmail,
             password: authPass,
           });
 
-          if (finalSignIn?.user && !profileData.auth_user_id) {
-            try { await supabase.rpc('link_profile_to_auth', { p_username: u, p_auth_user_id: finalSignIn.user.id }); } catch (_) {}
+          if (signUpData?.user) {
+            try { await supabase.rpc('confirm_internal_user', { p_email: authEmail }); } catch (_) {}
+
+            const { data: finalSignIn } = await supabase.auth.signInWithPassword({
+              email: authEmail,
+              password: authPass,
+            });
+
+            if (finalSignIn?.user && !profileData.auth_user_id) {
+              try { await supabase.rpc('link_profile_to_auth', { p_username: u, p_auth_user_id: finalSignIn.user.id }); } catch (_) {}
+            }
           }
         }
       }
+    } catch (authErr) {
+      console.warn('[login] aviso na autenticação Auth:', authErr);
     }
 
     // 6. Carrega dados com a sessão estabelecida (RLS usa auth.uid())
     const appUser = toAppUser(profileData);
     await fetchData();
+
+    // Se o usuário for SUPER_ADM, seu acesso é único e exclusivo ao Painel Master (SaaS)
+    if (appUser.role === 'SUPER_ADM' || profileData.role === 'SUPER_ADM' || appUser.roles?.includes('SUPER_ADM')) {
+      appUser.role = 'SUPER_ADM';
+      appUser.roles = ['SUPER_ADM'];
+      appUser.churchId = undefined;
+      setUser(appUser);
+      return { user: appUser };
+    }
 
     // Consolida roles de todos os perfis correspondentes
     const userCleanCpf = profileData.cpf ? profileData.cpf.replace(/\D/g, '') : '';
@@ -556,6 +594,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const { data: allProfiles } = await supabase.from('profiles').select('*').or('is_active.is.null,is_active.eq.true');
     const matching = (allProfiles || []).filter(p => {
+      if (p.role === 'SUPER_ADM') return false;
       if (p.id === profileData.id) return true;
       const pCleanCpf = p.cpf ? p.cpf.replace(/\D/g, '') : '';
       if (userCleanCpf && pCleanCpf && userCleanCpf === pCleanCpf) return true;
@@ -574,16 +613,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const r = (p.role || '').toString();
         return r.includes(',') ? r.split(',').map((x: string) => x.trim()) : [r.trim()];
       })
-    ])).filter(Boolean) as Role[];
+    ])).filter(r => Boolean(r) && r !== 'SUPER_ADM') as Role[];
 
-    appUser.roles = consolidatedRoles;
+    appUser.roles = consolidatedRoles.length > 0 ? consolidatedRoles : [appUser.role];
     if (!consolidatedRoles.includes(appUser.role) && consolidatedRoles.length > 0) {
       appUser.role = consolidatedRoles[0];
     }
 
     if (appUser.role !== 'SUPER_ADM' && appUser.churchId) {
       const { data: freshChurches } = await supabase.from('churches').select('*');
-      const churchList = freshChurches ? freshChurches.map(toAppChurch) : churches;
+      const churchList = (freshChurches && freshChurches.length > 0) ? freshChurches.map(toAppChurch) : churches;
       const blocked = await isChurchBlocked(appUser.churchId, churchList);
       if (blocked) {
         await supabase.auth.signOut().catch(() => {});
@@ -593,10 +632,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     setUser(appUser);
     if (appUser.churchId) {
+      let church: Church | undefined;
       const { data: freshChurches } = await supabase.from('churches').select('*');
-      if (freshChurches) {
-        const church = freshChurches.map(toAppChurch).find(c => c.id === appUser.churchId);
-        if (church) setCurrentChurch(church);
+      if (freshChurches && freshChurches.length > 0) {
+        church = freshChurches.map(toAppChurch).find(c => c.id === appUser.churchId);
+      }
+      if (!church) {
+        // Fallback: busca direta por ID da congregação/igreja do usuário
+        const { data: directChurch } = await supabase.from('churches').select('*').eq('id', appUser.churchId).maybeSingle();
+        if (directChurch) {
+          church = toAppChurch(directChurch);
+        }
+      }
+      if (church) {
+        setCurrentChurch(church);
+        setChurches(prev => prev.some(c => c.id === church!.id) ? prev : [...prev, church!]);
       }
     }
     return { user: appUser };

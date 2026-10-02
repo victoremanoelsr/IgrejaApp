@@ -300,4 +300,125 @@ export const findExistingUserForMember = <T extends { id?: string; name?: string
   });
 };
 
+/**
+ * Cargos gerais da administração da igreja (Sede / Congregação).
+ */
+export const GENERAL_CHURCH_ROLES: Role[] = [
+  'PRESIDENTE',
+  'VICE_PRESIDENTE',
+  'DIRIGENTE',
+  'TESOUREIRO',
+  'SECRETARIO'
+];
+
+/**
+ * Grupos de departamentos e seus respectivos cargos associados.
+ */
+export const DEPARTMENT_ROLE_GROUPS = [
+  {
+    id: 'MISSOES',
+    name: 'Departamento de Missões',
+    roles: ['PRESIDENTE_MISSOES', 'VICE_MISSOES', 'TESOUREIRO_MISSOES', 'SECRETARIO_MISSOES'] as Role[],
+    path: '/missoes'
+  },
+  {
+    id: 'JOVENS',
+    name: 'União de Jovens',
+    roles: ['LIDER_JOVENS', 'TESOUREIRO_JOVENS'] as Role[],
+    path: '/jovens'
+  },
+  {
+    id: 'CRIANCAS',
+    name: 'Departamento Infantil',
+    roles: ['LIDER_CRIANCAS', 'TESOUREIRO_CRIANCAS'] as Role[],
+    path: '/criancas'
+  },
+  {
+    id: 'ADOLESCENTES',
+    name: 'União de Adolescentes',
+    roles: ['LIDER_ADOLESCENTES', 'TESOUREIRO_ADOLESCENTES'] as Role[],
+    path: '/adolescentes'
+  },
+  {
+    id: 'SENHORAS',
+    name: 'Círculo de Oração / Senhoras',
+    roles: ['LIDER_SENHORAS', 'TESOUREIRO_SENHORAS'] as Role[],
+    path: '/senhoras'
+  },
+  {
+    id: 'SENHORES',
+    name: 'União de Senhores',
+    roles: ['LIDER_SENHORES', 'TESOUREIRO_SENHORES'] as Role[],
+    path: '/senhores'
+  }
+];
+
+export interface AccessiblePanel {
+  id: string;
+  name: string;
+  role: Role;
+  path: string;
+  state: { activeTab: string; entered: boolean };
+}
+
+/**
+ * Retorna os painéis distintos que o usuário pode acessar.
+ * - SUPER_ADM acessa única e exclusivamente o Painel Master (SaaS).
+ * - Cargos de liderança geral da igreja (Pastor Presidente, Vice, Dirigente, Tesoureiro, Secretário)
+ *   acessam a Administração Geral da Igreja.
+ * - Cargos de departamento acessam seus respectivos departamentos.
+ * O modal de seleção só deve ser exibido se existirem 2 ou mais painéis distintos.
+ */
+export const getAccessiblePanels = (
+  userOrRoles?: { role?: string; roles?: Role[] } | Role[] | string
+): AccessiblePanel[] => {
+  const roles = Array.isArray(userOrRoles)
+    ? (userOrRoles as Role[])
+    : getUserRoles(userOrRoles as any);
+
+  // Super Administrador: exclusivamente Painel Master (SaaS)
+  if (roles.includes('SUPER_ADM')) {
+    return [
+      {
+        id: 'SUPER_ADM',
+        name: 'Painel Master (SaaS)',
+        role: 'SUPER_ADM',
+        path: '/admin/dashboard',
+        state: { activeTab: 'DASHBOARD', entered: true }
+      }
+    ];
+  }
+
+  const panels: AccessiblePanel[] = [];
+
+  // 1. Painel Geral da Igreja (Administração Geral)
+  const generalRole = GENERAL_CHURCH_ROLES.find(r => roles.includes(r));
+  if (generalRole) {
+    const info = getRoleInfo(generalRole);
+    panels.push({
+      id: 'IGREJA_GERAL',
+      name: info.departmentName || 'Administração Geral',
+      role: generalRole,
+      path: '/dashboard',
+      state: { activeTab: 'DASHBOARD', entered: true }
+    });
+  }
+
+  // 2. Departamentos
+  for (const group of DEPARTMENT_ROLE_GROUPS) {
+    const deptRole = group.roles.find(r => roles.includes(r));
+    if (deptRole) {
+      panels.push({
+        id: group.id,
+        name: group.name,
+        role: deptRole,
+        path: group.path,
+        state: { activeTab: 'DASHBOARD', entered: true }
+      });
+    }
+  }
+
+  return panels;
+};
+
 

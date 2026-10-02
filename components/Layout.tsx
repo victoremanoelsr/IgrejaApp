@@ -100,7 +100,8 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
 
   // Encontra todos os perfis em 'users' que pertencem a esta mesma pessoa (mesmo CPF, username, nome ou ID)
   const matchingProfiles = (users || []).filter(u => {
-    if (!user) return false;
+    if (!user || user.role === 'SUPER_ADM' || user.roles?.includes('SUPER_ADM')) return false;
+    if (u.role === 'SUPER_ADM') return false;
     if (u.id === user.id) return true;
     const uCleanCpf = u.cpf ? u.cpf.replace(/\D/g, '') : '';
     if (userCleanCpf && uCleanCpf && userCleanCpf === uCleanCpf) return true;
@@ -109,10 +110,12 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     return false;
   });
 
-  const allUserRoles = Array.from(new Set([
-    ...userRolesFromUser,
-    ...matchingProfiles.flatMap(p => getUserRoles(p))
-  ]));
+  const allUserRoles = (user?.role === 'SUPER_ADM' || user?.roles?.includes('SUPER_ADM'))
+    ? (['SUPER_ADM'] as Role[])
+    : Array.from(new Set([
+        ...userRolesFromUser,
+        ...matchingProfiles.flatMap(p => getUserRoles(p))
+      ])).filter(r => r !== 'SUPER_ADM') as Role[];
 
   const userRoles = allUserRoles;
 
@@ -541,7 +544,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       <aside 
         className={`fixed md:relative z-40 h-full flex flex-col shadow-2xl transition-all duration-300 ease-in-out bg-[#0f0f0f] text-white border-r border-gray-800 ${isMobileOpen ? 'translate-x-0 w-72' : '-translate-x-full md:translate-x-0'} ${isDesktopHovered ? 'md:w-72' : 'md:w-20'}`}
         onMouseEnter={() => setIsDesktopHovered(true)}
-        onMouseLeave={() => { setIsDesktopHovered(false); setShowChurchSelector(false); setShowDeptSelector(false); }}
+        onMouseLeave={() => { setIsDesktopHovered(false); setShowUserMenu(false); setShowLangSelector(false); }}
       >
         <div className={`h-16 md:h-20 flex items-center justify-center border-b border-gray-800 shrink-0 overflow-hidden px-2 transition-all duration-300 ${headerColorClass}`}>
            {isSuperAdminGlobal ? (
