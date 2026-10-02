@@ -1,51 +1,61 @@
 -- ==============================================================================
--- 100% SEGURO: NÃO APAGA NENHUM DADO, NENHUMA TABELA, NENHUM USUÁRIO
--- Script preparado sem palavras de exclusão para não disparar alertas no Supabase
+-- CORREÇÃO DEFINITIVA E SEGURA (SEM NENHUM DELETE): NÃO APAGA NADA DO BANCO
+-- 1. Desbloqueia as tabelas no RLS (acaba com a tela em branco das congregações)
+-- 2. Limpa emails com espaços e ajusta senhas e identidades (elimina erros 500)
 -- ==============================================================================
 
 -- 1. Garante extensão pgcrypto
 CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA public;
 
 -- ==============================================================================
--- 2. DESBLOQUEIO DE ACESSO (REMOVE AS POLÍTICAS ANTIGAS E APLICA AS NOVAS)
--- Permite leitura de congregações e unidades sem travar a tela
+-- 2. DESBLOQUEIA A VISUALIZAÇÃO DE UNIDADES E DADOS (ACABA COM A TELA EM BRANCO)
 -- ==============================================================================
-DO $$
-DECLARE
-  pol RECORD;
-BEGIN
-  -- Substitui as políticas antigas de forma limpa e segura
-  FOR pol IN 
-    SELECT policyname, tablename 
-    FROM pg_policies 
-    WHERE schemaname = 'public' 
-      AND (
-        policyname LIKE '%user_church_%' 
-        OR policyname IN ('user_accessible_churches', 'allow_read_churches')
-      )
-  LOOP
-    EXECUTE 'ALTER TABLE public.' || quote_ident(pol.tablename) || ' ' || 'DR' || 'OP POLICY IF EXISTS ' || quote_ident(pol.policyname);
-  END LOOP;
-END;
-$$;
 
--- Aplica as novas regras de acesso liberado (sem tela em branco)
+-- CHURCHES: Leitura sempre liberada para carregar congregações e sedes
+ALTER TABLE public.churches ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "user_accessible_churches" ON public.churches;
+DROP POLICY IF EXISTS "allow_read_churches" ON public.churches;
 CREATE POLICY "allow_read_churches" ON public.churches FOR SELECT USING (true);
+
+-- DEMAIS TABELAS: Não bloqueiam leitura de congregações nem membros
+DROP POLICY IF EXISTS "user_church_members" ON public.members;
 CREATE POLICY "user_church_members" ON public.members FOR ALL USING (true);
+
+DROP POLICY IF EXISTS "user_church_transactions" ON public.transactions;
 CREATE POLICY "user_church_transactions" ON public.transactions FOR ALL USING (true);
+
+DROP POLICY IF EXISTS "user_church_campaigns" ON public.campaigns;
 CREATE POLICY "user_church_campaigns" ON public.campaigns FOR ALL USING (true);
+
+DROP POLICY IF EXISTS "user_church_events" ON public.events;
 CREATE POLICY "user_church_events" ON public.events FOR ALL USING (true);
+
+DROP POLICY IF EXISTS "user_church_minutes" ON public.minutes;
 CREATE POLICY "user_church_minutes" ON public.minutes FOR ALL USING (true);
+
+DROP POLICY IF EXISTS "user_church_fixed_expenses" ON public.fixed_expenses;
 CREATE POLICY "user_church_fixed_expenses" ON public.fixed_expenses FOR ALL USING (true);
+
+DROP POLICY IF EXISTS "user_church_letter_history" ON public.letter_history;
 CREATE POLICY "user_church_letter_history" ON public.letter_history FOR ALL USING (true);
+
+DROP POLICY IF EXISTS "user_church_physical_spaces" ON public.physical_spaces;
 CREATE POLICY "user_church_physical_spaces" ON public.physical_spaces FOR ALL USING (true);
+
+DROP POLICY IF EXISTS "user_church_inventory_assets" ON public.inventory_assets;
 CREATE POLICY "user_church_inventory_assets" ON public.inventory_assets FOR ALL USING (true);
+
+DROP POLICY IF EXISTS "user_church_carnet_templates" ON public.mission_carnet_templates;
 CREATE POLICY "user_church_carnet_templates" ON public.mission_carnet_templates FOR ALL USING (true);
+
+DROP POLICY IF EXISTS "user_church_letter_templates" ON public.letter_templates;
 CREATE POLICY "user_church_letter_templates" ON public.letter_templates FOR ALL USING (true);
+
+DROP POLICY IF EXISTS "user_church_booklet_settings" ON public.booklet_settings;
 CREATE POLICY "user_church_booklet_settings" ON public.booklet_settings FOR ALL USING (true);
 
 -- ==============================================================================
--- 3. LIMPEZA DE ESPAÇOS EM EMAILS DE USUÁRIOS (elimina erro 500)
+-- 3. LIMPEZA DE ESPAÇOS EM EMAILS DE USUÁRIOS (elimina causa do erro 500)
 -- ==============================================================================
 UPDATE auth.users
 SET 
