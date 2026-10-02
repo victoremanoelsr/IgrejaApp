@@ -409,7 +409,7 @@ export const Dashboard: React.FC = () => {
 
             <div className="flex-1 flex items-center justify-center relative my-2">
                 <div className="w-48 h-48">
-                    <ResponsiveContainer width="100%" height="100%">
+                    <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                         <PieChart>
                             <Pie
                                 data={missionsChartData}
@@ -449,7 +449,7 @@ export const Dashboard: React.FC = () => {
             
             <div className="flex-1 w-full">
                 {offersData.length > 0 ? (
-                    <ResponsiveContainer width="100%" height="100%">
+                    <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                         <BarChart data={offersData} margin={{top: 10, right: 0, left: 0, bottom: 0}}>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6"/>
                             <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 10, fill: '#9ca3af'}} />
@@ -529,7 +529,7 @@ export const Dashboard: React.FC = () => {
             <h3 className="font-bold text-gray-700">{t('dashboard.monthlyFlow')} ({getMonthName(selectedMonth - 1, lang)} / {selectedYear})</h3>
         </div>
         <div className="h-80 w-full">
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
             <LineChart data={dailyFlowData} margin={{top: 20, right: 20, left: 0, bottom: 0}}>
               <XAxis 
                 dataKey="day" 
