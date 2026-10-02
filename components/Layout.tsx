@@ -210,6 +210,13 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   const handleReturnToAdminPanel = () => { exitAdminView(); navigate('/admin/dashboard'); };
   const handleChurchSelect = (churchId: string) => { selectChurch(churchId); setShowUserMenu(false); };
 
+  // Se o usuário estiver sem unidade ativa e houver unidades disponíveis, auto-seleciona a primeira
+  useEffect(() => {
+    if (!currentChurch && availableChurches.length > 0 && user?.role !== 'SUPER_ADM') {
+      selectChurch(availableChurches[0].id);
+    }
+  }, [currentChurch, availableChurches, user, selectChurch]);
+
   const sedes = availableChurches.filter(c => c.type === 'SEDE');
   const independentCongregations = availableChurches.filter(c => c.type !== 'SEDE' && !availableChurches.some(parent => parent.id === c.parentId));
   const canSwitchChurch = availableChurches.length > 1 && (user.role === 'SUPER_ADM' || user.role === 'PRESIDENTE' || user.role === 'VICE_PRESIDENTE');

@@ -29,7 +29,7 @@ const PLAN_MONTHS_MAP: Record<string, number> = {
 };
 
 export const Dashboard: React.FC = () => {
-  const { members, transactions, currentChurch, churches, user } = useApp();
+  const { members, transactions, currentChurch, churches, availableChurches, selectChurch, user } = useApp();
   const navigate = useNavigate();
   const { t, i18n } = useTranslation();
 
@@ -43,6 +43,17 @@ export const Dashboard: React.FC = () => {
       navigate('/admin/dashboard');
     }
   }, [user, currentChurch, navigate]);
+
+  // Se não houver unidade selecionada e o usuário tiver uma igreja ou lista disponível, auto-seleciona
+  useEffect(() => {
+    if (!currentChurch && user?.role !== 'SUPER_ADM') {
+      if (user?.churchId) {
+        selectChurch(user.churchId);
+      } else if (availableChurches.length > 0) {
+        selectChurch(availableChurches[0].id);
+      }
+    }
+  }, [currentChurch, user, availableChurches, selectChurch]);
 
   // Verifica proximidade de vencimento da assinatura
   useEffect(() => {

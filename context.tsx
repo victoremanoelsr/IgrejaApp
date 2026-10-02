@@ -166,7 +166,12 @@ const uploadFileToSupabase = async (file: File, bucket: string = 'documents'): P
 };
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(() => {
+    try {
+      const raw = sessionStorage.getItem('igrejaapp_session_user');
+      return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
+  });
   const [users, setUsers] = useState<User[]>([]);
   const [churches, setChurches] = useState<Church[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
@@ -176,7 +181,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [minutes, setMinutes] = useState<Minute[]>([]);
   const [fixedExpenses, setFixedExpenses] = useState<FixedExpense[]>([]);
   const [lettersHistory, setLettersHistory] = useState<LetterHistory[]>([]);
-  const [currentChurch, setCurrentChurch] = useState<Church | null>(null);
+  const [currentChurch, setCurrentChurch] = useState<Church | null>(() => {
+    try {
+      const raw = sessionStorage.getItem('igrejaapp_current_church');
+      return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
+  });
   const [physicalSpaces, setPhysicalSpaces] = useState<PhysicalSpace[]>([]);
   const [assets, setAssets] = useState<Asset[]>([]);
 
@@ -224,6 +234,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Garante a auto-seleção e persistência imediata da igreja do usuário logado
+  useEffect(() => {
+    if (user && user.role !== 'SUPER_ADM' && user.churchId && !currentChurch) {
+      const found = churches.find(c => c.id === user.churchId);
+      if (found) {
+        setCurrentChurch(found);
+        try { sessionStorage.setItem('igrejaapp_current_church', JSON.stringify(found)); } catch (_) {}
+      } else {
+        supabase.from('churches').select('*').eq('id', user.churchId).maybeSingle().then(({ data }) => {
+          if (data) {
+            const c = toAppChurch(data);
+            setCurrentChurch(c);
+            setChurches(prev => prev.some(item => item.id === c.id) ? prev : [...prev, c]);
+            try { sessionStorage.setItem('igrejaapp_current_church', JSON.stringify(c)); } catch (_) {}
+          }
+        });
+      }
+    }
+  }, [user, churches, currentChurch]);
 
   // Real-time sync: member table changes (photo, data) reflected immediately in admin panel
   useEffect(() => {
@@ -584,6 +614,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       appUser.roles = ['SUPER_ADM'];
       appUser.churchId = undefined;
       setUser(appUser);
+      try { sessionStorage.setItem('igrejaapp_session_user', JSON.stringify(appUser)); } catch (_) {}
+      try { sessionStorage.removeItem('igrejaapp_current_church'); } catch (_) {}
       return { user: appUser };
     }
 
@@ -631,6 +663,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     setUser(appUser);
+    try { sessionStorage.setItem('igrejaapp_session_user', JSON.stringify(appUser)); } catch (_) {}
+
     if (appUser.churchId) {
       let church: Church | undefined;
       const { data: freshChurches } = await supabase.from('churches').select('*');
@@ -647,6 +681,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (church) {
         setCurrentChurch(church);
         setChurches(prev => prev.some(c => c.id === church!.id) ? prev : [...prev, church!]);
+        try { sessionStorage.setItem('igrejaapp_current_church', JSON.stringify(church)); } catch (_) {}
       }
     }
     return { user: appUser };
@@ -656,6 +691,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     supabase.auth.signOut().catch(() => {});
     setUser(null);
     setCurrentChurch(null);
+    try {
+      sessionStorage.removeItem('igrejaapp_session_user');
+      sessionStorage.removeItem('igrejaapp_current_church');
+    } catch (_) {}
   };
 
   const switchActiveRole = (newRole: Role) => {
@@ -718,11 +757,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const selectChurch = (id: string) => {
     const church = churches.find(c => c.id === id);
-    if (church) setCurrentChurch(church);
+    if (church) {
+      setCurrentChurch(church);
+      try { sessionStorage.setItem('igrejaapp_current_church', JSON.stringify(church)); } catch (_) {}
+    }
   };
 
   const exitAdminView = () => {
     setCurrentChurch(null);
+    try { sessionStorage.removeItem('igrejaapp_current_church'); } catch (_) {}
   };
 
   const availableChurches = React.useMemo(() => {

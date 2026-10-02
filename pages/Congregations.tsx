@@ -196,7 +196,7 @@ export const Congregations: React.FC = () => {
         const newDirigente: User = {
             id: '', 
             name: newCongPastorName.toUpperCase(), 
-            username: newCongDirigenteUser,
+            username: newCongDirigenteUser.trim().toLowerCase().replace(/\s+/g, '_'),
             password: newCongDirigentePass,
             cpf: newCongDirigenteCpf,
             role: 'DIRIGENTE',
