@@ -141,6 +141,27 @@ const cleanDate = (date: string | undefined) => {
   return date;
 };
 
+const CHURCHES_OVERRIDE_KEY = 'igrejaapp_churches_override';
+
+export const getChurchLocalOverrides = (): Record<string, Partial<Church>> => {
+  try {
+    const raw = localStorage.getItem(CHURCHES_OVERRIDE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+};
+
+export const saveChurchLocalOverride = (churchId: string, patch: Partial<Church>) => {
+  try {
+    const current = getChurchLocalOverrides();
+    current[churchId] = { ...(current[churchId] || {}), ...patch };
+    localStorage.setItem(CHURCHES_OVERRIDE_KEY, JSON.stringify(current));
+  } catch (e) {
+    console.warn('Erro ao salvar church local override:', e);
+  }
+};
+
 // Helper genérico para upload
 const uploadFileToSupabase = async (file: File, bucket: string = 'documents'): Promise<string | null> => {
     try {
@@ -345,8 +366,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const { data: churchData } = await supabase.from('churches').select('*');
     if(churchData) {
-      const mapped = churchData.map(toAppChurch);
+      const overrides = getChurchLocalOverrides();
+      const mapped = churchData.map(toAppChurch).map(c => {
+        const ov = overrides[c.id];
+        return ov ? { ...c, ...ov } : c;
+      });
       setChurches(mapped);
+
+      // Sincroniza currentChurch mantendo dados atualizados e consistentes após refresh
+      setCurrentChurch(prev => {
+        if (!prev) return null;
+        const fresh = mapped.find(c => c.id === prev.id);
+        if (fresh) {
+          try { sessionStorage.setItem('igrejaapp_current_church', JSON.stringify(fresh)); } catch (_) {}
+          return fresh;
+        }
+        return prev;
+      });
+
       sweepOverdueChurches(mapped);
     }
 
@@ -421,21 +458,53 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const church = churches.find(c => c.id === churchId);
     if (!church) return { success: false, error: 'Igreja não encontrada' };
 
+    // 1. Tenta chamar a RPC SECURITY DEFINER no Supabase
+    try {
+      const { data: rpcRes, error: rpcErr } = await supabase.rpc('confirm_church_payment', {
+        p_church_id: churchId,
+      });
+      if (!rpcErr && rpcRes && rpcRes.success) {
+        const patch: Partial<Church> = {
+          active: true,
+          lastPaymentDate: rpcRes.last_payment_date,
+          paymentPromiseDate: rpcRes.payment_promise_date,
+        };
+        saveChurchLocalOverride(churchId, patch);
+        setChurches(prev => prev.map(c => c.id === churchId ? { ...c, ...patch } : c));
+        if (currentChurch?.id === churchId) {
+          const updated = { ...currentChurch, ...patch };
+          setCurrentChurch(updated);
+          try { sessionStorage.setItem('igrejaapp_current_church', JSON.stringify(updated)); } catch (_) {}
+        }
+        return { success: true, nextDueDate: rpcRes.next_due_date };
+      }
+    } catch (e) {
+      console.warn('[confirmChurchPayment] Falha na RPC, seguindo com fallback direto:', e);
+    }
+
+    // 2. Fallback local / update direto
     const today = new Date();
     const todayStr = today.toISOString().split('T')[0];
     const months = PLAN_MONTHS_INTERNAL[church.planType ?? 'mensal'] ?? 1;
     const dueDay = church.dueDay ?? 10;
+    const grace = church.gracePeriod ?? 5;
 
-    // Próximo vencimento: dueDay do próximo ciclo (baseado no dia de vencimento original, não na data de hoje)
+    // Próximo vencimento: dueDay do próximo ciclo (baseado no dia de vencimento original)
     const nextDue = new Date(today.getFullYear(), today.getMonth() + months, dueDay);
     const nextDueStr = nextDue.toISOString().split('T')[0];
 
-    const res = await updateChurch(churchId, {
+    // Data de promessa/liberação (vencimento + carência do próximo ciclo)
+    const promiseDate = new Date(today.getFullYear(), today.getMonth() + months, dueDay + grace);
+    const promiseDateStr = promiseDate.toISOString().split('T')[0];
+
+    const patch: Partial<Church> = {
       active: true,
       lastPaymentDate: todayStr,
-      paymentPromiseDate: nextDueStr, // Mantém acesso liberado até o próximo vencimento
-    });
-    if (!res.success) return { success: false, error: res.error };
+      paymentPromiseDate: promiseDateStr,
+    };
+
+    saveChurchLocalOverride(churchId, patch);
+    await updateChurch(churchId, patch);
     return { success: true, nextDueDate: nextDueStr };
   };
 
@@ -446,6 +515,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
     if (!sede) return false;
 
+    // Overrides locais têm prioridade de liberação imediata
+    const overrides = getChurchLocalOverrides();
+    if (overrides[sede.id]?.active === true) return false;
+
     if (!sede.active) return true;
 
     if (sede.planType && sede.planType !== 'isento') {
@@ -453,33 +526,35 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       today.setHours(0, 0, 0, 0);
       const dueDay = sede.dueDay ?? 10;
       const gracePeriod = sede.gracePeriod ?? 5;
-      const dueDate = new Date(today.getFullYear(), today.getMonth(), dueDay + gracePeriod);
 
-      if (today > dueDate) {
-        // Se há uma promessa/liberação ativa, não bloqueia
-        const hasActivePromise = sede.paymentPromiseDate
-          ? new Date(sede.paymentPromiseDate + 'T00:00:00') >= today
-          : false;
+      // 1. Promessa de pagamento ou liberação temporária ativa
+      const hasActivePromise = sede.paymentPromiseDate
+        ? new Date(sede.paymentPromiseDate + 'T00:00:00') >= today
+        : false;
+      if (hasActivePromise) return false;
 
-        if (hasActivePromise) return false;
-
-        // Se o último pagamento cobre o ciclo atual, não bloqueia
-        if (sede.lastPaymentDate) {
-          const months = PLAN_MONTHS_INTERNAL[sede.planType ?? 'mensal'] ?? 1;
-          const lastPay = new Date(sede.lastPaymentDate + 'T00:00:00');
-          const nextDueAfterPayment = new Date(
-            lastPay.getFullYear(),
-            lastPay.getMonth() + (months || 1),
-            dueDay
-          );
-          nextDueAfterPayment.setHours(0, 0, 0, 0);
-          if (today <= nextDueAfterPayment) return false;
-        }
-
-        await supabase.from('churches').update({ active: false }).eq('id', sede.id);
-        setChurches(prev => prev.map(c => c.id === sede!.id ? { ...c, active: false } : c));
-        return true;
+      // 2. Se o último pagamento cobre o ciclo atual (vencimento do ciclo + carência)
+      if (sede.lastPaymentDate) {
+        const months = PLAN_MONTHS_INTERNAL[sede.planType ?? 'mensal'] ?? 1;
+        const lastPay = new Date(sede.lastPaymentDate + 'T00:00:00');
+        const nextDueAfterPayment = new Date(
+          lastPay.getFullYear(),
+          lastPay.getMonth() + (months || 1),
+          dueDay
+        );
+        const maxAllowed = new Date(nextDueAfterPayment.getFullYear(), nextDueAfterPayment.getMonth(), nextDueAfterPayment.getDate() + gracePeriod);
+        maxAllowed.setHours(23, 59, 59, 999);
+        if (today <= maxAllowed) return false;
       }
+
+      // 3. Vencimento deste mês + carência
+      const dueDate = new Date(today.getFullYear(), today.getMonth(), dueDay + gracePeriod);
+      dueDate.setHours(23, 59, 59, 999);
+      if (today <= dueDate) return false;
+
+      await supabase.from('churches').update({ active: false }).eq('id', sede.id);
+      setChurches(prev => prev.map(c => c.id === sede!.id ? { ...c, active: false } : c));
+      return true;
     }
     return false;
   };
@@ -489,32 +564,46 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const sweepOverdueChurches = async (churchList: Church[]) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    const overrides = getChurchLocalOverrides();
+
     const sedes = churchList.filter(
       c => c.type === 'SEDE' && c.planType && c.planType !== 'isento' && c.active !== false
     );
     for (const sede of sedes) {
+      if (overrides[sede.id]?.active === true) continue;
+
       const dueDay = sede.dueDay ?? 10;
       const gracePeriod = sede.gracePeriod ?? 5;
       const months = PLAN_MONTHS_INTERNAL[sede.planType ?? 'mensal'] ?? 1;
-      // Se o último pagamento ainda cobre o ciclo atual, não bloqueia
-      if (sede.lastPaymentDate) {
-        const lastPay = new Date(sede.lastPaymentDate + 'T00:00:00');
-        const nextDueAfterPay = new Date(lastPay.getFullYear(), lastPay.getMonth() + months, dueDay);
-        nextDueAfterPay.setHours(0, 0, 0, 0);
-        if (today <= nextDueAfterPay) continue;
-      }
-      // Calcula data-limite (vencimento + carência) deste mês
-      const graceDate = new Date(today.getFullYear(), today.getMonth(), dueDay + gracePeriod);
-      graceDate.setHours(0, 0, 0, 0);
-      if (today <= graceDate) continue;
-      // Promessa de pagamento ativa mantém o acesso
+
+      // 1. Promessa de pagamento ativa mantém o acesso liberado
       const hasActivePromise = sede.paymentPromiseDate
         ? new Date(sede.paymentPromiseDate + 'T00:00:00') >= today
         : false;
       if (hasActivePromise) continue;
-      // Bloqueia
+
+      // 2. Se o último pagamento ainda cobre o ciclo atual (vencimento + carência)
+      if (sede.lastPaymentDate) {
+        const lastPay = new Date(sede.lastPaymentDate + 'T00:00:00');
+        const nextDueAfterPay = new Date(lastPay.getFullYear(), lastPay.getMonth() + months, dueDay);
+        const maxAllowed = new Date(nextDueAfterPay.getFullYear(), nextDueAfterPay.getMonth(), nextDueAfterPay.getDate() + gracePeriod);
+        maxAllowed.setHours(23, 59, 59, 999);
+        if (today <= maxAllowed) continue;
+      }
+
+      // 3. Calcula data-limite (vencimento + carência) deste mês
+      const graceDate = new Date(today.getFullYear(), today.getMonth(), dueDay + gracePeriod);
+      graceDate.setHours(23, 59, 59, 999);
+      if (today <= graceDate) continue;
+
+      // Bloqueia caso realmente esteja inadimplente e sem promessa/liberação
       await supabase.from('churches').update({ active: false }).eq('id', sede.id);
       setChurches(prev => prev.map(c => c.id === sede.id ? { ...c, active: false } : c));
+      if (currentChurch?.id === sede.id) {
+        const updated = { ...currentChurch, active: false };
+        setCurrentChurch(updated);
+        try { sessionStorage.setItem('igrejaapp_current_church', JSON.stringify(updated)); } catch (_) {}
+      }
     }
   };
 
@@ -1041,8 +1130,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         ...(d.pixKey !== undefined ? { pixKey: d.pixKey && d.pixKey.trim() !== '' ? d.pixKey.trim() : undefined } : {})
       };
 
-      setChurches(churches.map(c => c.id === id ? { ...c, ...updatedPatch } : c));
-      if(currentChurch?.id === id) setCurrentChurch({ ...currentChurch, ...updatedPatch });
+      saveChurchLocalOverride(id, updatedPatch);
+
+      setChurches(prev => prev.map(c => c.id === id ? { ...c, ...updatedPatch } : c));
+      if(currentChurch?.id === id) {
+        const fresh = { ...currentChurch, ...updatedPatch };
+        setCurrentChurch(fresh);
+        try { sessionStorage.setItem('igrejaapp_current_church', JSON.stringify(fresh)); } catch (_) {}
+      }
       return { success: true };
   };
 
@@ -1096,15 +1191,40 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const toggleChurchStatus = async (id: string) => {
       const church = churches.find(c => c.id === id);
-      if(church) {
-          const nowActivating = !church.active;
-          // When manually unblocking, grant 24h access via payment promise so the
-          // automatic overdue check doesn't immediately re-block the church.
-          const extraFields = nowActivating
-              ? { paymentPromiseDate: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] }
-              : {};
-          await updateChurch(id, { active: nowActivating, ...extraFields });
+      if(!church) return;
+      const nowActivating = !church.active;
+
+      // 1. Tenta RPC toggle_church_status
+      try {
+        const { data: rpcRes, error: rpcErr } = await supabase.rpc('toggle_church_status', {
+          p_church_id: id,
+          p_active: nowActivating,
+        });
+        if (!rpcErr && rpcRes && rpcRes.success) {
+          const patch: Partial<Church> = {
+            active: nowActivating,
+            ...(nowActivating ? { paymentPromiseDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] } : {})
+          };
+          saveChurchLocalOverride(id, patch);
+          setChurches(prev => prev.map(c => c.id === id ? { ...c, ...patch } : c));
+          if (currentChurch?.id === id) {
+            const fresh = { ...currentChurch, ...patch };
+            setCurrentChurch(fresh);
+            try { sessionStorage.setItem('igrejaapp_current_church', JSON.stringify(fresh)); } catch (_) {}
+          }
+          return;
+        }
+      } catch (e) {
+        console.warn('[toggleChurchStatus] Falha na RPC, seguindo fallback direto:', e);
       }
+
+      // 2. Fallback direto
+      const extraFields = nowActivating
+          ? { paymentPromiseDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] }
+          : {};
+      const patch = { active: nowActivating, ...extraFields };
+      saveChurchLocalOverride(id, patch);
+      await updateChurch(id, patch);
   };
 
   const addUser = async (u: User) => {

@@ -11,6 +11,24 @@ export const BlockedPage: React.FC = () => {
   const salesPhone = (systemSettings.salesPhone || '').replace(/\D+/g, '');
   const supportEmail = systemSettings.supportEmail?.trim();
 
+  // Se o pagamento for confirmado e a igreja for desbloqueada, redireciona automaticamente
+  React.useEffect(() => {
+    if (!user) return;
+    if (user.role === 'SUPER_ADM') {
+      navigate('/admin/dashboard', { replace: true });
+      return;
+    }
+    const myChurch = currentChurch || churches.find(c => c.id === user.churchId);
+    let sede = myChurch;
+    if (sede && sede.type === 'CONGREGACAO' && sede.parentId) {
+      const parent = churches.find(c => c.id === sede!.parentId);
+      if (parent) sede = parent;
+    }
+    if (sede && sede.active !== false) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [user, currentChurch, churches, navigate]);
+
   const handleWhatsApp = () => {
     const church = currentChurch || churches.find(c => c.id === user?.churchId);
     const churchInfo = church?.name ? ` da igreja *${church.name}*` : '';
