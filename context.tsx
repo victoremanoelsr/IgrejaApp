@@ -399,7 +399,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const fetchData = async () => {
-    const { data: userData } = await supabase.from('profiles').select('*').or('is_active.is.null,is_active.eq.true');
+    let userData: any[] | null = null;
+    const { data: directProfiles, error: profilesErr } = await supabase
+      .from('profiles')
+      .select('*')
+      .or('is_active.is.null,is_active.eq.true');
+
+    if (!profilesErr && directProfiles && directProfiles.length > 0) {
+      userData = directProfiles;
+    } else {
+      try {
+        const { data: rpcProfiles } = await supabase.rpc('get_all_profiles');
+        if (rpcProfiles && rpcProfiles.length > 0) {
+          userData = rpcProfiles;
+        }
+      } catch (_) {}
+    }
+
     if (userData) {
       const appUsers = userData.map(toAppUser);
       setUsers(appUsers);

@@ -13,7 +13,7 @@ const formatCPF = (value: string) => {
 };
 
 export const Users: React.FC = () => {
-  const { users, churches, members, user: currentUser, addUser, updateUser, deleteUser, availableChurches } = useApp();
+  const { users, churches, members, user: currentUser, currentChurch, addUser, updateUser, deleteUser, availableChurches } = useApp();
   const [view, setView] = useState<'LIST' | 'FORM'>('LIST');
   const [searchTerm, setSearchTerm] = useState('');
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
@@ -90,11 +90,23 @@ export const Users: React.FC = () => {
 
   // Filter users for the main list
   const filteredUsers = users.filter(u => {
-    // Se sou Super Admin, vejo todos. Senão, só da minha scope
-    const isInMyScope = currentUser?.role === 'SUPER_ADM' || availableChurches.some(ac => ac.id === u.churchId);
-    
-    // Check search term
-    const matchesSearch = u.name.toLowerCase().includes(searchTerm.toLowerCase()) || u.username.includes(searchTerm);
+    // 1. Se sou Super Admin, vejo todos
+    if (currentUser?.role === 'SUPER_ADM') {
+      return u.name.toLowerCase().includes(searchTerm.toLowerCase()) || u.username.toLowerCase().includes(searchTerm.toLowerCase());
+    }
+
+    // 2. Se o usuário pertence a alguma igreja no meu escopo (sede ou congregações)
+    const inAvailable = availableChurches.some(ac => ac.id === u.churchId);
+    // 3. Pertence à igreja atual selecionada ou à igreja do usuário logado
+    const inCurrent = currentChurch && u.churchId === currentChurch.id;
+    const inMyChurch = currentUser?.churchId && u.churchId === currentUser.churchId;
+    // 4. Se a igreja atual for sede, inclui usuários associados à sede ou congregações filhas
+    const inCongregations = currentChurch && currentChurch.type === 'SEDE' && churches.some(c => c.parentId === currentChurch.id && c.id === u.churchId);
+    // 5. Usuários sem churchId explícito (acesso geral de campo)
+    const isUnassigned = !u.churchId;
+
+    const isInMyScope = inAvailable || inCurrent || inMyChurch || inCongregations || isUnassigned;
+    const matchesSearch = u.name.toLowerCase().includes(searchTerm.toLowerCase()) || u.username.toLowerCase().includes(searchTerm.toLowerCase());
     
     return isInMyScope && matchesSearch;
   });
@@ -351,6 +363,14 @@ export const Users: React.FC = () => {
                 </td>
               </tr>
             ))}
+            {filteredUsers.length === 0 && (
+              <tr>
+                <td colSpan={4} className="px-6 py-12 text-center text-sm text-gray-400">
+                  <UserIcon size={32} className="mx-auto text-gray-300 mb-2" />
+                  Nenhum usuário encontrado para esta unidade.
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
