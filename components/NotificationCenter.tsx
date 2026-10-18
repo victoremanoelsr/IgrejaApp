@@ -137,6 +137,8 @@ export const NotificationCenter: React.FC = () => {
     }
   };
 
+  const unreadCount = notifications.length;
+
   if (!user || !currentChurch) return null;
 
   return (
