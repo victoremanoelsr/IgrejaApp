@@ -90,22 +90,27 @@ export const Users: React.FC = () => {
 
   // Filter users for the main list
   const filteredUsers = users.filter(u => {
-    // 1. Se sou Super Admin, vejo todos
+    // 1. Super Administradores NUNCA devem aparecer na lista de usuários das igrejas
+    if (u.role === 'SUPER_ADM' || u.roles?.includes('SUPER_ADM')) {
+      return false;
+    }
+
+    // 2. Se for Super Admin navegando pelo painel da igreja, mostra apenas os usuários da igreja atual
     if (currentUser?.role === 'SUPER_ADM') {
+      if (currentChurch) {
+        const belongsToChurch = u.churchId === currentChurch.id || (currentChurch.type === 'SEDE' && churches.some(c => c.parentId === currentChurch.id && c.id === u.churchId));
+        return belongsToChurch && (u.name.toLowerCase().includes(searchTerm.toLowerCase()) || u.username.toLowerCase().includes(searchTerm.toLowerCase()));
+      }
       return u.name.toLowerCase().includes(searchTerm.toLowerCase()) || u.username.toLowerCase().includes(searchTerm.toLowerCase());
     }
 
-    // 2. Se o usuário pertence a alguma igreja no meu escopo (sede ou congregações)
+    // 3. Apenas usuários que pertencem a esta igreja ou congregações vinculadas
     const inAvailable = availableChurches.some(ac => ac.id === u.churchId);
-    // 3. Pertence à igreja atual selecionada ou à igreja do usuário logado
     const inCurrent = currentChurch && u.churchId === currentChurch.id;
     const inMyChurch = currentUser?.churchId && u.churchId === currentUser.churchId;
-    // 4. Se a igreja atual for sede, inclui usuários associados à sede ou congregações filhas
     const inCongregations = currentChurch && currentChurch.type === 'SEDE' && churches.some(c => c.parentId === currentChurch.id && c.id === u.churchId);
-    // 5. Usuários sem churchId explícito (acesso geral de campo)
-    const isUnassigned = !u.churchId;
 
-    const isInMyScope = inAvailable || inCurrent || inMyChurch || inCongregations || isUnassigned;
+    const isInMyScope = inAvailable || inCurrent || inMyChurch || inCongregations;
     const matchesSearch = u.name.toLowerCase().includes(searchTerm.toLowerCase()) || u.username.toLowerCase().includes(searchTerm.toLowerCase());
     
     return isInMyScope && matchesSearch;
