@@ -1,38 +1,58 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Bell, X, Send, Trash2, BellOff, BellRing, CheckCheck, AlertCircle } from 'lucide-react';
+import { Bell, X, Send, Trash2, BellOff, BellRing, CheckCheck, AlertCircle, Sparkles, Smartphone } from 'lucide-react';
 import { useApp } from '../context';
-import {
-  requestNotificationPermission, getPermissionStatus, showBrowserNotification,
-  saveNotification, getNotifications, markAllRead, clearNotifications,
-  getNotificationPreference, setNotificationPreference, LocalNotification
-} from '../utils/notifications';
+import { supabase } from '../services/supabaseClient';
+import { requestAndRegisterPush, showFloatingNotification, sendTestAlert, playNotificationChime } from '../services/pushNotificationService';
 
 export const NotificationCenter: React.FC = () => {
   const { user, currentChurch } = useApp();
   const [open, setOpen] = useState(false);
-  const [notifications, setNotifications] = useState<LocalNotification[]>([]);
-  const [permission, setPermission] = useState<NotificationPermission>('default');
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [permission, setPermission] = useState<NotificationPermission>(() => {
+    return ('Notification' in window) ? Notification.permission : 'denied';
+  });
   const [prefEnabled, setPrefEnabled] = useState(true);
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [sending, setSending] = useState(false);
+  const [isStandalone, setIsStandalone] = useState(true);
   const panelRef = useRef<HTMLDivElement>(null);
 
   const churchId = currentChurch?.id || '';
   const isAdmin = user?.role === 'SUPER_ADM' || user?.role === 'PRESIDENTE' || user?.role === 'VICE_PRESIDENTE' || user?.role === 'DIRIGENTE';
+  const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
 
-  const reload = () => {
+  const checkStandalone = () => {
+    const isPWA = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true;
+    setIsStandalone(isPWA);
+  };
+
+  const fetchChurchNotifications = async () => {
     if (!churchId) return;
-    setNotifications(getNotifications(churchId));
-    setPermission(getPermissionStatus());
-    if (user) setPrefEnabled(getNotificationPreference(user.id));
+    try {
+      const { data, error } = await supabase
+        .from('church_notifications')
+        .select('*')
+        .eq('church_id', churchId)
+        .order('created_at', { ascending: false })
+        .limit(30);
+
+      if (!error && data) {
+        setNotifications(data);
+      }
+    } catch (e) {
+      console.warn('[NotificationCenter] Erro ao buscar notificações:', e);
+    }
   };
 
   useEffect(() => {
-    reload();
-    const interval = setInterval(reload, 5000);
-    return () => clearInterval(interval);
-  }, [churchId, user]);
+    checkStandalone();
+    if (churchId) {
+      fetchChurchNotifications();
+      const interval = setInterval(fetchChurchNotifications, 10000);
+      return () => clearInterval(interval);
+    }
+  }, [churchId]);
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
@@ -44,51 +64,77 @@ export const NotificationCenter: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClick);
   }, [open]);
 
-  const unreadCount = notifications.filter(n => !n.read).length;
-
   const handleOpen = () => {
     setOpen(o => !o);
-    if (!open && churchId) markAllRead(churchId);
-    reload();
-  };
-
-  const handleRequestPermission = async () => {
-    const result = await requestNotificationPermission();
-    setPermission(result);
-    if (result === 'granted') {
-      showBrowserNotification('IgrejaApp', 'Notificações ativadas com sucesso!');
+    if (!open && churchId) {
+      fetchChurchNotifications();
+      if ('Notification' in window) {
+        setPermission(Notification.permission);
+      }
     }
   };
 
-  const handleTogglePref = (val: boolean) => {
-    if (!user) return;
+  const handleActivatePush = async () => {
+    if (!currentChurch) return;
+    const ok = await requestAndRegisterPush({
+      churchId: currentChurch.id,
+      congregationId: currentChurch.type === 'CONGREGACAO' ? currentChurch.id : undefined,
+      userId: user?.id,
+      role: user?.role,
+    });
+    if (ok) {
+      setPermission('granted');
+      setPrefEnabled(true);
+    }
+  };
+
+  const handleTogglePref = async (val: boolean) => {
     setPrefEnabled(val);
-    setNotificationPreference(user.id, val);
-    if (val && permission !== 'granted') handleRequestPermission();
+    if (val && permission !== 'granted') {
+      await handleActivatePush();
+    }
   };
 
   const handleSend = async () => {
     if (!title.trim() || !body.trim() || !churchId) return;
     setSending(true);
-    const notif = saveNotification(churchId, title.trim(), body.trim());
-    if (permission === 'granted' && prefEnabled) {
-      showBrowserNotification(notif.title, notif.body);
-    }
-    setTitle('');
-    setBody('');
-    reload();
-    setSending(false);
-  };
 
-  const handleClear = () => {
-    if (!churchId) return;
-    clearNotifications(churchId);
-    reload();
+    try {
+      const { error } = await supabase.from('church_notifications').insert([
+        {
+          church_id: churchId,
+          title: title.trim(),
+          body: body.trim(),
+          type: 'ANNOUNCEMENT',
+          target_role: 'ALL',
+          data: { url: '/#events' },
+        },
+      ]);
+
+      if (!error) {
+        await showFloatingNotification(title.trim(), {
+          body: body.trim(),
+          url: '/#events',
+          tag: `announcement-${Date.now()}`,
+        });
+        setTitle('');
+        setBody('');
+        await fetchChurchNotifications();
+      }
+    } catch (err) {
+      console.error('[NotificationCenter] Erro ao enviar notificação:', err);
+    } finally {
+      setSending(false);
+    }
   };
 
   const formatTime = (iso: string) => {
-    const d = new Date(iso);
-    return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    try {
+      const d = new Date(iso);
+      return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) + ' às ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    } catch {
+      return '';
+    }
   };
 
   if (!user || !currentChurch) return null;
@@ -119,32 +165,57 @@ export const NotificationCenter: React.FC = () => {
             <button onClick={() => setOpen(false)} className="p-1 hover:bg-white/20 rounded-lg"><X size={16} /></button>
           </div>
 
+          {/* Dica essencial para iPhone (iOS) */}
+          {isIOS && !isStandalone && (
+            <div className="mx-3 mt-3 flex items-start gap-2 bg-blue-50 border border-blue-200 rounded-xl p-2.5">
+              <Smartphone size={16} className="text-blue-500 shrink-0 mt-0.5" />
+              <div className="flex-1 text-left">
+                <p className="text-[11px] font-bold text-blue-800">Dica para iPhone:</p>
+                <p className="text-[10px] text-blue-700 leading-tight mt-0.5">
+                  Para receber notificações com o celular fechado, toque no botão <b>Compartilhar</b> do Safari e escolha <b>"Adicionar à Tela de Início"</b>.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Permission Banner */}
           {permission !== 'granted' && (
-            <div className="mx-3 mt-3 flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl p-3">
+            <div className="mx-3 mt-2 flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl p-2.5">
               <AlertCircle size={16} className="text-amber-500 shrink-0 mt-0.5" />
-              <div className="flex-1">
+              <div className="flex-1 text-left">
                 <p className="text-xs font-semibold text-amber-700">Notificações desativadas</p>
-                <p className="text-[10px] text-amber-600 mt-0.5">Ative para receber alertas neste dispositivo.</p>
-                <button onClick={handleRequestPermission} className="mt-2 text-[10px] bg-amber-500 text-white px-3 py-1 rounded-lg font-bold hover:bg-amber-600 transition">
-                  Ativar Notificações
+                <p className="text-[10px] text-amber-600 mt-0.5">Toque abaixo para autorizar alertas neste aparelho.</p>
+                <button 
+                  onClick={handleActivatePush} 
+                  className="mt-1.5 text-[10px] bg-amber-500 text-white px-3 py-1 rounded-lg font-bold hover:bg-amber-600 transition shadow"
+                >
+                  Ativar no Aparelho
                 </button>
               </div>
             </div>
           )}
 
-          {/* User Preference Toggle */}
+          {/* User Preference Toggle & Test Button */}
           <div className="mx-3 mt-2 flex items-center justify-between bg-gray-50 rounded-xl px-3 py-2">
             <div className="flex items-center gap-2">
               {prefEnabled ? <BellRing size={14} className="text-orange-500" /> : <BellOff size={14} className="text-gray-400" />}
               <span className="text-xs font-medium text-gray-700">Receber notificações</span>
             </div>
-            <button
-              onClick={() => handleTogglePref(!prefEnabled)}
-              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${prefEnabled ? 'bg-orange-500' : 'bg-gray-300'}`}
-            >
-              <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${prefEnabled ? 'translate-x-4' : 'translate-x-1'}`} />
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => sendTestAlert(churchId, currentChurch?.name)}
+                className="text-[10px] bg-orange-100 hover:bg-orange-200 text-orange-700 font-bold px-2 py-0.5 rounded transition"
+                title="Tocar som e exibir notificação flutuante de teste"
+              >
+                Testar
+              </button>
+              <button
+                onClick={() => handleTogglePref(!prefEnabled)}
+                className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${prefEnabled ? 'bg-orange-500' : 'bg-gray-300'}`}
+              >
+                <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${prefEnabled ? 'translate-x-4' : 'translate-x-1'}`} />
+              </button>
+            </div>
           </div>
 
           {/* Admin Compose */}
@@ -174,17 +245,13 @@ export const NotificationCenter: React.FC = () => {
             </div>
           )}
 
-          {/* Notification List */}
+          {/* Notification List (da tabela church_notifications do Supabase) */}
           <div className="mx-3 mt-2 mb-3">
             <div className="flex items-center justify-between mb-1.5">
-              <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Histórico</p>
-              {notifications.length > 0 && (
-                <button onClick={handleClear} className="flex items-center gap-1 text-[10px] text-red-400 hover:text-red-600 font-medium">
-                  <Trash2 size={10} /> Limpar
-                </button>
-              )}
+              <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Histórico de Avisos</p>
+              <span className="text-[10px] text-gray-400">{notifications.length} avisos</span>
             </div>
-            <div className="space-y-1.5 max-h-48 overflow-y-auto pr-0.5">
+            <div className="space-y-1.5 max-h-48 overflow-y-auto pr-0.5 text-left">
               {notifications.length === 0 ? (
                 <div className="flex flex-col items-center py-6 text-gray-300">
                   <Bell size={28} className="mb-2" />
@@ -192,26 +259,18 @@ export const NotificationCenter: React.FC = () => {
                 </div>
               ) : (
                 notifications.map(n => (
-                  <div key={n.id} className={`rounded-xl p-2.5 border ${n.read ? 'bg-gray-50 border-gray-100' : 'bg-orange-50 border-orange-100'}`}>
+                  <div key={n.id} className="rounded-xl p-2.5 border bg-orange-50/60 border-orange-100 hover:bg-orange-50 transition-colors">
                     <div className="flex items-start justify-between gap-1">
                       <p className="text-xs font-bold text-gray-800 leading-tight">{n.title}</p>
-                      {!n.read && <div className="w-1.5 h-1.5 bg-orange-500 rounded-full mt-1 shrink-0" />}
+                      <div className="w-1.5 h-1.5 bg-orange-500 rounded-full mt-1 shrink-0" />
                     </div>
-                    <p className="text-[10px] text-gray-500 mt-0.5 leading-tight">{n.body}</p>
-                    <p className="text-[9px] text-gray-400 mt-1">{formatTime(n.createdAt)}</p>
+                    <p className="text-[10px] text-gray-600 mt-1 leading-relaxed whitespace-pre-line">{n.body}</p>
+                    <p className="text-[9px] text-gray-400 mt-1 font-medium">{formatTime(n.created_at)}</p>
                   </div>
                 ))
               )}
             </div>
           </div>
-
-          {notifications.length > 0 && (
-            <div className="px-3 pb-3">
-              <button onClick={() => { markAllRead(churchId); reload(); }} className="w-full flex items-center justify-center gap-1.5 text-[10px] text-gray-500 hover:text-gray-700 font-medium py-1.5">
-                <CheckCheck size={12} /> Marcar todas como lidas
-              </button>
-            </div>
-          )}
         </div>
       )}
     </div>
