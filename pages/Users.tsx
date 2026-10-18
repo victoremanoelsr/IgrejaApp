@@ -129,49 +129,80 @@ export const Users: React.FC = () => {
     setShowSuggestions(false);
   };
 
-  const getAvailableRoles = () => {
+  const getGroupedRoles = () => {
     if (currentUser?.role === 'SUPER_ADM') {
       return [
-        { value: 'SUPER_ADM', label: 'Super Administrador (Global)' },
-        { value: 'PRESIDENTE', label: 'PR Presidente' },
-        { value: 'VICE_PRESIDENTE', label: 'PR Vice-Presidente' },
+        {
+          group: 'Acesso Global Master',
+          roles: [
+            { value: 'SUPER_ADM' as Role, label: 'Super Administrador (Global)' },
+            { value: 'PRESIDENTE' as Role, label: 'PR Presidente' },
+            { value: 'VICE_PRESIDENTE' as Role, label: 'PR Vice-Presidente' },
+          ]
+        }
       ];
     }
 
     const targetChurch = availableChurches.find(c => c.id === formData.churchId);
-    
-    if (targetChurch?.type === 'CONGREGACAO') {
-        return [
-            { value: 'DIRIGENTE', label: 'Dirigente da Congregação' },
-            { value: 'TESOUREIRO', label: 'Tesoureiro Local' },
-            { value: 'SECRETARIO', label: 'Secretário Local' },
-            { value: 'PRESIDENTE_MISSOES', label: 'Presidente de Missões Local' },
-            { value: 'VICE_MISSOES', label: 'Vice de Missões Local' },
-            { value: 'LIDER_JOVENS', label: 'Líder de Jovens' },
-            { value: 'LIDER_CRIANCAS', label: 'Líder Infantil' },
-            { value: 'LIDER_SENHORAS', label: 'Líder de Senhoras' },
-            { value: 'LIDER_SENHORES', label: 'Líder de Senhores' },
-        ];
-    }
+    const isCongregacao = targetChurch?.type === 'CONGREGACAO';
 
     return [
-      { value: 'VICE_PRESIDENTE', label: 'PR Vice-Presidente' },
-      { value: 'TESOUREIRO', label: 'Tesoureiro Geral' },
-      { value: 'SECRETARIO', label: 'Secretário Geral' },
-      { value: 'PRESIDENTE_MISSOES', label: 'Presidente de Missões' },
-      { value: 'VICE_MISSOES', label: 'Vice-Presidente de Missões' },
-      { value: 'TESOUREIRO_MISSOES', label: 'Tesoureiro de Missões' },
-      { value: 'SECRETARIO_MISSOES', label: 'Secretário de Missões' },
-      { value: 'LIDER_JOVENS', label: 'Líder de Jovens' },
-      { value: 'TESOUREIRO_JOVENS', label: 'Tesoureiro de Jovens' },
-      { value: 'LIDER_CRIANCAS', label: 'Líder Infantil' },
-      { value: 'TESOUREIRO_CRIANCAS', label: 'Tesoureiro Infantil' },
-      { value: 'LIDER_ADOLESCENTES', label: 'Líder de Adolescentes' },
-      { value: 'TESOUREIRO_ADOLESCENTES', label: 'Tesoureiro de Adolescentes' },
-      { value: 'LIDER_SENHORAS', label: 'Líder de Senhoras' },
-      { value: 'TESOUREIRO_SENHORAS', label: 'Tesoureira de Senhoras' },
-      { value: 'LIDER_SENHORES', label: 'Líder de Senhores' },
-      { value: 'TESOUREIRO_SENHORES', label: 'Tesoureiro de Senhores' },
+      {
+        group: isCongregacao ? 'Administração da Congregação' : 'Administração Geral da Sede',
+        roles: isCongregacao ? [
+          { value: 'DIRIGENTE' as Role, label: 'Dirigente da Congregação' },
+          { value: 'TESOUREIRO' as Role, label: 'Tesoureiro Local' },
+          { value: 'SECRETARIO' as Role, label: 'Secretário Local' },
+        ] : [
+          { value: 'VICE_PRESIDENTE' as Role, label: 'PR Vice-Presidente' },
+          { value: 'TESOUREIRO' as Role, label: 'Tesoureiro Geral' },
+          { value: 'SECRETARIO' as Role, label: 'Secretário Geral' },
+        ]
+      },
+      {
+        group: 'Departamento de Missões',
+        roles: [
+          { value: 'PRESIDENTE_MISSOES' as Role, label: 'Presidente de Missões' },
+          { value: 'VICE_MISSOES' as Role, label: 'Vice-Presidente de Missões' },
+          { value: 'TESOUREIRO_MISSOES' as Role, label: 'Tesoureiro de Missões' },
+          { value: 'SECRETARIO_MISSOES' as Role, label: 'Secretário de Missões' },
+        ]
+      },
+      {
+        group: 'União de Jovens',
+        roles: [
+          { value: 'LIDER_JOVENS' as Role, label: 'Líder de Jovens' },
+          { value: 'TESOUREIRO_JOVENS' as Role, label: 'Tesoureiro de Jovens' },
+        ]
+      },
+      {
+        group: 'Departamento Infantil',
+        roles: [
+          { value: 'LIDER_CRIANCAS' as Role, label: 'Líder Infantil' },
+          { value: 'TESOUREIRO_CRIANCAS' as Role, label: 'Tesoureiro Infantil' },
+        ]
+      },
+      {
+        group: 'União de Adolescentes',
+        roles: [
+          { value: 'LIDER_ADOLESCENTES' as Role, label: 'Líder de Adolescentes' },
+          { value: 'TESOUREIRO_ADOLESCENTES' as Role, label: 'Tesoureiro de Adolescentes' },
+        ]
+      },
+      {
+        group: 'Círculo de Oração / Senhoras',
+        roles: [
+          { value: 'LIDER_SENHORAS' as Role, label: 'Líder de Senhoras' },
+          { value: 'TESOUREIRO_SENHORAS' as Role, label: 'Tesoureira de Senhoras' },
+        ]
+      },
+      {
+        group: 'União de Senhores',
+        roles: [
+          { value: 'LIDER_SENHORES' as Role, label: 'Líder de Senhores' },
+          { value: 'TESOUREIRO_SENHORES' as Role, label: 'Tesoureiro de Senhores' },
+        ]
+      }
     ];
   };
 
@@ -500,8 +531,12 @@ export const Users: React.FC = () => {
               value={formData.role}
               onChange={e => setFormData({...formData, role: e.target.value as Role})}
             >
-              {getAvailableRoles().map(role => (
-                <option key={role.value} value={role.value}>{role.label}</option>
+              {getGroupedRoles().map(group => (
+                <optgroup key={group.group} label={group.group}>
+                  {group.roles.map(role => (
+                    <option key={role.value} value={role.value}>{role.label}</option>
+                  ))}
+                </optgroup>
               ))}
             </select>
           </div>
