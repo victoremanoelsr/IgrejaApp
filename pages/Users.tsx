@@ -169,7 +169,7 @@ export const Users: React.FC = () => {
         ]
       },
       {
-        group: 'União de Jovens',
+        group: 'Departamento de Jovens',
         roles: [
           { value: 'LIDER_JOVENS' as Role, label: 'Líder de Jovens' },
           { value: 'TESOUREIRO_JOVENS' as Role, label: 'Tesoureiro de Jovens' },
@@ -183,21 +183,21 @@ export const Users: React.FC = () => {
         ]
       },
       {
-        group: 'União de Adolescentes',
+        group: 'Departamento de Adolescentes',
         roles: [
           { value: 'LIDER_ADOLESCENTES' as Role, label: 'Líder de Adolescentes' },
           { value: 'TESOUREIRO_ADOLESCENTES' as Role, label: 'Tesoureiro de Adolescentes' },
         ]
       },
       {
-        group: 'Círculo de Oração / Senhoras',
+        group: 'Departamento de Senhoras',
         roles: [
           { value: 'LIDER_SENHORAS' as Role, label: 'Líder de Senhoras' },
           { value: 'TESOUREIRO_SENHORAS' as Role, label: 'Tesoureira de Senhoras' },
         ]
       },
       {
-        group: 'União de Senhores',
+        group: 'Departamento de Senhores',
         roles: [
           { value: 'LIDER_SENHORES' as Role, label: 'Líder de Senhores' },
           { value: 'TESOUREIRO_SENHORES' as Role, label: 'Tesoureiro de Senhores' },

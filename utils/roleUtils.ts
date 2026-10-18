@@ -119,7 +119,7 @@ export const ROLE_INFO_MAP: Record<Role, DepartmentRoleInfo> = {
   LIDER_JOVENS: {
     role: 'LIDER_JOVENS',
     roleLabel: 'Líder de Jovens',
-    departmentName: 'União de Jovens',
+    departmentName: 'Departamento de Jovens',
     path: '/jovens',
     state: { activeTab: 'DASHBOARD', entered: true },
     badgeColor: 'bg-orange-600 text-white',
@@ -129,7 +129,7 @@ export const ROLE_INFO_MAP: Record<Role, DepartmentRoleInfo> = {
   TESOUREIRO_JOVENS: {
     role: 'TESOUREIRO_JOVENS',
     roleLabel: 'Tesoureiro de Jovens',
-    departmentName: 'União de Jovens',
+    departmentName: 'Departamento de Jovens',
     path: '/jovens',
     state: { activeTab: 'DASHBOARD', entered: true },
     badgeColor: 'bg-orange-500 text-white',
@@ -163,7 +163,7 @@ export const ROLE_INFO_MAP: Record<Role, DepartmentRoleInfo> = {
   LIDER_ADOLESCENTES: {
     role: 'LIDER_ADOLESCENTES',
     roleLabel: 'Líder de Adolescentes',
-    departmentName: 'União de Adolescentes',
+    departmentName: 'Departamento de Adolescentes',
     path: '/adolescentes',
     state: { activeTab: 'DASHBOARD', entered: true },
     badgeColor: 'bg-purple-600 text-white',
@@ -173,7 +173,7 @@ export const ROLE_INFO_MAP: Record<Role, DepartmentRoleInfo> = {
   TESOUREIRO_ADOLESCENTES: {
     role: 'TESOUREIRO_ADOLESCENTES',
     roleLabel: 'Tesoureiro de Adolescentes',
-    departmentName: 'União de Adolescentes',
+    departmentName: 'Departamento de Adolescentes',
     path: '/adolescentes',
     state: { activeTab: 'DASHBOARD', entered: true },
     badgeColor: 'bg-purple-500 text-white',
@@ -185,7 +185,7 @@ export const ROLE_INFO_MAP: Record<Role, DepartmentRoleInfo> = {
   LIDER_SENHORAS: {
     role: 'LIDER_SENHORAS',
     roleLabel: 'Líder de Senhoras',
-    departmentName: 'Círculo de Oração / Senhoras',
+    departmentName: 'Departamento de Senhoras',
     path: '/senhoras',
     state: { activeTab: 'DASHBOARD', entered: true },
     badgeColor: 'bg-pink-600 text-white',
@@ -195,7 +195,7 @@ export const ROLE_INFO_MAP: Record<Role, DepartmentRoleInfo> = {
   TESOUREIRO_SENHORAS: {
     role: 'TESOUREIRO_SENHORAS',
     roleLabel: 'Tesoureira de Senhoras',
-    departmentName: 'Círculo de Oração / Senhoras',
+    departmentName: 'Departamento de Senhoras',
     path: '/senhoras',
     state: { activeTab: 'DASHBOARD', entered: true },
     badgeColor: 'bg-pink-500 text-white',
@@ -207,7 +207,7 @@ export const ROLE_INFO_MAP: Record<Role, DepartmentRoleInfo> = {
   LIDER_SENHORES: {
     role: 'LIDER_SENHORES',
     roleLabel: 'Líder de Senhores',
-    departmentName: 'União de Senhores',
+    departmentName: 'Departamento de Senhores',
     path: '/senhores',
     state: { activeTab: 'DASHBOARD', entered: true },
     badgeColor: 'bg-indigo-600 text-white',
@@ -217,7 +217,7 @@ export const ROLE_INFO_MAP: Record<Role, DepartmentRoleInfo> = {
   TESOUREIRO_SENHORES: {
     role: 'TESOUREIRO_SENHORES',
     roleLabel: 'Tesoureiro de Senhores',
-    departmentName: 'União de Senhores',
+    departmentName: 'Departamento de Senhores',
     path: '/senhores',
     state: { activeTab: 'DASHBOARD', entered: true },
     badgeColor: 'bg-indigo-500 text-white',
@@ -323,7 +323,7 @@ export const DEPARTMENT_ROLE_GROUPS = [
   },
   {
     id: 'JOVENS',
-    name: 'União de Jovens',
+    name: 'Departamento de Jovens',
     roles: ['LIDER_JOVENS', 'TESOUREIRO_JOVENS'] as Role[],
     path: '/jovens'
   },
@@ -335,19 +335,19 @@ export const DEPARTMENT_ROLE_GROUPS = [
   },
   {
     id: 'ADOLESCENTES',
-    name: 'União de Adolescentes',
+    name: 'Departamento de Adolescentes',
     roles: ['LIDER_ADOLESCENTES', 'TESOUREIRO_ADOLESCENTES'] as Role[],
     path: '/adolescentes'
   },
   {
     id: 'SENHORAS',
-    name: 'Círculo de Oração / Senhoras',
+    name: 'Departamento de Senhoras',
     roles: ['LIDER_SENHORAS', 'TESOUREIRO_SENHORAS'] as Role[],
     path: '/senhoras'
   },
   {
     id: 'SENHORES',
-    name: 'União de Senhores',
+    name: 'Departamento de Senhores',
     roles: ['LIDER_SENHORES', 'TESOUREIRO_SENHORES'] as Role[],
     path: '/senhores'
   }
