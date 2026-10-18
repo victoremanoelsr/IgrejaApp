@@ -611,7 +611,7 @@ export const Events: React.FC = () => {
         </div>
         
         <div className="flex items-center flex-wrap gap-2">
-          {/* Botão de Ativação e Teste de Notificações no Celular */}
+          {/* Botão de Ativação e Teste de Notificações no Celular ou PC */}
           {pushStatus !== 'granted' ? (
             <button
               onClick={async () => {
@@ -625,18 +625,22 @@ export const Events: React.FC = () => {
               title="Toque para autorizar avisos de cultos e eventos neste dispositivo"
             >
               <BellRing size={16} />
-              {isActivatingPush ? 'Ativando...' : 'Ativar Notificações no Celular'}
+              {isActivatingPush 
+                ? 'Ativando...' 
+                : (/Mobile|Android|iPhone|iPad/i.test(navigator.userAgent) 
+                    ? 'Ativar Notificações no Celular' 
+                    : 'Ativar Notificações no PC')}
             </button>
           ) : (
             <div className="flex items-center gap-1.5">
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-semibold">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                Notificações Ativas
+                {/Mobile|Android|iPhone|iPad/i.test(navigator.userAgent) ? 'Notificações Ativas no Celular' : 'Notificações Ativas no PC'}
               </span>
               <button
                 onClick={() => sendTestAlert(currentChurch?.id, currentChurch?.name)}
                 className="flex items-center gap-1 px-2.5 py-1.5 bg-orange-50 hover:bg-orange-100 text-brand-orange border border-orange-200 rounded-lg text-xs font-semibold transition-colors"
-                title="Clique para testar o som e o alerta flutuante no celular e computador"
+                title="Clique para testar o som e o alerta flutuante neste aparelho"
               >
                 <Bell size={13} />
                 Testar Alerta

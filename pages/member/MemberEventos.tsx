@@ -56,7 +56,7 @@ export const MemberEventos: React.FC = () => {
           <p className="text-gray-500 text-sm mt-0.5">{t('memberPortal.events.subtitle')}</p>
         </div>
 
-        {/* Botão de Ativação e Teste de Notificações Push Flutuantes no Celular */}
+        {/* Botão de Ativação e Teste de Notificações Push Flutuantes no Celular ou PC */}
         {pushStatus !== 'granted' ? (
           <button
             onClick={async () => {
@@ -69,13 +69,17 @@ export const MemberEventos: React.FC = () => {
             className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-xl text-xs sm:text-sm font-bold shadow-md hover:from-orange-600 hover:to-amber-600 transition-all self-start sm:self-auto animate-pulse"
           >
             <BellRing size={16} />
-            {isActivatingPush ? 'Ativando...' : 'Receber Notificações no Celular'}
+            {isActivatingPush 
+              ? 'Ativando...' 
+              : (/Mobile|Android|iPhone|iPad/i.test(navigator.userAgent) 
+                  ? 'Receber Notificações no Celular' 
+                  : 'Receber Notificações no PC')}
           </button>
         ) : (
           <div className="flex items-center gap-2 self-start sm:self-auto">
             <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-semibold">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              Notificações Ativas
+              {/Mobile|Android|iPhone|iPad/i.test(navigator.userAgent) ? 'Notificações Ativas no Celular' : 'Notificações Ativas no PC'}
             </span>
             <button
               onClick={() => sendTestAlert(session?.churchId)}
