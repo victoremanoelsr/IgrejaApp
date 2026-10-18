@@ -54,6 +54,8 @@ export const toAppMember = (data: any): Member => ({
   birthDate: data.birth_date || '', 
   memberNumber: data.member_number,
   isTither: data.is_tither,
+  ministerialRole: data.ministerial_role || 'MEMBRO',
+  isWorker: data.is_worker ?? (data.ministerial_role && data.ministerial_role !== 'MEMBRO'),
   isYouth: data.is_youth, 
   isChild: data.is_child,
   isAdolescent: data.is_adolescent,

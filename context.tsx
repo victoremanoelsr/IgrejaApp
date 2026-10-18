@@ -921,7 +921,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     if (m.id && m.id.trim() !== '') basePayload.id = m.id;
 
-    const fullPayload = { ...basePayload, is_adolescent: m.isAdolescent, is_brother: m.isBrother };
+    const fullPayload = { 
+      ...basePayload, 
+      is_adolescent: m.isAdolescent, 
+      is_brother: m.isBrother,
+      ministerial_role: m.ministerialRole || 'MEMBRO',
+      is_worker: Boolean(m.isWorker || (m.ministerialRole && m.ministerialRole !== 'MEMBRO'))
+    };
 
     let { data, error } = await supabase.from('members').insert([fullPayload]).select();
 
@@ -959,7 +965,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       address: m.address
     };
 
-    const fullUpdate = { ...baseUpdate, is_adolescent: m.isAdolescent, is_brother: m.isBrother };
+    const fullUpdate = { 
+      ...baseUpdate, 
+      is_adolescent: m.isAdolescent, 
+      is_brother: m.isBrother,
+      ministerial_role: m.ministerialRole || 'MEMBRO',
+      is_worker: Boolean(m.isWorker || (m.ministerialRole && m.ministerialRole !== 'MEMBRO'))
+    };
 
     let { error } = await supabase.from('members').update(fullUpdate).eq('id', id);
 
@@ -1610,7 +1622,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           const churchName = currentChurch?.name || 'Igreja';
           let targetLabel = 'Toda a Igreja';
           if (e.targetAudience === 'SEDE') targetLabel = 'Somente a Sede';
-          else if (e.congregationId) {
+          else if (e.targetAudience === 'OBREIROS_TODOS') targetLabel = 'Somente Obreiros (Geral)';
+          else if (e.targetAudience === 'OBREIROS_SEDE') targetLabel = 'Somente Obreiros da Sede';
+          else if (e.targetAudience?.startsWith('OBREIROS_')) {
+            const congId = e.targetAudience.replace('OBREIROS_', '');
+            const cong = churches.find(c => c.id === congId);
+            targetLabel = cong ? `Obreiros da Congregação: ${cong.name}` : 'Obreiros da Congregação';
+          } else if (e.congregationId) {
             const cong = churches.find(c => c.id === e.congregationId);
             if (cong) targetLabel = cong.name;
           }

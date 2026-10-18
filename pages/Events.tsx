@@ -189,6 +189,9 @@ export const Events: React.FC = () => {
         }
     }
 
+    const isSpecificCongregation = targetAudience !== 'TODAS' && targetAudience !== 'SEDE' && targetAudience !== 'OBREIROS_TODOS' && targetAudience !== 'OBREIROS_SEDE';
+    const finalCongregationId = isSpecificCongregation ? targetAudience.replace('OBREIROS_', '') : undefined;
+
     const payload: Event = {
       id: editingEventId || '',
       churchId: currentChurch.id,
@@ -200,7 +203,7 @@ export const Events: React.FC = () => {
       imageUrl: finalImageUrl,
       description: description.trim(),
       targetAudience,
-      congregationId: targetAudience !== 'TODAS' && targetAudience !== 'SEDE' ? targetAudience : undefined,
+      congregationId: finalCongregationId,
       eventType
     };
 
@@ -293,7 +296,22 @@ export const Events: React.FC = () => {
                 Toda a Igreja
               </span>
             )}
-            {event.congregationId && event.targetAudience !== 'TODAS' && event.targetAudience !== 'SEDE' && (
+            {event.targetAudience === 'OBREIROS_TODOS' && (
+              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 flex items-center gap-1">
+                ⭐ Obreiros (Geral)
+              </span>
+            )}
+            {event.targetAudience === 'OBREIROS_SEDE' && (
+              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 flex items-center gap-1">
+                👔 Obreiros da Sede
+              </span>
+            )}
+            {event.targetAudience?.startsWith('OBREIROS_') && (
+              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 truncate max-w-[170px]">
+                👔 Obreiros: {congregations.find(c => c.id === event.targetAudience?.replace('OBREIROS_', ''))?.name || 'Congregação'}
+              </span>
+            )}
+            {event.congregationId && !event.targetAudience?.startsWith('OBREIROS_') && event.targetAudience !== 'TODAS' && event.targetAudience !== 'SEDE' && (
               <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-purple-50 text-purple-700 truncate max-w-[150px]">
                 {congregations.find(c => c.id === event.congregationId)?.name || 'Congregação'}
               </span>
@@ -706,19 +724,34 @@ export const Events: React.FC = () => {
                     value={targetAudience}
                     onChange={(e) => setTargetAudience(e.target.value)}
                   >
-                    <option value="TODAS">🔔 Toda a Igreja (Sede + Todas as Congregações)</option>
-                    <option value="SEDE">🏢 Somente os Membros da Sede</option>
-                    {congregations.map((cong) => (
-                      <option key={cong.id} value={cong.id}>
-                        📍 Congregação: {cong.name} ({cong.address || 'Congregação'})
-                      </option>
-                    ))}
+                    <optgroup label="Toda a Membresia">
+                      <option value="TODAS">🔔 Toda a Igreja (Sede + Todas as Congregações)</option>
+                      <option value="SEDE">🏢 Somente os Membros da Sede</option>
+                      {congregations.map((cong) => (
+                        <option key={cong.id} value={cong.id}>
+                          📍 Congregação: {cong.name} ({cong.address || 'Congregação'})
+                        </option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="⭐ Exclusivo para o Corpo de Obreiros (Auxiliares, Diáconos, Presbíteros, etc.)">
+                      <option value="OBREIROS_TODOS">⭐ Somente Obreiros (Geral - Sede + Todas as Congregações)</option>
+                      <option value="OBREIROS_SEDE">👔 Somente Obreiros da Sede</option>
+                      {congregations.map((cong) => (
+                        <option key={'OBREIROS_' + cong.id} value={'OBREIROS_' + cong.id}>
+                          👔 Obreiros da Congregação: {cong.name}
+                        </option>
+                      ))}
+                    </optgroup>
                   </select>
                 ) : (
-                  <div className="flex items-center gap-2 p-2.5 bg-white border border-gray-200 rounded-lg text-xs font-medium text-gray-700">
-                    <span className="w-2 h-2 rounded-full bg-brand-orange" />
-                    <span>Lançamento exclusivo para os membros desta congregação: <strong>{currentChurch?.name}</strong></span>
-                  </div>
+                  <select
+                    className="w-full p-2.5 bg-white border border-gray-300 rounded-lg text-sm text-gray-800 focus:ring-2 focus:ring-brand-orange focus:outline-none"
+                    value={targetAudience}
+                    onChange={(e) => setTargetAudience(e.target.value)}
+                  >
+                    <option value={currentChurch?.id || ''}>👥 Toda a Congregação ({currentChurch?.name})</option>
+                    <option value={'OBREIROS_' + (currentChurch?.id || '')}>👔 Somente os Obreiros desta Congregação</option>
+                  </select>
                 )}
               </div>
 

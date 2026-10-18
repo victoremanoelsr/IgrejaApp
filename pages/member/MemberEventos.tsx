@@ -5,7 +5,7 @@ import { formatDate } from '../../i18n';
 import { Calendar, Clock, MapPin, CalendarX, BellRing, Share2 } from 'lucide-react';
 
 export const MemberEventos: React.FC = () => {
-  const { upcomingEvents, isLoading, requestPushNotification } = useMember();
+  const { upcomingEvents, isLoading, requestPushNotification, session } = useMember();
   const { t, i18n } = useTranslation();
   const lang = i18n.language;
 
@@ -26,8 +26,21 @@ export const MemberEventos: React.FC = () => {
   const now = new Date();
   now.setHours(0, 0, 0, 0);
 
-  const upcoming = upcomingEvents.filter((e) => new Date(e.date + 'T00:00:00') >= now);
-  const past = upcomingEvents.filter((e) => new Date(e.date + 'T00:00:00') < now);
+  const isMemberWorker = Boolean(
+    session?.member?.isWorker || 
+    (session?.member?.ministerialRole && session?.member?.ministerialRole !== 'MEMBRO')
+  );
+
+  // Reuniões de obreiros só são visíveis para quem integra o corpo de obreiros
+  const filteredEvents = upcomingEvents.filter(e => {
+    if (e.targetAudience?.startsWith('OBREIROS')) {
+      return isMemberWorker;
+    }
+    return true;
+  });
+
+  const upcoming = filteredEvents.filter((e) => new Date(e.date + 'T00:00:00') >= now);
+  const past = filteredEvents.filter((e) => new Date(e.date + 'T00:00:00') < now);
 
   const handleShareWhatsApp = (event: any) => {
     const text = `*${event.name}*\n📅 Data: ${new Date(event.date + 'T00:00:00').toLocaleDateString('pt-BR')} às ${event.time}\n📍 Local: ${event.location || 'Na Igreja'}${event.description ? `\n📝 ${event.description}` : ''}\n\n👉 Acompanhe no IgrejaApp: ${window.location.origin}/#member-eventos`;
@@ -111,11 +124,18 @@ export const MemberEventos: React.FC = () => {
                         )}
 
                         <div className="flex-1 min-w-0">
-                          {event.eventType && (
-                            <span className="inline-block px-2 py-0.5 mb-1 rounded text-[9px] font-bold bg-orange-100 text-orange-700 uppercase tracking-wide">
-                              {event.eventType}
-                            </span>
-                          )}
+                          <div className="flex flex-wrap items-center gap-1 mb-1">
+                            {event.eventType && (
+                              <span className="inline-block px-2 py-0.5 rounded text-[9px] font-bold bg-orange-100 text-orange-700 uppercase tracking-wide">
+                                {event.eventType}
+                              </span>
+                            )}
+                            {event.targetAudience?.startsWith('OBREIROS') && (
+                              <span className="inline-block px-2 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-900 border border-amber-300 uppercase tracking-wide">
+                                ⭐ Obreiros
+                              </span>
+                            )}
+                          </div>
                           <p className="text-gray-800 text-sm font-bold leading-snug line-clamp-2 uppercase">
                             {event.name}
                           </p>

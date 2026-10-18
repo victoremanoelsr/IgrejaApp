@@ -46,6 +46,8 @@ export interface User {
   password?: string; 
 }
 
+export type MinisterialRole = 'MEMBRO' | 'AUXILIAR' | 'DIACONO' | 'DIACONISA' | 'PRESBITERO' | 'EVANGELISTA' | 'PASTOR' | 'MISSIONARIO' | 'OBREIRO';
+
 export interface Member {
   id: string;
   name: string;
@@ -55,6 +57,8 @@ export interface Member {
   memberNumber?: string; 
   churchId: string;
   isTither: boolean;
+  ministerialRole?: MinisterialRole;
+  isWorker?: boolean; // Flag indicando se é do corpo de obreiros
   isYouth?: boolean; // Jovens
   isChild?: boolean; // Crianças
   isAdolescent?: boolean; // Adolescentes
@@ -199,7 +203,7 @@ export interface Campaign {
 }
 
 export type EventType = 'EVENTO' | 'REUNIAO' | 'CULTO' | 'CONGRESSO' | 'ENSAIO' | 'OUTROS';
-export type TargetAudience = 'TODAS' | 'SEDE' | string; // 'TODAS' = Toda a Igreja (Sede e congregações), 'SEDE' = Apenas sede, ou UUID de congregação específica
+export type TargetAudience = 'TODAS' | 'SEDE' | 'OBREIROS_TODOS' | 'OBREIROS_SEDE' | string; // 'TODAS', 'SEDE', 'OBREIROS_TODOS', 'OBREIROS_SEDE', 'OBREIROS_<cong_id>', ou UUID de congregação específica
 
 export interface Event {
   id: string;

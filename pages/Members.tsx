@@ -3,12 +3,12 @@ import React, { useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { formatDate } from '../i18n';
 import { useApp } from '../context';
-import { Member } from '../types';
+import { Member, MinisterialRole } from '../types';
 import { usePlanLimits } from '../hooks/usePlanLimits';
 import { 
   Search, Plus, Trash2, Edit2, User, Save, X, Phone, Mail, ZoomIn, 
   CheckCircle, Camera, Loader, MapPin, Calendar, Hash, Flag, Lock, Key, Info,
-  Users, Baby, Heart, Zap, MessageCircle
+  Users, Baby, Heart, Zap, MessageCircle, ShieldCheck, Award
 } from 'lucide-react';
 import { sendWhatsApp, welcomeMessage } from '../utils/whatsapp';
 
@@ -17,6 +17,7 @@ export const Members: React.FC = () => {
   const { t, i18n } = useTranslation();
   const [view, setView] = useState<'LIST' | 'FORM'>('LIST');
   const [searchTerm, setSearchTerm] = useState('');
+  const [filterCategory, setFilterCategory] = useState<'TODOS' | 'OBREIROS' | 'DIZIMISTAS' | 'JOVENS' | 'SENHORAS' | 'SENHORES'>('TODOS');
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 25;
   const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
@@ -51,6 +52,8 @@ export const Members: React.FC = () => {
 
   const initialFormState = {
     name: '', cpf: '', birthDate: '', memberNumber: '', churchId: viewId || '', 
+    ministerialRole: 'MEMBRO' as MinisterialRole,
+    isWorker: false,
     isTither: false, isYouth: false, isChild: false, isAdolescent: false, isBrother: false, isLady: false,
     baptismDate: '', email: '', phone: '', maritalStatus: 'SOLTEIRO', 
     zipCode: '', street: '', number: '', neighborhood: '', city: '', state: '', country: '', photo: '', status: 'ATIVO' as 'ATIVO' | 'INATIVO' | 'TRANSFERIDO'
@@ -91,9 +94,19 @@ export const Members: React.FC = () => {
 
   const triggerFileInput = () => { if (fileInputRef.current) fileInputRef.current.click(); };
 
+  const isWorkerMember = (m: Member) => Boolean(m.isWorker || (m.ministerialRole && m.ministerialRole !== 'MEMBRO'));
+
   const filteredMembers = members
     .filter(m => m.churchId === viewId && (m.name.toLowerCase().includes(searchTerm.toLowerCase()) || m.cpf.includes(searchTerm)))
     .filter(m => (m.status || 'ATIVO') === 'ATIVO') // Exibir apenas membros ativos
+    .filter(m => {
+      if (filterCategory === 'OBREIROS') return isWorkerMember(m);
+      if (filterCategory === 'DIZIMISTAS') return m.isTither;
+      if (filterCategory === 'JOVENS') return m.isYouth;
+      if (filterCategory === 'SENHORAS') return m.isLady;
+      if (filterCategory === 'SENHORES') return m.isBrother;
+      return true;
+    })
     .sort((a, b) => a.name.localeCompare(b.name));
 
   const totalPages = Math.ceil(filteredMembers.length / ITEMS_PER_PAGE);
@@ -107,6 +120,8 @@ export const Members: React.FC = () => {
     setNewPassword(''); // Reseta senha
     setFormData({
       name: member.name, cpf: member.cpf, birthDate: member.birthDate, memberNumber: member.memberNumber || '', churchId: member.churchId, 
+      ministerialRole: (member.ministerialRole || 'MEMBRO') as MinisterialRole,
+      isWorker: isWorkerMember(member),
       isTither: member.isTither, isYouth: member.isYouth || false, isChild: member.isChild || false, isAdolescent: member.isAdolescent || false, isBrother: member.isBrother || false, isLady: member.isLady || false,
       baptismDate: member.baptismDate || '', email: member.email || '', phone: member.phone || '', maritalStatus: member.maritalStatus || 'SOLTEIRO',
       street: member.address.street, number: member.address.number, neighborhood: member.address.neighborhood, city: member.address.city, state: member.address.state || '',
@@ -148,9 +163,11 @@ export const Members: React.FC = () => {
         if (uploadedUrl) finalPhotoUrl = uploadedUrl;
     }
 
+    const isWorker = Boolean(formData.isWorker || (formData.ministerialRole && formData.ministerialRole !== 'MEMBRO'));
+
     const payload: Member = {
       id: editingMemberId || '', name: formData.name.toUpperCase(), cpf: formData.cpf, birthDate: formData.birthDate, memberNumber: formData.memberNumber.toUpperCase(),
-      churchId: formData.churchId, isTither: formData.isTither, isYouth: formData.isYouth, isChild: formData.isChild, isAdolescent: formData.isAdolescent, isBrother: formData.isBrother, isLady: formData.isLady,
+      churchId: formData.churchId, ministerialRole: formData.ministerialRole || 'MEMBRO', isWorker, isTither: formData.isTither, isYouth: formData.isYouth, isChild: formData.isChild, isAdolescent: formData.isAdolescent, isBrother: formData.isBrother, isLady: formData.isLady,
       baptismDate: formData.baptismDate, photo: finalPhotoUrl, email: formData.email.toLowerCase(),
       phone: formData.phone, maritalStatus: formData.maritalStatus, status: formData.status, address: {
         street: formData.street.toUpperCase(), number: formData.number.toUpperCase(), neighborhood: formData.neighborhood.toUpperCase(), city: formData.city.toUpperCase(),
@@ -249,6 +266,7 @@ export const Members: React.FC = () => {
                  <div className="bg-gray-50 p-2 rounded border border-gray-100">
                     <p className="text-[10px] uppercase font-bold text-gray-400 mb-1 tracking-wider">Pessoal / Eclesiástico</p>
                     <div className="grid grid-cols-2 gap-2">
+                        <div><span className="text-[10px] text-gray-500 block">Função / Cargo</span> <span className="font-bold text-amber-800 uppercase">{viewingMember.ministerialRole || 'MEMBRO'}</span></div>
                         <div><span className="text-[10px] text-gray-500 block">{t('members.birthDate')}</span> <span className="font-medium text-gray-800">{formatDateLocal(viewingMember.birthDate)}</span></div>
                         <div><span className="text-[10px] text-gray-500 block">{t('members.baptismDate')}</span> <span className="font-medium text-gray-800">{formatDateLocal(viewingMember.baptismDate)}</span></div>
                         <div><span className="text-[10px] text-gray-500 block">Est. Civil</span> <span className="font-medium text-gray-800">{viewingMember.maritalStatus || '-'}</span></div>
@@ -289,6 +307,27 @@ export const Members: React.FC = () => {
         <input type="text" placeholder={t('members.searchPlaceholder').toUpperCase()} className="flex-1 outline-none text-sm uppercase" value={searchTerm} onChange={e => { setSearchTerm(e.target.value.toUpperCase()); setCurrentPage(1); }} />
       </div>
 
+      {/* FILTROS RÁPIDOS POR CATEGORIA */}
+      <div className="flex gap-1.5 overflow-x-auto pb-1 text-xs">
+        {[
+          { id: 'TODOS', label: 'Todos os Membros' },
+          { id: 'OBREIROS', label: '⭐ Somente Obreiros' },
+          { id: 'DIZIMISTAS', label: 'Dizimistas' },
+          { id: 'JOVENS', label: 'Jovens' },
+          { id: 'SENHORAS', label: 'Senhoras' },
+          { id: 'SENHORES', label: 'Senhores' },
+        ].map(cat => (
+          <button
+            key={cat.id}
+            type="button"
+            onClick={() => { setFilterCategory(cat.id as any); setCurrentPage(1); }}
+            className={`px-3 py-1.5 rounded-lg font-bold border transition-colors whitespace-nowrap text-xs ${filterCategory === cat.id ? 'bg-brand-black text-white border-brand-black shadow-sm' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}
+          >
+            {cat.label}
+          </button>
+        ))}
+      </div>
+
       <div className="bg-white rounded-lg shadow overflow-hidden border border-gray-100">
         <table className="min-w-full divide-y divide-gray-200">
           <tbody className="divide-y divide-gray-200">
@@ -307,6 +346,11 @@ export const Members: React.FC = () => {
                       </div>
                       <div className="text-[10px] text-gray-500 flex flex-wrap items-center gap-1 mt-0.5">
                           <span className="truncate mr-1">CPF: {member.cpf}</span>
+                          {member.ministerialRole && member.ministerialRole !== 'MEMBRO' && (
+                            <span className="bg-amber-100 text-amber-900 px-1.5 rounded text-[9px] font-black border border-amber-300 uppercase flex items-center gap-0.5">
+                              ⭐ {member.ministerialRole}
+                            </span>
+                          )}
                           {member.isTither && <span className="bg-green-100 text-green-800 px-1.5 rounded text-[9px] font-bold border border-green-200">DIZIMISTA</span>}
                           {member.isYouth && <span className="bg-orange-100 text-orange-800 px-1.5 rounded text-[9px] font-bold border border-orange-200">JOVENS</span>}
                           {member.isLady && <span className="bg-pink-100 text-pink-800 px-1.5 rounded text-[9px] font-bold border border-pink-200">SENHORAS</span>}
@@ -516,6 +560,52 @@ export const Members: React.FC = () => {
                     </div>
                 </div>
             </div>
+        </div>
+
+        {/* SEÇÃO CARGO ECLESIÁSTICO / CORPO DE OBREIROS */}
+        <div className="bg-amber-50/60 p-4 rounded-lg border border-amber-200">
+             <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-amber-200 pb-2 mb-4 gap-2">
+                <h3 className="text-sm font-bold text-amber-900 uppercase tracking-wider flex items-center">
+                    <ShieldCheck size={18} className="mr-2 text-amber-600"/> Cargo Eclesiástico / Função Ministerial
+                </h3>
+                {formData.ministerialRole && formData.ministerialRole !== 'MEMBRO' && (
+                  <span className="bg-amber-200 text-amber-900 text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider self-start md:self-auto border border-amber-300">
+                    ⭐ Integrante do Corpo de Obreiros
+                  </span>
+                )}
+             </div>
+             
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+                <div>
+                    <label className="block text-xs font-bold text-gray-700 uppercase mb-1.5">Função no Ministério</label>
+                    <select 
+                      className="w-full p-2.5 border border-amber-300 rounded-lg text-sm font-semibold focus:ring-2 focus:ring-brand-orange focus:border-transparent outline-none transition-all bg-white text-gray-800"
+                      value={formData.ministerialRole || 'MEMBRO'}
+                      onChange={e => {
+                        const role = e.target.value as MinisterialRole;
+                        const isWorker = role !== 'MEMBRO';
+                        setFormData({ ...formData, ministerialRole: role, isWorker });
+                      }}
+                    >
+                        <option value="MEMBRO">Membro (Comum)</option>
+                        <optgroup label="Corpo de Obreiros da Igreja">
+                            <option value="AUXILIAR">Auxiliar de Trabalho (Obreiro)</option>
+                            <option value="DIACONO">Diácono (Obreiro)</option>
+                            <option value="DIACONISA">Diaconisa (Obreira)</option>
+                            <option value="PRESBITERO">Presbítero (Obreiro)</option>
+                            <option value="EVANGELISTA">Evangelista (Obreiro)</option>
+                            <option value="PASTOR">Pastor (Obreiro)</option>
+                            <option value="MISSIONARIO">Missionário(a) (Obreiro)</option>
+                            <option value="OBREIRO">Obreiro(a) Geral</option>
+                        </optgroup>
+                    </select>
+                </div>
+                
+                <div className="text-xs text-amber-900/80 bg-white/80 p-3 rounded-lg border border-amber-200/80 leading-relaxed">
+                    <p className="font-bold text-amber-900 mb-0.5">ℹ️ Notificações e Reuniões de Obreiros:</p>
+                    <p>Ao selecionar uma função como <strong>Auxiliar, Diácono, Presbítero, Evangelista ou Pastor</strong>, este membro receberá notificações e verá na agenda os eventos marcados como exclusivos para Obreiros.</p>
+                </div>
+             </div>
         </div>
 
         {/* SEÇÃO VÍNCULOS E GRUPOS */}
