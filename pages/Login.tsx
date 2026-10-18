@@ -257,6 +257,11 @@ export const Login: React.FC = () => {
         return;
       }
 
+      if (adminResult.user.role === 'MEMBRO' || adminResult.user.roles?.includes('MEMBRO')) {
+        navigate('/portal/dashboard');
+        return;
+      }
+
       const dest = getRoleInfo(adminResult.user.role);
       navigate(dest.path, { state: dest.state });
       return;

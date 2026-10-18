@@ -83,6 +83,10 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles?: strin
     if (userRoles.some(r => ladiesRoles.includes(r))) return <Navigate to="/senhoras" replace />;
     if (userRoles.some(r => menRoles.includes(r))) return <Navigate to="/senhores" replace />;
 
+    if (user.role === 'MEMBRO' || userRoles.includes('MEMBRO' as any)) {
+      return <Navigate to="/portal/dashboard" replace />;
+    }
+
     return <Navigate to="/" replace />;
   }
   

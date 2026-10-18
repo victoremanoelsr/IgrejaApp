@@ -145,13 +145,33 @@ export const Users: React.FC = () => {
             { value: 'DIRIGENTE', label: 'Dirigente da Congregação' },
             { value: 'TESOUREIRO', label: 'Tesoureiro Local' },
             { value: 'SECRETARIO', label: 'Secretário Local' },
+            { value: 'PRESIDENTE_MISSOES', label: 'Presidente de Missões Local' },
+            { value: 'VICE_MISSOES', label: 'Vice de Missões Local' },
+            { value: 'LIDER_JOVENS', label: 'Líder de Jovens' },
+            { value: 'LIDER_CRIANCAS', label: 'Líder Infantil' },
+            { value: 'LIDER_SENHORAS', label: 'Líder de Senhoras' },
+            { value: 'LIDER_SENHORES', label: 'Líder de Senhores' },
         ];
     }
 
     return [
       { value: 'VICE_PRESIDENTE', label: 'PR Vice-Presidente' },
-      { value: 'TESOUREIRO', label: 'Tesoureiro Sede' },
-      { value: 'SECRETARIO', label: 'Secretário Sede' },
+      { value: 'TESOUREIRO', label: 'Tesoureiro Geral' },
+      { value: 'SECRETARIO', label: 'Secretário Geral' },
+      { value: 'PRESIDENTE_MISSOES', label: 'Presidente de Missões' },
+      { value: 'VICE_MISSOES', label: 'Vice-Presidente de Missões' },
+      { value: 'TESOUREIRO_MISSOES', label: 'Tesoureiro de Missões' },
+      { value: 'SECRETARIO_MISSOES', label: 'Secretário de Missões' },
+      { value: 'LIDER_JOVENS', label: 'Líder de Jovens' },
+      { value: 'TESOUREIRO_JOVENS', label: 'Tesoureiro de Jovens' },
+      { value: 'LIDER_CRIANCAS', label: 'Líder Infantil' },
+      { value: 'TESOUREIRO_CRIANCAS', label: 'Tesoureiro Infantil' },
+      { value: 'LIDER_ADOLESCENTES', label: 'Líder de Adolescentes' },
+      { value: 'TESOUREIRO_ADOLESCENTES', label: 'Tesoureiro de Adolescentes' },
+      { value: 'LIDER_SENHORAS', label: 'Líder de Senhoras' },
+      { value: 'TESOUREIRO_SENHORAS', label: 'Tesoureira de Senhoras' },
+      { value: 'LIDER_SENHORES', label: 'Líder de Senhores' },
+      { value: 'TESOUREIRO_SENHORES', label: 'Tesoureiro de Senhores' },
     ];
   };
 
