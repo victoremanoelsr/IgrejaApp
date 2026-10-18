@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { useMember } from '../../contexts/MemberContext';
 import { useTranslation } from 'react-i18next';
 import { formatDate } from '../../i18n';
-import { Calendar, Clock, MapPin, CalendarX, BellRing, Share2 } from 'lucide-react';
+import { Calendar, Clock, MapPin, CalendarX, BellRing, Bell, Share2 } from 'lucide-react';
+import { sendTestAlert } from '../../services/pushNotificationService';
 
 export const MemberEventos: React.FC = () => {
   const { upcomingEvents, isLoading, requestPushNotification, session } = useMember();
@@ -55,7 +56,7 @@ export const MemberEventos: React.FC = () => {
           <p className="text-gray-500 text-sm mt-0.5">{t('memberPortal.events.subtitle')}</p>
         </div>
 
-        {/* Botão de Ativação de Notificações Push Flutuantes no Celular */}
+        {/* Botão de Ativação e Teste de Notificações Push Flutuantes no Celular */}
         {pushStatus !== 'granted' ? (
           <button
             onClick={async () => {
@@ -71,10 +72,20 @@ export const MemberEventos: React.FC = () => {
             {isActivatingPush ? 'Ativando...' : 'Receber Notificações no Celular'}
           </button>
         ) : (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-semibold self-start sm:self-auto">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            Notificações Ativas no Celular
-          </span>
+          <div className="flex items-center gap-2 self-start sm:self-auto">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-semibold">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              Notificações Ativas
+            </span>
+            <button
+              onClick={() => sendTestAlert(session?.churchId)}
+              className="flex items-center gap-1 px-2.5 py-1.5 bg-orange-50 hover:bg-orange-100 text-brand-orange border border-orange-200 rounded-lg text-xs font-semibold transition-colors"
+              title="Testar toque e alerta no celular"
+            >
+              <Bell size={13} />
+              Testar Alerta
+            </button>
+          </div>
         )}
       </div>
 

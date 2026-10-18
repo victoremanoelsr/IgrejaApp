@@ -63,63 +63,81 @@ export const requestAndRegisterPush = async (params: {
   role?: string;
 }): Promise<boolean> => {
   if (!('Notification' in window)) {
-    console.warn('[Push] Notificações não são suportadas neste navegador.');
+    alert('Seu navegador atual não suporta notificações Push. Se estiver no iPhone, adicione o aplicativo à "Tela de Início" pelo Safari.');
     return false;
   }
 
   try {
+    if (Notification.permission === 'denied') {
+      alert('⚠️ As notificações estão bloqueadas no seu navegador!\n\nPara ativar no celular/computador:\n1. Toque no ícone de cadeado 🔒 ou configurações ao lado do endereço do site.\n2. Procure por "Notificações" ou "Permissões".\n3. Mude para "Permitir" e recarregue a página.');
+      return false;
+    }
+
     const permission = await Notification.requestPermission();
     if (permission !== 'granted') {
       console.log('[Push] Permissão negada ou fechada pelo usuário.');
       return false;
     }
 
-    if (!('serviceWorker' in navigator)) {
-      return true;
-    }
-
-    const registration = await navigator.serviceWorker.ready;
-    let subscription = await registration.pushManager.getSubscription();
-
-    if (!subscription) {
+    // Registra e assina no ServiceWorker
+    if ('serviceWorker' in navigator) {
       try {
-        const appServerKey = urlBase64ToUint8Array(DEFAULT_VAPID_PUBLIC_KEY);
-        subscription = await registration.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: appServerKey,
-        });
-      } catch (subErr) {
-        console.warn('[Push] Falha ao assinar pushManager (continuando com local showNotification):', subErr);
+        const registration = await navigator.serviceWorker.ready;
+        let subscription = await registration.pushManager.getSubscription();
+
+        if (!subscription) {
+          try {
+            const appServerKey = urlBase64ToUint8Array(DEFAULT_VAPID_PUBLIC_KEY);
+            subscription = await registration.pushManager.subscribe({
+              userVisibleOnly: true,
+              applicationServerKey: appServerKey,
+            });
+          } catch (subErr) {
+            console.warn('[Push] Falha ao assinar pushManager (continuando com notificação local):', subErr);
+          }
+        }
+
+        // Se obteve inscrição push, salva no Supabase
+        if (subscription) {
+          const p256dh = subscription.getKey('p256dh');
+          const auth = subscription.getKey('auth');
+
+          const p256dhBase64 = p256dh ? btoa(String.fromCharCode.apply(null, Array.from(new Uint8Array(p256dh)))) : '';
+          const authBase64 = auth ? btoa(String.fromCharCode.apply(null, Array.from(new Uint8Array(auth)))) : '';
+
+          await supabase.from('push_subscriptions').upsert(
+            {
+              endpoint: subscription.endpoint,
+              church_id: params.churchId,
+              congregation_id: params.congregationId || null,
+              user_id: params.userId || null,
+              member_id: params.memberId || null,
+              role: params.role || null,
+              p256dh: p256dhBase64,
+              auth: authBase64,
+              device_type: /Mobile|Android|iPhone|iPad/i.test(navigator.userAgent) ? 'mobile' : 'desktop',
+              user_agent: navigator.userAgent,
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: 'endpoint' }
+          );
+        }
+      } catch (swErr) {
+        console.warn('[Push] Erro no serviceWorker push:', swErr);
       }
     }
 
-    // Se obteve inscrição push, salva no Supabase
-    if (subscription) {
-      const p256dh = subscription.getKey('p256dh');
-      const auth = subscription.getKey('auth');
-
-      const p256dhBase64 = p256dh ? btoa(String.fromCharCode.apply(null, Array.from(new Uint8Array(p256dh)))) : '';
-      const authBase64 = auth ? btoa(String.fromCharCode.apply(null, Array.from(new Uint8Array(auth)))) : '';
-
-      await supabase.from('push_subscriptions').upsert(
-        {
-          endpoint: subscription.endpoint,
-          church_id: params.churchId,
-          congregation_id: params.congregationId || null,
-          user_id: params.userId || null,
-          member_id: params.memberId || null,
-          role: params.role || null,
-          p256dh: p256dhBase64,
-          auth: authBase64,
-          device_type: /Mobile|Android|iPhone|iPad/i.test(navigator.userAgent) ? 'mobile' : 'desktop',
-          user_agent: navigator.userAgent,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: 'endpoint' }
-      );
-    }
-
     localStorage.setItem(`ig_push_enabled_${params.churchId}`, 'true');
+
+    // Confirmação sonora e visual imediata no aparelho do usuário
+    playNotificationChime();
+    setTimeout(() => {
+      showFloatingNotification('🔔 Notificações Ativadas!', {
+        body: 'Este aparelho agora receberá alertas instantâneos de eventos e comunicados da igreja!',
+        url: '/#events',
+      });
+    }, 400);
+
     return true;
   } catch (err) {
     console.error('[Push] Erro ao registrar inscrição de push:', err);
@@ -351,6 +369,42 @@ export const checkAndNotifyPresidentPlanDue = async (
       }
 
       localStorage.setItem(storageKey, todayStr);
+    }
+  }
+};
+
+/**
+ * Dispara um teste imediato de som e notificação flutuante no aparelho atual
+ * e também envia via banco para que os celulares conectados recebam via Realtime
+ */
+export const sendTestAlert = async (churchId?: string, churchName?: string) => {
+  playNotificationChime();
+
+  const title = `🔔 Teste de Notificação — ${churchName || 'IgrejaApp'}`;
+  const body = 'Glória a Deus! Se você ouviu o toque e viu este aviso, seu celular e computador estão 100% configurados para receber as notificações da igreja.';
+
+  // 1. Notificação flutuante no aparelho local
+  await showFloatingNotification(title, {
+    body,
+    url: '/#events',
+    tag: `test-${Date.now()}`,
+  });
+
+  // 2. Se tiver churchId, grava no banco para testar nos outros aparelhos conectados
+  if (churchId) {
+    try {
+      await supabase.from('church_notifications').insert([
+        {
+          church_id: churchId,
+          title,
+          body,
+          type: 'EVENT',
+          target_role: 'ALL',
+          data: { url: '/#events', isTest: true },
+        },
+      ]);
+    } catch (e) {
+      console.warn('[Push] Erro ao gravar teste de notificação:', e);
     }
   }
 };

@@ -8,6 +8,7 @@ import {
   Share2, Tag, Filter, Check, Eye
 } from 'lucide-react';
 import { Event, EventType, TargetAudience } from '../types';
+import { sendTestAlert } from '../services/pushNotificationService';
 
 export const Events: React.FC = () => {
   const { events, user, churches, addEvent, updateEvent, deleteEvent, uploadEventImage, currentChurch, requestPushNotification } = useApp();
@@ -610,7 +611,7 @@ export const Events: React.FC = () => {
         </div>
         
         <div className="flex items-center flex-wrap gap-2">
-          {/* Botão de Ativação de Notificações no Celular */}
+          {/* Botão de Ativação e Teste de Notificações no Celular */}
           {pushStatus !== 'granted' ? (
             <button
               onClick={async () => {
@@ -621,16 +622,26 @@ export const Events: React.FC = () => {
               }}
               disabled={isActivatingPush}
               className="flex items-center gap-1.5 px-3.5 py-1.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-lg text-xs md:text-sm font-semibold shadow hover:from-orange-600 hover:to-amber-600 transition-all animate-pulse"
-              title="Ative para receber avisos de eventos e cultos mesmo com o celular fechado"
+              title="Toque para autorizar avisos de cultos e eventos neste dispositivo"
             >
               <BellRing size={16} />
               {isActivatingPush ? 'Ativando...' : 'Ativar Notificações no Celular'}
             </button>
           ) : (
-            <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-semibold">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              Notificações Ativas
-            </span>
+            <div className="flex items-center gap-1.5">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-semibold">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                Notificações Ativas
+              </span>
+              <button
+                onClick={() => sendTestAlert(currentChurch?.id, currentChurch?.name)}
+                className="flex items-center gap-1 px-2.5 py-1.5 bg-orange-50 hover:bg-orange-100 text-brand-orange border border-orange-200 rounded-lg text-xs font-semibold transition-colors"
+                title="Clique para testar o som e o alerta flutuante no celular e computador"
+              >
+                <Bell size={13} />
+                Testar Alerta
+              </button>
+            </div>
           )}
 
           {/* View toggle */}
