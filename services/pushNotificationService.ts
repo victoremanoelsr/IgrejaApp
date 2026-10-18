@@ -195,6 +195,11 @@ export const showFloatingNotification = async (
   }
 };
 
+const isValidUUID = (val?: string | null): boolean => {
+  if (!val) return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val.trim());
+};
+
 /**
  * Dispara notificação push para os membros da igreja e congregação selecionada sobre um novo evento ou reunião
  */
@@ -215,12 +220,25 @@ export const dispatchEventPushNotification = async (
   const body = `Dia ${eventDateFormatted} às ${event.time}${locationText}${descText}\n👉 Toque para abrir no IgrejaApp.`;
   const url = `/#events?id=${event.id}`;
 
+  // Garante que apenas UUIDs válidos sejam passados para congregation_id (evita erro 400 no Supabase)
+  let safeCongregationId: string | null = null;
+  if (isValidUUID(event.congregationId)) {
+    safeCongregationId = event.congregationId!;
+  } else if (isValidUUID(event.targetAudience)) {
+    safeCongregationId = event.targetAudience;
+  } else if (event.targetAudience?.startsWith('OBREIROS_')) {
+    const candidate = event.targetAudience.replace('OBREIROS_', '');
+    if (isValidUUID(candidate)) {
+      safeCongregationId = candidate;
+    }
+  }
+
   try {
     // 1. Salva notificação no banco Supabase para que todos os membros e celulares conectados recebam via Realtime e histórico
-    await supabase.from('church_notifications').insert([
+    const { error: insertErr } = await supabase.from('church_notifications').insert([
       {
         church_id: event.churchId,
-        congregation_id: event.congregationId || (event.targetAudience !== 'TODAS' && event.targetAudience !== 'SEDE' ? event.targetAudience : null),
+        congregation_id: safeCongregationId,
         title,
         body,
         type: 'EVENT',
@@ -228,6 +246,7 @@ export const dispatchEventPushNotification = async (
         data: {
           eventId: event.id,
           url,
+          targetAudience: event.targetAudience,
           targetAudienceLabel,
           eventName: event.name,
           date: event.date,
@@ -235,6 +254,10 @@ export const dispatchEventPushNotification = async (
         },
       },
     ]);
+
+    if (insertErr) {
+      console.warn('[Push] Erro do Supabase ao gravar church_notifications:', insertErr);
+    }
 
     // 2. Dispara notificação flutuante local imediata
     await showFloatingNotification(title, {
@@ -246,7 +269,6 @@ export const dispatchEventPushNotification = async (
     });
   } catch (err) {
     console.warn('[Push] Erro ao gravar notificação de evento:', err);
-    // Mesmo se falhar o banco, dispara localmente
     await showFloatingNotification(title, {
       body,
       url,

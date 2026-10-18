@@ -1652,7 +1652,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           congregation_id: e.congregationId || null,
           event_type: e.eventType || 'EVENTO'
       }).eq('id', id);
-      setEvents(events.map(ev => ev.id === id ? e : ev));
+      const updatedEvent = { ...e, id };
+      setEvents(events.map(ev => ev.id === id ? updatedEvent : ev));
+
+      // Disparo de notificação push flutuante também ao salvar alterações
+      try {
+        const churchName = currentChurch?.name || 'Igreja';
+        let targetLabel = 'Toda a Igreja';
+        if (e.targetAudience === 'SEDE') targetLabel = 'Somente a Sede';
+        else if (e.targetAudience === 'OBREIROS_TODOS') targetLabel = 'Somente Obreiros (Geral)';
+        else if (e.targetAudience === 'OBREIROS_SEDE') targetLabel = 'Somente Obreiros da Sede';
+        else if (e.targetAudience?.startsWith('OBREIROS_')) {
+          const congId = e.targetAudience.replace('OBREIROS_', '');
+          const cong = churches.find(c => c.id === congId);
+          targetLabel = cong ? `Obreiros da Congregação: ${cong.name}` : 'Obreiros da Congregação';
+        } else if (e.congregationId) {
+          const cong = churches.find(c => c.id === e.congregationId);
+          if (cong) targetLabel = cong.name;
+        }
+        await dispatchEventPushNotification(updatedEvent, churchName, targetLabel);
+      } catch (pushErr) {
+        console.warn('[Push] Falha ao enviar notificação do evento editado:', pushErr);
+      }
   };
 
   const deleteEvent = async (id: string) => {
