@@ -15,6 +15,7 @@ import {
 import { supabase } from '../services/supabaseClient';
 import { toAppMember } from '../services/dataMappers';
 import { deleteFileFromSupabaseStorage } from '../utils/storageUtils';
+import { showFloatingNotification, requestAndRegisterPush } from '../services/pushNotificationService';
 
 const SESSION_KEY = 'member_session';
 
@@ -36,6 +37,7 @@ interface MemberContextType {
   refreshCarnetHistory: () => Promise<void>;
   updateMemberPhoto: (file: File) => Promise<{ success: boolean; error?: string }>;
   removeMemberPhoto: () => Promise<{ success: boolean; error?: string }>;
+  requestPushNotification: () => Promise<boolean>;
 }
 
 const MemberContext = createContext<MemberContextType | undefined>(undefined);
@@ -77,6 +79,7 @@ export const MemberProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const channelRef = useRef<any>(null);
   const letterChannelRef = useRef<any>(null);
   const memberChannelRef = useRef<any>(null);
+  const notificationChannelRef = useRef<any>(null);
   const sessionRef = useRef<MemberSession | null>(loadSession());
 
   const fetchMemberData = async (s: MemberSession) => {
@@ -224,18 +227,83 @@ export const MemberProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         }
       )
       .subscribe();
+
+    // Notificações flutuantes no celular para eventos e reuniões da igreja
+    if (notificationChannelRef.current) {
+      notificationChannelRef.current.unsubscribe();
+    }
+    notificationChannelRef.current = supabase
+      .channel(`member-notifications-${s.churchId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'church_notifications',
+          filter: `church_id=eq.${s.churchId}`,
+        },
+        async (payload) => {
+          if (!payload.new) return;
+          const notif = payload.new as any;
+
+          // Se a notificação for para congregação específica e o membro for de outra congregação, filtra
+          if (notif.congregation_id && notif.congregation_id !== s.churchId) {
+            return;
+          }
+
+          // Se for restrito a liderança (ex: PRESIDENTE), membros normais não recebem
+          if (notif.target_role && notif.target_role !== 'ALL' && notif.target_role !== 'MEMBRO') {
+            return;
+          }
+
+          // Dispara notificação nativa flutuante com som e vibração no smartphone do membro
+          showFloatingNotification(notif.title, {
+            body: notif.body,
+            url: notif.data?.url || '/#member-eventos',
+            eventId: notif.data?.eventId,
+            tag: `member-notif-${notif.id}`,
+          });
+
+          // Atualiza lista de eventos em tempo real
+          if (notif.type === 'EVENT') {
+            const evs = await getMemberUpcomingEvents(s.churchId);
+            setUpcomingEvents(evs);
+          }
+        }
+      )
+      .subscribe();
   };
 
   useEffect(() => {
     if (session) {
       fetchMemberData(session);
       setupRealtime(session);
+      // Registra inscrição push silenciosamente se permissão já concedida
+      if ('Notification' in window && Notification.permission === 'granted') {
+        requestAndRegisterPush({
+          churchId: session.churchId,
+          memberId: session.member.id,
+          role: 'MEMBRO',
+        });
+      }
     }
     return () => {
       channelRef.current?.unsubscribe();
       letterChannelRef.current?.unsubscribe();
+      memberChannelRef.current?.unsubscribe();
+      notificationChannelRef.current?.unsubscribe();
     };
   }, []);
+
+  const requestPushNotification = async (): Promise<boolean> => {
+    if (!session) return false;
+    return await requestAndRegisterPush({
+      churchId: session.churchId,
+      congregationId: session.church?.type === 'CONGREGACAO' ? session.churchId : undefined,
+      memberId: session.member.id,
+      role: 'MEMBRO',
+    });
+  };
 
   const login = async (cpf: string, password: string) => {
     setIsLoading(true);
@@ -428,6 +496,7 @@ export const MemberProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         refreshCarnetHistory,
         updateMemberPhoto,
         removeMemberPhoto,
+        requestPushNotification,
       }}
     >
       {children}

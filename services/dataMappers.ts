@@ -125,7 +125,11 @@ export const toAppEvent = (data: any): Event => ({
   time: data.time,
   location: data.location,
   responsibleName: data.responsible_name,
-  imageUrl: data.image_url
+  imageUrl: data.image_url,
+  description: data.description,
+  targetAudience: data.target_audience || 'TODAS',
+  congregationId: data.congregation_id,
+  eventType: data.event_type || 'EVENTO'
 });
 
 export const toAppMinute = (data: any): Minute => {

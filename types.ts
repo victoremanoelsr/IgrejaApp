@@ -198,6 +198,9 @@ export interface Campaign {
   status: 'ATIVA' | 'FINALIZADA';
 }
 
+export type EventType = 'EVENTO' | 'REUNIAO' | 'CULTO' | 'CONGRESSO' | 'ENSAIO' | 'OUTROS';
+export type TargetAudience = 'TODAS' | 'SEDE' | string; // 'TODAS' = Toda a Igreja (Sede e congregações), 'SEDE' = Apenas sede, ou UUID de congregação específica
+
 export interface Event {
   id: string;
   churchId: string;
@@ -207,6 +210,35 @@ export interface Event {
   location?: string; 
   responsibleName: string;
   imageUrl?: string;
+  description?: string;
+  targetAudience?: TargetAudience;
+  congregationId?: string;
+  eventType?: EventType;
+}
+
+export interface ChurchNotification {
+  id: string;
+  churchId: string;
+  congregationId?: string;
+  title: string;
+  body: string;
+  type: 'EVENT' | 'BILLING' | 'ANNOUNCEMENT' | 'GENERAL';
+  targetRole?: string;
+  data?: Record<string, any>;
+  createdAt?: string;
+}
+
+export interface PushSubscriptionRecord {
+  id: string;
+  churchId: string;
+  congregationId?: string;
+  userId?: string;
+  memberId?: string;
+  role?: string;
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+  deviceType?: string;
 }
 
 export interface Minute { 

@@ -21,6 +21,12 @@ import {
 import { deleteFileFromSupabaseStorage } from './utils/storageUtils';
 import type { ToastType } from './components/Toast';
 import { ToastContainer } from './components/Toast';
+import {
+  checkAndNotifyPresidentPlanDue,
+  dispatchEventPushNotification,
+  showFloatingNotification,
+  requestAndRegisterPush,
+} from './services/pushNotificationService';
 
 interface AppContextType {
   user: User | null;
@@ -132,6 +138,8 @@ interface AppContextType {
   saveSystemSettings: (s: SystemSettings) => Promise<{success: boolean, error?: string}>;
   // Confirma o pagamento manual da igreja (status off->on + nova next_billing_date)
   confirmChurchPayment: (churchId: string) => Promise<{success: boolean, error?: string, nextDueDate?: string}>;
+  // Permissão e ativação de notificações push no celular
+  requestPushNotification: () => Promise<boolean>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -319,6 +327,76 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const interval = setInterval(() => fetchData(), SIX_HOURS);
     return () => clearInterval(interval);
   }, []);
+
+  // 1. Verificação do vencimento do plano para o Pastor Presidente (5 dias antes e no dia do vencimento)
+  useEffect(() => {
+    if (user && currentChurch) {
+      checkAndNotifyPresidentPlanDue(currentChurch, user);
+    }
+  }, [user, currentChurch]);
+
+  // 2. Escuta notificações em tempo real (Supabase Realtime) e dispara notificações flutuantes no celular
+  useEffect(() => {
+    if (!currentChurch) return;
+
+    const channel = supabase
+      .channel(`church-notifications-${currentChurch.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'church_notifications',
+          filter: `church_id=eq.${currentChurch.id}`,
+        },
+        (payload) => {
+          if (!payload.new) return;
+          const notif = payload.new as any;
+
+          // Se for restrito a congregação específica e o usuário estiver em outra, ignora
+          if (notif.congregation_id && user?.churchId && notif.congregation_id !== user.churchId && currentChurch.type === 'CONGREGACAO') {
+            return;
+          }
+
+          // Se tiver target_role restrito (ex: PRESIDENTE), valida se o usuário possui o cargo
+          if (notif.target_role && notif.target_role !== 'ALL') {
+            const userRoles = user ? getUserRoles(user) : [];
+            const hasRole = user && (user.role === notif.target_role || userRoles.includes(notif.target_role as any));
+            if (!hasRole) return;
+          }
+
+          // Dispara notificação nativa flutuante com som e vibração de app nativo
+          showFloatingNotification(notif.title, {
+            body: notif.body,
+            url: notif.data?.url || (notif.type === 'EVENT' ? '/#events' : '/'),
+            eventId: notif.data?.eventId,
+            tag: `live-notif-${notif.id}`,
+          });
+
+          // Mostra toast na interface
+          showToast(notif.title, 'info');
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [currentChurch, user]);
+
+  const requestPushNotification = async (): Promise<boolean> => {
+    if (!currentChurch) return false;
+    const res = await requestAndRegisterPush({
+      churchId: currentChurch.id,
+      congregationId: currentChurch.type === 'CONGREGACAO' ? currentChurch.id : undefined,
+      userId: user?.id,
+      role: user?.role,
+    });
+    if (res) {
+      showToast('Notificações no celular ativadas com sucesso!', 'success');
+    }
+    return res;
+  };
 
   const fetchData = async () => {
     const { data: userData } = await supabase.from('profiles').select('*').or('is_active.is.null,is_active.eq.true');
@@ -1495,7 +1573,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           time: e.time,
           location: e.location,
           responsible_name: e.responsibleName,
-          image_url: e.imageUrl
+          image_url: e.imageUrl,
+          description: e.description || null,
+          target_audience: e.targetAudience || 'TODAS',
+          congregation_id: e.congregationId || null,
+          event_type: e.eventType || 'EVENTO'
       };
 
       if (e.id && e.id.trim() !== '') {
@@ -1503,7 +1585,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
 
       const { data } = await supabase.from('events').insert([payload]).select();
-      if(data) setEvents([...events, toAppEvent(data[0])]);
+      if (data && data[0]) {
+        const savedEvent = toAppEvent(data[0]);
+        setEvents(prev => [...prev, savedEvent]);
+
+        // Disparo de notificação push flutuante no celular dos membros
+        try {
+          const churchName = currentChurch?.name || 'Igreja';
+          let targetLabel = 'Toda a Igreja';
+          if (e.targetAudience === 'SEDE') targetLabel = 'Somente a Sede';
+          else if (e.congregationId) {
+            const cong = churches.find(c => c.id === e.congregationId);
+            if (cong) targetLabel = cong.name;
+          }
+          await dispatchEventPushNotification(savedEvent, churchName, targetLabel);
+        } catch (pushErr) {
+          console.warn('[Push] Falha ao enviar notificação do evento:', pushErr);
+        }
+      }
   };
 
   const updateEvent = async (id: string, e: Event) => {
@@ -1513,7 +1612,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           time: e.time,
           location: e.location,
           responsible_name: e.responsibleName,
-          image_url: e.imageUrl
+          image_url: e.imageUrl,
+          description: e.description || null,
+          target_audience: e.targetAudience || 'TODAS',
+          congregation_id: e.congregationId || null,
+          event_type: e.eventType || 'EVENTO'
       }).eq('id', id);
       setEvents(events.map(ev => ev.id === id ? e : ev));
   };
@@ -1821,6 +1924,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     systemSettings,
     saveSystemSettings,
     confirmChurchPayment,
+    requestPushNotification,
   };
 
   return (

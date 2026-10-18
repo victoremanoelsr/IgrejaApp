@@ -1,13 +1,18 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useMember } from '../../contexts/MemberContext';
 import { useTranslation } from 'react-i18next';
 import { formatDate } from '../../i18n';
-import { Calendar, Clock, MapPin, CalendarX } from 'lucide-react';
+import { Calendar, Clock, MapPin, CalendarX, BellRing, Share2 } from 'lucide-react';
 
 export const MemberEventos: React.FC = () => {
-  const { upcomingEvents, isLoading } = useMember();
+  const { upcomingEvents, isLoading, requestPushNotification } = useMember();
   const { t, i18n } = useTranslation();
   const lang = i18n.language;
+
+  const [pushStatus, setPushStatus] = useState<NotificationPermission>(() => {
+    return ('Notification' in window) ? Notification.permission : 'denied';
+  });
+  const [isActivatingPush, setIsActivatingPush] = useState(false);
 
   const formatDayMonth = (dateStr: string) => {
     if (!dateStr) return { day: '', month: '' };
@@ -24,11 +29,40 @@ export const MemberEventos: React.FC = () => {
   const upcoming = upcomingEvents.filter((e) => new Date(e.date + 'T00:00:00') >= now);
   const past = upcomingEvents.filter((e) => new Date(e.date + 'T00:00:00') < now);
 
+  const handleShareWhatsApp = (event: any) => {
+    const text = `*${event.name}*\n📅 Data: ${new Date(event.date + 'T00:00:00').toLocaleDateString('pt-BR')} às ${event.time}\n📍 Local: ${event.location || 'Na Igreja'}${event.description ? `\n📝 ${event.description}` : ''}\n\n👉 Acompanhe no IgrejaApp: ${window.location.origin}/#member-eventos`;
+    window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
+  };
+
   return (
     <div className="space-y-6 w-full max-w-7xl mx-auto animate-fade-in">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-800">{t('memberPortal.events.title')}</h1>
-        <p className="text-gray-500 text-sm mt-0.5">{t('memberPortal.events.subtitle')}</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800">{t('memberPortal.events.title')}</h1>
+          <p className="text-gray-500 text-sm mt-0.5">{t('memberPortal.events.subtitle')}</p>
+        </div>
+
+        {/* Botão de Ativação de Notificações Push Flutuantes no Celular */}
+        {pushStatus !== 'granted' ? (
+          <button
+            onClick={async () => {
+              setIsActivatingPush(true);
+              const granted = await requestPushNotification();
+              if (granted) setPushStatus('granted');
+              setIsActivatingPush(false);
+            }}
+            disabled={isActivatingPush}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-xl text-xs sm:text-sm font-bold shadow-md hover:from-orange-600 hover:to-amber-600 transition-all self-start sm:self-auto animate-pulse"
+          >
+            <BellRing size={16} />
+            {isActivatingPush ? 'Ativando...' : 'Receber Notificações no Celular'}
+          </button>
+        ) : (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-semibold self-start sm:self-auto">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            Notificações Ativas no Celular
+          </span>
+        )}
       </div>
 
       {isLoading ? (
@@ -58,32 +92,41 @@ export const MemberEventos: React.FC = () => {
                   return (
                     <div
                       key={event.id}
-                      className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex hover:shadow-md hover:border-orange-200 transition-all"
+                      className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col hover:shadow-md hover:border-orange-200 transition-all"
                     >
-                      {event.imageUrl && (
-                        <div className="w-24 shrink-0">
-                          <img
-                            src={event.imageUrl}
-                            alt={event.name}
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                      )}
                       <div className="flex items-start gap-3 p-4 flex-1 min-w-0">
-                        <div className="shrink-0 flex flex-col items-center justify-center bg-blue-50 border border-blue-100 rounded-xl w-12 h-12">
-                          <span className="text-blue-700 text-lg font-extrabold leading-none">{day}</span>
-                          <span className="text-blue-500 text-[9px] font-bold">{month}</span>
-                        </div>
+                        {event.imageUrl ? (
+                          <div className="w-20 h-20 shrink-0 rounded-lg overflow-hidden">
+                            <img
+                              src={event.imageUrl}
+                              alt={event.name}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                        ) : (
+                          <div className="shrink-0 flex flex-col items-center justify-center bg-blue-50 border border-blue-100 rounded-xl w-14 h-14">
+                            <span className="text-blue-700 text-lg font-extrabold leading-none">{day}</span>
+                            <span className="text-blue-500 text-[9px] font-bold">{month}</span>
+                          </div>
+                        )}
+
                         <div className="flex-1 min-w-0">
-                          <p className="text-gray-800 text-sm font-semibold leading-snug truncate">{event.name}</p>
+                          {event.eventType && (
+                            <span className="inline-block px-2 py-0.5 mb-1 rounded text-[9px] font-bold bg-orange-100 text-orange-700 uppercase tracking-wide">
+                              {event.eventType}
+                            </span>
+                          )}
+                          <p className="text-gray-800 text-sm font-bold leading-snug line-clamp-2 uppercase">
+                            {event.name}
+                          </p>
                           <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1.5">
-                            <span className="text-gray-400 text-[11px] flex items-center gap-1">
-                              <Clock size={10} />
-                              {formatDate(event.date, lang)} {t('memberPortal.events.at')} {event.time}
+                            <span className="text-gray-500 text-[11px] flex items-center gap-1 font-medium">
+                              <Clock size={11} className="text-brand-orange" />
+                              {formatDate(event.date, lang)} às {event.time}
                             </span>
                             {event.location && (
-                              <span className="text-gray-400 text-[11px] flex items-center gap-1">
-                                <MapPin size={10} />
+                              <span className="text-gray-500 text-[11px] flex items-center gap-1 font-medium">
+                                <MapPin size={11} className="text-brand-orange" />
                                 {event.location}
                               </span>
                             )}
@@ -94,6 +137,27 @@ export const MemberEventos: React.FC = () => {
                             </p>
                           )}
                         </div>
+                      </div>
+
+                      {event.description && (
+                        <div className="px-4 pb-3">
+                          <p className="text-xs text-gray-600 bg-gray-50 p-2.5 rounded-lg border border-gray-100 line-clamp-2 leading-relaxed">
+                            {event.description}
+                          </p>
+                        </div>
+                      )}
+
+                      <div className="px-4 py-2.5 bg-gray-50/70 border-t border-gray-100 flex items-center justify-between">
+                        <span className="text-[10px] text-gray-400 font-medium">
+                          IgrejaApp Eventos
+                        </span>
+                        <button
+                          onClick={() => handleShareWhatsApp(event)}
+                          className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 flex items-center gap-1.5 transition-colors"
+                          title="Convidar no WhatsApp"
+                        >
+                          <Share2 size={13} /> Convidar no WhatsApp
+                        </button>
                       </div>
                     </div>
                   );

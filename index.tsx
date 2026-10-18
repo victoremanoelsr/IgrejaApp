@@ -3,15 +3,16 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 
-// Service Worker Registration for PWA (production only)
-if ('serviceWorker' in navigator && import.meta.env.PROD) {
+// Service Worker Registration for PWA & Push Notifications
+if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js', { scope: '/' })
+    const swUrl = import.meta.env.PROD ? '/sw.js' : '/sw-push.js';
+    navigator.serviceWorker.register(swUrl, { scope: '/' })
       .then((registration) => {
-        console.log('SW registered: ', registration);
+        console.log('SW registrado com sucesso:', registration.scope);
       })
       .catch((registrationError) => {
-        console.log('SW registration failed: ', registrationError);
+        console.warn('Falha no registro do SW:', registrationError);
       });
   });
 }
