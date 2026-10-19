@@ -382,7 +382,7 @@ export const BillingPage: React.FC = () => {
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className="max-w-5xl mx-auto space-y-6 pb-12"
+      className="w-full space-y-6 pb-12"
     >
       {/* Header Premium do Sistema */}
       <div className="bg-gradient-to-r from-gray-900 via-brand-black to-gray-900 text-white rounded-2xl p-6 shadow-lg border border-gray-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 relative overflow-hidden">
