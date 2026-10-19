@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Bell, X, Send, Trash2, BellOff, BellRing, CheckCheck, AlertCircle, Sparkles, Smartphone } from 'lucide-react';
 import { useApp } from '../context';
 import { supabase } from '../services/supabaseClient';
-import { requestAndRegisterPush, showFloatingNotification, sendTestAlert, playNotificationChime } from '../services/pushNotificationService';
+import { requestAndRegisterPush, showFloatingNotification, sendTestAlert, playNotificationChime, triggerServerWebPush } from '../services/pushNotificationService';
 
 export const NotificationCenter: React.FC = () => {
   const { user, currentChurch } = useApp();
@@ -167,6 +167,13 @@ export const NotificationCenter: React.FC = () => {
 
       if (!error) {
         await showFloatingNotification(title.trim(), {
+          body: body.trim(),
+          url: '/#events',
+          tag: `announcement-${Date.now()}`,
+        });
+        triggerServerWebPush({
+          churchId,
+          title: title.trim(),
           body: body.trim(),
           url: '/#events',
           tag: `announcement-${Date.now()}`,

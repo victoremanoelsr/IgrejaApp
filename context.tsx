@@ -380,6 +380,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       )
       .subscribe();
 
+    // Registra ou renova inscrição push com VAPID key oficial silenciosamente se permissão já concedida
+    if ('Notification' in window && Notification.permission === 'granted' && currentChurch) {
+      requestAndRegisterPush({
+        churchId: currentChurch.id,
+        congregationId: currentChurch.type === 'CONGREGACAO' ? currentChurch.id : undefined,
+        userId: user?.id,
+        role: user?.role,
+      }).catch(err => console.log('[Push] Auto-registro silencioso:', err));
+    }
+
     return () => {
       supabase.removeChannel(channel);
     };

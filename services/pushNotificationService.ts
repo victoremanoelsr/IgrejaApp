@@ -1,8 +1,8 @@
 import { supabase } from './supabaseClient';
 import { Church, User, Event } from '../types';
 
-// VAPID Public Key padrão (URL-Safe Base64) para Web Push PWA
-const DEFAULT_VAPID_PUBLIC_KEY = 'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U';
+// VAPID Public Key padrão oficial (URL-Safe Base64) para Web Push PWA
+const DEFAULT_VAPID_PUBLIC_KEY = 'BLU4KeaaebXAyw_YcKoM0NUpcfzIYOZWFNVehj8kC-64Rw_kvYEtw1evZb1XpipPzlHX3FrNVAtLzN1DNVn0KNY';
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
@@ -14,6 +14,32 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
   }
   return outputArray;
 }
+
+/**
+ * Dispara envio de Web Push nativo para os servidores do Google/Apple via Serverless Function
+ */
+export const triggerServerWebPush = async (payload: {
+  churchId: string;
+  congregationId?: string | null;
+  title: string;
+  body: string;
+  url?: string;
+  eventId?: string;
+  imageUrl?: string;
+  tag?: string;
+}) => {
+  try {
+    const res = await fetch('/api/send-push', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const result = await res.json().catch(() => null);
+    console.log('[Push] Resultado envio Web Push:', result);
+  } catch (e) {
+    console.warn('[Push] Falha ao invocar /api/send-push:', e);
+  }
+};
 
 /**
  * Toca um sinal sonoro cristalino nativo via Web Audio API (som agradável de notificação de smartphone)
@@ -85,16 +111,24 @@ export const requestAndRegisterPush = async (params: {
         const registration = await navigator.serviceWorker.ready;
         let subscription = await registration.pushManager.getSubscription();
 
-        if (!subscription) {
+        const appServerKey = urlBase64ToUint8Array(DEFAULT_VAPID_PUBLIC_KEY);
+
+        // Se houver inscrição anterior, renova para garantir a chave VAPID correta
+        if (subscription) {
           try {
-            const appServerKey = urlBase64ToUint8Array(DEFAULT_VAPID_PUBLIC_KEY);
-            subscription = await registration.pushManager.subscribe({
-              userVisibleOnly: true,
-              applicationServerKey: appServerKey,
-            });
-          } catch (subErr) {
-            console.warn('[Push] Falha ao assinar pushManager (continuando com notificação local):', subErr);
+            await subscription.unsubscribe();
+          } catch (unsubErr) {
+            console.log('[Push] Erro ao desinscrever chave antiga:', unsubErr);
           }
+        }
+
+        try {
+          subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: appServerKey,
+          });
+        } catch (subErr) {
+          console.warn('[Push] Falha ao assinar pushManager:', subErr);
         }
 
         // Se obteve inscrição push, salva no Supabase
@@ -267,9 +301,31 @@ export const dispatchEventPushNotification = async (
       imageUrl: event.imageUrl,
       tag: `event-${event.id}`,
     });
+
+    // 3. Dispara Web Push nativo para os servidores do Google/Apple entregarem nos celulares (Android/iOS)
+    triggerServerWebPush({
+      churchId: event.churchId,
+      congregationId: safeCongregationId,
+      title,
+      body,
+      url,
+      eventId: event.id,
+      imageUrl: event.imageUrl,
+      tag: `event-${event.id}`,
+    });
   } catch (err) {
     console.warn('[Push] Erro ao gravar notificação de evento:', err);
     await showFloatingNotification(title, {
+      body,
+      url,
+      eventId: event.id,
+      imageUrl: event.imageUrl,
+      tag: `event-${event.id}`,
+    });
+    triggerServerWebPush({
+      churchId: event.churchId,
+      congregationId: safeCongregationId,
+      title,
       body,
       url,
       eventId: event.id,
@@ -428,5 +484,14 @@ export const sendTestAlert = async (churchId?: string, churchName?: string) => {
     } catch (e) {
       console.warn('[Push] Erro ao gravar teste de notificação:', e);
     }
+
+    // 3. Dispara Web Push Real para os smartphones registrados
+    triggerServerWebPush({
+      churchId,
+      title,
+      body,
+      url: '/#events',
+      tag: `test-${Date.now()}`,
+    });
   }
 };
