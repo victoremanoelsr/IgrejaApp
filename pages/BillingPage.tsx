@@ -118,6 +118,16 @@ export const BillingPage: React.FC = () => {
     return { nextDueDate: nextDue, isOnTime, isInGrace, isLate, hasActivePromise, promiseDate, daysUntilDue, daysInGrace };
   }, [currentChurch?.dueDay, currentChurch?.gracePeriod, currentChurch?.planType, currentChurch?.lastPaymentDate, currentChurch?.paymentPromiseDate]);
 
+  // Preços base históricos praticados antes da atualização de 19/10/2026
+  const HISTORICAL_BASE_PRICES_PRE_2026: Record<string, number> = {
+    bronze: 100,
+    prata: 200,
+    ouro: 350,
+    diamond: 500,
+    isento: 0,
+  };
+  const PRICE_UPDATE_DATE = new Date('2026-10-19T00:00:00');
+
   // ---- Histórico de faturas DERIVADO do plano cadastrado da igreja ----
   const invoices: Invoice[] = React.useMemo(() => {
     if (!currentChurch || !currentChurch.planType || currentChurch.planType === 'isento') {
@@ -146,11 +156,19 @@ export const BillingPage: React.FC = () => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
+    // Carrega registros permanentemente congelados do histórico desta igreja
+    let frozenReceipts: Record<string, any> = {};
+    try {
+      const raw = localStorage.getItem(`igrejaapp_invoice_receipts_${currentChurch.id}`);
+      if (raw) frozenReceipts = JSON.parse(raw);
+    } catch (_) {}
+
     const HISTORY_LENGTH = 18;
     const list: Invoice[] = [];
 
     for (let i = 0; i < HISTORY_LENGTH; i++) {
       const due = new Date(nextDue.getFullYear(), nextDue.getMonth() - i * months, dueDay);
+      const dueDateStr = toIsoDate(due);
 
       const isCurrent = i === 0;
       let status: InvoiceStatus;
@@ -169,12 +187,28 @@ export const BillingPage: React.FC = () => {
         }
       }
 
+      // DETERMINAÇÃO DO VALOR HISTÓRICO:
+      // 1. Se existir registro congelado no recibo desta fatura, preserva o valor original pago
+      // 2. Se a fatura é antiga (paga antes da data de atualização de preços de 19/10/2026), mantém o preço da época (ex: R$ 100,00)
+      // 3. Faturas atuais e futuras usam o novo preço atualizado do plano (ex: R$ 79,90)
+      let invoiceAmount = cyclePrice;
+
+      if (frozenReceipts[dueDateStr]?.amount) {
+        invoiceAmount = frozenReceipts[dueDateStr].amount;
+      } else if (status === 'PAGO') {
+        const paidMoment = paidDate ? new Date(paidDate + 'T00:00:00') : due;
+        if (paidMoment < PRICE_UPDATE_DATE) {
+          const histBase = HISTORICAL_BASE_PRICES_PRE_2026[tierKey] ?? basePrice;
+          invoiceAmount = calcPrice(histBase, cycle, months);
+        }
+      }
+
       list.push({
         id: `${tierKey}-${cycle}-${i}`,
         month: formatPeriodLabel(due, months),
-        amount: cyclePrice,
+        amount: invoiceAmount,
         status,
-        dueDate: toIsoDate(due),
+        dueDate: dueDateStr,
         paidDate,
       });
     }

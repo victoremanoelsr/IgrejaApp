@@ -27,6 +27,7 @@ import {
   showFloatingNotification,
   requestAndRegisterPush,
 } from './services/pushNotificationService';
+import { PLAN_LIMITS, calcPrice } from './hooks/usePlanLimits';
 
 interface AppContextType {
   user: User | null;
@@ -579,6 +580,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const church = churches.find(c => c.id === churchId);
     if (!church) return { success: false, error: 'Igreja não encontrada' };
 
+    const recordPaidInvoiceReceipt = (c: Church, paidDate: string) => {
+      try {
+        const m = PLAN_MONTHS_INTERNAL[c.planType ?? 'mensal'] ?? 1;
+        const tier = c.planTier || 'bronze';
+        const base = PLAN_LIMITS[tier]?.basePrice ?? 0;
+        const paidAmount = calcPrice(base, c.planType || 'mensal', m);
+        const storageKey = `igrejaapp_invoice_receipts_${c.id}`;
+        const existing = JSON.parse(localStorage.getItem(storageKey) || '{}');
+        existing[paidDate] = {
+          amount: paidAmount,
+          paidDate,
+          tier,
+          cycle: c.planType || 'mensal',
+        };
+        localStorage.setItem(storageKey, JSON.stringify(existing));
+      } catch (_) {}
+    };
+
     // 1. Tenta chamar a RPC SECURITY DEFINER no Supabase
     try {
       const { data: rpcRes, error: rpcErr } = await supabase.rpc('confirm_church_payment', {
@@ -591,6 +610,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           paymentPromiseDate: rpcRes.payment_promise_date,
         };
         saveChurchLocalOverride(churchId, patch);
+        recordPaidInvoiceReceipt(church, rpcRes.last_payment_date || new Date().toISOString().split('T')[0]);
         setChurches(prev => prev.map(c => c.id === churchId ? { ...c, ...patch } : c));
         if (currentChurch?.id === churchId) {
           const updated = { ...currentChurch, ...patch };
@@ -625,6 +645,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     saveChurchLocalOverride(churchId, patch);
+    recordPaidInvoiceReceipt(church, todayStr);
     await updateChurch(churchId, patch);
     return { success: true, nextDueDate: nextDueStr };
   };
