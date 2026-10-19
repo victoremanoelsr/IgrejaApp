@@ -429,7 +429,7 @@ export const MemberPrestacaoContas: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6 w-full max-w-7xl mx-auto animate-fade-in pb-12">
+    <div className="space-y-6 w-full animate-fade-in pb-12">
       {/* Cabeçalho Principal no estilo do sistema */}
       <div className="bg-white border border-gray-200/80 rounded-2xl p-5 sm:p-6 shadow-sm">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">

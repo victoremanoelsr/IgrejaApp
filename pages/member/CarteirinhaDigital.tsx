@@ -34,7 +34,7 @@ export const CarteirinhaDigital: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 w-full max-w-5xl mx-auto animate-fade-in">
+    <div className="space-y-6 w-full animate-fade-in">
       <div>
         <h1 className="text-2xl font-bold text-gray-800">Carteirinha Digital</h1>
         <p className="text-gray-500 text-sm mt-1">Seu documento de membro oficial</p>

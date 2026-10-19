@@ -147,7 +147,7 @@ export const MemberFinanceiro: React.FC = () => {
   const hasData = yearContribs.length > 0 || yearCampaignContribs.length > 0;
 
   return (
-    <div className="space-y-6 w-full max-w-7xl mx-auto animate-fade-in">
+    <div className="space-y-6 w-full animate-fade-in">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">{t('memberPortal.financial.title')}</h1>

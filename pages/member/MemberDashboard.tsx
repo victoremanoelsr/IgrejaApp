@@ -116,7 +116,7 @@ export const MemberDashboard: React.FC = () => {
   ];
 
   return (
-    <div className="space-y-6 w-full max-w-7xl mx-auto animate-fade-in">
+    <div className="space-y-6 w-full animate-fade-in">
       {/* Greeting */}
       <div className="flex items-start justify-between">
         <div>

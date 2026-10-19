@@ -344,7 +344,7 @@ export const MemberDocumentos: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 w-full max-w-7xl mx-auto animate-fade-in">
+    <div className="space-y-6 w-full animate-fade-in">
       <div>
         <h1 className="text-2xl font-bold text-gray-800">Documentos e Certificados</h1>
         <p className="text-gray-500 text-sm mt-1">

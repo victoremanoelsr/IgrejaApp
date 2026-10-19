@@ -212,7 +212,7 @@ export const MemberPerfil: React.FC = () => {
   ];
 
   return (
-    <div className="space-y-6 w-full max-w-5xl mx-auto animate-fade-in">
+    <div className="space-y-6 w-full animate-fade-in">
       {showFirstAccessAlert && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
           <div className="flex items-start gap-3">

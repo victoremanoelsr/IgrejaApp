@@ -219,7 +219,7 @@ export const MemberCarnets: React.FC = () => {
   ═══════════════════════════════════════════════════════════ */
   if (selectedTemplate) {
     return (
-      <div className="space-y-6 w-full max-w-7xl mx-auto animate-fade-in">
+      <div className="space-y-6 w-full animate-fade-in">
         {/* Cabeçalho de Navegação com botão Voltar */}
         <div className="flex items-center justify-between bg-white rounded-2xl border border-gray-200 p-4 shadow-sm">
           <div className="flex items-center gap-3 min-w-0">
@@ -407,7 +407,7 @@ export const MemberCarnets: React.FC = () => {
       ];
 
   return (
-    <div className="space-y-7 w-full max-w-7xl mx-auto animate-fade-in">
+    <div className="space-y-7 w-full animate-fade-in">
       {/* Título e Subtítulo */}
       <div>
         <h1 className="text-xl md:text-2xl font-black text-gray-900">
