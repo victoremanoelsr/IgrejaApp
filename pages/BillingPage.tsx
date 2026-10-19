@@ -498,9 +498,16 @@ export const BillingPage: React.FC = () => {
             </div>
 
             <div className="py-4 space-y-3">
-              <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400">
-                Chave PIX do Administrador
-              </label>
+              <div className="flex items-center justify-between">
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                  Chave PIX do Administrador
+                </label>
+                {systemSettings.masterPixKeyType && (
+                  <span className="text-[10px] font-bold uppercase px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300 rounded border border-emerald-200 dark:border-emerald-800">
+                    {systemSettings.masterPixKeyType}
+                  </span>
+                )}
+              </div>
 
               <div className="p-3 bg-gray-50 dark:bg-gray-900/60 rounded-xl border border-gray-200 dark:border-gray-700 flex items-center justify-between gap-2">
                 <span className="font-mono text-xs font-bold text-gray-800 dark:text-gray-100 break-all select-all">

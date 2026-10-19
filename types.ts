@@ -4,9 +4,10 @@ export type Role = 'SUPER_ADM' | 'PRESIDENTE' | 'VICE_PRESIDENTE' | 'DIRIGENTE' 
 export type ChurchType = 'SEDE' | 'CONGREGACAO';
 
 export interface SystemSettings {
-  salesPhone?: string;     // WhatsApp do dono do sistema (somente dígitos com DDI, ex: 5511999999999)
-  masterPixKey?: string;   // Chave PIX master (recebimento global)
-  supportEmail?: string;   // E-mail de suporte
+  salesPhone?: string;        // WhatsApp do dono do sistema (somente dígitos com DDI, ex: 5511999999999)
+  masterPixKey?: string;      // Chave PIX master (recebimento global)
+  masterPixKeyType?: string;  // Tipo da chave (CPF, CNPJ, TELEFONE, EMAIL, ALEATORIA)
+  supportEmail?: string;      // E-mail de suporte
 }
 
 export type PlanType = 'mensal' | 'bimestral' | 'trimestral' | 'semestral' | 'anual' | 'isento';
