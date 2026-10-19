@@ -11,6 +11,7 @@ import {
   usePlanLimits, PLAN_LIMITS, CYCLE_DISCOUNTS, CYCLE_MONTHS, CYCLE_LABELS,
   calcPrice, calcSavings
 } from '../hooks/usePlanLimits';
+import { generatePixBrCode, getPixQrCodeImageUrl } from '../utils/pixPayload';
 
 // RBAC: apenas estes cargos podem visualizar/interagir com a janela na SEDE.
 const BILLING_ROLES = ['PRESIDENTE', 'VICE_PRESIDENTE', 'TESOUREIRO', 'SECRETARIO'];
@@ -211,11 +212,50 @@ export const BillingPage: React.FC = () => {
     );
   }
 
+  const [copiedBrCode, setCopiedBrCode] = useState(false);
+
+  // Valor da fatura/plano atual da igreja
+  const currentPlanAmount = React.useMemo(() => {
+    if (!currentChurch || !currentChurch.planType || currentChurch.planType === 'isento') return 0;
+    const tierKey = currentChurch.planTier || 'bronze';
+    const cycle   = currentChurch.planType;
+    const months  = CYCLE_MONTHS[cycle] ?? 1;
+    const base    = PLAN_LIMITS[tierKey]?.basePrice ?? 0;
+    return calcPrice(base, cycle, months);
+  }, [currentChurch]);
+
+  // BR Code oficial (EMV-Co / PIX Estático Banco Central)
+  const pixBrCode = React.useMemo(() => {
+    if (!billingPix) return '';
+    return generatePixBrCode({
+      pixKey: billingPix,
+      keyType: systemSettings.masterPixKeyType,
+      merchantName: systemSettings.masterPixHolderName || 'IGREJAAPP SAAS',
+      merchantCity: 'BRASIL',
+      amount: currentPlanAmount > 0 ? currentPlanAmount : undefined,
+      txId: `MENSAL${currentChurch?.id?.slice(0, 6).toUpperCase() || 'SAAS'}`,
+      info: `Mensalidade ${currentChurch?.name?.slice(0, 20) || 'IgrejaApp'}`,
+    });
+  }, [billingPix, systemSettings, currentPlanAmount, currentChurch]);
+
+  const pixQrCodeUrl = React.useMemo(() => {
+    if (!pixBrCode) return '';
+    return getPixQrCodeImageUrl(pixBrCode, 280);
+  }, [pixBrCode]);
+
   const handleCopyPix = () => {
     if (!billingPix) return;
     navigator.clipboard.writeText(billingPix).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2500);
+    });
+  };
+
+  const handleCopyBrCode = () => {
+    if (!pixBrCode) return;
+    navigator.clipboard.writeText(pixBrCode).then(() => {
+      setCopiedBrCode(true);
+      setTimeout(() => setCopiedBrCode(false), 2500);
     });
   };
 
@@ -895,52 +935,106 @@ export const BillingPage: React.FC = () => {
         </div>
       )}
 
-      {/* Modal QR Code PIX */}
+      {/* Modal QR Code PIX (Padrão Oficial Banco Central / BR Code) */}
       {showQrModal && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
-          <div className="bg-white dark:bg-gray-800 rounded-3xl p-6 max-w-sm w-full text-center shadow-2xl border border-gray-200 dark:border-gray-700">
-            <h3 className="font-black text-lg text-gray-900 dark:text-white mb-1">Escanear QR Code PIX</h3>
-            <p className="text-xs text-gray-400 mb-4">Abra o app do seu banco e aponte a câmera</p>
-
-            <div className="p-4 bg-white rounded-2xl border-2 border-emerald-500/30 inline-block mx-auto mb-4 shadow-inner">
-              <img
-                src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(billingPix)}`}
-                alt="QR Code PIX"
-                className="w-48 h-48 mx-auto"
-              />
-            </div>
-
-            <div className="p-2.5 bg-gray-50 dark:bg-gray-700 rounded-xl mb-3 text-[11px] font-mono text-gray-700 dark:text-gray-200 break-all select-all border">
-              {billingPix}
-            </div>
-
-            {(systemSettings.masterPixHolderName || systemSettings.masterPixBank) && (
-              <div className="text-[11px] text-gray-500 dark:text-gray-400 mb-4 space-y-0.5">
-                {systemSettings.masterPixHolderName && (
-                  <p><b>Favorecido:</b> {systemSettings.masterPixHolderName}</p>
-                )}
-                {systemSettings.masterPixBank && (
-                  <p><b>Banco:</b> {systemSettings.masterPixBank}</p>
-                )}
+          <div className="bg-white dark:bg-gray-800 rounded-3xl p-6 max-w-sm w-full text-center shadow-2xl border border-gray-200 dark:border-gray-700 space-y-3">
+            <div className="flex items-center justify-between pb-2 border-b border-gray-100 dark:border-gray-700">
+              <div className="text-left">
+                <h3 className="font-black text-base text-gray-900 dark:text-white flex items-center gap-1.5">
+                  <QrCode size={18} className="text-emerald-600" />
+                  Pagar com PIX
+                </h3>
+                <p className="text-[11px] text-gray-400">Padrão Oficial Banco Central do Brasil</p>
               </div>
-            )}
-
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={handleCopyPix}
-                className="flex-1 py-2.5 bg-emerald-600 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 shadow"
-              >
-                {copied ? <CheckCircle size={14} /> : <Copy size={14} />}
-                {copied ? 'Copiado!' : 'Copiar Chave'}
-              </button>
               <button
                 type="button"
                 onClick={() => setShowQrModal(false)}
-                className="px-4 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-white rounded-xl font-bold text-xs"
+                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
               >
-                Fechar
+                <X size={16} />
               </button>
+            </div>
+
+            {/* Imagem do QR Code Oficial EMV-Co */}
+            <div className="p-3 bg-white rounded-2xl border-2 border-emerald-500/30 inline-block mx-auto shadow-inner">
+              {pixQrCodeUrl ? (
+                <img
+                  src={pixQrCodeUrl}
+                  alt="QR Code PIX Oficial"
+                  className="w-52 h-52 mx-auto rounded-lg"
+                />
+              ) : (
+                <div className="w-52 h-52 flex items-center justify-center text-xs text-gray-400">
+                  Nenhuma chave cadastrada
+                </div>
+              )}
+            </div>
+
+            {/* Valor da fatura (se houver) */}
+            {currentPlanAmount > 0 && (
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-full text-xs font-bold text-emerald-800 dark:text-emerald-300">
+                <span>Valor:</span>
+                <span className="font-black">R$ {currentPlanAmount.toFixed(2).replace('.', ',')}</span>
+              </div>
+            )}
+
+            {/* Informações de conferência */}
+            <div className="p-2.5 bg-gray-50 dark:bg-gray-700/50 rounded-xl text-left text-[11px] text-gray-600 dark:text-gray-300 space-y-1 border">
+              <div className="flex items-center justify-between">
+                <span className="text-gray-400">Chave:</span>
+                <span className="font-mono font-bold text-gray-900 dark:text-white truncate max-w-[200px]">{billingPix}</span>
+              </div>
+              {systemSettings.masterPixHolderName && (
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-400">Favorecido:</span>
+                  <span className="font-bold text-gray-900 dark:text-white truncate max-w-[200px]">{systemSettings.masterPixHolderName}</span>
+                </div>
+              )}
+              {systemSettings.masterPixBank && (
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-400">Banco:</span>
+                  <span className="font-bold text-gray-900 dark:text-white">{systemSettings.masterPixBank}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Botões de Ação */}
+            <div className="space-y-2 pt-1">
+              {/* Botão PIX Copia e Cola */}
+              {pixBrCode && (
+                <button
+                  type="button"
+                  onClick={handleCopyBrCode}
+                  className={`w-full py-2.5 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-sm ${
+                    copiedBrCode
+                      ? 'bg-emerald-700 text-white'
+                      : 'bg-emerald-600 hover:bg-emerald-700 text-white active:scale-95'
+                  }`}
+                >
+                  {copiedBrCode ? <CheckCircle size={15} /> : <Copy size={15} />}
+                  {copiedBrCode ? 'Código PIX Copiado!' : 'Copiar Código "PIX Copia e Cola"'}
+                </button>
+              )}
+
+              {/* Botão Chave PIX Pura */}
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={handleCopyPix}
+                  className="flex-1 py-2 px-3 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-white rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition"
+                >
+                  {copied ? <CheckCircle size={13} /> : <Copy size={13} />}
+                  {copied ? 'Chave Copiada!' : 'Copiar Apenas a Chave'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowQrModal(false)}
+                  className="px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300 rounded-xl font-bold text-xs transition"
+                >
+                  Fechar
+                </button>
+              </div>
             </div>
           </div>
         </div>
