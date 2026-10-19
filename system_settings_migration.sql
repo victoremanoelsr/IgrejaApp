@@ -10,13 +10,17 @@ CREATE TABLE IF NOT EXISTS public.system_settings (
   sales_phone TEXT,
   master_pix_key TEXT,
   master_pix_key_type TEXT,
+  master_pix_holder_name TEXT,
+  master_pix_bank TEXT,
   support_email TEXT,
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   CONSTRAINT single_row CHECK (id = 1)
 );
 
--- Adiciona a coluna master_pix_key_type se não existir
+-- Adiciona novas colunas caso a tabela já exista
 ALTER TABLE public.system_settings ADD COLUMN IF NOT EXISTS master_pix_key_type TEXT;
+ALTER TABLE public.system_settings ADD COLUMN IF NOT EXISTS master_pix_holder_name TEXT;
+ALTER TABLE public.system_settings ADD COLUMN IF NOT EXISTS master_pix_bank TEXT;
 
 -- Garante o registro inicial
 INSERT INTO public.system_settings (id) VALUES (1) ON CONFLICT (id) DO NOTHING;
@@ -43,6 +47,8 @@ CREATE OR REPLACE FUNCTION public.save_system_settings(
   p_sales_phone TEXT,
   p_master_pix_key TEXT,
   p_master_pix_key_type TEXT DEFAULT NULL,
+  p_master_pix_holder_name TEXT DEFAULT NULL,
+  p_master_pix_bank TEXT DEFAULT NULL,
   p_support_email TEXT DEFAULT NULL
 )
 RETURNS JSONB
@@ -50,12 +56,20 @@ LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-  INSERT INTO public.system_settings (id, sales_phone, master_pix_key, master_pix_key_type, support_email, updated_at)
-  VALUES (1, p_sales_phone, p_master_pix_key, p_master_pix_key_type, p_support_email, NOW())
+  INSERT INTO public.system_settings (
+    id, sales_phone, master_pix_key, master_pix_key_type,
+    master_pix_holder_name, master_pix_bank, support_email, updated_at
+  )
+  VALUES (
+    1, p_sales_phone, p_master_pix_key, p_master_pix_key_type,
+    p_master_pix_holder_name, p_master_pix_bank, p_support_email, NOW()
+  )
   ON CONFLICT (id) DO UPDATE SET
     sales_phone = EXCLUDED.sales_phone,
     master_pix_key = EXCLUDED.master_pix_key,
     master_pix_key_type = EXCLUDED.master_pix_key_type,
+    master_pix_holder_name = EXCLUDED.master_pix_holder_name,
+    master_pix_bank = EXCLUDED.master_pix_bank,
     support_email = EXCLUDED.support_email,
     updated_at = NOW();
 
@@ -63,4 +77,4 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION public.save_system_settings(TEXT, TEXT, TEXT, TEXT) TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.save_system_settings(TEXT, TEXT, TEXT, TEXT, TEXT, TEXT) TO anon, authenticated, service_role;

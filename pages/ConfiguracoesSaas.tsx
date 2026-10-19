@@ -1,52 +1,88 @@
 import React, { useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import {
   ShieldCheck, Phone, KeyRound, Mail, Save, CheckCircle, AlertCircle, Crown,
-  ExternalLink, Sparkles, HelpCircle, Check, Copy, Hash, Smartphone, Building2,
-  UserCheck, AtSign, Key, Info, Terminal, ChevronDown, ChevronUp
+  Sparkles, HelpCircle, Check, Copy, User, Building, Terminal, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { useApp } from '../context';
 import { SystemSettings } from '../types';
 
-export type PixTypeChoice = 'AUTO' | 'CPF' | 'CNPJ' | 'TELEFONE' | 'EMAIL' | 'ALEATORIA';
+export const PIX_TYPES = [
+  { id: 'CNPJ',            label: 'CNPJ',                  placeholder: '00.000.000/0000-00' },
+  { id: 'CPF',             label: 'CPF',                   placeholder: '000.000.000-00' },
+  { id: 'Telefone',        label: 'Telefone / Celular',    placeholder: '+55 (00) 00000-0000' },
+  { id: 'E-mail',          label: 'E-mail',                placeholder: 'seuemail@exemplo.com' },
+  { id: 'Chave Aleatória', label: 'Chave Aleatória (EVP)', placeholder: 'Cole sua chave aleatória (UUID)' },
+];
 
-const onlyDigits = (s: string) => s.replace(/\D+/g, '');
+export const POPULAR_BANKS = [
+  'Nubank',
+  'Banco do Brasil',
+  'Inter',
+  'Caixa Econômica Federal',
+  'Bradesco',
+  'Itaú Unibanco',
+  'Santander',
+  'C6 Bank',
+  'Mercado Pago',
+  'PagBank (PagSeguro)',
+  'Sicredi',
+  'Sicoob',
+  'BTG Pactual',
+  'Banco Pan',
+  'PicPay',
+];
 
-const formatCpf = (v: string) => {
-  const d = v.replace(/\D/g, '').slice(0, 11);
-  return d
-    .replace(/^(\d{3})(\d)/, '$1.$2')
-    .replace(/^(\d{3})\.(\d{3})(\d)/, '$1.$2.$3')
-    .replace(/^(\d{3})\.(\d{3})\.(\d{3})(\d)/, '$1.$2.$3-$4');
-};
+// Máscara rigorosa +xx (xx) xxxxx-xxxx
+export const formatPhoneWithDdi = (val: string): string => {
+  let d = val.replace(/\D/g, '');
+  if (!d) return '';
 
-const formatCnpj = (v: string) => {
-  const d = v.replace(/\D/g, '').slice(0, 14);
-  return d
-    .replace(/^(\d{2})(\d)/, '$1.$2')
-    .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
-    .replace(/^(\d{2})\.(\d{3})\.(\d{3})(\d)/, '$1.$2.$3/$4')
-    .replace(/^(\d{2})\.(\d{3})\.(\d{3})\/(\d{4})(\d)/, '$1.$2.$3/$4-$5');
-};
-
-const formatPhone = (v: string) => {
-  const d = v.replace(/\D/g, '');
-  if (d.startsWith('55') && d.length > 11) {
-    const rest = d.slice(2);
-    if (rest.length <= 10) {
-      return `+55 (${rest.slice(0, 2)}) ${rest.slice(2, 6)}-${rest.slice(6, 10)}`;
-    }
-    return `+55 (${rest.slice(0, 2)}) ${rest.slice(2, 7)}-${rest.slice(7, 11)}`;
+  // Se colou ou digitou sem DDI (10 ou 11 dígitos), assume DDI Brasil 55
+  if ((d.length === 10 || d.length === 11) && !d.startsWith('55')) {
+    d = '55' + d;
   }
-  if (d.length <= 10) {
+
+  // Limita a 13 dígitos (2 DDI + 2 DDD + 9 Celular)
+  d = d.slice(0, 13);
+
+  if (d.length <= 2) {
+    return `+${d}`;
+  }
+  if (d.length <= 4) {
+    return `+${d.slice(0, 2)} (${d.slice(2)}`;
+  }
+  if (d.length <= 9) {
+    return `+${d.slice(0, 2)} (${d.slice(2, 4)}) ${d.slice(4)}`;
+  }
+  if (d.length <= 12) {
+    // Fixo (8 dígitos): +55 (86) 3333-4444
+    return `+${d.slice(0, 2)} (${d.slice(2, 4)}) ${d.slice(4, 8)}-${d.slice(8)}`;
+  }
+  // Celular (9 dígitos): +55 (86) 99933-0525
+  return `+${d.slice(0, 2)} (${d.slice(2, 4)}) ${d.slice(4, 9)}-${d.slice(9, 13)}`;
+};
+
+export const formatPixKeyByType = (val: string, type: string) => {
+  if (type === 'CPF') {
+    const d = val.replace(/\D/g, '').slice(0, 11);
     return d
-      .replace(/^(\d{2})(\d)/, '($1) $2')
-      .replace(/^(\(\d{2}\) \d{4})(\d)/, '$1-$2');
+      .replace(/^(\d{3})(\d)/, '$1.$2')
+      .replace(/^(\d{3})\.(\d{3})(\d)/, '$1.$2.$3')
+      .replace(/^(\d{3})\.(\d{3})\.(\d{3})(\d)/, '$1.$2.$3-$4');
   }
-  return d
-    .slice(0, 11)
-    .replace(/^(\d{2})(\d)/, '($1) $2')
-    .replace(/^(\(\d{2}\) \d{5})(\d)/, '$1-$2');
+  if (type === 'CNPJ') {
+    const d = val.replace(/\D/g, '').slice(0, 14);
+    return d
+      .replace(/^(\d{2})(\d)/, '$1.$2')
+      .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
+      .replace(/^(\d{2})\.(\d{3})\.(\d{3})(\d)/, '$1.$2.$3/$4')
+      .replace(/^(\d{2})\.(\d{3})\.(\d{3})\/(\d{4})(\d)/, '$1.$2.$3/$4-$5');
+  }
+  if (type === 'Telefone') {
+    return formatPhoneWithDdi(val);
+  }
+  return val;
 };
 
 const SQL_RLS_FIX = `-- Execute no SQL Editor do Supabase para liberar as permissões da tabela system_settings:
@@ -55,12 +91,16 @@ CREATE TABLE IF NOT EXISTS public.system_settings (
   sales_phone TEXT,
   master_pix_key TEXT,
   master_pix_key_type TEXT,
+  master_pix_holder_name TEXT,
+  master_pix_bank TEXT,
   support_email TEXT,
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   CONSTRAINT single_row CHECK (id = 1)
 );
 
 ALTER TABLE public.system_settings ADD COLUMN IF NOT EXISTS master_pix_key_type TEXT;
+ALTER TABLE public.system_settings ADD COLUMN IF NOT EXISTS master_pix_holder_name TEXT;
+ALTER TABLE public.system_settings ADD COLUMN IF NOT EXISTS master_pix_bank TEXT;
 INSERT INTO public.system_settings (id) VALUES (1) ON CONFLICT (id) DO NOTHING;
 ALTER TABLE public.system_settings ENABLE ROW LEVEL SECURITY;
 
@@ -75,6 +115,8 @@ CREATE OR REPLACE FUNCTION public.save_system_settings(
   p_sales_phone TEXT,
   p_master_pix_key TEXT,
   p_master_pix_key_type TEXT DEFAULT NULL,
+  p_master_pix_holder_name TEXT DEFAULT NULL,
+  p_master_pix_bank TEXT DEFAULT NULL,
   p_support_email TEXT DEFAULT NULL
 )
 RETURNS JSONB
@@ -82,12 +124,20 @@ LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-  INSERT INTO public.system_settings (id, sales_phone, master_pix_key, master_pix_key_type, support_email, updated_at)
-  VALUES (1, p_sales_phone, p_master_pix_key, p_master_pix_key_type, p_support_email, NOW())
+  INSERT INTO public.system_settings (
+    id, sales_phone, master_pix_key, master_pix_key_type,
+    master_pix_holder_name, master_pix_bank, support_email, updated_at
+  )
+  VALUES (
+    1, p_sales_phone, p_master_pix_key, p_master_pix_key_type,
+    p_master_pix_holder_name, p_master_pix_bank, p_support_email, NOW()
+  )
   ON CONFLICT (id) DO UPDATE SET
     sales_phone = EXCLUDED.sales_phone,
     master_pix_key = EXCLUDED.master_pix_key,
     master_pix_key_type = EXCLUDED.master_pix_key_type,
+    master_pix_holder_name = EXCLUDED.master_pix_holder_name,
+    master_pix_bank = EXCLUDED.master_pix_bank,
     support_email = EXCLUDED.support_email,
     updated_at = NOW();
 
@@ -95,25 +145,28 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION public.save_system_settings(TEXT, TEXT, TEXT, TEXT) TO anon, authenticated, service_role;`;
+GRANT EXECUTE ON FUNCTION public.save_system_settings(TEXT, TEXT, TEXT, TEXT, TEXT, TEXT) TO anon, authenticated, service_role;`;
 
 export const ConfiguracoesSaas: React.FC = () => {
   const { user, systemSettings, saveSystemSettings } = useApp();
 
-  const [form, setForm] = useState<SystemSettings>(systemSettings);
-  const [selectedPixType, setSelectedPixType] = useState<PixTypeChoice>(
-    (systemSettings.masterPixKeyType as PixTypeChoice) || 'AUTO'
-  );
+  const [form, setForm] = useState<SystemSettings>(() => ({
+    ...systemSettings,
+    salesPhone: systemSettings.salesPhone ? formatPhoneWithDdi(systemSettings.salesPhone) : '',
+    masterPixKeyType: systemSettings.masterPixKeyType || 'CNPJ',
+  }));
+
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<{ kind: 'success' | 'warning' | 'error'; msg: string; showSqlFix?: boolean } | null>(null);
   const [copiedSql, setCopiedSql] = useState(false);
   const [showSqlDetails, setShowSqlDetails] = useState(false);
 
   useEffect(() => { 
-    setForm(systemSettings); 
-    if (systemSettings.masterPixKeyType) {
-      setSelectedPixType(systemSettings.masterPixKeyType as PixTypeChoice);
-    }
+    setForm({
+      ...systemSettings,
+      salesPhone: systemSettings.salesPhone ? formatPhoneWithDdi(systemSettings.salesPhone) : '',
+      masterPixKeyType: systemSettings.masterPixKeyType || 'CNPJ',
+    }); 
   }, [systemSettings]);
 
   if (!user || user.role !== 'SUPER_ADM') {
@@ -128,232 +181,26 @@ export const ConfiguracoesSaas: React.FC = () => {
     );
   }
 
-  // Análise detalhada da chave PIX de acordo com o número de dígitos e formato
-  const analyzePixKey = (rawKey: string, chosenType: PixTypeChoice) => {
-    const key = (rawKey || '').trim();
-    const digits = key.replace(/\D/g, '');
-    const digitCount = digits.length;
-    const charCount = key.length;
-
-    if (!key) {
-      return {
-        type: 'VAZIA',
-        label: 'Aguardando digitação...',
-        badgeClass: 'bg-gray-100 text-gray-500 border-gray-200',
-        description: 'Digite a chave ou escolha um tipo abaixo para identificação automática.',
-        digitCount: 0,
-        isValid: false,
-      };
-    }
-
-    // Se o usuário selecionou um tipo específico no filtro:
-    if (chosenType === 'CPF') {
-      const valid = digitCount === 11;
-      return {
-        type: 'CPF',
-        label: `CPF (${digitCount}/11 dígitos)`,
-        badgeClass: valid ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200',
-        description: valid ? '✅ CPF reconhecido (11 dígitos)' : `⚠️ Faltam ${11 - digitCount} dígito(s) para completar os 11 do CPF.`,
-        digitCount,
-        isValid: valid,
-      };
-    }
-
-    if (chosenType === 'CNPJ') {
-      const valid = digitCount === 14;
-      return {
-        type: 'CNPJ',
-        label: `CNPJ (${digitCount}/14 dígitos)`,
-        badgeClass: valid ? 'bg-purple-50 text-purple-700 border-purple-200' : 'bg-amber-50 text-amber-700 border-amber-200',
-        description: valid ? '✅ CNPJ reconhecido (14 dígitos)' : `⚠️ Faltam ${14 - digitCount} dígito(s) para completar os 14 do CNPJ.`,
-        digitCount,
-        isValid: valid,
-      };
-    }
-
-    if (chosenType === 'TELEFONE') {
-      const valid = digitCount === 10 || digitCount === 11 || (digits.startsWith('55') && (digitCount === 12 || digitCount === 13));
-      return {
-        type: 'TELEFONE',
-        label: `Telefone (${digitCount} dígitos)`,
-        badgeClass: valid ? 'bg-teal-50 text-teal-700 border-teal-200' : 'bg-amber-50 text-amber-700 border-amber-200',
-        description: valid ? '✅ Telefone reconhecido (DDD + Número)' : `⚠️ Digite 10 dígitos (fixo) ou 11 dígitos (celular com 9). Atual: ${digitCount}.`,
-        digitCount,
-        isValid: valid,
-      };
-    }
-
-    if (chosenType === 'EMAIL') {
-      const valid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(key);
-      return {
-        type: 'EMAIL',
-        label: 'E-mail',
-        badgeClass: valid ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-amber-50 text-amber-700 border-amber-200',
-        description: valid ? '✅ E-mail no formato correto' : '⚠️ E-mail incompleto (certifique-se de incluir @ e o domínio ex: .com).',
-        digitCount,
-        isValid: valid,
-      };
-    }
-
-    if (chosenType === 'ALEATORIA') {
-      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(key);
-      const is32Hex = /^[0-9a-f]{32}$/i.test(key);
-      const valid = isUuid || is32Hex;
-      return {
-        type: 'ALEATORIA',
-        label: 'Chave Aleatória (EVP)',
-        badgeClass: valid ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-amber-50 text-amber-700 border-amber-200',
-        description: valid ? '✅ Chave EVP válida (32 caracteres padrão Banco Central)' : `⚠️ Chave Aleatória: ${charCount} caracteres digitados.`,
-        digitCount,
-        isValid: valid,
-      };
-    }
-
-    // MODO AUTO: Reconhecimento inteligente baseado na contagem de dígitos e caracteres
-    if (key.includes('@')) {
-      const valid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(key);
-      return {
-        type: 'EMAIL',
-        label: 'E-mail Detectado',
-        badgeClass: valid ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-amber-50 text-amber-700 border-amber-200',
-        description: valid ? '✅ Identificado como E-mail' : 'Identificado com @ (complete o e-mail)',
-        digitCount,
-        isValid: valid,
-      };
-    }
-
-    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(key) || (/^[0-9a-f]{32}$/i.test(key) && /[a-f]/i.test(key))) {
-      return {
-        type: 'ALEATORIA',
-        label: 'Chave Aleatória (EVP)',
-        badgeClass: 'bg-indigo-50 text-indigo-700 border-indigo-200',
-        description: '✅ Identificada como Chave Aleatória EVP (32 caracteres)',
-        digitCount,
-        isValid: true,
-      };
-    }
-
-    // Análise por contagem de dígitos
-    if (digitCount === 14) {
-      return {
-        type: 'CNPJ',
-        label: '14 Dígitos → CNPJ Detectado',
-        badgeClass: 'bg-purple-50 text-purple-700 border-purple-200 font-bold',
-        description: '✅ Identificado pelo tamanho: exatos 14 dígitos de CNPJ.',
-        digitCount: 14,
-        isValid: true,
-      };
-    }
-
-    if (digitCount === 11) {
-      const isLikelyCell = digits[2] === '9';
-      return {
-        type: isLikelyCell ? 'DUPLO' : 'CPF',
-        label: isLikelyCell ? '11 Dígitos → CPF ou Celular' : '11 Dígitos → CPF Detectado',
-        badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200 font-bold',
-        description: isLikelyCell
-          ? '✅ 11 dígitos reconhecidos! Compatível tanto com CPF quanto com Celular (com DDD).'
-          : '✅ Identificado pelo tamanho: 11 dígitos de CPF.',
-        digitCount: 11,
-        isValid: true,
-        canBeCell: isLikelyCell,
-      };
-    }
-
-    if (digitCount === 10) {
-      return {
-        type: 'TELEFONE',
-        label: '10 Dígitos → Telefone Fixo',
-        badgeClass: 'bg-teal-50 text-teal-700 border-teal-200 font-bold',
-        description: '✅ Identificado pelo tamanho: 10 dígitos (DDD + número fixo).',
-        digitCount: 10,
-        isValid: true,
-      };
-    }
-
-    if (digits.startsWith('55') && (digitCount === 12 || digitCount === 13)) {
-      return {
-        type: 'TELEFONE',
-        label: 'Telefone com DDI Brasil (+55)',
-        badgeClass: 'bg-teal-50 text-teal-700 border-teal-200 font-bold',
-        description: `✅ Identificado como Telefone com código de país +55 (${digitCount} dígitos).`,
-        digitCount,
-        isValid: true,
-      };
-    }
-
-    if (digitCount > 0 && digitCount < 11) {
-      return {
-        type: 'INCOMPLETO',
-        label: `${digitCount} dígitos digitados`,
-        badgeClass: 'bg-amber-50 text-amber-700 border-amber-200',
-        description: `Contagem: ${digitCount} dígitos (faltam ${11 - digitCount} para CPF/Celular ou ${14 - digitCount} para CNPJ).`,
-        digitCount,
-        isValid: false,
-      };
-    }
-
-    if (digitCount > 11 && digitCount < 14) {
-      return {
-        type: 'INCOMPLETO',
-        label: `${digitCount} dígitos digitados`,
-        badgeClass: 'bg-amber-50 text-amber-700 border-amber-200',
-        description: `Contagem: ${digitCount} dígitos (faltam ${14 - digitCount} para completar CNPJ).`,
-        digitCount,
-        isValid: false,
-      };
-    }
-
-    if (charCount > 0) {
-      return {
-        type: 'ALEATORIA',
-        label: 'Chave Aleatória / Texto',
-        badgeClass: 'bg-indigo-50 text-indigo-700 border-indigo-200',
-        description: `Texto livre: ${charCount} caracteres digitados.`,
-        digitCount,
-        isValid: true,
-      };
-    }
-
-    return {
-      type: 'VAZIA',
-      label: 'Desconhecido',
-      badgeClass: 'bg-gray-100 text-gray-700 border-gray-200',
-      description: '',
-      digitCount: 0,
-      isValid: false,
-    };
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatPhoneWithDdi(e.target.value);
+    setForm(prev => ({ ...prev, salesPhone: formatted }));
   };
 
-  const pixAnalysis = analyzePixKey(form.masterPixKey || '', selectedPixType);
-
-  // Aplica formatação rápida ao mudar o tipo
-  const handleSelectPixType = (type: PixTypeChoice) => {
-    setSelectedPixType(type);
-    const currentKey = form.masterPixKey || '';
-    const digits = currentKey.replace(/\D/g, '');
-
-    if (type === 'CPF' && digits.length === 11) {
-      setForm(prev => ({ ...prev, masterPixKey: formatCpf(digits) }));
-    } else if (type === 'CNPJ' && digits.length === 14) {
-      setForm(prev => ({ ...prev, masterPixKey: formatCnpj(digits) }));
-    } else if (type === 'TELEFONE' && (digits.length === 10 || digits.length === 11)) {
-      setForm(prev => ({ ...prev, masterPixKey: formatPhone(digits) }));
-    }
+  const handlePixKeyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    const formatted = formatPixKeyByType(val, form.masterPixKeyType || 'CNPJ');
+    setForm(prev => ({ ...prev, masterPixKey: formatted }));
   };
 
-  const handleApplyMask = (maskType: 'CPF' | 'CNPJ' | 'TELEFONE') => {
-    const digits = (form.masterPixKey || '').replace(/\D/g, '');
-    if (maskType === 'CPF') {
-      setSelectedPixType('CPF');
-      setForm(prev => ({ ...prev, masterPixKey: formatCpf(digits) }));
-    } else if (maskType === 'CNPJ') {
-      setSelectedPixType('CNPJ');
-      setForm(prev => ({ ...prev, masterPixKey: formatCnpj(digits) }));
-    } else if (maskType === 'TELEFONE') {
-      setSelectedPixType('TELEFONE');
-      setForm(prev => ({ ...prev, masterPixKey: formatPhone(digits) }));
-    }
+  const handleTypeSelect = (typeId: string) => {
+    setForm(prev => {
+      const formatted = formatPixKeyByType(prev.masterPixKey || '', typeId);
+      return {
+        ...prev,
+        masterPixKeyType: typeId,
+        masterPixKey: formatted,
+      };
+    });
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -361,14 +208,12 @@ export const ConfiguracoesSaas: React.FC = () => {
     setSaving(true);
     setFeedback(null);
 
-    const effectiveType = selectedPixType !== 'AUTO' 
-      ? selectedPixType 
-      : (pixAnalysis.type !== 'VAZIA' && pixAnalysis.type !== 'INCOMPLETO' ? pixAnalysis.type : undefined);
-
     const cleaned: SystemSettings = {
-      salesPhone: form.salesPhone ? onlyDigits(form.salesPhone) : undefined,
+      salesPhone: form.salesPhone?.trim() || undefined,
       masterPixKey: form.masterPixKey?.trim() || undefined,
-      masterPixKeyType: effectiveType,
+      masterPixKeyType: form.masterPixKeyType || 'CNPJ',
+      masterPixHolderName: form.masterPixHolderName?.trim() || undefined,
+      masterPixBank: form.masterPixBank?.trim() || undefined,
       supportEmail: form.supportEmail?.trim() || undefined,
     };
 
@@ -378,20 +223,20 @@ export const ConfiguracoesSaas: React.FC = () => {
     if (res.success) {
       setFeedback({
         kind: 'success',
-        msg: 'Configurações Master salvas com sucesso! Os dados foram sincronizados no banco de dados e no sistema.',
+        msg: 'Configurações salvas com sucesso! Os dados foram sincronizados no sistema.',
       });
     } else {
       const isRlsError = res.error && /violates row-level security/i.test(res.error);
       if (isRlsError) {
         setFeedback({
           kind: 'warning',
-          msg: 'Suas alterações foram salvas com sucesso neste dispositivo e já estão ativas! Porém o Supabase bloqueou a gravação direta por Política de Segurança (RLS). Execute o script SQL abaixo no Supabase SQL Editor para sincronizar permanentemente no banco.',
+          msg: 'Suas alterações foram salvas neste dispositivo e já estão ativas! Porém o Supabase bloqueou a gravação direta por RLS. Execute o script SQL no Supabase para sincronizar permanentemente no banco.',
           showSqlFix: true,
         });
       } else {
         setFeedback({
           kind: 'error',
-          msg: res.error || 'Erro ao salvar configurações no banco de dados.',
+          msg: res.error || 'Erro ao salvar configurações.',
           showSqlFix: true,
         });
       }
@@ -405,14 +250,7 @@ export const ConfiguracoesSaas: React.FC = () => {
     });
   };
 
-  const KEY_TYPE_BUTTONS: { id: PixTypeChoice; label: string; icon: any }[] = [
-    { id: 'AUTO',      label: '🔍 Auto-reconhecer', icon: Hash },
-    { id: 'CPF',       label: '📄 CPF (11)',        icon: UserCheck },
-    { id: 'CNPJ',      label: '🏢 CNPJ (14)',       icon: Building2 },
-    { id: 'TELEFONE',  label: '📱 Telefone',        icon: Smartphone },
-    { id: 'EMAIL',     label: '✉️ E-mail',          icon: AtSign },
-    { id: 'ALEATORIA', label: '🔑 Aleatória',       icon: Key },
-  ];
+  const currentPlaceholder = PIX_TYPES.find(t => t.id === form.masterPixKeyType)?.placeholder || 'Chave PIX';
 
   return (
     <motion.div
@@ -429,7 +267,7 @@ export const ConfiguracoesSaas: React.FC = () => {
           </div>
           <div>
             <h1 className="text-2xl md:text-3xl font-black tracking-tight mb-0.5">Configurações Master do SaaS</h1>
-            <p className="text-gray-400 text-xs md:text-sm">Cadastre suas informações globais de recebimento, contato e suporte</p>
+            <p className="text-gray-400 text-xs md:text-sm">Cadastre suas informações globais de recebimento PIX, contato e suporte</p>
           </div>
         </div>
 
@@ -440,7 +278,6 @@ export const ConfiguracoesSaas: React.FC = () => {
           </span>
         </div>
 
-        {/* Decorative BG */}
         <div className="absolute right-0 top-0 h-full w-1/2 bg-gradient-to-l from-brand-dark to-transparent opacity-50 pointer-events-none"></div>
       </div>
 
@@ -450,129 +287,7 @@ export const ConfiguracoesSaas: React.FC = () => {
         <div className="lg:col-span-2 space-y-6">
           <form onSubmit={handleSave} className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 md:p-8 space-y-6">
             
-            {/* Campo 1: Chave PIX Master com Filtro de Tipo e Reconhecimento por Dígitos */}
-            <div className="space-y-3">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                <label className="flex items-center gap-2 text-xs font-bold text-gray-700 uppercase tracking-wider">
-                  <div className="p-1.5 bg-blue-50 text-blue-600 rounded-md border border-blue-100">
-                    <KeyRound size={14} />
-                  </div>
-                  Chave PIX Master (Recebimento dos Planos)
-                </label>
-                
-                {/* Badge de Reconhecimento Dinâmico */}
-                <span className={`inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-full border transition-all ${pixAnalysis.badgeClass}`}>
-                  <Hash size={12} />
-                  {pixAnalysis.label}
-                </span>
-              </div>
-
-              {/* Filtro / Seletor de Tipo de Chave */}
-              <div className="bg-gray-50/80 p-2 rounded-xl border border-gray-200/70 space-y-2">
-                <div className="flex items-center justify-between px-1">
-                  <span className="text-[11px] font-bold text-gray-600 uppercase tracking-wider">
-                    Filtro / Tipo de Chave:
-                  </span>
-                  <span className="text-[10px] text-gray-400">
-                    {selectedPixType === 'AUTO' ? 'Detecção automática ativa' : `Modo forçado: ${selectedPixType}`}
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-1.5">
-                  {KEY_TYPE_BUTTONS.map(btn => {
-                    const isSelected = selectedPixType === btn.id;
-                    const Icon = btn.icon;
-                    return (
-                      <button
-                        key={btn.id}
-                        type="button"
-                        onClick={() => handleSelectPixType(btn.id)}
-                        className={`flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg text-[11px] font-bold transition-all border ${
-                          isSelected
-                            ? 'bg-blue-600 text-white border-blue-600 shadow-sm scale-[1.02]'
-                            : 'bg-white hover:bg-gray-100 text-gray-700 border-gray-200'
-                        }`}
-                      >
-                        <Icon size={12} />
-                        <span>{btn.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Input da Chave */}
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder={
-                    selectedPixType === 'CPF'
-                      ? 'Digite os 11 dígitos do CPF (ex: 123.456.789-00)'
-                      : selectedPixType === 'CNPJ'
-                      ? 'Digite os 14 dígitos do CNPJ (ex: 12.345.678/0001-90)'
-                      : selectedPixType === 'TELEFONE'
-                      ? 'Digite o telefone com DDD (ex: 11999998888)'
-                      : selectedPixType === 'EMAIL'
-                      ? 'Digite seu e-mail (ex: financeiro@igrejaapp.com)'
-                      : selectedPixType === 'ALEATORIA'
-                      ? 'Cole sua chave aleatória (EVP) de 32 caracteres'
-                      : 'Cole ou digite a chave (reconhece CPF, CNPJ, Telefone, E-mail ou Aleatória)'
-                  }
-                  className="w-full bg-gray-50 hover:bg-gray-50/80 focus:bg-white border border-gray-200 rounded-lg px-4 py-3 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all font-mono"
-                  value={form.masterPixKey || ''}
-                  onChange={e => setForm({ ...form, masterPixKey: e.target.value })}
-                />
-              </div>
-
-              {/* Feedback de Análise e Ações Rápidas de Formatação */}
-              <div className="p-3 bg-blue-50/60 rounded-xl border border-blue-100 space-y-2 text-xs">
-                <div className="flex items-start gap-2 text-gray-700">
-                  <Info size={15} className="text-blue-600 shrink-0 mt-0.5" />
-                  <div className="flex-1">
-                    <p className="font-medium leading-relaxed">{pixAnalysis.description}</p>
-                  </div>
-                </div>
-
-                {/* Se detectou 11 dígitos, oferece formatação rápida */}
-                {pixAnalysis.digitCount === 11 && (
-                  <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-blue-100">
-                    <span className="text-[11px] font-bold text-blue-900">Formatar rapidamente como:</span>
-                    <button
-                      type="button"
-                      onClick={() => handleApplyMask('CPF')}
-                      className="px-2.5 py-1 bg-white hover:bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-md text-[11px] font-bold transition flex items-center gap-1 shadow-2xs"
-                    >
-                      <UserCheck size={12} /> Formatar como CPF (000.000.000-00)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleApplyMask('TELEFONE')}
-                      className="px-2.5 py-1 bg-white hover:bg-teal-50 border border-teal-200 text-teal-700 rounded-md text-[11px] font-bold transition flex items-center gap-1 shadow-2xs"
-                    >
-                      <Smartphone size={12} /> Formatar como Celular ((00) 90000-0000)
-                    </button>
-                  </div>
-                )}
-
-                {/* Se detectou 14 dígitos, oferece formatação rápida de CNPJ */}
-                {pixAnalysis.digitCount === 14 && (
-                  <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-blue-100">
-                    <span className="text-[11px] font-bold text-blue-900">Formatar rapidamente como:</span>
-                    <button
-                      type="button"
-                      onClick={() => handleApplyMask('CNPJ')}
-                      className="px-2.5 py-1 bg-white hover:bg-purple-50 border border-purple-200 text-purple-700 rounded-md text-[11px] font-bold transition flex items-center gap-1 shadow-2xs"
-                    >
-                      <Building2 size={12} /> Formatar como CNPJ (00.000.000/0000-00)
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <hr className="border-gray-100" />
-
-            {/* Campo 2: WhatsApp / Vendas */}
+            {/* Campo 1: WhatsApp / Vendas com máscara rigorosa +xx (xx) xxxxx-xxxx */}
             <div className="space-y-2">
               <label className="flex items-center gap-2 text-xs font-bold text-gray-700 uppercase tracking-wider">
                 <div className="p-1.5 bg-emerald-50 text-emerald-600 rounded-md border border-emerald-100">
@@ -583,20 +298,124 @@ export const ConfiguracoesSaas: React.FC = () => {
               
               <div className="relative">
                 <input
-                  type="tel"
-                  inputMode="numeric"
-                  placeholder="Ex: 5586999330525 (DDI + DDD + número)"
+                  type="text"
+                  placeholder="+55 (86) 99933-0525"
                   className="w-full bg-gray-50 hover:bg-gray-50/80 focus:bg-white border border-gray-200 rounded-lg px-4 py-3 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all font-mono"
                   value={form.salesPhone || ''}
-                  onChange={e => setForm({ ...form, salesPhone: e.target.value })}
+                  onChange={handlePhoneChange}
                 />
               </div>
 
               <div className="flex items-start gap-1.5 text-xs text-gray-500 bg-emerald-50/50 p-2.5 rounded-lg border border-emerald-100/60">
                 <Sparkles size={14} className="text-emerald-600 shrink-0 mt-0.5" />
                 <span>
-                  Alimenta automaticamente os botões <strong>"Falar com Financeiro"</strong> (em telas de bloqueio de mensalidade) e <strong>"Contratar Novo Plano"</strong> em todo o sistema.
+                  Máscara automática: <strong>+xx (xx) xxxxx-xxxx</strong>. Alimenta os botões de WhatsApp de cobrança e contratação de planos no sistema.
                 </span>
+              </div>
+            </div>
+
+            <hr className="border-gray-100" />
+
+            {/* Campo 2: Seção PIX Master (Tipo, Chave, Nome que aparece e Banco) */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 pb-1 border-b border-gray-100">
+                <div className="p-1.5 bg-blue-50 text-blue-600 rounded-md border border-blue-100">
+                  <KeyRound size={15} />
+                </div>
+                <div>
+                  <h3 className="text-xs font-bold text-gray-800 uppercase tracking-wider">
+                    Chave PIX Master (Recebimento dos Planos)
+                  </h3>
+                  <p className="text-[11px] text-gray-500">
+                    Dados bancários oficiais que as igrejas verão ao pagar a mensalidade do software
+                  </p>
+                </div>
+              </div>
+
+              {/* 2.1 Seleção do Tipo de Chave */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-gray-700">
+                  1. Selecione o Tipo de Chave PIX:
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
+                  {PIX_TYPES.map(type => {
+                    const isSelected = (form.masterPixKeyType || 'CNPJ') === type.id;
+                    return (
+                      <button
+                        key={type.id}
+                        type="button"
+                        onClick={() => handleTypeSelect(type.id)}
+                        className={`py-2 px-3 rounded-lg text-xs font-bold transition-all border flex items-center justify-center gap-1.5 ${
+                          isSelected
+                            ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                            : 'bg-gray-50 hover:bg-gray-100 text-gray-700 border-gray-200'
+                        }`}
+                      >
+                        {isSelected && <Check size={13} />}
+                        {type.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* 2.2 Input da Chave PIX */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-gray-700">
+                  2. Chave PIX ({form.masterPixKeyType || 'CNPJ'}):
+                </label>
+                <input
+                  type="text"
+                  placeholder={currentPlaceholder}
+                  className="w-full bg-gray-50 hover:bg-gray-50/80 focus:bg-white border border-gray-200 rounded-lg px-4 py-3 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all font-mono"
+                  value={form.masterPixKey || ''}
+                  onChange={handlePixKeyChange}
+                />
+              </div>
+
+              {/* Grid: Nome que aparece + Banco */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+                {/* 2.3 Nome do Titular / Nome que aparece */}
+                <div className="space-y-1.5">
+                  <label className="flex items-center gap-1.5 text-xs font-bold text-gray-700">
+                    <User size={13} className="text-gray-500" />
+                    3. Nome que aparece (Favorecido / Titular):
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ex: IgrejaApp Tecnologia Ltda"
+                    className="w-full bg-gray-50 hover:bg-gray-50/80 focus:bg-white border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                    value={form.masterPixHolderName || ''}
+                    onChange={e => setForm({ ...form, masterPixHolderName: e.target.value })}
+                  />
+                  <p className="text-[10px] text-gray-400">
+                    O nome que o cliente/igreja confirma na tela do banco antes de pagar.
+                  </p>
+                </div>
+
+                {/* 2.4 Banco / Instituição Financeira */}
+                <div className="space-y-1.5">
+                  <label className="flex items-center gap-1.5 text-xs font-bold text-gray-700">
+                    <Building size={13} className="text-gray-500" />
+                    4. Banco / Instituição:
+                  </label>
+                  <input
+                    type="text"
+                    list="banks-list"
+                    placeholder="Ex: Nubank, Banco do Brasil, Inter..."
+                    className="w-full bg-gray-50 hover:bg-gray-50/80 focus:bg-white border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                    value={form.masterPixBank || ''}
+                    onChange={e => setForm({ ...form, masterPixBank: e.target.value })}
+                  />
+                  <datalist id="banks-list">
+                    {POPULAR_BANKS.map(b => (
+                      <option key={b} value={b} />
+                    ))}
+                  </datalist>
+                  <p className="text-[10px] text-gray-400">
+                    Instituição da conta para facilitar a conferência do pagamento.
+                  </p>
+                </div>
               </div>
             </div>
 
@@ -717,27 +536,38 @@ export const ConfiguracoesSaas: React.FC = () => {
             </p>
 
             <div className="space-y-3 pt-2">
-              <div className="p-3 bg-gray-50 rounded-lg border border-gray-200/80">
-                <div className="text-[10px] font-bold text-gray-400 uppercase">Chave PIX Master</div>
-                <div className="text-xs font-bold text-gray-800 truncate mt-0.5 font-mono">
+              {/* Card PIX */}
+              <div className="p-3.5 bg-blue-50/60 rounded-xl border border-blue-100 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold text-blue-900 uppercase">Chave PIX Master</span>
+                  <span className="text-[10px] font-bold px-2 py-0.5 bg-blue-100 text-blue-800 rounded">
+                    {systemSettings.masterPixKeyType || 'CNPJ'}
+                  </span>
+                </div>
+                <div className="text-xs font-bold text-gray-900 font-mono break-all">
                   {systemSettings.masterPixKey || <span className="text-gray-400 font-normal italic">Não configurada</span>}
                 </div>
-                {systemSettings.masterPixKey && (
-                  <div className="mt-1 flex items-center gap-1.5">
-                    <span className="text-[10px] font-bold px-2 py-0.5 bg-blue-50 text-blue-700 rounded border border-blue-100 uppercase">
-                      {systemSettings.masterPixKeyType || 'PIX'}
-                    </span>
+                {systemSettings.masterPixHolderName && (
+                  <div className="text-[11px] text-gray-600">
+                    <span className="font-semibold text-gray-700">Nome:</span> {systemSettings.masterPixHolderName}
+                  </div>
+                )}
+                {systemSettings.masterPixBank && (
+                  <div className="text-[11px] text-gray-600">
+                    <span className="font-semibold text-gray-700">Banco:</span> {systemSettings.masterPixBank}
                   </div>
                 )}
               </div>
 
+              {/* Card WhatsApp */}
               <div className="p-3 bg-gray-50 rounded-lg border border-gray-200/80">
                 <div className="text-[10px] font-bold text-gray-400 uppercase">WhatsApp de Contato</div>
                 <div className="text-xs font-bold text-gray-800 truncate mt-0.5 font-mono">
-                  {systemSettings.salesPhone ? `+${systemSettings.salesPhone}` : <span className="text-gray-400 font-normal italic">Não configurado</span>}
+                  {systemSettings.salesPhone ? systemSettings.salesPhone : <span className="text-gray-400 font-normal italic">Não configurado</span>}
                 </div>
               </div>
 
+              {/* Card E-mail */}
               <div className="p-3 bg-gray-50 rounded-lg border border-gray-200/80">
                 <div className="text-[10px] font-bold text-gray-400 uppercase">E-mail de Suporte</div>
                 <div className="text-xs font-bold text-gray-800 truncate mt-0.5">
@@ -751,10 +581,10 @@ export const ConfiguracoesSaas: React.FC = () => {
           <div className="bg-amber-50/70 border border-amber-200/80 rounded-xl p-5 text-xs text-amber-900 space-y-2">
             <div className="flex items-center gap-2 font-bold text-amber-900">
               <HelpCircle size={15} className="text-amber-700 shrink-0" />
-              Onde esta chave é exibida?
+              Onde esses dados são exibidos?
             </div>
             <p className="text-amber-800 leading-relaxed">
-              Sempre que você alterar e salvar a <strong>Chave PIX Master</strong> ou o <strong>WhatsApp</strong>, apenas a janela <strong>"Pagamentos do Sistema" (exclusiva da SEDE)</strong> e a tela de faturamento pendente serão atualizadas com sua chave para o recebimento das mensalidades do software.
+              A chave PIX, o nome do favorecido e o banco aparecem juntos na tela <strong>"Pagamentos do Sistema"</strong> e em avisos de cobrança para facilitar que o pastor/tesoureiro confira e faça o pagamento com total segurança.
             </p>
           </div>
         </div>

@@ -515,6 +515,23 @@ export const BillingPage: React.FC = () => {
                 </span>
               </div>
 
+              {(systemSettings.masterPixHolderName || systemSettings.masterPixBank) && (
+                <div className="p-2.5 bg-gray-50 dark:bg-gray-900/40 rounded-xl border border-gray-100 dark:border-gray-700/60 text-xs space-y-1">
+                  {systemSettings.masterPixHolderName && (
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="text-gray-400">Nome / Favorecido:</span>
+                      <span className="font-bold text-gray-800 dark:text-gray-200">{systemSettings.masterPixHolderName}</span>
+                    </div>
+                  )}
+                  {systemSettings.masterPixBank && (
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="text-gray-400">Banco / Instituição:</span>
+                      <span className="font-bold text-gray-800 dark:text-gray-200">{systemSettings.masterPixBank}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="flex gap-2">
                 <button
                   type="button"
@@ -893,9 +910,20 @@ export const BillingPage: React.FC = () => {
               />
             </div>
 
-            <div className="p-2.5 bg-gray-50 dark:bg-gray-700 rounded-xl mb-4 text-[11px] font-mono text-gray-700 dark:text-gray-200 break-all select-all border">
+            <div className="p-2.5 bg-gray-50 dark:bg-gray-700 rounded-xl mb-3 text-[11px] font-mono text-gray-700 dark:text-gray-200 break-all select-all border">
               {billingPix}
             </div>
+
+            {(systemSettings.masterPixHolderName || systemSettings.masterPixBank) && (
+              <div className="text-[11px] text-gray-500 dark:text-gray-400 mb-4 space-y-0.5">
+                {systemSettings.masterPixHolderName && (
+                  <p><b>Favorecido:</b> {systemSettings.masterPixHolderName}</p>
+                )}
+                {systemSettings.masterPixBank && (
+                  <p><b>Banco:</b> {systemSettings.masterPixBank}</p>
+                )}
+              </div>
+            )}
 
             <div className="flex gap-2">
               <button

@@ -513,10 +513,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const { data: sysData } = await supabase.from('system_settings').select('*').eq('id', 1).maybeSingle();
       if (sysData) {
         const next: SystemSettings = {
-          salesPhone:       sysData.sales_phone         || undefined,
-          masterPixKey:     sysData.master_pix_key      || undefined,
-          masterPixKeyType: sysData.master_pix_key_type || undefined,
-          supportEmail:     sysData.support_email       || undefined,
+          salesPhone:          sysData.sales_phone            || undefined,
+          masterPixKey:        sysData.master_pix_key         || undefined,
+          masterPixKeyType:    sysData.master_pix_key_type    || undefined,
+          masterPixHolderName: sysData.master_pix_holder_name || undefined,
+          masterPixBank:       sysData.master_pix_bank        || undefined,
+          supportEmail:        sysData.support_email          || undefined,
         };
         setSystemSettings(next);
         try { localStorage.setItem('igrejaapp_system_settings', JSON.stringify(next)); } catch {}
@@ -528,10 +530,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // 1. Tenta salvar via RPC SECURITY DEFINER (evita bloqueios de RLS)
     try {
       const { error: rpcErr } = await supabase.rpc('save_system_settings', {
-        p_sales_phone:         s.salesPhone || null,
-        p_master_pix_key:      s.masterPixKey || null,
-        p_master_pix_key_type: s.masterPixKeyType || null,
-        p_support_email:       s.supportEmail || null,
+        p_sales_phone:           s.salesPhone || null,
+        p_master_pix_key:        s.masterPixKey || null,
+        p_master_pix_key_type:   s.masterPixKeyType || null,
+        p_master_pix_holder_name: s.masterPixHolderName || null,
+        p_master_pix_bank:       s.masterPixBank || null,
+        p_support_email:         s.supportEmail || null,
       });
       if (!rpcErr) {
         setSystemSettings(s);
@@ -543,11 +547,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // 2. Fallback para upsert direto na tabela
     const payload: any = {
       id: 1,
-      sales_phone:         s.salesPhone || null,
-      master_pix_key:      s.masterPixKey || null,
-      master_pix_key_type: s.masterPixKeyType || null,
-      support_email:       s.supportEmail || null,
-      updated_at:          new Date().toISOString(),
+      sales_phone:           s.salesPhone || null,
+      master_pix_key:        s.masterPixKey || null,
+      master_pix_key_type:   s.masterPixKeyType || null,
+      master_pix_holder_name: s.masterPixHolderName || null,
+      master_pix_bank:       s.masterPixBank || null,
+      support_email:         s.supportEmail || null,
+      updated_at:            new Date().toISOString(),
     };
     try {
       const { error } = await supabase.from('system_settings').upsert(payload, { onConflict: 'id' });
