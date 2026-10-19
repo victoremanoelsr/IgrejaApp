@@ -8,11 +8,11 @@ import { useApp } from '../context';
 import { SystemSettings } from '../types';
 
 export const PIX_TYPES = [
-  { id: 'CNPJ',            label: 'CNPJ',                  placeholder: '00.000.000/0000-00' },
-  { id: 'CPF',             label: 'CPF',                   placeholder: '000.000.000-00' },
-  { id: 'Telefone',        label: 'Telefone / Celular',    placeholder: '+55 (00) 00000-0000' },
-  { id: 'E-mail',          label: 'E-mail',                placeholder: 'seuemail@exemplo.com' },
-  { id: 'Chave Aleatória', label: 'Chave Aleatória (EVP)', placeholder: 'Cole sua chave aleatória (UUID)' },
+  { id: 'CNPJ',            label: 'CNPJ',                  placeholder: 'Digite ou cole o CNPJ da chave PIX' },
+  { id: 'CPF',             label: 'CPF',                   placeholder: 'Digite ou cole o CPF da chave PIX' },
+  { id: 'Telefone',        label: 'Telefone / Celular',    placeholder: 'Digite ou cole o telefone da chave PIX' },
+  { id: 'E-mail',          label: 'E-mail',                placeholder: 'Digite ou cole o e-mail da chave PIX' },
+  { id: 'Chave Aleatória', label: 'Chave Aleatória (EVP)', placeholder: 'Cole sua chave aleatória (EVP)' },
 ];
 
 export const POPULAR_BANKS = [
@@ -61,28 +61,6 @@ export const formatPhoneWithDdi = (val: string): string => {
   }
   // Celular (9 dígitos): +55 (86) 99933-0525
   return `+${d.slice(0, 2)} (${d.slice(2, 4)}) ${d.slice(4, 9)}-${d.slice(9, 13)}`;
-};
-
-export const formatPixKeyByType = (val: string, type: string) => {
-  if (type === 'CPF') {
-    const d = val.replace(/\D/g, '').slice(0, 11);
-    return d
-      .replace(/^(\d{3})(\d)/, '$1.$2')
-      .replace(/^(\d{3})\.(\d{3})(\d)/, '$1.$2.$3')
-      .replace(/^(\d{3})\.(\d{3})\.(\d{3})(\d)/, '$1.$2.$3-$4');
-  }
-  if (type === 'CNPJ') {
-    const d = val.replace(/\D/g, '').slice(0, 14);
-    return d
-      .replace(/^(\d{2})(\d)/, '$1.$2')
-      .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
-      .replace(/^(\d{2})\.(\d{3})\.(\d{3})(\d)/, '$1.$2.$3/$4')
-      .replace(/^(\d{2})\.(\d{3})\.(\d{3})\/(\d{4})(\d)/, '$1.$2.$3/$4-$5');
-  }
-  if (type === 'Telefone') {
-    return formatPhoneWithDdi(val);
-  }
-  return val;
 };
 
 const SQL_RLS_FIX = `-- Execute no SQL Editor do Supabase para liberar as permissões da tabela system_settings:
@@ -187,20 +165,14 @@ export const ConfiguracoesSaas: React.FC = () => {
   };
 
   const handlePixKeyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value;
-    const formatted = formatPixKeyByType(val, form.masterPixKeyType || 'CNPJ');
-    setForm(prev => ({ ...prev, masterPixKey: formatted }));
+    setForm(prev => ({ ...prev, masterPixKey: e.target.value }));
   };
 
   const handleTypeSelect = (typeId: string) => {
-    setForm(prev => {
-      const formatted = formatPixKeyByType(prev.masterPixKey || '', typeId);
-      return {
-        ...prev,
-        masterPixKeyType: typeId,
-        masterPixKey: formatted,
-      };
-    });
+    setForm(prev => ({
+      ...prev,
+      masterPixKeyType: typeId,
+    }));
   };
 
   const handleSave = async (e: React.FormEvent) => {
