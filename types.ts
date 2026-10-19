@@ -162,7 +162,7 @@ export interface CarnetTemplate {
   backgroundStyle?: CarnetBackgroundStyle;
   layoutJson: LayoutElement[];
   isDefault: boolean;
-  category: 'MISSOES' | 'JOVENS'; // Campo adicionado
+  category: 'MISSOES' | 'JOVENS' | 'CRIANCAS' | 'ADOLESCENTES' | 'SENHORAS' | 'SENHORES' | string;
   createdAt?: string;
 }
 

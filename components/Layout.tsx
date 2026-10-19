@@ -42,6 +42,7 @@ import {
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Church } from '../types';
 import { NotificationCenter } from './NotificationCenter';
+import { ErrorBoundary } from './ErrorBoundary';
 import { DepartmentSelectorModal } from './DepartmentSelectorModal';
 import { getUserRoles, getRoleInfo } from '../utils/roleUtils';
 import { getChurchDisplayName } from '../utils/churchUtils';
@@ -431,7 +432,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   const generalMenuItems: MenuItem[] = [
     { label: t('nav.dashboard'), icon: LayoutDashboard, path: '/dashboard', roles: ['ALL'] },
     { label: t('nav.congregations'), icon: Network, path: '/congregacoes', roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE'] },
-    { label: t('nav.departments'), icon: LayoutIcon, path: '/departamentos', roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE'] },
+    { label: t('nav.departments'), icon: LayoutIcon, path: '/departamentos', roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'DIRIGENTE', 'TESOUREIRO', 'SECRETARIO'] },
     { label: t('nav.finance'), icon: Wallet, path: '/financeiro', roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'DIRIGENTE', 'TESOUREIRO', 'SECRETARIO'] },
     { label: t('nav.campaigns'), icon: Megaphone, path: '/campanhas', roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'DIRIGENTE', 'TESOUREIRO', 'SECRETARIO'] },
     { label: t('nav.members'), icon: UsersIcon, path: '/membros', roles: ['ALL'] },
@@ -468,6 +469,8 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       { label: t('nav.dashboard'), icon: LayoutDashboard, path: '/criancas', state: { activeTab: 'DASHBOARD', entered: true }, roles: ['ALL'] },
       { label: t('nav.childrenCash'), icon: DollarSign, path: '/criancas', state: { activeTab: 'CAIXA', entered: true }, roles: ['ALL'] },
       { label: t('nav.reports'), icon: FileText, path: '/criancas', state: { activeTab: 'RELATORIOS', entered: true }, roles: ['ALL'] },
+      { label: 'Emitir Carnê', icon: BookOpen, path: '/criancas', state: { activeTab: 'CARNES', entered: true }, roles: ['ALL'] },
+      { label: 'Config. Modelo', icon: Settings, path: '/criancas', state: { activeTab: 'CONFIG_MODELO', entered: true }, roles: ['ALL'] },
       { label: t('nav.members'), icon: UsersIcon, path: '/criancas', state: { activeTab: 'MEMBROS', entered: true }, roles: ['ALL'] },
       { label: t('nav.team'), icon: Users, path: '/criancas', state: { activeTab: 'EQUIPE', entered: true }, roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'DIRIGENTE', 'SECRETARIO', 'TESOUREIRO', 'LIDER_CRIANCAS', 'TESOUREIRO_CRIANCAS'] }
   ];
@@ -476,6 +479,8 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       { label: 'Dashboard', icon: LayoutDashboard, path: '/adolescentes', state: { activeTab: 'DASHBOARD', entered: true }, roles: ['ALL'] },
       { label: 'Caixa Adolescentes', icon: DollarSign, path: '/adolescentes', state: { activeTab: 'CAIXA', entered: true }, roles: ['ALL'] },
       { label: 'Relatórios', icon: FileText, path: '/adolescentes', state: { activeTab: 'RELATORIOS', entered: true }, roles: ['ALL'] },
+      { label: 'Emitir Carnê', icon: BookOpen, path: '/adolescentes', state: { activeTab: 'CARNES', entered: true }, roles: ['ALL'] },
+      { label: 'Config. Modelo', icon: Settings, path: '/adolescentes', state: { activeTab: 'CONFIG_MODELO', entered: true }, roles: ['ALL'] },
       { label: 'Membros', icon: UsersIcon, path: '/adolescentes', state: { activeTab: 'MEMBROS', entered: true }, roles: ['ALL'] },
       { label: 'Equipe', icon: Users, path: '/adolescentes', state: { activeTab: 'EQUIPE', entered: true }, roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'DIRIGENTE', 'SECRETARIO', 'TESOUREIRO', 'LIDER_ADOLESCENTES', 'TESOUREIRO_ADOLESCENTES'] }
   ];
@@ -484,6 +489,8 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       { label: t('nav.dashboard'), icon: LayoutDashboard, path: '/senhoras', state: { activeTab: 'DASHBOARD', entered: true }, roles: ['ALL'] },
       { label: t('nav.ladiesCash'), icon: DollarSign, path: '/senhoras', state: { activeTab: 'CAIXA', entered: true }, roles: ['ALL'] },
       { label: t('nav.reports'), icon: FileText, path: '/senhoras', state: { activeTab: 'RELATORIOS', entered: true }, roles: ['ALL'] },
+      { label: 'Emitir Carnê', icon: BookOpen, path: '/senhoras', state: { activeTab: 'CARNES', entered: true }, roles: ['ALL'] },
+      { label: 'Config. Modelo', icon: Settings, path: '/senhoras', state: { activeTab: 'CONFIG_MODELO', entered: true }, roles: ['ALL'] },
       { label: t('nav.members'), icon: UsersIcon, path: '/senhoras', state: { activeTab: 'MEMBROS', entered: true }, roles: ['ALL'] },
       { label: t('nav.team'), icon: Users, path: '/senhoras', state: { activeTab: 'EQUIPE', entered: true }, roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'DIRIGENTE', 'SECRETARIO', 'TESOUREIRO', 'LIDER_SENHORAS', 'TESOUREIRO_SENHORAS'] }
   ];
@@ -492,6 +499,8 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       { label: t('nav.dashboard'), icon: LayoutDashboard, path: '/senhores', state: { activeTab: 'DASHBOARD', entered: true }, roles: ['ALL'] },
       { label: t('nav.menCash'), icon: DollarSign, path: '/senhores', state: { activeTab: 'CAIXA', entered: true }, roles: ['ALL'] },
       { label: t('nav.reports'), icon: FileText, path: '/senhores', state: { activeTab: 'RELATORIOS', entered: true }, roles: ['ALL'] },
+      { label: 'Emitir Carnê', icon: BookOpen, path: '/senhores', state: { activeTab: 'CARNES', entered: true }, roles: ['ALL'] },
+      { label: 'Config. Modelo', icon: Settings, path: '/senhores', state: { activeTab: 'CONFIG_MODELO', entered: true }, roles: ['ALL'] },
       { label: t('nav.members'), icon: UsersIcon, path: '/senhores', state: { activeTab: 'MEMBROS', entered: true }, roles: ['ALL'] },
       { label: t('nav.team'), icon: Users, path: '/senhores', state: { activeTab: 'EQUIPE', entered: true }, roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'DIRIGENTE', 'SECRETARIO', 'TESOUREIRO', 'LIDER_SENHORES', 'TESOUREIRO_SENHORES'] }
   ];
@@ -511,12 +520,12 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   else if (isAdolescentsUser) itemsToRender = adolescentsMenuItems;
   else if (isLadiesUser) itemsToRender = ladiesMenuItems;
   else if (isMenUser) itemsToRender = menMenuItems;
-  else if (isMissionsEntered) itemsToRender = [...missionsMenuItems, { label: t('common.backToGeneral'), icon: ArrowLeft, path: '/departamentos', roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE'] }, { label: t('common.backToGeneral'), icon: ArrowLeft, path: '/dashboard', roles: ['ALL'] }]; 
-  else if (isYouthEntered) itemsToRender = [...youthMenuItems, { label: t('common.backToGeneral'), icon: ArrowLeft, path: '/departamentos', roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE'] }, { label: t('common.backToGeneral'), icon: ArrowLeft, path: '/dashboard', roles: ['ALL'] }];
-  else if (isChildrenEntered) itemsToRender = [...childrenMenuItems, { label: t('common.backToGeneral'), icon: ArrowLeft, path: '/departamentos', roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE'] }, { label: t('common.backToGeneral'), icon: ArrowLeft, path: '/dashboard', roles: ['ALL'] }];
-  else if (isAdolescentsEntered) itemsToRender = [...adolescentsMenuItems, { label: t('common.backToGeneral'), icon: ArrowLeft, path: '/departamentos', roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE'] }, { label: t('common.backToGeneral'), icon: ArrowLeft, path: '/dashboard', roles: ['ALL'] }];
-  else if (isLadiesEntered) itemsToRender = [...ladiesMenuItems, { label: t('common.backToGeneral'), icon: ArrowLeft, path: '/departamentos', roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE'] }, { label: t('common.backToGeneral'), icon: ArrowLeft, path: '/dashboard', roles: ['ALL'] }];
-  else if (isMenEntered) itemsToRender = [...menMenuItems, { label: t('common.backToGeneral'), icon: ArrowLeft, path: '/departamentos', roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE'] }, { label: t('common.backToGeneral'), icon: ArrowLeft, path: '/dashboard', roles: ['ALL'] }];
+  else if (isMissionsEntered) itemsToRender = [...missionsMenuItems, { label: t('common.backToGeneral'), icon: ArrowLeft, path: '/departamentos', roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'DIRIGENTE', 'TESOUREIRO', 'SECRETARIO'] }, { label: t('common.backToGeneral'), icon: ArrowLeft, path: '/dashboard', roles: ['ALL'] }]; 
+  else if (isYouthEntered) itemsToRender = [...youthMenuItems, { label: t('common.backToGeneral'), icon: ArrowLeft, path: '/departamentos', roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'DIRIGENTE', 'TESOUREIRO', 'SECRETARIO'] }, { label: t('common.backToGeneral'), icon: ArrowLeft, path: '/dashboard', roles: ['ALL'] }];
+  else if (isChildrenEntered) itemsToRender = [...childrenMenuItems, { label: t('common.backToGeneral'), icon: ArrowLeft, path: '/departamentos', roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'DIRIGENTE', 'TESOUREIRO', 'SECRETARIO'] }, { label: t('common.backToGeneral'), icon: ArrowLeft, path: '/dashboard', roles: ['ALL'] }];
+  else if (isAdolescentsEntered) itemsToRender = [...adolescentsMenuItems, { label: t('common.backToGeneral'), icon: ArrowLeft, path: '/departamentos', roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'DIRIGENTE', 'TESOUREIRO', 'SECRETARIO'] }, { label: t('common.backToGeneral'), icon: ArrowLeft, path: '/dashboard', roles: ['ALL'] }];
+  else if (isLadiesEntered) itemsToRender = [...ladiesMenuItems, { label: t('common.backToGeneral'), icon: ArrowLeft, path: '/departamentos', roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'DIRIGENTE', 'TESOUREIRO', 'SECRETARIO'] }, { label: t('common.backToGeneral'), icon: ArrowLeft, path: '/dashboard', roles: ['ALL'] }];
+  else if (isMenEntered) itemsToRender = [...menMenuItems, { label: t('common.backToGeneral'), icon: ArrowLeft, path: '/departamentos', roles: ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'DIRIGENTE', 'TESOUREIRO', 'SECRETARIO'] }, { label: t('common.backToGeneral'), icon: ArrowLeft, path: '/dashboard', roles: ['ALL'] }];
   else itemsToRender = generalMenuItems;
 
   const backLabel = t('common.backToGeneral');
@@ -524,8 +533,8 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     if (item.path === '/congregacoes' && currentChurch?.type !== 'SEDE') return false;
     // 'Pagamentos do Sistema' aparece SOMENTE no painel da SEDE.
     if (item.path === '/faturamento' && currentChurch?.type !== 'SEDE') return false;
-    if (item.path === '/departamentos' && item.label === backLabel && !['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE'].includes(user.role)) return false;
-    if (item.path === '/dashboard' && item.label === backLabel && ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE'].includes(user.role)) return false;
+    if (item.path === '/departamentos' && item.label === backLabel && !['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'DIRIGENTE', 'TESOUREIRO', 'SECRETARIO'].includes(user.role)) return false;
+    if (item.path === '/dashboard' && item.label === backLabel && ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'DIRIGENTE', 'TESOUREIRO', 'SECRETARIO'].includes(user.role)) return false;
 
     return item.roles.includes('ALL') || item.roles.includes(user.role);
   });
@@ -803,7 +812,9 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
 
       <main className="flex-1 flex flex-col overflow-hidden bg-gray-50 dark:bg-gray-900 relative">
         <div className="fixed top-2 right-3 z-40">
-          <NotificationCenter />
+          <ErrorBoundary fallback={null} name="NotificationCenter">
+            <NotificationCenter />
+          </ErrorBoundary>
         </div>
         {isGhostMode && (
           <div className="bg-brand-yellow text-brand-black px-4 py-2 text-xs md:text-base flex justify-between items-center shadow-md z-10 pl-14 md:pl-6">
@@ -816,7 +827,9 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           </div>
         )}
         <div className="flex-1 overflow-y-auto overflow-x-hidden p-1 pt-16 sm:p-6 lg:p-8 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600">
-           {children}
+          <ErrorBoundary name="MainContent">
+            {children}
+          </ErrorBoundary>
         </div>
       </main>
     </div>

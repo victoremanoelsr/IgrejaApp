@@ -22,6 +22,8 @@ const ADOLESCENTS_ROLES: {role: Role, label: string}[] = [
     { role: 'TESOUREIRO_ADOLESCENTES', label: 'Tesoureiro(a) Adolescentes' }
 ];
 
+import { DepartmentCarnetManager } from '../components/DepartmentCarnetManager';
+
 export const AdolescentsPanel: React.FC = () => {
   const { 
       user, currentChurch, transactions, members, users,
@@ -36,7 +38,7 @@ export const AdolescentsPanel: React.FC = () => {
   const canAddToTeam = user && ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'DIRIGENTE', 'SECRETARIO', 'LIDER_ADOLESCENTES'].includes(user.role);
 
   const [viewMode, setViewMode] = useState<'SELECTION' | 'DASHBOARD'>(isAdolescentsRole ? 'DASHBOARD' : 'SELECTION');
-  const [activeTab, setActiveTab] = useState<'DASHBOARD' | 'CAIXA' | 'MEMBROS' | 'RELATORIOS' | 'EQUIPE'>('DASHBOARD');
+  const [activeTab, setActiveTab] = useState<'DASHBOARD' | 'CAIXA' | 'CARNES' | 'CONFIG_MODELO' | 'MEMBROS' | 'RELATORIOS' | 'EQUIPE'>('DASHBOARD');
 
   const [dashMonth, setDashMonth] = useState(new Date().getMonth() + 1);
   const [dashYear, setDashYear] = useState(new Date().getFullYear());
@@ -804,6 +806,15 @@ export const AdolescentsPanel: React.FC = () => {
             )}
             {activeTab === 'RELATORIOS' && renderReports()}
             {activeTab === 'EQUIPE' && renderTeamTab()}
+            {(activeTab === 'CARNES' || activeTab === 'CONFIG_MODELO') && (
+              <DepartmentCarnetManager
+                category="ADOLESCENTES"
+                departmentName="Adolescentes"
+                activeSubTab={activeTab === 'CONFIG_MODELO' ? 'CONFIG_MODELO' : 'CARNES'}
+                onSubTabChange={(tab) => setActiveTab(tab)}
+                filterMemberPredicate={(m) => !!m.isAdolescent}
+              />
+            )}
         </div>
     </>
   );

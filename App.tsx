@@ -122,7 +122,7 @@ const AppRoutes = () => {
       <Route path="/admin/configuracoes-saas" element={<ProtectedRoute allowedRoles={['SUPER_ADM']}><ConfiguracoesSaas /></ProtectedRoute>} />
 
       {/* Nova Rota Central de Departamentos */}
-      <Route path="/departamentos" element={<ProtectedRoute allowedRoles={['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE']}><Departments /></ProtectedRoute>} />
+      <Route path="/departamentos" element={<ProtectedRoute allowedRoles={['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'DIRIGENTE', 'TESOUREIRO', 'SECRETARIO']}><Departments /></ProtectedRoute>} />
 
       {/* Rota Exclusiva de Missões */}
       <Route path="/missoes" element={<ProtectedRoute allowedRoles={['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'DIRIGENTE', 'TESOUREIRO', 'SECRETARIO', 'PRESIDENTE_MISSOES', 'VICE_MISSOES', 'TESOUREIRO_MISSOES', 'SECRETARIO_MISSOES']}><MissionsPanel /></ProtectedRoute>} />

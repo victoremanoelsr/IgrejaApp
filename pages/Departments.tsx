@@ -20,8 +20,8 @@ export const Departments: React.FC = () => {
   const navigate = useNavigate();
   const { t } = useTranslation();
 
-  const allowedRoles = ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE'];
-  const hasAccess = user && allowedRoles.includes(user.role);
+  const allowedRoles = ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'DIRIGENTE', 'TESOUREIRO', 'SECRETARIO'];
+  const hasAccess = user && (allowedRoles.includes(user.role) || (user.roles && user.roles.some((r: any) => allowedRoles.includes(r))));
 
   if (!hasAccess) {
     return (

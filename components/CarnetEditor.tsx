@@ -83,7 +83,7 @@ const pct = (val: number, total: number) => `${((val / total) * 100).toFixed(3)}
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 export interface CarnetEditorProps {
-  category: 'JOVENS' | 'MISSOES';
+  category: 'JOVENS' | 'MISSOES' | 'CRIANCAS' | 'ADOLESCENTES' | 'SENHORAS' | 'SENHORES' | string;
   templates: CarnetTemplate[];
   onTemplatesChanged: () => void;
 }
@@ -101,13 +101,19 @@ export const CarnetEditor: React.FC<CarnetEditorProps> = ({
     setDefaultTemplate,
   } = useApp();
 
-  const isOrange = category === 'JOVENS';
-  const accentCls = isOrange
-    ? 'bg-orange-500 hover:bg-orange-600'
-    : 'bg-teal-600 hover:bg-teal-700';
-  const accentRing = isOrange ? 'focus:border-orange-500' : 'focus:border-teal-500';
-  const accentCheck = isOrange ? 'bg-orange-500 border-orange-500' : 'bg-teal-500 border-teal-500';
-  const accentTag   = isOrange ? 'bg-orange-500/20 border-orange-500/40 text-orange-300' : 'bg-teal-500/20 border-teal-500/40 text-teal-300';
+  const colorMap: Record<string, { cls: string; ring: string; check: string; tag: string }> = {
+    JOVENS:       { cls: 'bg-orange-500 hover:bg-orange-600', ring: 'focus:border-orange-500', check: 'bg-orange-500 border-orange-500', tag: 'bg-orange-500/20 border-orange-500/40 text-orange-300' },
+    MISSOES:      { cls: 'bg-teal-600 hover:bg-teal-700', ring: 'focus:border-teal-500', check: 'bg-teal-500 border-teal-500', tag: 'bg-teal-500/20 border-teal-500/40 text-teal-300' },
+    CRIANCAS:     { cls: 'bg-amber-500 hover:bg-amber-600', ring: 'focus:border-amber-500', check: 'bg-amber-500 border-amber-500', tag: 'bg-amber-500/20 border-amber-500/40 text-amber-300' },
+    ADOLESCENTES: { cls: 'bg-purple-600 hover:bg-purple-700', ring: 'focus:border-purple-500', check: 'bg-purple-500 border-purple-500', tag: 'bg-purple-500/20 border-purple-500/40 text-purple-300' },
+    SENHORAS:     { cls: 'bg-pink-600 hover:bg-pink-700', ring: 'focus:border-pink-500', check: 'bg-pink-500 border-pink-500', tag: 'bg-pink-500/20 border-pink-500/40 text-pink-300' },
+    SENHORES:     { cls: 'bg-blue-600 hover:bg-blue-700', ring: 'focus:border-blue-500', check: 'bg-blue-500 border-blue-500', tag: 'bg-blue-500/20 border-blue-500/40 text-blue-300' },
+  };
+  const theme = colorMap[category] || colorMap.JOVENS;
+  const accentCls = theme.cls;
+  const accentRing = theme.ring;
+  const accentCheck = theme.check;
+  const accentTag   = theme.tag;
 
   // ── State ──────────────────────────────────────────────────────────────────
   const [templateName,      setTemplateName]      = useState('');

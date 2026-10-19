@@ -50,7 +50,6 @@ export const Login: React.FC = () => {
       return false;
     }
   });
-  const [hasSavedCredentials, setHasSavedCredentials] = useState(false);
 
   // Carrega credenciais salvas no dispositivo ao abrir APENAS se lembrar senha estiver ativo
   useEffect(() => {
@@ -59,7 +58,6 @@ export const Login: React.FC = () => {
       if (!isRemember) {
         setUsername('');
         setPassword('');
-        setHasSavedCredentials(false);
         return;
       }
       const savedUser = localStorage.getItem('igrejaapp_saved_user');
@@ -69,7 +67,6 @@ export const Login: React.FC = () => {
         if (savedPass) {
           setPassword(savedPass);
         }
-        setHasSavedCredentials(true);
       }
     } catch (_) {}
   }, []);
@@ -84,7 +81,6 @@ export const Login: React.FC = () => {
       } catch (_) {}
       setUsername('');
       setPassword('');
-      setHasSavedCredentials(false);
     } else {
       try {
         localStorage.setItem('igrejaapp_remember', 'true');
@@ -92,17 +88,6 @@ export const Login: React.FC = () => {
     }
   };
 
-  const handleForgetCredentials = () => {
-    try {
-      localStorage.removeItem('igrejaapp_saved_user');
-      localStorage.removeItem('igrejaapp_saved_pass');
-      localStorage.setItem('igrejaapp_remember', 'false');
-    } catch (_) {}
-    setRememberMe(false);
-    setUsername('');
-    setPassword('');
-    setHasSavedCredentials(false);
-  };
 
   const saveCredentialsIfRequested = (u: string, p: string) => {
     if (rememberMe) {
@@ -110,14 +95,12 @@ export const Login: React.FC = () => {
         localStorage.setItem('igrejaapp_saved_user', u);
         localStorage.setItem('igrejaapp_saved_pass', p);
         localStorage.setItem('igrejaapp_remember', 'true');
-        setHasSavedCredentials(true);
       } catch (_) {}
     } else {
       try {
         localStorage.removeItem('igrejaapp_saved_user');
         localStorage.removeItem('igrejaapp_saved_pass');
         localStorage.removeItem('igrejaapp_remember');
-        setHasSavedCredentials(false);
       } catch (_) {}
     }
 
@@ -426,17 +409,6 @@ export const Login: React.FC = () => {
           />
           <span className="font-semibold text-gray-600">Lembrar senha</span>
         </label>
-
-        {hasSavedCredentials && (
-          <button
-            type="button"
-            onClick={handleForgetCredentials}
-            className="text-[11px] text-gray-400 hover:text-red-500 transition-colors underline font-medium"
-            title="Limpar credenciais salvas deste aparelho"
-          >
-            Esquecer dados
-          </button>
-        )}
       </div>
 
       {error && (

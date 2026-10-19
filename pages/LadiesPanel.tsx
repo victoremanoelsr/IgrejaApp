@@ -22,6 +22,8 @@ const LADIES_ROLES: {role: Role, label: string}[] = [
     { role: 'TESOUREIRO_SENHORAS', label: 'Tesoureiro(a) de Senhoras' }
 ];
 
+import { DepartmentCarnetManager } from '../components/DepartmentCarnetManager';
+
 export const LadiesPanel: React.FC = () => {
   const { 
       user, currentChurch, transactions, members, users,
@@ -36,7 +38,7 @@ export const LadiesPanel: React.FC = () => {
   const canAddToTeam = user && ['SUPER_ADM', 'PRESIDENTE', 'VICE_PRESIDENTE', 'DIRIGENTE', 'SECRETARIO', 'LIDER_SENHORAS'].includes(user.role);
 
   const [viewMode, setViewMode] = useState<'SELECTION' | 'DASHBOARD'>(isLadiesRole ? 'DASHBOARD' : 'SELECTION');
-  const [activeTab, setActiveTab] = useState<'DASHBOARD' | 'CAIXA' | 'MEMBROS' | 'RELATORIOS' | 'EQUIPE'>('DASHBOARD');
+  const [activeTab, setActiveTab] = useState<'DASHBOARD' | 'CAIXA' | 'CARNES' | 'CONFIG_MODELO' | 'MEMBROS' | 'RELATORIOS' | 'EQUIPE'>('DASHBOARD');
 
   // Dashboard Filters
   const [dashMonth, setDashMonth] = useState(new Date().getMonth() + 1);
@@ -895,6 +897,15 @@ export const LadiesPanel: React.FC = () => {
             )}
             {activeTab === 'RELATORIOS' && renderReports()}
             {activeTab === 'EQUIPE' && renderTeamTab()}
+            {(activeTab === 'CARNES' || activeTab === 'CONFIG_MODELO') && (
+              <DepartmentCarnetManager
+                category="SENHORAS"
+                departmentName="Senhoras"
+                activeSubTab={activeTab === 'CONFIG_MODELO' ? 'CONFIG_MODELO' : 'CARNES'}
+                onSubTabChange={(tab) => setActiveTab(tab)}
+                filterMemberPredicate={(m) => m.gender === 'F'}
+              />
+            )}
         </div>
     </>
   );

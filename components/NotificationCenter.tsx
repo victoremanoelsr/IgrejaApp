@@ -137,9 +137,9 @@ export const NotificationCenter: React.FC = () => {
     }
   };
 
-  const unreadCount = notifications.length;
-
   if (!user || !currentChurch) return null;
+
+  const unreadCount = Array.isArray(notifications) ? notifications.length : 0;
 
   return (
     <div className="relative" ref={panelRef}>
