@@ -382,9 +382,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     // Registra ou renova inscrição push com VAPID key oficial silenciosamente se permissão já concedida
     if ('Notification' in window && Notification.permission === 'granted' && currentChurch) {
+      const mainChurchId = currentChurch.type === 'SEDE' ? currentChurch.id : (currentChurch.parentId || currentChurch.id);
+      const congId = currentChurch.type === 'CONGREGACAO' ? currentChurch.id : undefined;
       requestAndRegisterPush({
-        churchId: currentChurch.id,
-        congregationId: currentChurch.type === 'CONGREGACAO' ? currentChurch.id : undefined,
+        churchId: mainChurchId,
+        congregationId: congId,
         userId: user?.id,
         role: user?.role,
       }).catch(err => console.log('[Push] Auto-registro silencioso:', err));
@@ -397,9 +399,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const requestPushNotification = async (): Promise<boolean> => {
     if (!currentChurch) return false;
+    const mainChurchId = currentChurch.type === 'SEDE' ? currentChurch.id : (currentChurch.parentId || currentChurch.id);
+    const congId = currentChurch.type === 'CONGREGACAO' ? currentChurch.id : undefined;
     const res = await requestAndRegisterPush({
-      churchId: currentChurch.id,
-      congregationId: currentChurch.type === 'CONGREGACAO' ? currentChurch.id : undefined,
+      churchId: mainChurchId,
+      congregationId: congId,
       userId: user?.id,
       role: user?.role,
     });

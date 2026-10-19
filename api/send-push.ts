@@ -15,6 +15,39 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: { persistSession: false },
 });
 
+// Lista de cargos reconhecidos como obreiros ou liderança
+const WORKER_ROLES = new Set([
+  'SUPER_ADM',
+  'PRESIDENTE',
+  'VICE_PRESIDENTE',
+  'DIRIGENTE',
+  'PASTOR',
+  'EVANGELISTA',
+  'PRESBITERO',
+  'DIACONO',
+  'DIACONISA',
+  'AUXILIAR',
+  'MISSIONARIO',
+  'OBREIRO',
+  'TESOUREIRO',
+  'SECRETARIO',
+  'COORDENADOR',
+  'LIDER_JOVENS',
+  'TESOUREIRO_JOVENS',
+  'LIDER_CRIANCAS',
+  'TESOUREIRO_CRIANCAS',
+  'LIDER_ADOLESCENTES',
+  'TESOUREIRO_ADOLESCENTES',
+  'LIDER_SENHORAS',
+  'TESOUREIRO_SENHORAS',
+  'LIDER_SENHORES',
+  'TESOUREIRO_SENHORES',
+  'PRESIDENTE_MISSOES',
+  'VICE_MISSOES',
+  'TESOUREIRO_MISSOES',
+  'SECRETARIO_MISSOES',
+]);
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // CORS headers
   res.setHeader('Access-Control-Allow-Credentials', 'true');
@@ -36,6 +69,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const {
     churchId,
     congregationId,
+    targetAudience = 'TODAS',
     title,
     body,
     url = '/',
@@ -50,12 +84,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     // 1. Busca todas as assinaturas push registradas para esta igreja
-    let query = supabase
+    const { data: subscriptions, error: fetchErr } = await supabase
       .from('push_subscriptions')
-      .select('id, endpoint, p256dh, auth, congregation_id')
+      .select('id, endpoint, p256dh, auth, congregation_id, role')
       .eq('church_id', churchId);
-
-    const { data: subscriptions, error: fetchErr } = await query;
 
     if (fetchErr) {
       console.error('[send-push] Erro ao buscar push_subscriptions:', fetchErr);
@@ -84,15 +116,60 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
 
     let sentCount = 0;
+    let filteredOutCount = 0;
     let failedCount = 0;
     const expiredIds: string[] = [];
 
-    // 3. Dispara em paralelo para cada dispositivo móvel / navegador inscrito
+    // 3. Dispara em paralelo para cada dispositivo móvel / navegador inscrito respeitando os filtros
     await Promise.allSettled(
       subscriptions.map(async (sub) => {
-        // Se a notificação for para congregação específica e a assinatura for de outra congregação, pula
-        if (congregationId && sub.congregation_id && sub.congregation_id !== congregationId) {
-          return;
+        const subRole = (sub.role || '').toUpperCase();
+        const isWorker = subRole ? WORKER_ROLES.has(subRole) && subRole !== 'MEMBRO' : false;
+        const isFromSede = !sub.congregation_id || sub.congregation_id === churchId;
+        const subCongId = sub.congregation_id;
+
+        // FILTRAGEM RIGOROSA DO PÚBLICO-ALVO:
+        // Caso A: TODAS (Sede + Todas as congregações)
+        if (!targetAudience || targetAudience === 'TODAS') {
+          // Entregue a todos
+        }
+        // Caso B: SEDE (Somente membros e líderes da sede)
+        else if (targetAudience === 'SEDE') {
+          if (!isFromSede) {
+            filteredOutCount++;
+            return;
+          }
+        }
+        // Caso C: OBREIROS_TODOS (Somente obreiros gerais: Sede + Congregações)
+        else if (targetAudience === 'OBREIROS_TODOS') {
+          if (!isWorker) {
+            filteredOutCount++;
+            return;
+          }
+        }
+        // Caso D: OBREIROS_SEDE (Somente obreiros da Sede)
+        else if (targetAudience === 'OBREIROS_SEDE') {
+          if (!isFromSede || !isWorker) {
+            filteredOutCount++;
+            return;
+          }
+        }
+        // Caso E: OBREIROS de congregação específica (ex: OBREIROS_UUID)
+        else if (targetAudience.startsWith('OBREIROS_')) {
+          const targetCongId = targetAudience.replace('OBREIROS_', '');
+          if (subCongId !== targetCongId || !isWorker) {
+            filteredOutCount++;
+            return;
+          }
+        }
+        // Caso F: Congregação Específica (UUID da congregação)
+        else {
+          const targetCongId = targetAudience || congregationId;
+          // Se o dispositivo não for desta congregação específica (ex: for da Sede ou de outra congregação), NÃO ENVIA!
+          if (subCongId !== targetCongId) {
+            filteredOutCount++;
+            return;
+          }
         }
 
         const pushSubscription = {
@@ -134,7 +211,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       success: true,
       totalSubscriptions: subscriptions.length,
       sentCount,
+      filteredOutCount,
       failedCount,
+      targetAudience,
     });
   } catch (err: any) {
     console.error('[send-push] Erro inesperado:', err);

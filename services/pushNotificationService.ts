@@ -21,6 +21,7 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
 export const triggerServerWebPush = async (payload: {
   churchId: string;
   congregationId?: string | null;
+  targetAudience?: string;
   title: string;
   body: string;
   url?: string;
@@ -306,6 +307,7 @@ export const dispatchEventPushNotification = async (
     triggerServerWebPush({
       churchId: event.churchId,
       congregationId: safeCongregationId,
+      targetAudience: event.targetAudience,
       title,
       body,
       url,
@@ -325,6 +327,7 @@ export const dispatchEventPushNotification = async (
     triggerServerWebPush({
       churchId: event.churchId,
       congregationId: safeCongregationId,
+      targetAudience: event.targetAudience,
       title,
       body,
       url,

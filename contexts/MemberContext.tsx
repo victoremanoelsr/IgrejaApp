@@ -280,10 +280,21 @@ export const MemberProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setupRealtime(session);
       // Registra inscrição push silenciosamente se permissão já concedida
       if ('Notification' in window && Notification.permission === 'granted') {
+        const mainChurchId = session.church?.parentId || session.churchId;
+        const isCongregation = session.church?.type === 'CONGREGACAO';
+        const congId = isCongregation
+          ? session.churchId
+          : (session.member.churchId && session.member.churchId !== session.churchId ? session.member.churchId : undefined);
+
+        const memberRole = session.member.ministerialRole && session.member.ministerialRole !== 'MEMBRO'
+          ? session.member.ministerialRole
+          : (session.member.isWorker ? 'OBREIRO' : 'MEMBRO');
+
         requestAndRegisterPush({
-          churchId: session.churchId,
+          churchId: mainChurchId,
+          congregationId: congId,
           memberId: session.member.id,
-          role: 'MEMBRO',
+          role: memberRole,
         });
       }
     }
@@ -297,11 +308,21 @@ export const MemberProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const requestPushNotification = async (): Promise<boolean> => {
     if (!session) return false;
+    const mainChurchId = session.church?.parentId || session.churchId;
+    const isCongregation = session.church?.type === 'CONGREGACAO';
+    const congId = isCongregation
+      ? session.churchId
+      : (session.member.churchId && session.member.churchId !== session.churchId ? session.member.churchId : undefined);
+
+    const memberRole = session.member.ministerialRole && session.member.ministerialRole !== 'MEMBRO'
+      ? session.member.ministerialRole
+      : (session.member.isWorker ? 'OBREIRO' : 'MEMBRO');
+
     return await requestAndRegisterPush({
-      churchId: session.churchId,
-      congregationId: session.church?.type === 'CONGREGACAO' ? session.churchId : undefined,
+      churchId: mainChurchId,
+      congregationId: congId,
       memberId: session.member.id,
-      role: 'MEMBRO',
+      role: memberRole,
     });
   };
 
