@@ -27,6 +27,14 @@ export const NotificationCenter: React.FC = () => {
     setIsStandalone(isPWA);
   };
 
+  const getDismissedIds = (): string[] => {
+    try {
+      return JSON.parse(localStorage.getItem(`ig_dismissed_notifs_${churchId}`) || '[]');
+    } catch {
+      return [];
+    }
+  };
+
   const fetchChurchNotifications = async () => {
     if (!churchId) return;
     try {
@@ -38,10 +46,56 @@ export const NotificationCenter: React.FC = () => {
         .limit(30);
 
       if (!error && data) {
-        setNotifications(data);
+        const dismissed = getDismissedIds();
+        setNotifications(data.filter(n => !dismissed.includes(n.id)));
       }
     } catch (e) {
       console.warn('[NotificationCenter] Erro ao buscar notificações:', e);
+    }
+  };
+
+  const handleDismissNotification = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setNotifications(prev => prev.filter(n => n.id !== id));
+    try {
+      const dismissed = getDismissedIds();
+      if (!dismissed.includes(id)) {
+        dismissed.push(id);
+        localStorage.setItem(`ig_dismissed_notifs_${churchId}`, JSON.stringify(dismissed));
+      }
+    } catch (err) {
+      console.warn(err);
+    }
+
+    if (isAdmin) {
+      try {
+        await supabase.from('church_notifications').delete().eq('id', id);
+      } catch (err) {
+        console.warn('[NotificationCenter] Erro ao excluir notificação:', err);
+      }
+    }
+  };
+
+  const handleClearAll = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm('Deseja fechar todos os avisos do histórico?')) return;
+    const allIds = notifications.map(n => n.id);
+    setNotifications([]);
+
+    try {
+      const dismissed = getDismissedIds();
+      const updated = Array.from(new Set([...dismissed, ...allIds]));
+      localStorage.setItem(`ig_dismissed_notifs_${churchId}`, JSON.stringify(updated));
+    } catch (err) {
+      console.warn(err);
+    }
+
+    if (isAdmin) {
+      try {
+        await supabase.from('church_notifications').delete().eq('church_id', churchId);
+      } catch (err) {
+        console.warn(err);
+      }
     }
   };
 
@@ -251,9 +305,22 @@ export const NotificationCenter: React.FC = () => {
           <div className="mx-3 mt-2 mb-3">
             <div className="flex items-center justify-between mb-1.5">
               <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Histórico de Avisos</p>
-              <span className="text-[10px] text-gray-400">{notifications.length} avisos</span>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-gray-400">
+                  {notifications.length} {notifications.length === 1 ? 'aviso' : 'avisos'}
+                </span>
+                {notifications.length > 0 && (
+                  <button
+                    onClick={handleClearAll}
+                    className="text-[10px] text-gray-400 hover:text-red-500 hover:underline transition font-medium"
+                    title="Limpar todos os avisos"
+                  >
+                    Limpar tudo
+                  </button>
+                )}
+              </div>
             </div>
-            <div className="space-y-1.5 max-h-48 overflow-y-auto pr-0.5 text-left">
+            <div className="space-y-1.5 max-h-56 overflow-y-auto pr-0.5 text-left">
               {notifications.length === 0 ? (
                 <div className="flex flex-col items-center py-6 text-gray-300">
                   <Bell size={28} className="mb-2" />
@@ -261,13 +328,23 @@ export const NotificationCenter: React.FC = () => {
                 </div>
               ) : (
                 notifications.map(n => (
-                  <div key={n.id} className="rounded-xl p-2.5 border bg-orange-50/60 border-orange-100 hover:bg-orange-50 transition-colors">
-                    <div className="flex items-start justify-between gap-1">
-                      <p className="text-xs font-bold text-gray-800 leading-tight">{n.title}</p>
-                      <div className="w-1.5 h-1.5 bg-orange-500 rounded-full mt-1 shrink-0" />
+                  <div key={n.id} className="relative group rounded-xl p-2.5 border bg-orange-50/60 border-orange-100 hover:bg-orange-50 transition-colors">
+                    <div className="flex items-start justify-between gap-1.5">
+                      <p className="text-xs font-bold text-gray-800 leading-tight flex-1">{n.title}</p>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <div className="w-1.5 h-1.5 bg-orange-500 rounded-full" />
+                        <button
+                          onClick={(e) => handleDismissNotification(n.id, e)}
+                          title="Fechar notificação"
+                          aria-label="Fechar notificação"
+                          className="text-gray-400 hover:text-red-600 hover:bg-red-100/60 p-0.5 rounded-md transition-all flex items-center justify-center"
+                        >
+                          <X size={14} className="stroke-[2.5]" />
+                        </button>
+                      </div>
                     </div>
                     <p className="text-[10px] text-gray-600 mt-1 leading-relaxed whitespace-pre-line">{n.body}</p>
-                    <p className="text-[9px] text-gray-400 mt-1 font-medium">{formatTime(n.created_at)}</p>
+                    <p className="text-[9px] text-gray-400 mt-1.5 font-medium">{formatTime(n.created_at)}</p>
                   </div>
                 ))
               )}
