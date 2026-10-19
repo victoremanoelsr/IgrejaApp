@@ -53,8 +53,7 @@ IgrejaApp is a church management system (Portuguese: "Gestão Eclesiástica") bu
 - Implemented with `i18next`, `react-i18next`, and `i18next-browser-languagedetector`
 - Translation files at `i18n/pt-BR.json`, `i18n/en-US.json`, `i18n/es-ES.json`
 - Config and utilities at `i18n/index.ts` — exports `formatCurrency()`, `formatDate()`, `getMonthName()`
-- Language preference stored in `localStorage` under key `i18n_language`
-- Currency mapping: pt-BR → BRL (R$), en-US → USD ($), es-ES → EUR (€)
+- Currency: Fixada sempre em Real Brasileiro (R$ / BRL) em todos os idiomas para consistência financeira nacional
 - Language selector (flag dropdown) in sidebar footer
 - Translated pages: Dashboard, Members, Finance, Infrastructure, Departments, Layout/nav
 

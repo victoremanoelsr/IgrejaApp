@@ -35,16 +35,12 @@ i18n
 
 export default i18n;
 
-export function formatCurrency(value: number, language: string): string {
-  const localeMap: Record<string, { locale: string; currency: string }> = {
-    'pt-BR': { locale: 'pt-BR', currency: 'BRL' },
-    'en-US': { locale: 'en-US', currency: 'USD' },
-    'es-ES': { locale: 'es-ES', currency: 'EUR' },
-  };
-  const config = localeMap[language] || localeMap['pt-BR'];
-  return new Intl.NumberFormat(config.locale, {
+export function formatCurrency(value: number, _language?: string): string {
+  // A moeda oficial do sistema é sempre o Real Brasileiro (R$ / BRL),
+  // independentemente do idioma de interface selecionado (Português, Inglês ou Espanhol).
+  return new Intl.NumberFormat('pt-BR', {
     style: 'currency',
-    currency: config.currency,
+    currency: 'BRL',
     minimumFractionDigits: 2,
   }).format(value);
 }
