@@ -19,47 +19,41 @@ export const PLAN_LIMITS: Record<PlanTier | 'isento', TierLimits> = {
 
 export const CYCLE_DISCOUNTS: Record<PlanType, number> = {
   mensal:     0,
-  bimestral:  0.03,
-  trimestral: 0.07,
-  semestral:  0.10,
-  anual:      0.15,
+  bimestral:  0,
+  trimestral: 0,
+  semestral:  0,
+  anual:      0,
   isento:     0,
 };
 
 export const CYCLE_MONTHS: Record<PlanType, number> = {
   mensal:     1,
-  bimestral:  2,
-  trimestral: 3,
-  semestral:  6,
-  anual:      12,
+  bimestral:  1,
+  trimestral: 1,
+  semestral:  1,
+  anual:      1,
   isento:     0,
 };
 
 export const CYCLE_LABELS: Record<PlanType, string> = {
   mensal:     'Mensal',
-  bimestral:  'Bimestral',
-  trimestral: 'Trimestral',
-  semestral:  'Semestral',
-  anual:      'Anual',
+  bimestral:  'Mensal',
+  trimestral: 'Mensal',
+  semestral:  'Mensal',
+  anual:      'Mensal',
   isento:     'Isento',
 };
 
-export function calcPrice(basePrice: number, cycle: PlanType, months: number): number {
-  const discount = CYCLE_DISCOUNTS[cycle] ?? 0;
-  const mths = CYCLE_MONTHS[cycle] ?? 1;
-  return basePrice * mths * (1 - discount);
+export function calcPrice(basePrice: number, _cycle?: PlanType, _months?: number): number {
+  return basePrice;
 }
 
-export function calcMonthlyPrice(basePrice: number, cycle: PlanType): number {
-  const discount = CYCLE_DISCOUNTS[cycle] ?? 0;
-  return basePrice * (1 - discount);
+export function calcMonthlyPrice(basePrice: number, _cycle?: PlanType): number {
+  return basePrice;
 }
 
-export function calcSavings(basePrice: number, cycle: PlanType): number {
-  const months = CYCLE_MONTHS[cycle] ?? 1;
-  const withDiscount = calcPrice(basePrice, cycle, months);
-  const withoutDiscount = basePrice * months;
-  return withoutDiscount - withDiscount;
+export function calcSavings(_basePrice: number, _cycle?: PlanType): number {
+  return 0;
 }
 
 export const usePlanLimits = () => {

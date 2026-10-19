@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   CreditCard, ShieldCheck, Receipt, CheckCircle, Clock, AlertCircle,
   Zap, ChevronRight, X, Copy, RefreshCw, Gift, Users, Building2,
-  Star, Crown, Gem, TrendingUp, Info, MessageCircle, Home, QrCode
+  Star, Crown, Gem, TrendingUp, Info, MessageCircle, Home, QrCode, Calendar
 } from 'lucide-react';
 import { useApp } from '../context';
 import { PlanType, PlanTier } from '../types';
@@ -53,7 +53,7 @@ const TIER_META: Record<string, { icon: React.FC<{size?: number; className?: str
   diamond: { icon: Gem,        color: 'text-cyan-600 dark:text-cyan-400', badgeBg: 'bg-cyan-100 dark:bg-cyan-950/40', badgeText: 'text-cyan-800 dark:text-cyan-300', border: 'border-cyan-300 dark:border-cyan-700/50', bg: 'from-cyan-500/10', badge: 'Melhor valor' },
 };
 
-const CYCLES: PlanType[] = ['mensal', 'bimestral', 'trimestral', 'semestral', 'anual'];
+const CYCLES: PlanType[] = ['mensal'];
 const TIERS = ['bronze', 'prata', 'ouro', 'diamond'] as const;
 
 export const BillingPage: React.FC = () => {
@@ -68,9 +68,7 @@ export const BillingPage: React.FC = () => {
   const [copied, setCopied]             = useState(false);
   const [invoicePage, setInvoicePage]   = useState(0);
   const INVOICES_PER_PAGE = 6;
-  const [selectedCycle, setSelectedCycle] = useState<PlanType>(
-    (currentChurch?.planType && currentChurch.planType !== 'isento') ? currentChurch.planType : 'mensal'
-  );
+  const [selectedCycle, setSelectedCycle] = useState<PlanType>('mensal');
   const [selectedTier, setSelectedTier] = useState<PlanTier>(
     (currentChurch?.planTier as PlanTier) || 'bronze'
   );
@@ -293,11 +291,11 @@ export const BillingPage: React.FC = () => {
     });
   };
 
-  const openWhatsAppCheckout = (tierId: PlanTier, cycle: PlanType) => {
+  const openWhatsAppCheckout = (tierId: PlanTier, _cycle?: PlanType) => {
     const tierLabel = PLAN_LIMITS[tierId]?.label ?? tierId;
-    const cycleLabel = CYCLE_LABELS[cycle] ?? cycle;
     const churchName = currentChurch?.name ?? 'minha igreja';
-    const msg = `Olá! Quero contratar o plano ${tierLabel} no ciclo ${cycleLabel} para a minha igreja (${churchName}).`;
+    const priceStr = PLAN_LIMITS[tierId]?.basePrice ? ` (Mensal - R$ ${PLAN_LIMITS[tierId].basePrice.toFixed(2).replace('.', ',')}/mês)` : '';
+    const msg = `Olá! Quero contratar o plano ${tierLabel}${priceStr} para a minha igreja (${churchName}).`;
     const phone = (systemSettings.salesPhone || '').replace(/\D+/g, '');
     const url = phone
       ? `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`
@@ -820,36 +818,12 @@ export const BillingPage: React.FC = () => {
               </button>
             </div>
 
-            {/* Ciclos de Cobrança com Descontos */}
-            <div className="px-6 pt-5 pb-2">
-              <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2.5">
-                Ciclo de Pagamento
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {CYCLES.map(cycle => {
-                  const disc = CYCLE_DISCOUNTS[cycle];
-                  const isActive = selectedCycle === cycle;
-                  return (
-                    <button
-                      key={cycle}
-                      type="button"
-                      onClick={() => setSelectedCycle(cycle)}
-                      className={`flex flex-col items-center px-4 py-2.5 rounded-xl border text-xs font-bold transition-all ${
-                        isActive
-                          ? 'bg-orange-500 text-white border-orange-500 shadow-sm'
-                          : 'bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-gray-600 hover:border-orange-400'
-                      }`}
-                    >
-                      <span className="capitalize">{CYCLE_LABELS[cycle]}</span>
-                      {disc > 0 && (
-                        <span className={`text-[10px] mt-0.5 font-black ${isActive ? 'text-yellow-200' : 'text-emerald-600 dark:text-emerald-400'}`}>
-                          -{Math.round(disc * 100)}% de economia
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
+            {/* Informação do Ciclo */}
+            <div className="px-6 pt-5 pb-2 flex items-center justify-between">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 rounded-full text-xs font-bold">
+                <Calendar size={13} /> Cobrança 100% Mensal
+              </span>
+              <span className="text-xs text-gray-400">Sem burocracia ou fidelidade</span>
             </div>
 
             {/* Cards de Tiers */}
@@ -859,10 +833,6 @@ export const BillingPage: React.FC = () => {
                 const meta   = TIER_META[tierId];
                 const Icon   = meta.icon;
                 const baseP  = limits.basePrice;
-                const months = CYCLE_MONTHS[selectedCycle];
-                const totalP = calcPrice(baseP, selectedCycle, months);
-                const perMth = baseP * (1 - CYCLE_DISCOUNTS[selectedCycle]);
-                const saved  = calcSavings(baseP, selectedCycle);
                 const isCurrent = currentChurch?.planTier === tierId;
                 const isUnlim   = tierId === 'diamond';
                 const isSelected = selectedTier === tierId;
@@ -898,20 +868,10 @@ export const BillingPage: React.FC = () => {
                     <div className="mb-4 pb-3 border-b border-gray-100 dark:border-gray-700">
                       <div className="flex items-baseline gap-1">
                         <span className="text-2xl font-black text-gray-900 dark:text-white">
-                          R$ {perMth.toFixed(2).replace('.', ',')}
+                          R$ {baseP.toFixed(2).replace('.', ',')}
                         </span>
                         <span className="text-xs text-gray-400">/mês</span>
                       </div>
-                      {months > 1 && (
-                        <p className="text-[10px] text-gray-400 mt-0.5">
-                          R$ {totalP.toFixed(2).replace('.', ',')} cobrado a cada {months} meses
-                        </p>
-                      )}
-                      {saved > 0 && (
-                        <p className="text-[10px] text-emerald-600 font-bold mt-0.5">
-                          Economia de R$ {saved.toFixed(2).replace('.', ',')}
-                        </p>
-                      )}
                     </div>
 
                     <ul className="space-y-2 text-xs text-gray-600 dark:text-gray-300 flex-1">
@@ -955,11 +915,11 @@ export const BillingPage: React.FC = () => {
             {/* Footer Modal com botão do WhatsApp */}
             <div className="p-6 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 flex flex-col sm:flex-row items-center justify-between gap-3">
               <p className="text-xs text-gray-500 text-center sm:text-left">
-                Plano selecionado: <b>{PLAN_LIMITS[selectedTier]?.label}</b> ({CYCLE_LABELS[selectedCycle]})
+                Plano selecionado: <b>{PLAN_LIMITS[selectedTier]?.label}</b> (Mensal · R$ {PLAN_LIMITS[selectedTier]?.basePrice.toFixed(2).replace('.', ',')}/mês)
               </p>
               <button
                 type="button"
-                onClick={() => openWhatsAppCheckout(selectedTier, selectedCycle)}
+                onClick={() => openWhatsAppCheckout(selectedTier, 'mensal')}
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs shadow-md transition-all active:scale-95"
               >
                 <MessageCircle size={16} /> Contratar via WhatsApp Oficial

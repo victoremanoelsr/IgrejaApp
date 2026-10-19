@@ -1674,44 +1674,37 @@ function buildPage15() {
     });
   });
 
-  // TABELA DE DESCONTOS POR PERIODICIDADE
+  // BOX INFORMATIVO - COBRANÇA 100% MENSAL
   const discY = 156;
   drawCard(MARGIN, discY, CONTENT_WIDTH, 42, [15, 23, 42], COLOR_PRIMARY);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(10.5);
   doc.setTextColor(...COLOR_PRIMARY);
-  doc.text('🏷️ DESCONTOS ESPECIAIS POR PERIODICIDADE DE PAGAMENTO:', MARGIN + 8, discY + 9);
+  doc.text('🗓️ ASSINATURA 100% MENSAL — SEM FIDELIDADE E SEM BUROCRACIA:', MARGIN + 8, discY + 9);
 
-  const discountCols = [
-    { ciclo: 'Mensal', desc: '0% de desconto', freq: 'Todo mês', ben: 'Máxima flexibilidade' },
-    { ciclo: 'Bimestral', desc: '3% de desconto', freq: 'A cada 2 meses', ben: 'Pequena economia' },
-    { ciclo: 'Trimestral', desc: '7% de desconto', freq: 'A cada 3 meses', ben: 'Boa economia' },
-    { ciclo: 'Semestral', desc: '10% de desconto', freq: 'A cada 6 meses', ben: 'Economia expressiva' },
-    { ciclo: 'Anual', desc: '15% de desconto', freq: 'Uma vez por ano', ben: 'Maior desconto do sistema!' },
+  const monthlyBenefits = [
+    { titulo: 'Cobrança Mensal Direta', desc: 'Preço fixo mês a mês sem surpresas no orçamento da sua igreja.' },
+    { titulo: 'Zero Fidelidade', desc: 'Sua igreja tem total liberdade e autonomia para manter o plano ativo.' },
+    { titulo: 'Liberação Imediata', desc: 'Acesso imediato no mesmo instante via PIX oficial com baixa instantânea.' },
   ];
 
-  const discColW = (CONTENT_WIDTH - 16) / 5;
-  let dX = MARGIN + 8;
-  discountCols.forEach(dc => {
+  const mColW = (CONTENT_WIDTH - 16) / 3;
+  let mX = MARGIN + 8;
+  monthlyBenefits.forEach(mb => {
     doc.setFillColor(25, 33, 55);
-    doc.roundedRect(dX, discY + 14, discColW - 2, 22, 1.5, 1.5, 'F');
+    doc.roundedRect(mX, discY + 14, mColW - 2, 22, 1.5, 1.5, 'F');
 
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8);
+    doc.setFontSize(8.5);
     doc.setTextColor(...COLOR_WHITE);
-    doc.text(dc.ciclo, dX + (discColW - 2) / 2, discY + 19, { align: 'center' });
-
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(7.5);
-    doc.setTextColor(...COLOR_PRIMARY);
-    doc.text(dc.desc, dX + (discColW - 2) / 2, discY + 25, { align: 'center' });
+    doc.text(mb.titulo, mX + (mColW - 2) / 2, discY + 20, { align: 'center' });
 
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(6);
-    doc.setTextColor(180, 190, 205);
-    doc.text(dc.ben, dX + (discColW - 2) / 2, discY + 31, { align: 'center' });
+    doc.setFontSize(7);
+    doc.setTextColor(200, 210, 225);
+    doc.text(mb.desc, mX + (mColW - 2) / 2, discY + 26, { align: 'center', maxWidth: mColW - 6 });
 
-    dX += discColW;
+    mX += mColW;
   });
 
   // QR Code e PIX

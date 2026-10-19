@@ -426,12 +426,8 @@ export const SuperAdminDashboard: React.FC = () => {
                     <div>
                       <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Ciclo de Cobrança *</label>
                       <select required className="w-full p-2 border rounded text-sm" value={unifiedForm.planType} onChange={e => setUnifiedForm({...unifiedForm, planType: e.target.value as PlanType})}>
-                        <option value="isento">Isento</option>
                         <option value="mensal">Mensal</option>
-                        <option value="bimestral">Bimestral</option>
-                        <option value="trimestral">Trimestral</option>
-                        <option value="semestral">Semestral</option>
-                        <option value="anual">Anual</option>
+                        <option value="isento">Isento</option>
                       </select>
                     </div>
                     <div>
@@ -515,15 +511,11 @@ export const SuperAdminDashboard: React.FC = () => {
                             <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Tipo de Plano</label>
                             <select
                                 className="w-full p-2 border rounded text-sm"
-                                value={editingChurch.planType || 'isento'}
+                                value={editingChurch.planType || 'mensal'}
                                 onChange={e => setEditingChurch({...editingChurch, planType: e.target.value as PlanType})}
                             >
-                                <option value="isento">Isento</option>
                                 <option value="mensal">Mensal</option>
-                                <option value="bimestral">Bimestral</option>
-                                <option value="trimestral">Trimestral</option>
-                                <option value="semestral">Semestral</option>
-                                <option value="anual">Anual</option>
+                                <option value="isento">Isento</option>
                             </select>
                         </div>
 
