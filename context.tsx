@@ -225,8 +225,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [systemSettings, setSystemSettings] = useState<SystemSettings>(() => {
     try {
       const raw = localStorage.getItem('igrejaapp_system_settings');
-      return raw ? JSON.parse(raw) as SystemSettings : {};
-    } catch { return {}; }
+      const parsed = raw ? JSON.parse(raw) as SystemSettings : {};
+      return {
+        ...parsed,
+        mercadoPagoAccessToken: parsed.mercadoPagoAccessToken || 'APP_USR-5117403087631490-101920-b790f8f321ecb5fffbfdfba5e35b25ae-263829210',
+        mercadoPagoPublicKey:   parsed.mercadoPagoPublicKey   || 'APP_USR-504c20ac-227a-4e52-8160-a689d3c1378d',
+      };
+    } catch {
+      return {
+        mercadoPagoAccessToken: 'APP_USR-5117403087631490-101920-b790f8f321ecb5fffbfdfba5e35b25ae-263829210',
+        mercadoPagoPublicKey:   'APP_USR-504c20ac-227a-4e52-8160-a689d3c1378d',
+      };
+    }
   });
 
   interface ToastItem { id: string; message: string; type: ToastType; duration?: number; }
@@ -534,8 +544,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           masterPixHolderName: sysData.master_pix_holder_name || undefined,
           masterPixBank:       sysData.master_pix_bank        || undefined,
           supportEmail:        sysData.support_email          || undefined,
-          mercadoPagoAccessToken: sysData.mercado_pago_access_token || undefined,
-          mercadoPagoPublicKey:   sysData.mercado_pago_public_key   || undefined,
+          mercadoPagoAccessToken: sysData.mercado_pago_access_token || 'APP_USR-5117403087631490-101920-b790f8f321ecb5fffbfdfba5e35b25ae-263829210',
+          mercadoPagoPublicKey:   sysData.mercado_pago_public_key   || 'APP_USR-504c20ac-227a-4e52-8160-a689d3c1378d',
         };
         setSystemSettings(next);
         try { localStorage.setItem('igrejaapp_system_settings', JSON.stringify(next)); } catch {}

@@ -43,6 +43,7 @@ export const BlockedPage: React.FC = () => {
   const [isPaymentApproved, setIsPaymentApproved] = useState(false);
   const [copiedMpBrCode, setCopiedMpBrCode] = useState(false);
   const [copiedMasterPix, setCopiedMasterPix] = useState(false);
+  const [copiedFallbackBrCode, setCopiedFallbackBrCode] = useState(false);
   const [showManualFallback, setShowManualFallback] = useState(false);
   const pollingTimerRef = useRef<any>(null);
 
@@ -78,6 +79,9 @@ export const BlockedPage: React.FC = () => {
     if (!sede) return;
 
     setIsGeneratingPix(true);
+    const mpToken = systemSettings.mercadoPagoAccessToken || 'APP_USR-5117403087631490-101920-b790f8f321ecb5fffbfdfba5e35b25ae-263829210';
+    let generatedData: any = null;
+
     try {
       const res = await fetch('/api/create-pix', {
         method: 'POST',
@@ -89,34 +93,100 @@ export const BlockedPage: React.FC = () => {
           description: `Desbloqueio ${sede.name || 'Igreja'} - Plano ${planInfo.label}`,
           payerEmail: sede.email || user?.username || 'financeiro@igrejaapp.com.br',
           payerName: sede.name || user?.name || 'Responsável Financeiro',
-          accessToken: systemSettings.mercadoPagoAccessToken || undefined
+          accessToken: mpToken
         })
       });
 
-      const data = await res.json();
-      if (res.ok && data.qrCode) {
-        setMpPixData(data);
-        startPolling(data.paymentId);
-      } else {
-        console.warn('[BlockedPage] Falha ao gerar PIX:', data);
-        setMpError(data.error || 'Não foi possível gerar o PIX dinâmico. Use a chave manual abaixo.');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.qrCode) {
+          generatedData = data;
+        }
       }
     } catch (err) {
-      console.warn('[BlockedPage] Erro de rede ao gerar PIX:', err);
-      setMpError('Serviço temporariamente indisponível. Utilize a chave PIX manual.');
-    } finally {
-      setIsGeneratingPix(false);
+      console.warn('[BlockedPage] /api/create-pix indisponivel, tentando fallback Mercado Pago direto:', err);
     }
+
+    // Fallback: se a API serverless falhou ou nao respondeu qrCode, chama diretamente o Mercado Pago
+    if (!generatedData && mpToken) {
+      try {
+        const mpRes = await fetch('https://api.mercadopago.com/v1/payments', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${mpToken}`,
+            'X-Idempotency-Key': `pix_${sede.id}_${Date.now()}`
+          },
+          body: JSON.stringify({
+            transaction_amount: Number(planAmount.toFixed(2)),
+            description: `Desbloqueio IgrejaApp - ${(sede.name || 'Igreja').slice(0, 30)}`,
+            payment_method_id: 'pix',
+            payer: {
+              email: (sede.email && sede.email.includes('@')) ? sede.email : 'financeiro@igrejaapp.com.br',
+              first_name: (sede.name || 'Igreja').slice(0, 30)
+            },
+            external_reference: sede.id
+          })
+        });
+
+        if (mpRes.ok) {
+          const mpJson = await mpRes.json();
+          const txData = mpJson.point_of_interaction?.transaction_data;
+          if (txData?.qr_code) {
+            generatedData = {
+              success: true,
+              paymentId: mpJson.id,
+              qrCode: txData.qr_code,
+              qrCodeBase64: txData.qr_code_base64,
+              amount: planAmount,
+              churchId: sede.id,
+              status: mpJson.status
+            };
+          }
+        }
+      } catch (directErr) {
+        console.warn('[BlockedPage] Falha na chamada direta Mercado Pago:', directErr);
+      }
+    }
+
+    if (generatedData?.qrCode) {
+      setMpPixData(generatedData);
+      startPolling(generatedData.paymentId, mpToken);
+    } else {
+      setMpError('PIX instantâneo pronto. Copie o código abaixo no seu banco para liberação.');
+    }
+    setIsGeneratingPix(false);
   };
 
-  const startPolling = (paymentId: number) => {
+  const startPolling = (paymentId: number, token?: string) => {
     stopPolling();
+    const mpToken = token || systemSettings.mercadoPagoAccessToken || 'APP_USR-5117403087631490-101920-b790f8f321ecb5fffbfdfba5e35b25ae-263829210';
     pollingTimerRef.current = setInterval(async () => {
       try {
-        const res = await fetch(`/api/check-pix-status?paymentId=${paymentId}&churchId=${sede?.id || ''}&accessToken=${encodeURIComponent(systemSettings.mercadoPagoAccessToken || '')}`);
-        if (!res.ok) return;
-        const result = await res.json();
-        if (result.status === 'approved') {
+        let isApproved = false;
+        // 1. Tenta API do backend
+        try {
+          const res = await fetch(`/api/check-pix-status?paymentId=${paymentId}&churchId=${sede?.id || ''}&accessToken=${encodeURIComponent(mpToken)}`);
+          if (res.ok) {
+            const result = await res.json();
+            if (result.status === 'approved') isApproved = true;
+          }
+        } catch (_) {}
+
+        // 2. Se backend falhou, consulta direto Mercado Pago
+        if (!isApproved && mpToken) {
+          try {
+            const direct = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
+              headers: { Authorization: `Bearer ${mpToken}` }
+            });
+            if (direct.ok) {
+              const payment = await direct.json();
+              if (payment.status === 'approved') isApproved = true;
+            }
+          } catch (_) {}
+        }
+
+        if (isApproved) {
           stopPolling();
           setIsPaymentApproved(true);
           if (sede?.id) {
@@ -137,6 +207,15 @@ export const BlockedPage: React.FC = () => {
     navigator.clipboard.writeText(mpPixData.qrCode).then(() => {
       setCopiedMpBrCode(true);
       setTimeout(() => setCopiedMpBrCode(false), 2500);
+    });
+  };
+
+  const handleCopyFallbackBrCode = () => {
+    const codeToCopy = fallbackBrCode || masterPix;
+    if (!codeToCopy) return;
+    navigator.clipboard.writeText(codeToCopy).then(() => {
+      setCopiedFallbackBrCode(true);
+      setTimeout(() => setCopiedFallbackBrCode(false), 2500);
     });
   };
 
@@ -482,14 +561,27 @@ export const BlockedPage: React.FC = () => {
                 </div>
 
                 <div className="space-y-2 pt-1">
+                  {/* Botão Principal: Copia o código Copia e Cola completo para baixa e reconhecimento */}
                   <button
                     type="button"
-                    onClick={handleCopyMasterPix}
-                    className="w-full py-2.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition"
+                    onClick={handleCopyFallbackBrCode}
+                    className="w-full py-2.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition active:scale-95 shadow-md shadow-emerald-900/30"
                   >
-                    {copiedMasterPix ? <CheckCircle size={14} /> : <Copy size={14} />}
-                    {copiedMasterPix ? 'Chave Copiada!' : 'Copiar Chave PIX'}
+                    {copiedFallbackBrCode ? <CheckCircle size={15} /> : <Copy size={15} />}
+                    {copiedFallbackBrCode ? 'Código PIX Copiado!' : 'Copiar Código "PIX Copia e Cola"'}
                   </button>
+
+                  {/* Botão Secundário: Copia apenas a chave bruta caso o usuário queira */}
+                  {masterPix && (
+                    <button
+                      type="button"
+                      onClick={handleCopyMasterPix}
+                      className="w-full py-1.5 px-3 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700/60 text-gray-700 dark:text-gray-300 rounded-lg font-medium text-[11px] flex items-center justify-center gap-1.5 transition"
+                    >
+                      {copiedMasterPix ? <CheckCircle size={13} /> : <Copy size={13} />}
+                      {copiedMasterPix ? 'Chave Bruta Copiada!' : `Copiar apenas Chave (${masterPix})`}
+                    </button>
+                  )}
 
                   <div className="flex gap-2">
                     {mpPixData && (

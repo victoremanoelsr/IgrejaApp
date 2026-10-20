@@ -41,7 +41,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const { data: sysData } = await supabase
           .from('system_settings')
           .select('mercado_pago_access_token')
-          .eq('id', 1)
+          .limit(1)
           .maybeSingle();
 
         if (sysData?.mercado_pago_access_token) {
@@ -51,8 +51,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (!accessToken) {
-      console.warn('Webhook recebido, mas Mercado Pago Access Token não encontrado.');
-      return res.status(200).json({ status: 'warning', message: 'Token não configurado' });
+      accessToken = 'APP_USR-5117403087631490-101920-b790f8f321ecb5fffbfdfba5e35b25ae-263829210';
     }
 
     // 3. Consulta o pagamento diretamente na API do Mercado Pago para validação 100% segura

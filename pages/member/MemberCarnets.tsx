@@ -14,7 +14,9 @@ import {
   X, 
   ArrowRight,
   FileCheck2,
-  Sparkles
+  Sparkles,
+  CheckCircle2,
+  Circle
 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import { renderElementsToPDF, loadImageForPDF, addImageToPdf } from '../../utils/pdfImageLoader';
@@ -62,6 +64,47 @@ export const MemberCarnets: React.FC = () => {
   if (!session) return null;
   const member = session.member;
   const currentYear = new Date().getFullYear();
+
+  // Controle de parcelas pagas pelo membro (persistente no localStorage)
+  const [paidParcels, setPaidParcels] = useState<Record<number, { paid: boolean; paidAt?: string }>>({});
+
+  const getStorageKey = (templateId: string) =>
+    `member_carnet_paid_${member?.id || 'anon'}_${templateId}_${currentYear}`;
+
+  useEffect(() => {
+    if (!selectedTemplate) return;
+    try {
+      const raw = localStorage.getItem(getStorageKey(selectedTemplate.id));
+      if (raw) {
+        setPaidParcels(JSON.parse(raw));
+      } else {
+        setPaidParcels({});
+      }
+    } catch {
+      setPaidParcels({});
+    }
+  }, [selectedTemplate, member?.id, currentYear]);
+
+  const handleTogglePaid = (monthIndex: number) => {
+    if (!selectedTemplate) return;
+    const current = paidParcels[monthIndex]?.paid;
+    const now = new Date();
+    const formattedDate = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
+
+    const updated = {
+      ...paidParcels,
+      [monthIndex]: current
+        ? { paid: false }
+        : { paid: true, paidAt: formattedDate }
+    };
+
+    setPaidParcels(updated);
+    try {
+      localStorage.setItem(getStorageKey(selectedTemplate.id), JSON.stringify(updated));
+    } catch (e) {
+      console.warn('Erro ao salvar no localStorage:', e);
+    }
+  };
 
   const getMonthName = (monthIndex: number) =>
     new Date(0, monthIndex).toLocaleString(lang, { month: 'long' });
@@ -218,6 +261,9 @@ export const MemberCarnets: React.FC = () => {
      TELA 2 — Lista / Grade com as 12 Parcelas Individuais
   ═══════════════════════════════════════════════════════════ */
   if (selectedTemplate) {
+    const paidCount = Object.values(paidParcels).filter(p => p?.paid).length;
+    const progressPercent = Math.round((paidCount / 12) * 100);
+
     return (
       <div className="space-y-6 w-full animate-fade-in">
         {/* Cabeçalho de Navegação com botão Voltar */}
@@ -245,6 +291,42 @@ export const MemberCarnets: React.FC = () => {
           </span>
         </div>
 
+        {/* Card de Controle e Progresso de Pagamentos do Membro */}
+        <div className="bg-gradient-to-r from-emerald-50 via-teal-50 to-orange-50 border border-emerald-200/90 rounded-2xl p-4 md:p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-500 text-white flex items-center justify-center shrink-0 shadow-md shadow-emerald-500/25">
+              <CheckCircle2 size={24} />
+            </div>
+            <div>
+              <span className="text-[10px] font-black uppercase text-emerald-800 tracking-wider">
+                Seu Controle Pessoal de Mensalidades
+              </span>
+              <h3 className="text-sm md:text-base font-black text-gray-900">
+                {paidCount} de 12 parcelas quitadas ({progressPercent}%)
+              </h3>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Marque abaixo as parcelas que você já pagou para manter tudo organizado!
+              </p>
+            </div>
+          </div>
+
+          {/* Barra de progresso visual */}
+          <div className="w-full sm:w-56 flex flex-col gap-1.5 shrink-0">
+            <div className="h-3 w-full bg-gray-200 rounded-full overflow-hidden p-0.5 border border-gray-200">
+              <div
+                className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full transition-all duration-500 shadow-sm"
+                style={{ width: `${progressPercent}%` }}
+              />
+            </div>
+            <div className="flex items-center justify-between text-[11px] font-bold">
+              <span className="text-emerald-700">{paidCount} pagas</span>
+              <span className="text-gray-500">
+                {12 - paidCount === 0 ? 'Tudo quitado! 🎉' : `Restam ${12 - paidCount} parcelas`}
+              </span>
+            </div>
+          </div>
+        </div>
+
         {error && (
           <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl p-3.5 text-xs text-red-700">
             <AlertCircle size={16} className="text-red-500 shrink-0" />
@@ -260,20 +342,35 @@ export const MemberCarnets: React.FC = () => {
             const isPreviewLoading = actionLoadingKey === previewKey;
             const isDownloadLoading = actionLoadingKey === downloadKey;
             const isDisabled = !!actionLoadingKey;
+            const isPaid = !!paidParcels[i]?.paid;
+            const paidAt = paidParcels[i]?.paidAt;
 
             return (
               <div
                 key={i}
-                className="bg-white rounded-2xl border border-gray-200/90 shadow-sm hover:shadow-md transition-all p-4 flex flex-col justify-between gap-3 group hover:border-orange-200"
+                className={`rounded-2xl border transition-all p-4 flex flex-col justify-between gap-3 group shadow-sm hover:shadow-md ${
+                  isPaid
+                    ? 'bg-gradient-to-b from-emerald-50/50 via-white to-white border-emerald-300 ring-2 ring-emerald-400/20'
+                    : 'bg-white border-gray-200/90 hover:border-orange-200'
+                }`}
               >
                 {/* Cabeçalho da parcela */}
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-gray-100 text-gray-700">
+                  <span className={`text-[11px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md ${
+                    isPaid ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-700'
+                  }`}>
                     Parcela {String(i + 1).padStart(2, '0')}
                   </span>
-                  <div className="w-7 h-7 rounded-lg bg-orange-50 flex items-center justify-center text-orange-600">
-                    <Calendar size={14} />
-                  </div>
+                  {isPaid ? (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase text-emerald-700 bg-emerald-100/90 px-2 py-0.5 rounded-full border border-emerald-200">
+                      <CheckCircle2 size={12} className="text-emerald-600" />
+                      Quitada
+                    </span>
+                  ) : (
+                    <div className="w-7 h-7 rounded-lg bg-orange-50 flex items-center justify-center text-orange-600">
+                      <Calendar size={14} />
+                    </div>
+                  )}
                 </div>
 
                 {/* Nome do Mês e Detalhe */}
@@ -282,9 +379,40 @@ export const MemberCarnets: React.FC = () => {
                     {getMonthName(i)}
                   </h3>
                   <p className="text-xs text-gray-500 mt-0.5">
-                    Exercício de {currentYear}
+                    {isPaid ? (
+                      <span className="text-emerald-700 font-semibold flex items-center gap-1">
+                        <CheckCircle2 size={13} className="text-emerald-600 inline shrink-0" />
+                        {paidAt ? `Paga em ${paidAt}` : 'Mensalidade Paga'}
+                      </span>
+                    ) : (
+                      `Exercício de ${currentYear}`
+                    )}
                   </p>
                 </div>
+
+                {/* BOTÃO PARA O MEMBRO SABER/CONTROLAR QUE PAGOU AQUELA MENSALIDADE */}
+                <button
+                  type="button"
+                  onClick={() => handleTogglePaid(i)}
+                  className={`w-full py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition active:scale-95 shadow-sm ${
+                    isPaid
+                      ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-700/20'
+                      : 'border-2 border-dashed border-gray-300 hover:border-emerald-500 bg-gray-50/70 hover:bg-emerald-50 text-gray-600 hover:text-emerald-700'
+                  }`}
+                  title={isPaid ? 'Clique para desmarcar se necessário' : 'Clique para marcar que você já pagou esta mensalidade'}
+                >
+                  {isPaid ? (
+                    <>
+                      <CheckCircle2 size={15} className="text-emerald-200 animate-pulse" />
+                      <span>Mensalidade Paga ✓</span>
+                    </>
+                  ) : (
+                    <>
+                      <Circle size={15} className="text-gray-400 group-hover:text-emerald-600" />
+                      <span>Marcar como Paga</span>
+                    </>
+                  )}
+                </button>
 
                 {/* Ações individuais da parcela */}
                 <div className="grid grid-cols-2 gap-2 pt-2 border-t border-gray-100">

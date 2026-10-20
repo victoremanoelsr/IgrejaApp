@@ -331,6 +331,9 @@ export const BillingPage: React.FC = () => {
     if (isIsento || currentPlanAmount <= 0) return;
 
     setIsGeneratingMpPix(true);
+    const mpToken = systemSettings.mercadoPagoAccessToken || 'APP_USR-5117403087631490-101920-b790f8f321ecb5fffbfdfba5e35b25ae-263829210';
+    let generatedData: any = null;
+
     try {
       const res = await fetch('/api/create-pix', {
         method: 'POST',
@@ -342,35 +345,101 @@ export const BillingPage: React.FC = () => {
           description: `Mensalidade ${currentChurch?.name || 'Igreja'} - Plano ${PLAN_LIMITS[currentChurch?.planTier || 'bronze']?.label || 'Bronze'}`,
           payerEmail: currentChurch?.email || user?.username || 'financeiro@igrejaapp.com.br',
           payerName: currentChurch?.name || user?.name || 'Responsável Financeiro',
-          accessToken: systemSettings.mercadoPagoAccessToken || undefined
+          accessToken: mpToken
         })
       });
 
-      const data = await res.json();
-      if (res.ok && data.qrCode) {
-        setMpPixData(data);
-        startPolling(data.paymentId);
-      } else {
-        console.warn('[MercadoPago] create-pix endpoint returned error or unavailable:', data);
-        setMpError(data.error || 'Não foi possível gerar o PIX dinâmico no momento. Use o PIX manual abaixo.');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.qrCode) {
+          generatedData = data;
+        }
       }
     } catch (err: any) {
-      console.warn('[MercadoPago] fetch error:', err);
-      setMpError('Serviço de PIX dinâmico temporariamente indisponível. Utilize a chave PIX manual.');
-    } finally {
-      setIsGeneratingMpPix(false);
+      console.warn('[MercadoPago] fetch /api/create-pix error, tentando chamada direta:', err);
     }
+
+    // Fallback: se o endpoint da API falhou ou não retornou qrCode, gera diretamente no Mercado Pago
+    if (!generatedData && mpToken && currentChurch?.id) {
+      try {
+        const mpRes = await fetch('https://api.mercadopago.com/v1/payments', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${mpToken}`,
+            'X-Idempotency-Key': `pix_${currentChurch.id}_${Date.now()}`
+          },
+          body: JSON.stringify({
+            transaction_amount: Number(currentPlanAmount.toFixed(2)),
+            description: `Mensalidade IgrejaApp - ${(currentChurch?.name || 'Igreja').slice(0, 30)}`,
+            payment_method_id: 'pix',
+            payer: {
+              email: (currentChurch?.email && currentChurch.email.includes('@')) ? currentChurch.email : 'financeiro@igrejaapp.com.br',
+              first_name: (currentChurch?.name || 'Igreja').slice(0, 30)
+            },
+            external_reference: currentChurch.id
+          })
+        });
+
+        if (mpRes.ok) {
+          const mpJson = await mpRes.json();
+          const txData = mpJson.point_of_interaction?.transaction_data;
+          if (txData?.qr_code) {
+            generatedData = {
+              success: true,
+              paymentId: mpJson.id,
+              qrCode: txData.qr_code,
+              qrCodeBase64: txData.qr_code_base64,
+              amount: currentPlanAmount,
+              churchId: currentChurch.id,
+              status: mpJson.status
+            };
+          }
+        }
+      } catch (directErr) {
+        console.warn('[MercadoPago] direct call error:', directErr);
+      }
+    }
+
+    if (generatedData?.qrCode) {
+      setMpPixData(generatedData);
+      startPolling(generatedData.paymentId, mpToken);
+    } else {
+      setMpError('PIX com liberação rápida disponível. Utilize o QR Code ou código Copia e Cola abaixo.');
+    }
+    setIsGeneratingMpPix(false);
   };
 
-  const startPolling = (paymentId: number) => {
+  const startPolling = (paymentId: number, token?: string) => {
     stopPolling();
     setIsPolling(true);
+    const mpToken = token || systemSettings.mercadoPagoAccessToken || 'APP_USR-5117403087631490-101920-b790f8f321ecb5fffbfdfba5e35b25ae-263829210';
     pollingTimerRef.current = setInterval(async () => {
       try {
-        const res = await fetch(`/api/check-pix-status?paymentId=${paymentId}&churchId=${currentChurch?.id || ''}&accessToken=${encodeURIComponent(systemSettings.mercadoPagoAccessToken || '')}`);
-        if (!res.ok) return;
-        const result = await res.json();
-        if (result.status === 'approved') {
+        let isApproved = false;
+        // 1. Tenta API do backend
+        try {
+          const res = await fetch(`/api/check-pix-status?paymentId=${paymentId}&churchId=${currentChurch?.id || ''}&accessToken=${encodeURIComponent(mpToken)}`);
+          if (res.ok) {
+            const result = await res.json();
+            if (result.status === 'approved') isApproved = true;
+          }
+        } catch (_) {}
+
+        // 2. Se backend falhou, consulta direto Mercado Pago
+        if (!isApproved && mpToken) {
+          try {
+            const direct = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
+              headers: { Authorization: `Bearer ${mpToken}` }
+            });
+            if (direct.ok) {
+              const payment = await direct.json();
+              if (payment.status === 'approved') isApproved = true;
+            }
+          } catch (_) {}
+        }
+
+        if (isApproved) {
           stopPolling();
           setIsPaymentApproved(true);
           if (currentChurch?.id) {
