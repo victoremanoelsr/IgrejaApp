@@ -48,15 +48,46 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles?: strin
   if (!user) return <Navigate to="/" replace />;
 
   // Bloqueio automático: se a SEDE da igreja atual estiver com status 'off' (active=false),
-  // restringe o acesso à tela de Pagamento Pendente. SUPER_ADM nunca é bloqueado.
+  // ou se for plano pago e a tolerância de vencimento expirou, restringe o acesso. SUPER_ADM nunca é bloqueado.
   if (user.role !== 'SUPER_ADM' && currentChurch) {
     let sede = currentChurch;
     if (sede.type === 'CONGREGACAO' && sede.parentId) {
       const parent = churches.find(c => c.id === sede.parentId);
       if (parent) sede = parent;
     }
+    
+    // 1. Explicitamente bloqueada
     if (sede.active === false) {
       return <Navigate to="/bloqueado" replace />;
+    }
+
+    // 2. Vencimento expirado em plano com mensalidade
+    if (sede.planType && sede.planType !== 'isento') {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const dueDay = sede.dueDay ?? 10;
+      const gracePeriod = sede.gracePeriod ?? 5;
+      const dueDate = new Date(today.getFullYear(), today.getMonth(), dueDay + gracePeriod);
+      dueDate.setHours(23, 59, 59, 999);
+
+      const hasPromise = sede.paymentPromiseDate
+        ? new Date(sede.paymentPromiseDate + 'T00:00:00') >= today
+        : false;
+
+      if (today > dueDate && !hasPromise) {
+        let isCovered = false;
+        if (sede.lastPaymentDate) {
+          const lastPay = new Date(sede.lastPaymentDate + 'T00:00:00');
+          const nextDueAfterPay = new Date(lastPay.getFullYear(), lastPay.getMonth() + 1, dueDay + gracePeriod);
+          nextDueAfterPay.setHours(23, 59, 59, 999);
+          if (today <= nextDueAfterPay) {
+            isCovered = true;
+          }
+        }
+        if (!isCovered) {
+          return <Navigate to="/bloqueado" replace />;
+        }
+      }
     }
   }
   

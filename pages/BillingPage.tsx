@@ -58,7 +58,7 @@ const CYCLES: PlanType[] = ['mensal'];
 const TIERS = ['bronze', 'prata', 'ouro', 'diamond'] as const;
 
 export const BillingPage: React.FC = () => {
-  const { user, currentChurch, systemSettings, confirmChurchPayment } = useApp();
+  const { user, currentChurch, systemSettings, confirmChurchPayment, refreshData } = useApp();
   const planLimits = usePlanLimits();
   const isIsento    = currentChurch?.planType === 'isento';
   // PIX exclusivo para pagamento da mensalidade do SaaS: usa unicamente a Chave PIX Master
@@ -91,6 +91,7 @@ export const BillingPage: React.FC = () => {
   const pollingTimerRef = useRef<any>(null);
 
   useEffect(() => {
+    refreshData?.();
     const t = setTimeout(() => setIsLoading(false), 600);
     return () => clearTimeout(t);
   }, []);

@@ -141,6 +141,8 @@ interface AppContextType {
   confirmChurchPayment: (churchId: string) => Promise<{success: boolean, error?: string, nextDueDate?: string}>;
   // Permissão e ativação de notificações push no celular
   requestPushNotification: () => Promise<boolean>;
+  // Força recarregamento fresco de todas as tabelas
+  refreshData: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -485,11 +487,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const { data: churchData } = await supabase.from('churches').select('*');
     if(churchData) {
-      const overrides = getChurchLocalOverrides();
-      const mapped = churchData.map(toAppChurch).map(c => {
-        const ov = overrides[c.id];
-        return ov ? { ...c, ...ov } : c;
-      });
+      const mapped = churchData.map(toAppChurch);
       setChurches(mapped);
 
       // Sincroniza currentChurch mantendo dados atualizados e consistentes após refresh
@@ -694,48 +692,46 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
     if (!sede) return false;
 
-    // Overrides locais têm prioridade de liberação imediata
-    const overrides = getChurchLocalOverrides();
-    if (overrides[sede.id]?.active === true) return false;
+    // Se estiver explicitamente desativada
+    if (sede.active === false) return true;
 
-    if (!sede.active) return true;
+    // Se o plano for isento, não há bloqueio por vencimento
+    if (!sede.planType || sede.planType === 'isento') return false;
 
-    if (sede.planType && sede.planType !== 'isento') {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const dueDay = sede.dueDay ?? 10;
-      const gracePeriod = sede.gracePeriod ?? 5;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const dueDay = sede.dueDay ?? 10;
+    const gracePeriod = sede.gracePeriod ?? 5;
 
-      // 1. Promessa de pagamento ou liberação temporária ativa
-      const hasActivePromise = sede.paymentPromiseDate
-        ? new Date(sede.paymentPromiseDate + 'T00:00:00') >= today
-        : false;
-      if (hasActivePromise) return false;
+    // 1. Promessa de pagamento ou liberação temporária ativa
+    const hasActivePromise = sede.paymentPromiseDate
+      ? new Date(sede.paymentPromiseDate + 'T00:00:00') >= today
+      : false;
+    if (hasActivePromise) return false;
 
-      // 2. Se o último pagamento cobre o ciclo atual (vencimento do ciclo + carência)
-      if (sede.lastPaymentDate) {
-        const months = PLAN_MONTHS_INTERNAL[sede.planType ?? 'mensal'] ?? 1;
-        const lastPay = new Date(sede.lastPaymentDate + 'T00:00:00');
-        const nextDueAfterPayment = new Date(
-          lastPay.getFullYear(),
-          lastPay.getMonth() + (months || 1),
-          dueDay
-        );
-        const maxAllowed = new Date(nextDueAfterPayment.getFullYear(), nextDueAfterPayment.getMonth(), nextDueAfterPayment.getDate() + gracePeriod);
-        maxAllowed.setHours(23, 59, 59, 999);
-        if (today <= maxAllowed) return false;
-      }
-
-      // 3. Vencimento deste mês + carência
-      const dueDate = new Date(today.getFullYear(), today.getMonth(), dueDay + gracePeriod);
-      dueDate.setHours(23, 59, 59, 999);
-      if (today <= dueDate) return false;
-
-      await supabase.from('churches').update({ active: false }).eq('id', sede.id);
-      setChurches(prev => prev.map(c => c.id === sede!.id ? { ...c, active: false } : c));
-      return true;
+    // 2. Se o último pagamento cobre o ciclo atual (vencimento do ciclo + carência)
+    if (sede.lastPaymentDate) {
+      const months = PLAN_MONTHS_INTERNAL[sede.planType ?? 'mensal'] ?? 1;
+      const lastPay = new Date(sede.lastPaymentDate + 'T00:00:00');
+      const nextDueAfterPayment = new Date(
+        lastPay.getFullYear(),
+        lastPay.getMonth() + (months || 1),
+        dueDay
+      );
+      const maxAllowed = new Date(nextDueAfterPayment.getFullYear(), nextDueAfterPayment.getMonth(), nextDueAfterPayment.getDate() + gracePeriod);
+      maxAllowed.setHours(23, 59, 59, 999);
+      if (today <= maxAllowed) return false;
     }
-    return false;
+
+    // 3. Vencimento deste mês + carência
+    const dueDate = new Date(today.getFullYear(), today.getMonth(), dueDay + gracePeriod);
+    dueDate.setHours(23, 59, 59, 999);
+    if (today <= dueDate) return false;
+
+    // Se chegou aqui, está inadimplente e com prazo expirado
+    await supabase.from('churches').update({ active: false }).eq('id', sede.id);
+    setChurches(prev => prev.map(c => c.id === sede!.id ? { ...c, active: false } : c));
+    return true;
   };
 
   // Varre TODAS as sedes com plano pago e bloqueia as inadimplentes.
@@ -743,13 +739,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const sweepOverdueChurches = async (churchList: Church[]) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const overrides = getChurchLocalOverrides();
 
     const sedes = churchList.filter(
       c => c.type === 'SEDE' && c.planType && c.planType !== 'isento' && c.active !== false
     );
     for (const sede of sedes) {
-      if (overrides[sede.id]?.active === true) continue;
 
       const dueDay = sede.dueDay ?? 10;
       const gracePeriod = sede.gracePeriod ?? 5;
@@ -855,35 +849,34 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (appUser.role !== 'SUPER_ADM' && appUser.churchId) {
       const { data: freshChurches } = await supabase.from('churches').select('*');
       const churchList = (freshChurches && freshChurches.length > 0) ? freshChurches.map(toAppChurch) : churches;
+      setChurches(churchList);
+
       const blocked = await isChurchBlocked(appUser.churchId, churchList);
+      
+      let userChurch = churchList.find(c => c.id === appUser.churchId);
+      if (!userChurch) {
+        const { data: directChurch } = await supabase.from('churches').select('*').eq('id', appUser.churchId).maybeSingle();
+        if (directChurch) userChurch = toAppChurch(directChurch);
+      }
+
       if (blocked) {
+        if (userChurch) {
+          const blockedChurch = { ...userChurch, active: false };
+          setCurrentChurch(blockedChurch);
+          try { sessionStorage.setItem('igrejaapp_current_church', JSON.stringify(blockedChurch)); } catch (_) {}
+        }
         await supabase.auth.signOut().catch(() => {});
         return { blocked: true };
+      }
+
+      if (userChurch) {
+        setCurrentChurch(userChurch);
+        try { sessionStorage.setItem('igrejaapp_current_church', JSON.stringify(userChurch)); } catch (_) {}
       }
     }
 
     setUser(appUser);
     try { sessionStorage.setItem('igrejaapp_session_user', JSON.stringify(appUser)); } catch (_) {}
-
-    if (appUser.churchId) {
-      let church: Church | undefined;
-      const { data: freshChurches } = await supabase.from('churches').select('*');
-      if (freshChurches && freshChurches.length > 0) {
-        church = freshChurches.map(toAppChurch).find(c => c.id === appUser.churchId);
-      }
-      if (!church) {
-        // Fallback: busca direta por ID da congregação/igreja do usuário
-        const { data: directChurch } = await supabase.from('churches').select('*').eq('id', appUser.churchId).maybeSingle();
-        if (directChurch) {
-          church = toAppChurch(directChurch);
-        }
-      }
-      if (church) {
-        setCurrentChurch(church);
-        setChurches(prev => prev.some(c => c.id === church!.id) ? prev : [...prev, church!]);
-        try { sessionStorage.setItem('igrejaapp_current_church', JSON.stringify(church)); } catch (_) {}
-      }
-    }
     return { user: appUser };
   };
 
@@ -1321,7 +1314,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         ...(d.pixKey !== undefined ? { pixKey: d.pixKey && d.pixKey.trim() !== '' ? d.pixKey.trim() : undefined } : {})
       };
 
-      saveChurchLocalOverride(id, updatedPatch);
+      try {
+        const cur = getChurchLocalOverrides();
+        delete cur[id];
+        localStorage.setItem(CHURCHES_OVERRIDE_KEY, JSON.stringify(cur));
+      } catch (_) {}
 
       setChurches(prev => prev.map(c => c.id === id ? { ...c, ...updatedPatch } : c));
       if(currentChurch?.id === id) {
@@ -2065,6 +2062,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     saveSystemSettings,
     confirmChurchPayment,
     requestPushNotification,
+    refreshData: fetchData,
   };
 
   return (
