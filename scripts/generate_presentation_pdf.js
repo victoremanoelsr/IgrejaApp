@@ -1680,10 +1680,10 @@ function buildPage15() {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(10.5);
   doc.setTextColor(...COLOR_PRIMARY);
-  doc.text('🗓️ ASSINATURA 100% MENSAL — SEM FIDELIDADE E SEM BUROCRACIA:', MARGIN + 8, discY + 9);
+  doc.text('⚡ PAGAMENTO SIMPLES & LIBERAÇÃO IMEDIATA:', MARGIN + 8, discY + 9);
 
   const monthlyBenefits = [
-    { titulo: 'Cobrança Mensal Direta', desc: 'Preço fixo mês a mês sem surpresas no orçamento da sua igreja.' },
+    { titulo: 'Preço Fixo Mensal', desc: 'Preço transparente mês a mês sem surpresas no orçamento da sua igreja.' },
     { titulo: 'Zero Fidelidade', desc: 'Sua igreja tem total liberdade e autonomia para manter o plano ativo.' },
     { titulo: 'Liberação Imediata', desc: 'Acesso imediato no mesmo instante via PIX oficial com baixa instantânea.' },
   ];

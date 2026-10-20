@@ -111,6 +111,88 @@ async function updatePdf() {
     color: rgb(156 / 255, 163 / 255, 175 / 255),
   });
 
+  // Remoção completa da tabela de descontos e periodicidades (Bimestral, Trimestral, Semestral, Anual)
+  p15.drawRectangle({
+    x: 45,
+    y: 130,
+    width: 505,
+    height: 205,
+    color: rgb(1, 1, 1),
+  });
+
+  // Card elegante de Liberação Imediata & Pagamento via PIX Oficial
+  p15.drawRectangle({
+    x: 52,
+    y: 152,
+    width: 493,
+    height: 165,
+    color: rgb(248 / 255, 250 / 255, 252 / 255),
+    borderColor: rgb(226 / 255, 232 / 255, 240 / 255),
+    borderWidth: 0.8,
+  });
+
+  // Badge no topo do card
+  p15.drawRectangle({
+    x: 58,
+    y: 290,
+    width: 481,
+    height: 20,
+    color: rgb(240 / 255, 253 / 255, 244 / 255),
+  });
+  p15.drawText('Pagamento Instantaneo via PIX Oficial do Banco Central', {
+    x: 68,
+    y: 296,
+    size: 8.5,
+    font: fontBold,
+    color: rgb(22 / 255, 101 / 255, 52 / 255),
+  });
+
+  // Itens informativos
+  p15.drawText('- Liberacao Imediata: O sistema reconhece o pagamento e ativa seu painel na mesma hora.', {
+    x: 68,
+    y: 270,
+    size: 7.8,
+    font: fontBold,
+    color: rgb(15 / 255, 23 / 255, 42 / 255),
+  });
+  p15.drawText('- Zero Fidelidade: Sua igreja tem total autonomia e flexibilidade para manter o plano ativo mes a mes.', {
+    x: 68,
+    y: 248,
+    size: 7.8,
+    font: fontBold,
+    color: rgb(15 / 255, 23 / 255, 42 / 255),
+  });
+  p15.drawText('- Sem Burocracia: Baixa automatica sem necessidade de envio manual de comprovantes.', {
+    x: 68,
+    y: 226,
+    size: 7.8,
+    font: fontBold,
+    color: rgb(15 / 255, 23 / 255, 42 / 255),
+  });
+  p15.drawText('- Suporte Completo: Ajuda especializada inclusa para implantacao e migracao dos dados da igreja.', {
+    x: 68,
+    y: 204,
+    size: 7.8,
+    font: fontBold,
+    color: rgb(15 / 255, 23 / 255, 42 / 255),
+  });
+
+  // Banner inferior discreto
+  p15.drawRectangle({
+    x: 58,
+    y: 160,
+    width: 481,
+    height: 28,
+    color: rgb(15 / 255, 23 / 255, 42 / 255),
+  });
+  p15.drawText('Planos justos e transparentes para sua denominacao crescer sem pesar no orcamento.', {
+    x: 82,
+    y: 171,
+    size: 7.8,
+    font: fontBold,
+    color: rgb(1, 1, 1),
+  });
+
   // =========================================================================
   // 2. ATUALIZAÇÃO DA PÁGINA 12 (PORTAL DO MEMBRO - NOVOS RECURSOS EXCLUSIVOS)
   // =========================================================================
