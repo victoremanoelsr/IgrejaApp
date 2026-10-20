@@ -10,10 +10,10 @@ export interface TierLimits {
 }
 
 export const PLAN_LIMITS: Record<PlanTier | 'isento', TierLimits> = {
-  bronze:  { sedeMembers: 100,      congMembers: 50,       maxCongs: 2,        basePrice: 79.90,  label: 'Bronze'  },
-  prata:   { sedeMembers: 300,      congMembers: 100,      maxCongs: 5,        basePrice: 149.90, label: 'Prata'   },
-  ouro:    { sedeMembers: 700,      congMembers: 200,      maxCongs: 10,       basePrice: 249.90, label: 'Ouro'    },
-  diamond: { sedeMembers: Infinity, congMembers: Infinity, maxCongs: Infinity, basePrice: 399.90, label: 'Diamond' },
+  bronze:  { sedeMembers: 100,      congMembers: 50,       maxCongs: 2,        basePrice: 1.00,   label: 'Bronze (Teste R$ 1,00)'  },
+  prata:   { sedeMembers: 300,      congMembers: 100,      maxCongs: 5,        basePrice: 1.00,   label: 'Prata (Teste R$ 1,00)'   },
+  ouro:    { sedeMembers: 700,      congMembers: 200,      maxCongs: 10,       basePrice: 1.00,   label: 'Ouro (Teste R$ 1,00)'    },
+  diamond: { sedeMembers: Infinity, congMembers: Infinity, maxCongs: Infinity, basePrice: 1.00,   label: 'Diamond (Teste R$ 1,00)' },
   isento:  { sedeMembers: Infinity, congMembers: Infinity, maxCongs: Infinity, basePrice: 0,      label: 'Isento'  },
 };
 

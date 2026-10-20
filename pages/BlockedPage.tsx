@@ -28,7 +28,7 @@ export const BlockedPage: React.FC = () => {
 
   const tierKey = (sede?.planTier as PlanTier) || 'bronze';
   const planInfo = PLAN_LIMITS[tierKey] || PLAN_LIMITS.bronze;
-  const planAmount = planInfo.basePrice > 0 ? planInfo.basePrice : 79.90;
+  const planAmount = planInfo.basePrice > 0 ? planInfo.basePrice : 1.00;
 
   // Estados do Modal de Pagamento PIX Mercado Pago
   const [showPixModal, setShowPixModal] = useState(false);
