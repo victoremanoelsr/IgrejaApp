@@ -139,7 +139,7 @@ async function updatePdf() {
     height: 20,
     color: rgb(240 / 255, 253 / 255, 244 / 255),
   });
-  p15.drawText('Pagamento Instantaneo via PIX Oficial do Banco Central', {
+  p15.drawText('Fluxo de Pagamento via PIX e Liberacao de Acesso', {
     x: 68,
     y: 296,
     size: 8.5,
@@ -148,28 +148,28 @@ async function updatePdf() {
   });
 
   // Itens informativos
-  p15.drawText('- Liberacao Imediata: O sistema reconhece o pagamento e ativa seu painel na mesma hora.', {
+  p15.drawText('- Pagamento via PIX: Transferencia direta e segura para a chave PIX oficial do administrador.', {
     x: 68,
     y: 270,
     size: 7.8,
     font: fontBold,
     color: rgb(15 / 255, 23 / 255, 42 / 255),
   });
-  p15.drawText('- Zero Fidelidade: Sua igreja tem total autonomia e flexibilidade para manter o plano ativo mes a mes.', {
+  p15.drawText('- Envio do Comprovante: A igreja envia o comprovante de pagamento via WhatsApp para confirmacao.', {
     x: 68,
     y: 248,
     size: 7.8,
     font: fontBold,
     color: rgb(15 / 255, 23 / 255, 42 / 255),
   });
-  p15.drawText('- Sem Burocracia: Baixa automatica sem necessidade de envio manual de comprovantes.', {
+  p15.drawText('- Liberacao no Painel: O administrador da a baixa no sistema e libera o acesso com o novo vencimento.', {
     x: 68,
     y: 226,
     size: 7.8,
     font: fontBold,
     color: rgb(15 / 255, 23 / 255, 42 / 255),
   });
-  p15.drawText('- Suporte Completo: Ajuda especializada inclusa para implantacao e migracao dos dados da igreja.', {
+  p15.drawText('- Suporte Dedicado: Atendimento direto para contratacao, ativacao e migracao de dados da igreja.', {
     x: 68,
     y: 204,
     size: 7.8,
@@ -185,7 +185,7 @@ async function updatePdf() {
     height: 28,
     color: rgb(15 / 255, 23 / 255, 42 / 255),
   });
-  p15.drawText('Planos justos e transparentes para sua denominacao crescer sem pesar no orcamento.', {
+  p15.drawText('Controle transparente e seguro com confirmacao direta do administrador do sistema.', {
     x: 82,
     y: 171,
     size: 7.8,

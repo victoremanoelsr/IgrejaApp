@@ -1712,12 +1712,12 @@ function buildPage15() {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9.5);
   doc.setTextColor(22, 101, 52);
-  doc.text('⚡ Pagamento Instantâneo via PIX com Baixa Automática:', MARGIN + 6, 212);
+  doc.text('⚡ Pagamento via PIX com Baixa pelo Administrador:', MARGIN + 6, 212);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
   doc.setTextColor(...COLOR_GRAY_DARK);
   doc.text(
-    'A liberação do sistema é imediata via PIX Oficial do Banco Central. O pastor escaneia o QR Code ou usa o "Copia e Cola" no app do banco e seu sistema fica ativo na mesma hora sem burocracia.',
+    'O pagamento da mensalidade é feito via Chave PIX oficial. A igreja envia o comprovante diretamente pelo WhatsApp, e o administrador realiza a baixa no sistema com registro de pagamento e liberação para o novo período.',
     MARGIN + 6, 218, { maxWidth: CONTENT_WIDTH - 12, lineHeightFactor: 1.3 }
   );
 
