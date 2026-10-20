@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   CreditCard, ShieldCheck, Receipt, CheckCircle, Clock, AlertCircle,
   Zap, ChevronRight, X, Copy, RefreshCw, Gift, Users, Building2,
-  Star, Crown, Gem, TrendingUp, Info, MessageCircle, Home, QrCode, Calendar
+  Star, Crown, Gem, TrendingUp, Info, MessageCircle, Home, QrCode, Calendar,
+  Loader2, Sparkles, CheckCircle2
 } from 'lucide-react';
 import { useApp } from '../context';
 import { PlanType, PlanTier } from '../types';
@@ -57,7 +58,7 @@ const CYCLES: PlanType[] = ['mensal'];
 const TIERS = ['bronze', 'prata', 'ouro', 'diamond'] as const;
 
 export const BillingPage: React.FC = () => {
-  const { user, currentChurch, systemSettings } = useApp();
+  const { user, currentChurch, systemSettings, confirmChurchPayment } = useApp();
   const planLimits = usePlanLimits();
   const isIsento    = currentChurch?.planType === 'isento';
   // PIX exclusivo para pagamento da mensalidade do SaaS: usa unicamente a Chave PIX Master
@@ -73,9 +74,39 @@ export const BillingPage: React.FC = () => {
     (currentChurch?.planTier as PlanTier) || 'bronze'
   );
 
+  // Estados do PIX Dinâmico com Mercado Pago (baixa automática)
+  const [isGeneratingMpPix, setIsGeneratingMpPix] = useState(false);
+  const [mpPixData, setMpPixData] = useState<{
+    paymentId: number;
+    qrCode: string;
+    qrCodeBase64?: string;
+    status: string;
+    ticketUrl?: string;
+  } | null>(null);
+  const [mpError, setMpError] = useState<string | null>(null);
+  const [isPaymentApproved, setIsPaymentApproved] = useState(false);
+  const [isPolling, setIsPolling] = useState(false);
+  const [copiedMpBrCode, setCopiedMpBrCode] = useState(false);
+  const [showManualFallback, setShowManualFallback] = useState(false);
+  const pollingTimerRef = useRef<any>(null);
+
   useEffect(() => {
     const t = setTimeout(() => setIsLoading(false), 600);
     return () => clearTimeout(t);
+  }, []);
+
+  const stopPolling = () => {
+    if (pollingTimerRef.current) {
+      clearInterval(pollingTimerRef.current);
+      pollingTimerRef.current = null;
+    }
+    setIsPolling(false);
+  };
+
+  useEffect(() => {
+    return () => {
+      stopPolling();
+    };
   }, []);
 
   // ---- Cálculo do próximo vencimento real (baseado no dueDay) ----
@@ -288,6 +319,83 @@ export const BillingPage: React.FC = () => {
     navigator.clipboard.writeText(pixBrCode).then(() => {
       setCopiedBrCode(true);
       setTimeout(() => setCopiedBrCode(false), 2500);
+    });
+  };
+
+  const handleOpenPaymentModal = async () => {
+    setShowQrModal(true);
+    setIsPaymentApproved(false);
+    setMpError(null);
+    setShowManualFallback(false);
+
+    if (isIsento || currentPlanAmount <= 0) return;
+
+    setIsGeneratingMpPix(true);
+    try {
+      const res = await fetch('/api/create-pix', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          churchId: currentChurch?.id,
+          churchName: currentChurch?.name || 'Igreja',
+          amount: currentPlanAmount,
+          description: `Mensalidade ${currentChurch?.name || 'Igreja'} - Plano ${PLAN_LIMITS[currentChurch?.planTier || 'bronze']?.label || 'Bronze'}`,
+          payerEmail: currentChurch?.email || user?.username || 'financeiro@igrejaapp.com.br',
+          payerName: currentChurch?.name || user?.name || 'Responsável Financeiro',
+          accessToken: systemSettings.mercadoPagoAccessToken || undefined
+        })
+      });
+
+      const data = await res.json();
+      if (res.ok && data.qrCode) {
+        setMpPixData(data);
+        startPolling(data.paymentId);
+      } else {
+        console.warn('[MercadoPago] create-pix endpoint returned error or unavailable:', data);
+        setMpError(data.error || 'Não foi possível gerar o PIX dinâmico no momento. Use o PIX manual abaixo.');
+      }
+    } catch (err: any) {
+      console.warn('[MercadoPago] fetch error:', err);
+      setMpError('Serviço de PIX dinâmico temporariamente indisponível. Utilize a chave PIX manual.');
+    } finally {
+      setIsGeneratingMpPix(false);
+    }
+  };
+
+  const startPolling = (paymentId: number) => {
+    stopPolling();
+    setIsPolling(true);
+    pollingTimerRef.current = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/check-pix-status?paymentId=${paymentId}&churchId=${currentChurch?.id || ''}&accessToken=${encodeURIComponent(systemSettings.mercadoPagoAccessToken || '')}`);
+        if (!res.ok) return;
+        const result = await res.json();
+        if (result.status === 'approved') {
+          stopPolling();
+          setIsPaymentApproved(true);
+          if (currentChurch?.id) {
+            await confirmChurchPayment(currentChurch.id);
+          }
+        }
+      } catch (e) {
+        console.warn('[MercadoPago] polling check error:', e);
+      }
+    }, 3500);
+  };
+
+  const handleCloseModal = () => {
+    stopPolling();
+    setShowQrModal(false);
+    setMpPixData(null);
+    setIsPaymentApproved(false);
+    setMpError(null);
+  };
+
+  const handleCopyMpBrCode = () => {
+    if (!mpPixData?.qrCode) return;
+    navigator.clipboard.writeText(mpPixData.qrCode).then(() => {
+      setCopiedMpBrCode(true);
+      setTimeout(() => setCopiedMpBrCode(false), 2500);
     });
   };
 
@@ -604,6 +712,16 @@ export const BillingPage: React.FC = () => {
                 </div>
               )}
 
+              {/* Botão Principal de Baixa Automática */}
+              <button
+                type="button"
+                onClick={handleOpenPaymentModal}
+                className="w-full py-3 px-4 rounded-xl font-black text-xs sm:text-sm flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-500 via-teal-600 to-emerald-600 hover:from-emerald-600 hover:to-teal-700 text-white shadow-lg shadow-emerald-500/25 active:scale-95 transition-all"
+              >
+                <Zap size={16} className="text-yellow-300 animate-pulse shrink-0" />
+                <span>Pagar com PIX Automático (Baixa Imediata)</span>
+              </button>
+
               <div className="flex gap-2">
                 <button
                   type="button"
@@ -612,17 +730,17 @@ export const BillingPage: React.FC = () => {
                   className={`flex-1 py-2.5 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-sm ${
                     copied
                       ? 'bg-emerald-600 text-white'
-                      : 'bg-emerald-500 hover:bg-emerald-600 text-white active:scale-95'
+                      : 'bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 active:scale-95'
                   } disabled:opacity-50`}
                 >
                   {copied ? <CheckCircle size={15} /> : <Copy size={15} />}
-                  {copied ? 'Chave PIX Copiada!' : 'Copiar Chave PIX'}
+                  {copied ? 'Chave PIX Copiada!' : 'Copiar Chave Manual'}
                 </button>
 
                 {billingPix && (
                   <button
                     type="button"
-                    onClick={() => setShowQrModal(true)}
+                    onClick={handleOpenPaymentModal}
                     className="p-2.5 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-xl text-gray-700 dark:text-white transition"
                     title="Exibir QR Code para pagamento"
                   >
@@ -633,9 +751,10 @@ export const BillingPage: React.FC = () => {
             </div>
           </div>
 
-          <p className="text-[11px] text-gray-400 leading-tight pt-3 border-t border-gray-100 dark:border-gray-700">
-            Após a transferência, envie o comprovante pelo WhatsApp comercial para baixa imediata.
-          </p>
+          <div className="flex items-center gap-2 pt-3 border-t border-gray-100 dark:border-gray-700 text-[11px] text-emerald-700 dark:text-emerald-400 font-medium">
+            <Sparkles size={14} className="shrink-0 text-emerald-500" />
+            <span>Reconhecimento na hora via Mercado Pago. Acesso liberado sem precisar mandar comprovante!</span>
+          </div>
         </div>
       </div>
 
@@ -922,107 +1041,249 @@ export const BillingPage: React.FC = () => {
         </div>
       )}
 
-      {/* Modal QR Code PIX (Padrão Oficial Banco Central / BR Code) */}
+      {/* Modal QR Code PIX (Mercado Pago com Baixa Automática + Fallback Manual) */}
       {showQrModal && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
           <div className="bg-white dark:bg-gray-800 rounded-3xl p-6 max-w-sm w-full text-center shadow-2xl border border-gray-200 dark:border-gray-700 space-y-3">
-            <div className="flex items-center justify-between pb-2 border-b border-gray-100 dark:border-gray-700">
-              <div className="text-left">
-                <h3 className="font-black text-base text-gray-900 dark:text-white flex items-center gap-1.5">
-                  <QrCode size={18} className="text-emerald-600" />
-                  Pagar com PIX
-                </h3>
-                <p className="text-[11px] text-gray-400">Padrão Oficial Banco Central do Brasil</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowQrModal(false)}
-                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
-              >
-                <X size={16} />
-              </button>
-            </div>
-
-            {/* Imagem do QR Code Oficial EMV-Co */}
-            <div className="p-3 bg-white rounded-2xl border-2 border-emerald-500/30 inline-block mx-auto shadow-inner">
-              {pixQrCodeUrl ? (
-                <img
-                  src={pixQrCodeUrl}
-                  alt="QR Code PIX Oficial"
-                  className="w-52 h-52 mx-auto rounded-lg"
-                />
-              ) : (
-                <div className="w-52 h-52 flex items-center justify-center text-xs text-gray-400">
-                  Nenhuma chave cadastrada
+            {/* TELA DE SUCESSO: PAGAMENTO APROVADO */}
+            {isPaymentApproved ? (
+              <div className="py-6 px-2 space-y-4 animate-fade-in">
+                <div className="w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 flex items-center justify-center mx-auto shadow-lg shadow-emerald-500/20">
+                  <CheckCircle2 size={38} className="text-emerald-600 animate-bounce" />
                 </div>
-              )}
-            </div>
+                <div>
+                  <h3 className="font-black text-xl text-gray-900 dark:text-white">
+                    Pagamento Aprovado!
+                  </h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5 leading-relaxed">
+                    O Mercado Pago confirmou o PIX instantaneamente. A mensalidade foi quitada e o acesso da sua igreja está <b>100% liberado</b>!
+                  </p>
+                </div>
 
-            {/* Valor da fatura (se houver) */}
-            {currentPlanAmount > 0 && (
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-full text-xs font-bold text-emerald-800 dark:text-emerald-300">
-                <span>Valor:</span>
-                <span className="font-black">R$ {currentPlanAmount.toFixed(2).replace('.', ',')}</span>
+                <div className="p-3 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-xl text-xs text-emerald-800 dark:text-emerald-300 font-medium">
+                  Próximo ciclo de cobrança e histórico devidamente atualizados.
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleCloseModal}
+                  className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-sm shadow-md transition active:scale-95"
+                >
+                  Continuar no Sistema
+                </button>
               </div>
+            ) : isGeneratingMpPix ? (
+              /* TELA DE CARREGAMENTO */
+              <div className="py-12 px-4 space-y-4">
+                <Loader2 size={36} className="text-emerald-600 animate-spin mx-auto" />
+                <div>
+                  <h4 className="font-bold text-sm text-gray-900 dark:text-white">
+                    Gerando PIX com Baixa Automática...
+                  </h4>
+                  <p className="text-xs text-gray-400 mt-1">
+                    Conectando com segurança ao Mercado Pago
+                  </p>
+                </div>
+              </div>
+            ) : mpPixData && !showManualFallback ? (
+              /* TELA PRINCIPAL: PIX DINÂMICO MERCADO PAGO */
+              <>
+                <div className="flex items-center justify-between pb-2 border-b border-gray-100 dark:border-gray-700">
+                  <div className="text-left">
+                    <h3 className="font-black text-base text-gray-900 dark:text-white flex items-center gap-1.5">
+                      <Zap size={18} className="text-emerald-600" />
+                      PIX Automático
+                    </h3>
+                    <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold">Baixa automática instantânea</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleCloseModal}
+                    className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+
+                {/* QR Code Dinâmico retornado pelo Mercado Pago */}
+                <div className="p-3 bg-white rounded-2xl border-2 border-emerald-500/40 inline-block mx-auto shadow-inner">
+                  {mpPixData.qrCodeBase64 ? (
+                    <img
+                      src={`data:image/png;base64,${mpPixData.qrCodeBase64}`}
+                      alt="QR Code PIX Mercado Pago"
+                      className="w-52 h-52 mx-auto rounded-lg"
+                    />
+                  ) : (
+                    <img
+                      src={getPixQrCodeImageUrl(mpPixData.qrCode, 280)}
+                      alt="QR Code PIX Mercado Pago"
+                      className="w-52 h-52 mx-auto rounded-lg"
+                    />
+                  )}
+                </div>
+
+                {/* Valor e indicador de escuta em tempo real */}
+                <div className="space-y-1.5">
+                  {currentPlanAmount > 0 && (
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-full text-xs font-bold text-emerald-800 dark:text-emerald-300">
+                      <span>Valor:</span>
+                      <span className="font-black">R$ {currentPlanAmount.toFixed(2).replace('.', ',')}</span>
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-center gap-2 py-1.5 px-3 bg-gray-50 dark:bg-gray-900/40 rounded-xl text-[11px] text-gray-600 dark:text-gray-300 border border-gray-100 dark:border-gray-700">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping shrink-0" />
+                    <span>Aguardando pagamento... Liberação em segundos!</span>
+                  </div>
+                </div>
+
+                {/* Botões de Ação */}
+                <div className="space-y-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={handleCopyMpBrCode}
+                    className={`w-full py-2.5 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-sm ${
+                      copiedMpBrCode
+                        ? 'bg-emerald-700 text-white'
+                        : 'bg-emerald-600 hover:bg-emerald-700 text-white active:scale-95'
+                    }`}
+                  >
+                    {copiedMpBrCode ? <CheckCircle size={15} /> : <Copy size={15} />}
+                    {copiedMpBrCode ? 'Código PIX Copiado!' : 'Copiar Código "PIX Copia e Cola"'}
+                  </button>
+
+                  <div className="flex items-center justify-between text-[11px] pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setShowManualFallback(true)}
+                      className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 underline"
+                    >
+                      Prefere Chave PIX Manual?
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleCloseModal}
+                      className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 font-bold"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              </>
+            ) : (
+              /* TELA DE FALLBACK: PIX MANUAL (CHAVE MASTER OU QUANDO HOUVER ERRO NA API) */
+              <>
+                <div className="flex items-center justify-between pb-2 border-b border-gray-100 dark:border-gray-700">
+                  <div className="text-left">
+                    <h3 className="font-black text-base text-gray-900 dark:text-white flex items-center gap-1.5">
+                      <QrCode size={18} className="text-emerald-600" />
+                      PIX Manual (Chave Oficial)
+                    </h3>
+                    <p className="text-[11px] text-gray-400">Padrão Banco Central do Brasil</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleCloseModal}
+                    className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+
+                {mpError && (
+                  <p className="text-[11px] text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 p-2 rounded-lg border border-amber-200 dark:border-amber-800">
+                    {mpError}
+                  </p>
+                )}
+
+                {/* Imagem do QR Code Oficial EMV-Co */}
+                <div className="p-3 bg-white rounded-2xl border-2 border-emerald-500/30 inline-block mx-auto shadow-inner">
+                  {pixQrCodeUrl ? (
+                    <img
+                      src={pixQrCodeUrl}
+                      alt="QR Code PIX Oficial"
+                      className="w-52 h-52 mx-auto rounded-lg"
+                    />
+                  ) : (
+                    <div className="w-52 h-52 flex items-center justify-center text-xs text-gray-400">
+                      Nenhuma chave cadastrada
+                    </div>
+                  )}
+                </div>
+
+                {currentPlanAmount > 0 && (
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-full text-xs font-bold text-emerald-800 dark:text-emerald-300">
+                    <span>Valor:</span>
+                    <span className="font-black">R$ {currentPlanAmount.toFixed(2).replace('.', ',')}</span>
+                  </div>
+                )}
+
+                {/* Informações de conferência */}
+                <div className="p-2.5 bg-gray-50 dark:bg-gray-700/50 rounded-xl text-left text-[11px] text-gray-600 dark:text-gray-300 space-y-1 border">
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-400">Chave:</span>
+                    <span className="font-mono font-bold text-gray-900 dark:text-white truncate max-w-[200px]">{billingPix}</span>
+                  </div>
+                  {systemSettings.masterPixHolderName && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-400">Favorecido:</span>
+                      <span className="font-bold text-gray-900 dark:text-white truncate max-w-[200px]">{systemSettings.masterPixHolderName}</span>
+                    </div>
+                  )}
+                  {systemSettings.masterPixBank && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-400">Banco:</span>
+                      <span className="font-bold text-gray-900 dark:text-white">{systemSettings.masterPixBank}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Botões de Ação */}
+                <div className="space-y-2 pt-1">
+                  {pixBrCode && (
+                    <button
+                      type="button"
+                      onClick={handleCopyBrCode}
+                      className={`w-full py-2.5 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-sm ${
+                        copiedBrCode
+                          ? 'bg-emerald-700 text-white'
+                          : 'bg-emerald-600 hover:bg-emerald-700 text-white active:scale-95'
+                      }`}
+                    >
+                      {copiedBrCode ? <CheckCircle size={15} /> : <Copy size={15} />}
+                      {copiedBrCode ? 'Código PIX Copiado!' : 'Copiar Código "PIX Copia e Cola"'}
+                    </button>
+                  )}
+
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={handleCopyPix}
+                      className="flex-1 py-2 px-3 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-white rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition"
+                    >
+                      {copied ? <CheckCircle size={13} /> : <Copy size={13} />}
+                      {copied ? 'Chave Copiada!' : 'Copiar Apenas a Chave'}
+                    </button>
+                    {mpPixData && (
+                      <button
+                        type="button"
+                        onClick={() => setShowManualFallback(false)}
+                        className="px-3 py-2 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 rounded-xl font-bold text-xs transition"
+                      >
+                        Voltar ao Automático
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={handleCloseModal}
+                      className="px-3 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300 rounded-xl font-bold text-xs transition"
+                    >
+                      Fechar
+                    </button>
+                  </div>
+                </div>
+              </>
             )}
-
-            {/* Informações de conferência */}
-            <div className="p-2.5 bg-gray-50 dark:bg-gray-700/50 rounded-xl text-left text-[11px] text-gray-600 dark:text-gray-300 space-y-1 border">
-              <div className="flex items-center justify-between">
-                <span className="text-gray-400">Chave:</span>
-                <span className="font-mono font-bold text-gray-900 dark:text-white truncate max-w-[200px]">{billingPix}</span>
-              </div>
-              {systemSettings.masterPixHolderName && (
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-400">Favorecido:</span>
-                  <span className="font-bold text-gray-900 dark:text-white truncate max-w-[200px]">{systemSettings.masterPixHolderName}</span>
-                </div>
-              )}
-              {systemSettings.masterPixBank && (
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-400">Banco:</span>
-                  <span className="font-bold text-gray-900 dark:text-white">{systemSettings.masterPixBank}</span>
-                </div>
-              )}
-            </div>
-
-            {/* Botões de Ação */}
-            <div className="space-y-2 pt-1">
-              {/* Botão PIX Copia e Cola */}
-              {pixBrCode && (
-                <button
-                  type="button"
-                  onClick={handleCopyBrCode}
-                  className={`w-full py-2.5 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-sm ${
-                    copiedBrCode
-                      ? 'bg-emerald-700 text-white'
-                      : 'bg-emerald-600 hover:bg-emerald-700 text-white active:scale-95'
-                  }`}
-                >
-                  {copiedBrCode ? <CheckCircle size={15} /> : <Copy size={15} />}
-                  {copiedBrCode ? 'Código PIX Copiado!' : 'Copiar Código "PIX Copia e Cola"'}
-                </button>
-              )}
-
-              {/* Botão Chave PIX Pura */}
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={handleCopyPix}
-                  className="flex-1 py-2 px-3 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-white rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition"
-                >
-                  {copied ? <CheckCircle size={13} /> : <Copy size={13} />}
-                  {copied ? 'Chave Copiada!' : 'Copiar Apenas a Chave'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowQrModal(false)}
-                  className="px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300 rounded-xl font-bold text-xs transition"
-                >
-                  Fechar
-                </button>
-              </div>
-            </div>
           </div>
         </div>
       )}

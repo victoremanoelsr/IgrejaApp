@@ -10,6 +10,8 @@ export interface SystemSettings {
   masterPixHolderName?: string; // Nome do favorecido / titular que aparece no PIX
   masterPixBank?: string;       // Banco / Instituição financeira
   supportEmail?: string;        // E-mail de suporte
+  mercadoPagoAccessToken?: string; // Token de Acesso do Mercado Pago (PIX Automático)
+  mercadoPagoPublicKey?: string;   // Chave Pública do Mercado Pago
 }
 
 export type PlanType = 'mensal' | 'bimestral' | 'trimestral' | 'semestral' | 'anual' | 'isento';

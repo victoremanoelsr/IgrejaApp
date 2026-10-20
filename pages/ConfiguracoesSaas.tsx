@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   ShieldCheck, Phone, KeyRound, Mail, Save, CheckCircle, AlertCircle, Crown,
-  Sparkles, HelpCircle, Check, Copy, User, Building, Terminal, ChevronDown, ChevronUp
+  Sparkles, HelpCircle, Check, Copy, User, Building, Terminal, ChevronDown, ChevronUp, Zap
 } from 'lucide-react';
 import { useApp } from '../context';
 import { SystemSettings } from '../types';
@@ -132,6 +132,8 @@ export const ConfiguracoesSaas: React.FC = () => {
     ...systemSettings,
     salesPhone: systemSettings.salesPhone ? formatPhoneWithDdi(systemSettings.salesPhone) : '',
     masterPixKeyType: systemSettings.masterPixKeyType || 'CNPJ',
+    mercadoPagoAccessToken: systemSettings.mercadoPagoAccessToken || 'APP_USR-5117403087631490-101920-b790f8f321ecb5fffbfdfba5e35b25ae-263829210',
+    mercadoPagoPublicKey: systemSettings.mercadoPagoPublicKey || 'APP_USR-504c20ac-227a-4e52-8160-a689d3c1378d',
   }));
 
   const [saving, setSaving] = useState(false);
@@ -144,6 +146,8 @@ export const ConfiguracoesSaas: React.FC = () => {
       ...systemSettings,
       salesPhone: systemSettings.salesPhone ? formatPhoneWithDdi(systemSettings.salesPhone) : '',
       masterPixKeyType: systemSettings.masterPixKeyType || 'CNPJ',
+      mercadoPagoAccessToken: systemSettings.mercadoPagoAccessToken || 'APP_USR-5117403087631490-101920-b790f8f321ecb5fffbfdfba5e35b25ae-263829210',
+      mercadoPagoPublicKey: systemSettings.mercadoPagoPublicKey || 'APP_USR-504c20ac-227a-4e52-8160-a689d3c1378d',
     }); 
   }, [systemSettings]);
 
@@ -415,6 +419,83 @@ export const ConfiguracoesSaas: React.FC = () => {
               <p className="text-xs text-gray-500">
                 Canal oficial de atendimento para dúvidas e suporte técnico exibido nos rodapés e relatórios.
               </p>
+            </div>
+
+            <hr className="border-gray-100" />
+
+            {/* Campo 4: Integração Mercado Pago (PIX Automático) */}
+            <div className="space-y-4 p-5 rounded-2xl bg-gradient-to-br from-blue-50/50 via-white to-indigo-50/30 border border-blue-200/80 shadow-sm">
+              <div className="flex items-center justify-between pb-3 border-b border-blue-100">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 bg-blue-600 text-white rounded-xl shadow-sm">
+                    <Zap size={18} />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-sm text-gray-900 flex items-center gap-2">
+                      Mercado Pago (PIX com Baixa Automática)
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-100 text-emerald-800 border border-emerald-200">
+                        Ativo
+                      </span>
+                    </h3>
+                    <p className="text-[11px] text-gray-500">
+                      Gera o PIX dinâmico e libera o acesso da igreja sozinho em segundos assim que o pastor paga.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-xs font-bold text-gray-700">
+                  Access Token de Produção (Mercado Pago):
+                </label>
+                <input
+                  type="text"
+                  placeholder="APP_USR-..."
+                  className="w-full bg-white border border-gray-200 rounded-lg px-4 py-3 text-xs text-gray-800 font-mono placeholder-gray-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                  value={form.mercadoPagoAccessToken || ''}
+                  onChange={e => setForm({ ...form, mercadoPagoAccessToken: e.target.value })}
+                />
+                <p className="text-[10px] text-gray-500">
+                  Chave privada oficial usada para criar cobranças e validar pagamentos via API.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-xs font-bold text-gray-700">
+                  Public Key (Chave Pública):
+                </label>
+                <input
+                  type="text"
+                  placeholder="APP_USR-..."
+                  className="w-full bg-white border border-gray-200 rounded-lg px-4 py-2.5 text-xs text-gray-800 font-mono placeholder-gray-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                  value={form.mercadoPagoPublicKey || ''}
+                  onChange={e => setForm({ ...form, mercadoPagoPublicKey: e.target.value })}
+                />
+              </div>
+
+              {/* Informação do Webhook */}
+              <div className="p-3 bg-blue-50/70 border border-blue-200 rounded-xl space-y-1 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-blue-900 text-[11px]">URL do Webhook de Notificação:</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const url = `${window.location.origin}/api/mercadopago-webhook`;
+                      navigator.clipboard.writeText(url);
+                      alert('URL do Webhook copiada com sucesso!');
+                    }}
+                    className="text-[10px] font-bold text-blue-700 hover:text-blue-900 underline flex items-center gap-1"
+                  >
+                    <Copy size={11} /> Copiar URL
+                  </button>
+                </div>
+                <p className="font-mono text-[10px] text-blue-800 break-all bg-white/80 p-1.5 rounded border border-blue-100">
+                  {typeof window !== 'undefined' ? `${window.location.origin}/api/mercadopago-webhook` : '/api/mercadopago-webhook'}
+                </p>
+                <p className="text-[10px] text-blue-700">
+                  Cadastre essa URL em "Webhooks" no seu painel do Mercado Pago para receber as confirmações instantâneas.
+                </p>
+              </div>
             </div>
 
             {/* Alerta de Feedback */}

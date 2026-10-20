@@ -534,6 +534,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           masterPixHolderName: sysData.master_pix_holder_name || undefined,
           masterPixBank:       sysData.master_pix_bank        || undefined,
           supportEmail:        sysData.support_email          || undefined,
+          mercadoPagoAccessToken: sysData.mercado_pago_access_token || undefined,
+          mercadoPagoPublicKey:   sysData.mercado_pago_public_key   || undefined,
         };
         setSystemSettings(next);
         try { localStorage.setItem('igrejaapp_system_settings', JSON.stringify(next)); } catch {}
@@ -555,6 +557,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (!rpcErr) {
         setSystemSettings(s);
         try { localStorage.setItem('igrejaapp_system_settings', JSON.stringify(s)); } catch {}
+        // Also persist to system_settings directly if columns exist
+        try {
+          await supabase.from('system_settings').upsert({
+            id: 1,
+            mercado_pago_access_token: s.mercadoPagoAccessToken || null,
+            mercado_pago_public_key:   s.mercadoPagoPublicKey || null,
+            updated_at: new Date().toISOString(),
+          }, { onConflict: 'id' });
+        } catch (_) {}
         return { success: true };
       }
     } catch (_) {}
@@ -568,6 +579,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       master_pix_holder_name: s.masterPixHolderName || null,
       master_pix_bank:       s.masterPixBank || null,
       support_email:         s.supportEmail || null,
+      mercado_pago_access_token: s.mercadoPagoAccessToken || null,
+      mercado_pago_public_key:   s.mercadoPagoPublicKey || null,
       updated_at:            new Date().toISOString(),
     };
     try {
