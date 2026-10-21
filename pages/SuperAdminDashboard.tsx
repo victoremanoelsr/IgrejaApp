@@ -219,10 +219,10 @@ export const SuperAdminDashboard: React.FC = () => {
         address: editingChurch.address.toUpperCase(),
         pastorName: editingChurch.pastorName.toUpperCase(),
         cnpj: editingChurch.cnpj,
-        planType: editingChurch.planType,
-        planTier: editingChurch.planTier,
-        dueDay: editingChurch.planType !== 'isento' ? editingChurch.dueDay : undefined,
-        gracePeriod: editingChurch.gracePeriod,
+        planType: editingChurch.planType || 'isento',
+        planTier: editingChurch.planTier || 'bronze',
+        dueDay: editingChurch.planType !== 'isento' ? (editingChurch.dueDay ?? 10) : undefined,
+        gracePeriod: editingChurch.gracePeriod ?? 5,
         paymentPromiseDate: editingChurch.paymentPromiseDate,
         pixKey: editingChurch.pixKey,
     });
@@ -726,7 +726,10 @@ export const SuperAdminDashboard: React.FC = () => {
                             <button 
                             onClick={() => setEditingChurch({
                               ...church,
+                              planType: church.planType || 'isento',
                               planTier: church.planTier ?? 'bronze',
+                              dueDay: church.dueDay ?? 10,
+                              gracePeriod: church.gracePeriod ?? 5,
                               // Se a igreja ainda não possui PIX, abre com o PIX master pré-preenchido.
                               pixKey: church.pixKey?.trim() || '',
                             })}

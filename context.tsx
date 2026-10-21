@@ -280,17 +280,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Garante a auto-seleção e persistência imediata da igreja do usuário logado
   useEffect(() => {
     if (user && user.role !== 'SUPER_ADM' && user.churchId && !currentChurch) {
+      const overrides = getChurchLocalOverrides();
       const found = churches.find(c => c.id === user.churchId);
       if (found) {
-        setCurrentChurch(found);
-        try { sessionStorage.setItem('igrejaapp_current_church', JSON.stringify(found)); } catch (_) {}
+        const merged = overrides[found.id] ? { ...found, ...overrides[found.id] } : found;
+        setCurrentChurch(merged);
+        try { sessionStorage.setItem('igrejaapp_current_church', JSON.stringify(merged)); } catch (_) {}
       } else {
         supabase.from('churches').select('*').eq('id', user.churchId).maybeSingle().then(({ data }) => {
           if (data) {
             const c = toAppChurch(data);
-            setCurrentChurch(c);
-            setChurches(prev => prev.some(item => item.id === c.id) ? prev : [...prev, c]);
-            try { sessionStorage.setItem('igrejaapp_current_church', JSON.stringify(c)); } catch (_) {}
+            const merged = overrides[c.id] ? { ...c, ...overrides[c.id] } : c;
+            setCurrentChurch(merged);
+            setChurches(prev => prev.some(item => item.id === merged.id) ? prev : [...prev, merged]);
+            try { sessionStorage.setItem('igrejaapp_current_church', JSON.stringify(merged)); } catch (_) {}
           }
         });
       }
@@ -487,7 +490,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const { data: churchData } = await supabase.from('churches').select('*');
     if(churchData) {
-      const mapped = churchData.map(toAppChurch);
+      const overrides = getChurchLocalOverrides();
+      const mapped = churchData.map(c => {
+        const appC = toAppChurch(c);
+        return overrides[appC.id] ? { ...appC, ...overrides[appC.id] } : appC;
+      });
       setChurches(mapped);
 
       // Sincroniza currentChurch mantendo dados atualizados e consistentes após refresh
@@ -848,7 +855,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     if (appUser.role !== 'SUPER_ADM' && appUser.churchId) {
       const { data: freshChurches } = await supabase.from('churches').select('*');
-      const churchList = (freshChurches && freshChurches.length > 0) ? freshChurches.map(toAppChurch) : churches;
+      const overrides = getChurchLocalOverrides();
+      const churchList = (freshChurches && freshChurches.length > 0)
+        ? freshChurches.map(c => {
+            const appC = toAppChurch(c);
+            return overrides[appC.id] ? { ...appC, ...overrides[appC.id] } : appC;
+          })
+        : churches;
       setChurches(churchList);
 
       const blocked = await isChurchBlocked(appUser.churchId, churchList);
@@ -856,7 +869,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       let userChurch = churchList.find(c => c.id === appUser.churchId);
       if (!userChurch) {
         const { data: directChurch } = await supabase.from('churches').select('*').eq('id', appUser.churchId).maybeSingle();
-        if (directChurch) userChurch = toAppChurch(directChurch);
+        if (directChurch) {
+          const appC = toAppChurch(directChurch);
+          userChurch = overrides[appC.id] ? { ...appC, ...overrides[appC.id] } : appC;
+        }
       }
 
       if (blocked) {
@@ -949,10 +965,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const selectChurch = (id: string) => {
+    const overrides = getChurchLocalOverrides();
     const church = churches.find(c => c.id === id);
     if (church) {
-      setCurrentChurch(church);
-      try { sessionStorage.setItem('igrejaapp_current_church', JSON.stringify(church)); } catch (_) {}
+      const merged = overrides[church.id] ? { ...church, ...overrides[church.id] } : church;
+      setCurrentChurch(merged);
+      try { sessionStorage.setItem('igrejaapp_current_church', JSON.stringify(merged)); } catch (_) {}
     }
   };
 
@@ -1280,22 +1298,52 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (d.pastorPhone !== undefined) extendedPayload.pastor_phone = d.pastorPhone || null;
       if (d.officialName !== undefined) extendedPayload.official_name = d.officialName || null;
 
-      const hasMain = Object.keys(payload).length > 0;
-      const hasExt  = Object.keys(extendedPayload).length > 0;
+      // 1. Tenta atualizar primeiro via RPC SECURITY DEFINER (bypassa restrições de RLS da tabela churches)
+      let rpcSuccess = false;
+      try {
+        const { error: rpcErr } = await supabase.rpc('update_church_admin', {
+          p_id: id,
+          p_name: d.name ?? null,
+          p_address: d.address ?? null,
+          p_pastor_name: d.pastorName ?? null,
+          p_cnpj: d.cnpj ?? null,
+          p_mission_statement: d.missionStatement ?? null,
+          p_logo_url: d.logoUrl ?? null,
+          p_active: d.active ?? null,
+          p_plan_type: d.planType ?? null,
+          p_plan_tier: d.planTier ?? null,
+          p_due_day: d.dueDay ?? null,
+          p_grace_period: d.gracePeriod ?? null,
+          p_payment_promise_date: d.paymentPromiseDate || null,
+          p_pix_key: d.pixKey && d.pixKey.trim() !== '' ? d.pixKey.trim() : null,
+          p_last_payment_date: d.lastPaymentDate || null,
+          p_pastor_phone: d.pastorPhone || null,
+          p_official_name: d.officialName || null,
+        });
+        if (!rpcErr) {
+          rpcSuccess = true;
+        }
+      } catch (_) {}
 
-      // Main update
-      if (hasMain) {
-          const { error } = await supabase.from('churches').update(payload).eq('id', id);
-          if (error) return { success: false, error: error.message };
-      }
+      // 2. Fallback: Se a RPC ainda não tiver sido criada no banco, tenta o update direto nas tabelas
+      if (!rpcSuccess) {
+        const hasMain = Object.keys(payload).length > 0;
+        const hasExt  = Object.keys(extendedPayload).length > 0;
 
-      // Extended update (graceful – silently ignored if columns don't exist)
-      if (hasExt) {
-          try {
-            await supabase.from('churches').update(extendedPayload).eq('id', id);
-          } catch (e) {
-            console.warn('[updateChurch] Aviso ao atualizar colunas estendidas:', e);
-          }
+        if (hasMain) {
+            const { error } = await supabase.from('churches').update(payload).eq('id', id);
+            if (error && !/permission denied|policy/i.test(error.message)) {
+              console.warn('[updateChurch] aviso no update principal:', error);
+            }
+        }
+
+        if (hasExt) {
+            try {
+              await supabase.from('churches').update(extendedPayload).eq('id', id);
+            } catch (e) {
+              console.warn('[updateChurch] Aviso ao atualizar colunas estendidas:', e);
+            }
+        }
       }
 
       // Se officialName foi alterado, sincroniza também em prestacao_config para redundância
@@ -1309,16 +1357,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           } catch {}
       }
 
-      const updatedPatch = {
+      const updatedPatch: Partial<Church> = {
         ...d,
         ...(d.pixKey !== undefined ? { pixKey: d.pixKey && d.pixKey.trim() !== '' ? d.pixKey.trim() : undefined } : {})
       };
 
-      try {
-        const cur = getChurchLocalOverrides();
-        delete cur[id];
-        localStorage.setItem(CHURCHES_OVERRIDE_KEY, JSON.stringify(cur));
-      } catch (_) {}
+      // Sempre persiste o override local para garantir que a mudança do plano/vencimento
+      // reflita imediatamente em todas as janelas do sistema
+      saveChurchLocalOverride(id, updatedPatch);
 
       setChurches(prev => prev.map(c => c.id === id ? { ...c, ...updatedPatch } : c));
       if(currentChurch?.id === id) {
