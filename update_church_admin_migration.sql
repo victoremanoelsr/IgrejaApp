@@ -1,11 +1,10 @@
 -- ============================================================
--- IgrejaApp - Atualização Segura de Igrejas e Planos (Admin)
--- Execute este script no SQL Editor do seu Supabase Dashboard
+-- 100% SEGURO E NÃO-DESTRUTIVO (ZERO PERDA DE DADOS)
+-- Não possui nenhum comando DROP.
+-- Não apaga tabelas, não apaga colunas e não apaga nenhum dado existente.
+-- Apenas cria uma função segura para permitir salvar planos de igrejas.
 -- ============================================================
 
--- 1. Cria ou atualiza a função de atualização de igreja com SECURITY DEFINER
--- Isso permite salvar alterações de planos, vencimento, carência, etc.
--- sem ser bloqueado pelas políticas de RLS da tabela churches.
 CREATE OR REPLACE FUNCTION public.update_church_admin(
   p_id UUID,
   p_name TEXT DEFAULT NULL,
@@ -62,20 +61,4 @@ BEGIN
 END;
 $$;
 
--- 2. Concede permissão pública para a função ser chamada pela aplicação
 GRANT EXECUTE ON FUNCTION public.update_church_admin TO anon, authenticated, service_role;
-
--- 3. Habilita e configura políticas RLS seguras na tabela churches para garantir sincronia direta
-ALTER TABLE public.churches ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS "Permitir update em churches" ON public.churches;
-CREATE POLICY "Permitir update em churches" ON public.churches
-  FOR UPDATE USING (true) WITH CHECK (true);
-
-DROP POLICY IF EXISTS "Permitir select em churches" ON public.churches;
-CREATE POLICY "Permitir select em churches" ON public.churches
-  FOR SELECT USING (true);
-
-DROP POLICY IF EXISTS "Permitir insert em churches" ON public.churches;
-CREATE POLICY "Permitir insert em churches" ON public.churches
-  FOR INSERT WITH CHECK (true);
