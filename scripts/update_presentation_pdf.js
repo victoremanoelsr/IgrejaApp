@@ -3,7 +3,7 @@ import fs from 'fs';
 
 async function updatePdf() {
   const sourcePath = 'C:/Users/VICTOR.ESR/.gemini/antigravity-ide/brain/7e5a8b8f-a860-48fb-a986-cd667c2473e5/.user_uploaded/media_1792442777571.pdf';
-  const outPathRoot = 'c:/PROJETOS ANTIGRAVITY/igrejaapp/IGREJA_APP_Apresentacao_Comercial_2026.pdf';
+  const outPathRoot = 'c:/PROJETOS ANTIGRAVITY/igrejaapp/docs/IGREJA_APP_Apresentacao_Comercial_2026.pdf';
   const outPathPublic = 'c:/PROJETOS ANTIGRAVITY/igrejaapp/public/IGREJA_APP_Apresentacao_Comercial_2026.pdf';
 
   console.log('Carregando PDF original com layout 100% autêntico...');

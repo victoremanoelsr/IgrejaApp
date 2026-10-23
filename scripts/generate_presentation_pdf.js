@@ -1892,7 +1892,7 @@ buildPage16();
 // Salva em buffer e grava no disco
 const pdfBuffer = Buffer.from(doc.output('arraybuffer'));
 const outputPath = path.resolve('public', 'IGREJA_APP_Apresentacao_Comercial_2026.pdf');
-const rootPath = path.resolve('IGREJA_APP_Apresentacao_Comercial_2026.pdf');
+const rootPath = path.resolve('docs', 'IGREJA_APP_Apresentacao_Comercial_2026.pdf');
 
 fs.writeFileSync(outputPath, pdfBuffer);
 fs.writeFileSync(rootPath, pdfBuffer);
