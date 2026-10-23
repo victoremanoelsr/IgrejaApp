@@ -332,7 +332,7 @@ export const BillingPage: React.FC = () => {
     if (isIsento || currentPlanAmount <= 0) return;
 
     setIsGeneratingMpPix(true);
-    const mpToken = systemSettings.mercadoPagoAccessToken || 'APP_USR-5117403087631490-101920-b790f8f321ecb5fffbfdfba5e35b25ae-263829210';
+    const mpToken = systemSettings.mercadoPagoAccessToken || '';
     let generatedData: any = null;
 
     try {
@@ -346,7 +346,7 @@ export const BillingPage: React.FC = () => {
           description: `Mensalidade ${currentChurch?.name || 'Igreja'} - Plano ${PLAN_LIMITS[currentChurch?.planTier || 'bronze']?.label || 'Bronze'}`,
           payerEmail: currentChurch?.email || user?.username || 'financeiro@igrejaapp.com.br',
           payerName: currentChurch?.name || user?.name || 'Responsável Financeiro',
-          accessToken: mpToken
+          accessToken: mpToken || undefined
         })
       });
 
@@ -360,7 +360,7 @@ export const BillingPage: React.FC = () => {
       console.warn('[MercadoPago] fetch /api/create-pix error, tentando chamada direta:', err);
     }
 
-    // Fallback: se o endpoint da API falhou ou não retornou qrCode, gera diretamente no Mercado Pago
+    // Fallback: se o endpoint da API falhou ou não retornou qrCode, gera diretamente no Mercado Pago (se houver token configurado)
     if (!generatedData && mpToken && currentChurch?.id) {
       try {
         const mpRes = await fetch('https://api.mercadopago.com/v1/payments', {
@@ -414,13 +414,14 @@ export const BillingPage: React.FC = () => {
   const startPolling = (paymentId: number, token?: string) => {
     stopPolling();
     setIsPolling(true);
-    const mpToken = token || systemSettings.mercadoPagoAccessToken || 'APP_USR-5117403087631490-101920-b790f8f321ecb5fffbfdfba5e35b25ae-263829210';
+    const mpToken = token || systemSettings.mercadoPagoAccessToken || '';
     pollingTimerRef.current = setInterval(async () => {
       try {
         let isApproved = false;
         // 1. Tenta API do backend
         try {
-          const res = await fetch(`/api/check-pix-status?paymentId=${paymentId}&churchId=${currentChurch?.id || ''}&accessToken=${encodeURIComponent(mpToken)}`);
+          const queryToken = mpToken ? `&accessToken=${encodeURIComponent(mpToken)}` : '';
+          const res = await fetch(`/api/check-pix-status?paymentId=${paymentId}&churchId=${currentChurch?.id || ''}${queryToken}`);
           if (res.ok) {
             const result = await res.json();
             if (result.status === 'approved') isApproved = true;

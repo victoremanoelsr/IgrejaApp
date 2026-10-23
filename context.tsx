@@ -230,13 +230,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const parsed = raw ? JSON.parse(raw) as SystemSettings : {};
       return {
         ...parsed,
-        mercadoPagoAccessToken: parsed.mercadoPagoAccessToken || 'APP_USR-5117403087631490-101920-b790f8f321ecb5fffbfdfba5e35b25ae-263829210',
-        mercadoPagoPublicKey:   parsed.mercadoPagoPublicKey   || 'APP_USR-504c20ac-227a-4e52-8160-a689d3c1378d',
+        mercadoPagoAccessToken: parsed.mercadoPagoAccessToken || '',
+        mercadoPagoPublicKey:   parsed.mercadoPagoPublicKey   || ((import.meta as any).env?.VITE_MERCADO_PAGO_PUBLIC_KEY as string) || '',
       };
     } catch {
       return {
-        mercadoPagoAccessToken: 'APP_USR-5117403087631490-101920-b790f8f321ecb5fffbfdfba5e35b25ae-263829210',
-        mercadoPagoPublicKey:   'APP_USR-504c20ac-227a-4e52-8160-a689d3c1378d',
+        mercadoPagoAccessToken: '',
+        mercadoPagoPublicKey:   ((import.meta as any).env?.VITE_MERCADO_PAGO_PUBLIC_KEY as string) || '',
       };
     }
   });
@@ -549,8 +549,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           masterPixHolderName: sysData.master_pix_holder_name || undefined,
           masterPixBank:       sysData.master_pix_bank        || undefined,
           supportEmail:        sysData.support_email          || undefined,
-          mercadoPagoAccessToken: sysData.mercado_pago_access_token || 'APP_USR-5117403087631490-101920-b790f8f321ecb5fffbfdfba5e35b25ae-263829210',
-          mercadoPagoPublicKey:   sysData.mercado_pago_public_key   || 'APP_USR-504c20ac-227a-4e52-8160-a689d3c1378d',
+          mercadoPagoAccessToken: sysData.mercado_pago_access_token || '',
+          mercadoPagoPublicKey:   sysData.mercado_pago_public_key   || ((import.meta as any).env?.VITE_MERCADO_PAGO_PUBLIC_KEY as string) || '',
         };
         setSystemSettings(next);
         try { localStorage.setItem('igrejaapp_system_settings', JSON.stringify(next)); } catch {}

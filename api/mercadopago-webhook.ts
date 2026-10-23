@@ -51,7 +51,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (!accessToken) {
-      accessToken = 'APP_USR-5117403087631490-101920-b790f8f321ecb5fffbfdfba5e35b25ae-263829210';
+      console.error('[MercadoPago Webhook] MERCADO_PAGO_ACCESS_TOKEN não configurado no servidor.');
+      return res.status(500).json({ error: 'Mercado Pago credentials not configured' });
     }
 
     // 3. Consulta o pagamento diretamente na API do Mercado Pago para validação 100% segura

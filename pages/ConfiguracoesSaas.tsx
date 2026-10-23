@@ -132,8 +132,8 @@ export const ConfiguracoesSaas: React.FC = () => {
     ...systemSettings,
     salesPhone: systemSettings.salesPhone ? formatPhoneWithDdi(systemSettings.salesPhone) : '',
     masterPixKeyType: systemSettings.masterPixKeyType || 'CNPJ',
-    mercadoPagoAccessToken: systemSettings.mercadoPagoAccessToken || 'APP_USR-5117403087631490-101920-b790f8f321ecb5fffbfdfba5e35b25ae-263829210',
-    mercadoPagoPublicKey: systemSettings.mercadoPagoPublicKey || 'APP_USR-504c20ac-227a-4e52-8160-a689d3c1378d',
+    mercadoPagoAccessToken: systemSettings.mercadoPagoAccessToken || '',
+    mercadoPagoPublicKey: systemSettings.mercadoPagoPublicKey || ((import.meta as any).env?.VITE_MERCADO_PAGO_PUBLIC_KEY as string) || '',
   }));
 
   const [saving, setSaving] = useState(false);
@@ -146,8 +146,8 @@ export const ConfiguracoesSaas: React.FC = () => {
       ...systemSettings,
       salesPhone: systemSettings.salesPhone ? formatPhoneWithDdi(systemSettings.salesPhone) : '',
       masterPixKeyType: systemSettings.masterPixKeyType || 'CNPJ',
-      mercadoPagoAccessToken: systemSettings.mercadoPagoAccessToken || 'APP_USR-5117403087631490-101920-b790f8f321ecb5fffbfdfba5e35b25ae-263829210',
-      mercadoPagoPublicKey: systemSettings.mercadoPagoPublicKey || 'APP_USR-504c20ac-227a-4e52-8160-a689d3c1378d',
+      mercadoPagoAccessToken: systemSettings.mercadoPagoAccessToken || '',
+      mercadoPagoPublicKey: systemSettings.mercadoPagoPublicKey || ((import.meta as any).env?.VITE_MERCADO_PAGO_PUBLIC_KEY as string) || '',
     }); 
   }, [systemSettings]);
 

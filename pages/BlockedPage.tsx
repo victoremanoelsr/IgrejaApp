@@ -79,7 +79,7 @@ export const BlockedPage: React.FC = () => {
     if (!sede) return;
 
     setIsGeneratingPix(true);
-    const mpToken = systemSettings.mercadoPagoAccessToken || 'APP_USR-5117403087631490-101920-b790f8f321ecb5fffbfdfba5e35b25ae-263829210';
+    const mpToken = systemSettings.mercadoPagoAccessToken || '';
     let generatedData: any = null;
 
     try {
@@ -93,7 +93,7 @@ export const BlockedPage: React.FC = () => {
           description: `Desbloqueio ${sede.name || 'Igreja'} - Plano ${planInfo.label}`,
           payerEmail: sede.email || user?.username || 'financeiro@igrejaapp.com.br',
           payerName: sede.name || user?.name || 'Responsável Financeiro',
-          accessToken: mpToken
+          accessToken: mpToken || undefined
         })
       });
 
@@ -107,7 +107,7 @@ export const BlockedPage: React.FC = () => {
       console.warn('[BlockedPage] /api/create-pix indisponivel, tentando fallback Mercado Pago direto:', err);
     }
 
-    // Fallback: se a API serverless falhou ou nao respondeu qrCode, chama diretamente o Mercado Pago
+    // Fallback: se a API serverless falhou ou nao respondeu qrCode, chama diretamente o Mercado Pago (se token configurado)
     if (!generatedData && mpToken) {
       try {
         const mpRes = await fetch('https://api.mercadopago.com/v1/payments', {
@@ -160,13 +160,14 @@ export const BlockedPage: React.FC = () => {
 
   const startPolling = (paymentId: number, token?: string) => {
     stopPolling();
-    const mpToken = token || systemSettings.mercadoPagoAccessToken || 'APP_USR-5117403087631490-101920-b790f8f321ecb5fffbfdfba5e35b25ae-263829210';
+    const mpToken = token || systemSettings.mercadoPagoAccessToken || '';
     pollingTimerRef.current = setInterval(async () => {
       try {
         let isApproved = false;
         // 1. Tenta API do backend
         try {
-          const res = await fetch(`/api/check-pix-status?paymentId=${paymentId}&churchId=${sede?.id || ''}&accessToken=${encodeURIComponent(mpToken)}`);
+          const queryToken = mpToken ? `&accessToken=${encodeURIComponent(mpToken)}` : '';
+          const res = await fetch(`/api/check-pix-status?paymentId=${paymentId}&churchId=${sede?.id || ''}${queryToken}`);
           if (res.ok) {
             const result = await res.json();
             if (result.status === 'approved') isApproved = true;

@@ -36,7 +36,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (!accessToken) {
-      accessToken = 'APP_USR-5117403087631490-101920-b790f8f321ecb5fffbfdfba5e35b25ae-263829210';
+      return res.status(500).json({ error: 'MERCADO_PAGO_ACCESS_TOKEN não configurado no servidor (variável de ambiente ou system_settings).' });
     }
 
     const mpRes = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
