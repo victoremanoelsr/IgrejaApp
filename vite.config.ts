@@ -142,9 +142,6 @@ export default defineConfig(({ mode }) => {
           }
         }
       }
-    },
-    define: {
-      'process.env.API_KEY': JSON.stringify(env.API_KEY || env.AI_INTEGRATIONS_GEMINI_API_KEY)
     }
   };
 });

@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || 'https://tywgekdisyxflcfjwaou.supabase.co';
-const SUPABASE_KEY = process.env.VITE_SUPABASE_KEY || 'sb_publishable_2TlD4zADVSE2MzHe6RR2fQ_L8owAbq_';
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_KEY || 'sb_publishable_2TlD4zADVSE2MzHe6RR2fQ_L8owAbq_';
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: { persistSession: false },
@@ -73,8 +73,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     console.log(`Webhook MP: Pagamento ${paymentId} - Status: ${status} - Igreja: ${churchId}`);
 
-    // 4. Se o pagamento estiver APROVADO, dá a baixa automática no Supabase!
+    // 4. Se o pagamento estiver APROVADO, valida o valor pago e dá a baixa automática no Supabase!
     if (status === 'approved' && churchId) {
+      const paidAmount = Number(payment.transaction_amount || 0);
+
+      // Valida se o valor pago é condizente com o plano da igreja
+      const { data: church } = await supabase
+        .from('churches')
+        .select('active, last_payment_date, plan_tier')
+        .eq('id', churchId)
+        .maybeSingle();
+
+      const PLAN_MIN_PRICES: Record<string, number> = {
+        bronze: 70.00,
+        prata: 130.00,
+        ouro: 220.00,
+        diamond: 350.00,
+      };
+
+      const tierKey = (church?.plan_tier || 'bronze').toLowerCase();
+      const minRequired = PLAN_MIN_PRICES[tierKey] || 70.00;
+
+      if (paidAmount < minRequired) {
+        console.warn(`[Webhook MP] Pagamento ${paymentId} de R$ ${paidAmount} inferior ao valor mínimo do plano ${tierKey} (R$ ${minRequired}) para a igreja ${churchId}. Baixa bloqueada.`);
+        return res.status(200).json({ status: 'rejected_low_amount', paidAmount, minRequired });
+      }
+
       const today = new Date().toISOString().split('T')[0];
 
       // 4.1 Tenta chamar a RPC segura do banco (confirm_church_payment)

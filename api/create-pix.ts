@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || 'https://tywgekdisyxflcfjwaou.supabase.co';
-const SUPABASE_KEY = process.env.VITE_SUPABASE_KEY || 'sb_publishable_2TlD4zADVSE2MzHe6RR2fQ_L8owAbq_';
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_KEY || 'sb_publishable_2TlD4zADVSE2MzHe6RR2fQ_L8owAbq_';
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: { persistSession: false },
@@ -78,9 +78,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       };
 
       const tierKey = (churchRow?.plan_tier || 'bronze').toLowerCase();
-      const expectedMin = PLAN_MIN_PRICES[tierKey];
-      // Impede tentativas de gerar Pix com valores espúrios/centavos para burlar o plano
-      if (expectedMin && cleanAmount < 1.00) {
+      const expectedMin = PLAN_MIN_PRICES[tierKey] || 70.00;
+      // Impede tentativas de gerar Pix com valores inferiores ao plano
+      if (cleanAmount < expectedMin) {
         cleanAmount = expectedMin;
       }
     } catch (_) {}

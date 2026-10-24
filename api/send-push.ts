@@ -3,7 +3,7 @@ import webpush from 'web-push';
 import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || 'https://tywgekdisyxflcfjwaou.supabase.co';
-const SUPABASE_KEY = process.env.VITE_SUPABASE_KEY || 'sb_publishable_2TlD4zADVSE2MzHe6RR2fQ_L8owAbq_';
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_KEY || 'sb_publishable_2TlD4zADVSE2MzHe6RR2fQ_L8owAbq_';
 
 const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || 'BMlaCT9zkAKUB5Ttj6NWZTDzOhsWkZE_CQ2FtNtxLQY0Du9WDlXJLBx0s3AP7eq-3twqEh9ekvaa60QSNnrST5A';
 const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY;
