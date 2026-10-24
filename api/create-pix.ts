@@ -61,7 +61,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // 3. Monta payload para Mercado Pago /v1/payments
     const idempotencyKey = `pix_${churchId}_${Date.now()}`;
-    const cleanAmount = Number(Number(amount).toFixed(2));
+    let cleanAmount = Number(Number(amount).toFixed(2));
+
+    try {
+      const { data: churchRow } = await supabase
+        .from('churches')
+        .select('plan_tier')
+        .eq('id', churchId)
+        .maybeSingle();
+
+      const PLAN_MIN_PRICES: Record<string, number> = {
+        bronze: 79.90,
+        prata: 149.90,
+        ouro: 249.90,
+        diamond: 399.90,
+      };
+
+      const tierKey = (churchRow?.plan_tier || 'bronze').toLowerCase();
+      const expectedMin = PLAN_MIN_PRICES[tierKey];
+      // Impede tentativas de gerar Pix com valores espúrios/centavos para burlar o plano
+      if (expectedMin && cleanAmount < 1.00) {
+        cleanAmount = expectedMin;
+      }
+    } catch (_) {}
+
     const cleanName = (churchName || 'Igreja').slice(0, 30);
     const cleanEmail = (payerEmail && payerEmail.includes('@')) ? payerEmail : 'financeiro@igrejaapp.com';
 

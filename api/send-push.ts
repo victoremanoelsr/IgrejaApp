@@ -6,10 +6,16 @@ const SUPABASE_URL = process.env.VITE_SUPABASE_URL || 'https://tywgekdisyxflcfjw
 const SUPABASE_KEY = process.env.VITE_SUPABASE_KEY || 'sb_publishable_2TlD4zADVSE2MzHe6RR2fQ_L8owAbq_';
 
 const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || 'BLU4KeaaebXAyw_YcKoM0NUpcfzIYOZWFNVehj8kC-64Rw_kvYEtw1evZb1XpipPzlHX3FrNVAtLzN1DNVn0KNY';
-const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || 'L1koeEixh-FK4QAQQxfKmq4Y0EZ7OrT0c6ALWZRSMCQ';
-const VAPID_SUBJECT = 'mailto:suporte@igrejaapp.com';
+const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY;
+const VAPID_SUBJECT = process.env.VAPID_SUBJECT || 'mailto:suporte@igrejaapp.com';
 
-webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
+if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
+  try {
+    webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
+  } catch (err) {
+    console.warn('[send-push] Falha ao inicializar VAPID:', err);
+  }
+}
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: { persistSession: false },
@@ -80,6 +86,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (!churchId || !title || !body) {
     return res.status(400).json({ error: 'Missing required fields: churchId, title, body' });
+  }
+
+  if (!VAPID_PRIVATE_KEY) {
+    return res.status(500).json({ error: 'VAPID_PRIVATE_KEY não configurada nas variáveis de ambiente do servidor.' });
   }
 
   try {
