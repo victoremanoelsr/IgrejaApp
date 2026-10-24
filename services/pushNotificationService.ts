@@ -2,7 +2,7 @@ import { supabase } from './supabaseClient';
 import { Church, User, Event } from '../types';
 
 // VAPID Public Key padrão oficial (URL-Safe Base64) para Web Push PWA
-const DEFAULT_VAPID_PUBLIC_KEY = 'BLU4KeaaebXAyw_YcKoM0NUpcfzIYOZWFNVehj8kC-64Rw_kvYEtw1evZb1XpipPzlHX3FrNVAtLzN1DNVn0KNY';
+const DEFAULT_VAPID_PUBLIC_KEY = 'BMlaCT9zkAKUB5Ttj6NWZTDzOhsWkZE_CQ2FtNtxLQY0Du9WDlXJLBx0s3AP7eq-3twqEh9ekvaa60QSNnrST5A';
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
