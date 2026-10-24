@@ -30,3 +30,5 @@ backups/
 *.zip
 *.tar.gz
 dev-dist/
+scripts/*.png
+scripts/audit_browser_report.json
